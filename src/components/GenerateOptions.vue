@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { PREDEFINED_STYLES, PREDEFINED_VARIATIONS } from '@/composables/useApi'
+import ImageUploader from './ImageUploader.vue'
 
 const store = useGeneratorStore()
 const customStyleInput = ref('')
@@ -232,5 +233,8 @@ const handleVariationEnter = (event) => {
         </button>
       </div>
     </div>
+
+    <!-- Reference Images -->
+    <ImageUploader />
   </div>
 </template>

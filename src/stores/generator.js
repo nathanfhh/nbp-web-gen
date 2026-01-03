@@ -40,6 +40,9 @@ export const useGeneratorStore = defineStore('generator', () => {
     inputImagePreview: null,
   })
 
+  // Reference images (shared across all modes, max 5)
+  const referenceImages = ref([])
+
   // Story mode options
   const storyOptions = ref({
     resolution: '1k',
@@ -286,6 +289,21 @@ export const useGeneratorStore = defineStore('generator', () => {
     isStreaming.value = value
   }
 
+  // Reference images methods
+  const addReferenceImage = (image) => {
+    if (referenceImages.value.length >= 5) return false
+    referenceImages.value.push(image)
+    return true
+  }
+
+  const removeReferenceImage = (index) => {
+    referenceImages.value.splice(index, 1)
+  }
+
+  const clearReferenceImages = () => {
+    referenceImages.value = []
+  }
+
   // Reset all options for current mode
   const resetCurrentOptions = () => {
     switch (currentMode.value) {
@@ -339,6 +357,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     editOptions,
     storyOptions,
     diagramOptions,
+    referenceImages,
     isGenerating,
     generationError,
     generatedImages,
@@ -370,5 +389,8 @@ export const useGeneratorStore = defineStore('generator', () => {
     clearThinkingProcess,
     setStreaming,
     resetCurrentOptions,
+    addReferenceImage,
+    removeReferenceImage,
+    clearReferenceImages,
   }
 })

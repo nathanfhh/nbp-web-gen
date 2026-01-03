@@ -48,21 +48,24 @@ const handleGenerate = async () => {
   const options = store.getCurrentOptions
   let thinkingText = ''
 
+  // Get reference images for API calls
+  const refImages = store.referenceImages
+
   try {
     let result
 
     switch (store.currentMode) {
       case 'generate':
-        result = await generateImageStream(store.prompt, options, 'generate', null, onThinkingChunk)
+        result = await generateImageStream(store.prompt, options, 'generate', refImages, onThinkingChunk)
         break
       case 'edit':
-        if (!store.editOptions.inputImage) {
+        if (refImages.length === 0) {
           throw new Error('請先上傳要編輯的圖片')
         }
-        result = await editImage(store.prompt, store.editOptions.inputImage, options, onThinkingChunk)
+        result = await editImage(store.prompt, refImages, options, onThinkingChunk)
         break
       case 'story':
-        result = await generateStory(store.prompt, options, onThinkingChunk)
+        result = await generateStory(store.prompt, options, refImages, onThinkingChunk)
         // Flatten story results
         if (result.results) {
           const allImages = []
@@ -78,7 +81,7 @@ const handleGenerate = async () => {
         }
         break
       case 'diagram':
-        result = await generateDiagram(store.prompt, options, onThinkingChunk)
+        result = await generateDiagram(store.prompt, options, refImages, onThinkingChunk)
         break
     }
 

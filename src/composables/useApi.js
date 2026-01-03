@@ -122,20 +122,22 @@ export function useApi() {
   const error = ref(null)
   const { getApiKey } = useLocalStorage()
 
-  const buildRequestBody = (prompt, options = {}, mode = 'generate', inputImageBase64 = null) => {
+  const buildRequestBody = (prompt, options = {}, mode = 'generate', referenceImages = []) => {
     const parts = []
 
     // Add text prompt
     parts.push({ text: prompt })
 
-    // Add input image for edit mode
-    if (mode === 'edit' && inputImageBase64) {
-      parts.push({
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: inputImageBase64,
-        },
-      })
+    // Add reference images (supports multiple images for all modes)
+    if (referenceImages && referenceImages.length > 0) {
+      for (const image of referenceImages) {
+        parts.push({
+          inlineData: {
+            mimeType: image.mimeType || 'image/jpeg',
+            data: image.data,
+          },
+        })
+      }
     }
 
     // Build generation config - ORDER MATTERS for Gemini API!
@@ -198,7 +200,7 @@ export function useApi() {
     prompt,
     options = {},
     mode = 'generate',
-    inputImageBase64 = null,
+    referenceImages = [],
     onThinkingChunk = null
   ) => {
     const apiKey = getApiKey()
@@ -214,7 +216,7 @@ export function useApi() {
       const enhancedPrompt = buildPrompt(prompt, options, mode)
 
       // Build request body
-      const requestBody = buildRequestBody(enhancedPrompt, options, mode, inputImageBase64)
+      const requestBody = buildRequestBody(enhancedPrompt, options, mode, referenceImages)
 
       // Make streaming API request
       const model = options.model || DEFAULT_MODEL
@@ -354,7 +356,7 @@ export function useApi() {
   }
 
   // Non-streaming fallback
-  const generateImage = async (prompt, options = {}, mode = 'generate', inputImageBase64 = null) => {
+  const generateImage = async (prompt, options = {}, mode = 'generate', referenceImages = []) => {
     const apiKey = getApiKey()
     if (!apiKey) {
       throw new Error('API Key 未設定')
@@ -368,7 +370,7 @@ export function useApi() {
       const enhancedPrompt = buildPrompt(prompt, options, mode)
 
       // Build request body
-      const requestBody = buildRequestBody(enhancedPrompt, options, mode, inputImageBase64)
+      const requestBody = buildRequestBody(enhancedPrompt, options, mode, referenceImages)
 
       // Make API request
       const model = options.model || DEFAULT_MODEL
@@ -446,7 +448,7 @@ export function useApi() {
     }
   }
 
-  const generateStory = async (prompt, options = {}, onThinkingChunk = null) => {
+  const generateStory = async (prompt, options = {}, referenceImages = [], onThinkingChunk = null) => {
     const steps = options.steps || 4
     const results = []
 
@@ -463,7 +465,9 @@ export function useApi() {
         onThinkingChunk(`\n--- 生成第 ${i}/${steps} 張圖片 ---\n`)
       }
 
-      const result = await generateImageStream(stepPrompt, { ...options, step: i }, 'story', null, onThinkingChunk)
+      // Only pass reference images for the first step
+      const stepImages = i === 1 ? referenceImages : []
+      const result = await generateImageStream(stepPrompt, { ...options, step: i }, 'story', stepImages, onThinkingChunk)
       results.push({
         step: i,
         ...result,
@@ -477,12 +481,12 @@ export function useApi() {
     }
   }
 
-  const editImage = async (prompt, imageBase64, options = {}, onThinkingChunk = null) => {
-    return generateImageStream(prompt, options, 'edit', imageBase64, onThinkingChunk)
+  const editImage = async (prompt, referenceImages = [], options = {}, onThinkingChunk = null) => {
+    return generateImageStream(prompt, options, 'edit', referenceImages, onThinkingChunk)
   }
 
-  const generateDiagram = async (prompt, options = {}, onThinkingChunk = null) => {
-    return generateImageStream(prompt, options, 'diagram', null, onThinkingChunk)
+  const generateDiagram = async (prompt, options = {}, referenceImages = [], onThinkingChunk = null) => {
+    return generateImageStream(prompt, options, 'diagram', referenceImages, onThinkingChunk)
   }
 
   return {
