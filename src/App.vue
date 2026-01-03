@@ -23,6 +23,9 @@ const store = useGeneratorStore()
 const toast = useToast()
 const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
 
+// App version from package.json (injected by Vite)
+const appVersion = __APP_VERSION__
+
 onMounted(async () => {
   await store.initialize()
 })
@@ -209,8 +212,11 @@ const handleGenerate = async () => {
         >
           NanoBanana
         </h1>
-        <p class="text-lg" :class="store.theme === 'dark' ? 'text-gray-400' : 'text-gray-600'">
+        <p class="text-lg flex items-center justify-center gap-2" :class="store.theme === 'dark' ? 'text-gray-400' : 'text-gray-600'">
           AI 圖像生成工具
+          <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-mono">
+            v{{ appVersion }}
+          </span>
         </p>
       </header>
 
