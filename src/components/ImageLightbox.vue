@@ -128,6 +128,16 @@ onUnmounted(() => {
 const getImageSrc = (image) => {
   return `data:${image.mimeType};base64,${image.data}`
 }
+
+const downloadCurrentImage = () => {
+  if (!currentImage.value) return
+  const link = document.createElement('a')
+  link.href = getImageSrc(currentImage.value)
+  link.download = `generated-image-${Date.now()}-${currentIndex.value + 1}.${currentImage.value.mimeType.split('/')[1] || 'png'}`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
 </script>
 
 <template>
@@ -139,15 +149,29 @@ const getImageSrc = (image) => {
         :class="{ 'is-closing': isClosing }"
         @click.self="close"
       >
-        <!-- Close button -->
-        <button
-          @click="close"
-          class="lightbox-close"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <!-- Top toolbar -->
+        <div class="lightbox-toolbar">
+          <!-- Download button -->
+          <button
+            @click="downloadCurrentImage"
+            class="lightbox-btn"
+            title="下載圖片"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
+          <!-- Close button -->
+          <button
+            @click="close"
+            class="lightbox-btn"
+            title="關閉"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
         <!-- Navigation: Previous -->
         <button
@@ -252,11 +276,16 @@ const getImageSrc = (image) => {
   }
 }
 
-.lightbox-close {
+.lightbox-toolbar {
   position: absolute;
   top: 1rem;
   right: 1rem;
   z-index: 10;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lightbox-btn {
   padding: 0.75rem;
   color: white;
   background: rgba(255, 255, 255, 0.1);
@@ -264,7 +293,7 @@ const getImageSrc = (image) => {
   transition: all 0.2s;
 }
 
-.lightbox-close:hover {
+.lightbox-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: scale(1.1);
 }
