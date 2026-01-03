@@ -2,8 +2,10 @@
 import { computed } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { buildPrompt } from '@/composables/useApi'
+import { useToast } from '@/composables/useToast'
 
 const store = useGeneratorStore()
+const toast = useToast()
 
 const composedPrompt = computed(() => {
   if (!store.prompt) return ''
@@ -13,8 +15,10 @@ const composedPrompt = computed(() => {
 const copyToClipboard = async () => {
   try {
     await navigator.clipboard.writeText(composedPrompt.value)
+    toast.success('已複製到剪貼簿')
   } catch (err) {
     console.error('Failed to copy:', err)
+    toast.error('複製失敗')
   }
 }
 </script>

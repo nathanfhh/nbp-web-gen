@@ -1,8 +1,10 @@
 <script setup>
-import { computed } from 'vue'
+import { ref } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const store = useGeneratorStore()
+const confirmModal = ref(null)
 
 const modeLabels = {
   generate: '生成',
@@ -34,7 +36,16 @@ const truncatePrompt = (prompt, maxLength = 60) => {
   return prompt.slice(0, maxLength) + '...'
 }
 
-const loadHistoryItem = (item) => {
+const loadHistoryItem = async (item) => {
+  const confirmed = await confirmModal.value?.show({
+    title: '載入紀錄',
+    message: '載入此紀錄將會覆蓋目前的輸入和設定，確定要繼續嗎？',
+    confirmText: '載入',
+    cancelText: '取消',
+  })
+
+  if (!confirmed) return
+
   store.prompt = item.prompt
   store.setMode(item.mode)
   store.temperature = item.options?.temperature ?? 1.0
@@ -54,11 +65,27 @@ const loadHistoryItem = (item) => {
 
 const deleteItem = async (id, event) => {
   event.stopPropagation()
+
+  const confirmed = await confirmModal.value?.show({
+    title: '刪除紀錄',
+    message: '確定要刪除此紀錄嗎？',
+    confirmText: '刪除',
+    cancelText: '取消',
+  })
+
+  if (!confirmed) return
   await store.removeFromHistory(id)
 }
 
 const clearAll = async () => {
-  if (confirm('確定要清除所有歷史紀錄嗎？')) {
+  const confirmed = await confirmModal.value?.show({
+    title: '清除全部',
+    message: '確定要清除所有歷史紀錄嗎？此操作無法復原。',
+    confirmText: '清除全部',
+    cancelText: '取消',
+  })
+
+  if (confirmed) {
     await store.clearHistory()
   }
 }
@@ -140,5 +167,8 @@ const clearAll = async () => {
       </div>
       <p class="text-sm text-gray-500">尚無歷史紀錄</p>
     </div>
+
+    <!-- Confirm Modal -->
+    <ConfirmModal ref="confirmModal" />
   </div>
 </template>

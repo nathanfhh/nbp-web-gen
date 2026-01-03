@@ -241,6 +241,36 @@ const getImageSrc = (image) => {
   return `data:${image.mimeType};base64,${image.data}`
 }
 
+// Image dimensions
+const imageDimensions = ref({ width: 0, height: 0 })
+
+const onImageLoad = (e) => {
+  imageDimensions.value = {
+    width: e.target.naturalWidth,
+    height: e.target.naturalHeight,
+  }
+}
+
+// Calculate file size from base64
+const formatFileSize = (base64String) => {
+  if (!base64String) return '0 B'
+  // Base64 size = original size * 4/3, so decoded size = base64 length * 3/4
+  const bytes = Math.round((base64String.length * 3) / 4)
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+const currentImageInfo = computed(() => {
+  if (!currentImage.value) return null
+  return {
+    size: formatFileSize(currentImage.value.data),
+    width: imageDimensions.value.width,
+    height: imageDimensions.value.height,
+    mimeType: currentImage.value.mimeType,
+  }
+})
+
 const downloadCurrentImage = () => {
   if (!currentImage.value) return
   const link = document.createElement('a')
@@ -332,6 +362,7 @@ const downloadCurrentImage = () => {
               class="lightbox-image"
               :style="imageTransformStyle"
               draggable="false"
+              @load="onImageLoad"
             />
           </div>
         </div>
@@ -365,6 +396,15 @@ const downloadCurrentImage = () => {
         <!-- Counter -->
         <div class="lightbox-counter">
           {{ currentIndex + 1 }} / {{ images.length }}
+        </div>
+
+        <!-- Image Info -->
+        <div v-if="currentImageInfo" class="lightbox-info">
+          <span v-if="currentImageInfo.width && currentImageInfo.height">
+            {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
+          </span>
+          <span class="lightbox-info-divider"></span>
+          <span>{{ currentImageInfo.size }}</span>
         </div>
       </div>
     </Transition>
@@ -595,6 +635,27 @@ const downloadCurrentImage = () => {
   color: rgba(255, 255, 255, 0.6);
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
+}
+
+.lightbox-info {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lightbox-info-divider {
+  width: 1px;
+  height: 1rem;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .sr-only {

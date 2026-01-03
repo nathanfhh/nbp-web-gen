@@ -62,17 +62,17 @@ onMounted(() => {
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-xl flex items-center justify-center"
-          :class="store.hasApiKey ? 'bg-emerald-500/20' : 'bg-amber-500/20'"
+          class="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
+          :class="store.hasApiKey ? 'bg-emerald-500' : 'bg-amber-500/20'"
         >
           <svg
             v-if="store.hasApiKey"
-            class="w-5 h-5 text-emerald-400"
+            class="w-5 h-5 text-white"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
           </svg>
           <svg v-else class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path

@@ -41,11 +41,11 @@ const selectMode = (mode) => {
       v-for="mode in modes"
       :key="mode.id"
       @click="selectMode(mode.id)"
-      class="mode-card text-left p-3"
+      class="mode-card p-3"
       :class="{ active: store.currentMode === mode.id }"
       :title="mode.description"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-center justify-around gap-2">
         <!-- Icon -->
         <div
           class="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center transition-colors"

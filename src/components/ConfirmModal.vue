@@ -1,0 +1,102 @@
+<script setup>
+import { ref } from 'vue'
+
+const isOpen = ref(false)
+const title = ref('')
+const message = ref('')
+const confirmText = ref('確定')
+const cancelText = ref('取消')
+const resolvePromise = ref(null)
+
+const show = (options = {}) => {
+  title.value = options.title || '確認'
+  message.value = options.message || '確定要執行此操作嗎？'
+  confirmText.value = options.confirmText || '確定'
+  cancelText.value = options.cancelText || '取消'
+  isOpen.value = true
+
+  return new Promise((resolve) => {
+    resolvePromise.value = resolve
+  })
+}
+
+const confirm = () => {
+  isOpen.value = false
+  resolvePromise.value?.(true)
+}
+
+const cancel = () => {
+  isOpen.value = false
+  resolvePromise.value?.(false)
+}
+
+defineExpose({ show })
+</script>
+
+<template>
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="isOpen"
+        class="fixed inset-0 z-[9998] flex items-center justify-center p-4"
+        @click.self="cancel"
+      >
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+
+        <!-- Modal -->
+        <div class="relative glass-strong rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+          <!-- Icon -->
+          <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+
+          <!-- Title -->
+          <h3 class="text-lg font-semibold text-white text-center mb-2">
+            {{ title }}
+          </h3>
+
+          <!-- Message -->
+          <p class="text-sm text-gray-400 text-center mb-6">
+            {{ message }}
+          </p>
+
+          <!-- Buttons -->
+          <div class="flex gap-3">
+            <button
+              @click="cancel"
+              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10"
+            >
+              {{ cancelText }}
+            </button>
+            <button
+              @click="confirm"
+              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-purple-500/30 border border-purple-500 text-purple-300 hover:bg-purple-500/40"
+            >
+              {{ confirmText }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+</template>
+
+<style scoped>
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.3s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from .glass-strong,
+.modal-leave-to .glass-strong {
+  transform: scale(0.95);
+}
+</style>

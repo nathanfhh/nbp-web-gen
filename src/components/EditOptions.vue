@@ -4,9 +4,9 @@ import { useGeneratorStore } from '@/stores/generator'
 const store = useGeneratorStore()
 
 const resolutions = [
-  { value: '1k', label: '1K (1024px)' },
-  { value: '2k', label: '2K (2048px)' },
-  { value: '4k', label: '4K (4096px)' },
+  { value: '1k', label: '1K' },
+  { value: '2k', label: '2K' },
+  { value: '4k', label: '4K' },
 ]
 </script>
 

@@ -8,18 +8,18 @@ const customStyleInput = ref('')
 const customVariationInput = ref('')
 
 const resolutions = [
-  { value: '1k', label: '1K (1024px)' },
-  { value: '2k', label: '2K (2048px)' },
-  { value: '4k', label: '4K (4096px)' },
+  { value: '1k', label: '1K' },
+  { value: '2k', label: '2K' },
+  { value: '4k', label: '4K' },
 ]
 
 const ratios = [
-  { value: '1:1', label: '1:1 正方形' },
-  { value: '3:4', label: '3:4 直式' },
-  { value: '4:3', label: '4:3 橫式' },
-  { value: '9:16', label: '9:16 手機' },
-  { value: '16:9', label: '16:9 寬屏' },
-  { value: '21:9', label: '21:9 超寬' },
+  { value: '1:1', label: '1:1', icon: 'square' },
+  { value: '3:4', label: '3:4', icon: 'portrait' },
+  { value: '4:3', label: '4:3', icon: 'landscape' },
+  { value: '9:16', label: '9:16', icon: 'tall' },
+  { value: '16:9', label: '16:9', icon: 'wide' },
+  { value: '21:9', label: '21:9', icon: 'ultrawide' },
 ]
 
 const toggleStyle = (style) => {
@@ -126,11 +126,36 @@ const handleVariationEnter = (event) => {
           v-for="ratio in ratios"
           :key="ratio.value"
           @click="store.generateOptions.ratio = ratio.value"
-          class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
+          class="py-3 px-4 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1.5"
           :class="store.generateOptions.ratio === ratio.value
             ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
+          <!-- Ratio icons with correct proportions -->
+          <!-- 1:1 -->
+          <svg v-if="ratio.value === '1:1'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="14" height="14" rx="1" />
+          </svg>
+          <!-- 3:4 (portrait) -->
+          <svg v-else-if="ratio.value === '3:4'" class="w-3 h-4" viewBox="0 0 12 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="10" height="14" rx="1" />
+          </svg>
+          <!-- 4:3 (landscape) -->
+          <svg v-else-if="ratio.value === '4:3'" class="w-4 h-3" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="14" height="10" rx="1" />
+          </svg>
+          <!-- 9:16 (tall) -->
+          <svg v-else-if="ratio.value === '9:16'" class="w-2.5 h-4" viewBox="0 0 9 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="7" height="14" rx="1" />
+          </svg>
+          <!-- 16:9 (wide) -->
+          <svg v-else-if="ratio.value === '16:9'" class="w-5 h-3" viewBox="0 0 16 9" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="14" height="7" rx="1" />
+          </svg>
+          <!-- 21:9 (ultrawide) -->
+          <svg v-else-if="ratio.value === '21:9'" class="w-6 h-2.5" viewBox="0 0 21 9" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="19" height="7" rx="1" />
+          </svg>
           {{ ratio.label }}
         </button>
       </div>

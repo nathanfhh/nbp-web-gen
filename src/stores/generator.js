@@ -15,6 +15,9 @@ export const useGeneratorStore = defineStore('generator', () => {
   const apiKey = ref('')
   const hasApiKey = computed(() => !!apiKey.value)
 
+  // Theme state (dark or light)
+  const theme = ref('dark')
+
   // Current mode
   const currentMode = ref('generate') // generate, edit, story, diagram
 
@@ -84,6 +87,13 @@ export const useGeneratorStore = defineStore('generator', () => {
   const initialize = async () => {
     // Load API key from localStorage
     apiKey.value = getApiKey()
+
+    // Load theme from localStorage
+    const savedTheme = getQuickSetting('theme')
+    if (savedTheme) {
+      theme.value = savedTheme
+      applyTheme(savedTheme)
+    }
 
     // Load settings from localStorage (for quick access)
     const savedMode = getQuickSetting('currentMode')
@@ -170,6 +180,19 @@ export const useGeneratorStore = defineStore('generator', () => {
         updateQuickSetting('diagramOptions', { ...newVal })
       }
     }, { deep: true })
+  }
+
+  // Apply theme to document
+  const applyTheme = (themeName) => {
+    document.documentElement.setAttribute('data-theme', themeName)
+  }
+
+  // Toggle theme
+  const toggleTheme = () => {
+    const newTheme = theme.value === 'dark' ? 'light' : 'dark'
+    theme.value = newTheme
+    applyTheme(newTheme)
+    updateQuickSetting('theme', newTheme)
   }
 
   // Save API key
@@ -349,6 +372,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     // State
     apiKey,
     hasApiKey,
+    theme,
     currentMode,
     prompt,
     temperature,
@@ -373,6 +397,7 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     // Actions
     initialize,
+    toggleTheme,
     saveApiKey,
     saveSettings,
     setMode,

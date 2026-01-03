@@ -2,8 +2,10 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { formatElapsed } from '@/composables/useFormatTime'
+import { useToast } from '@/composables/useToast'
 
 const store = useGeneratorStore()
+const toast = useToast()
 const contentRef = ref(null)
 const isExpanded = ref(true)
 
@@ -106,8 +108,10 @@ const toggleExpanded = () => {
 const copyToClipboard = async () => {
   try {
     await navigator.clipboard.writeText(thinkingText.value)
+    toast.success('已複製到剪貼簿')
   } catch (err) {
     console.error('Failed to copy:', err)
+    toast.error('複製失敗')
   }
 }
 
@@ -122,14 +126,13 @@ const getStepStatus = (index) => {
 <template>
   <div
     v-if="store.thinkingProcess.length > 0 || store.isStreaming"
-    class="glass p-4 fade-in"
+    class="glass p-6 lg:p-8 fade-in"
   >
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-xl flex items-center justify-center"
-          :class="store.isStreaming ? 'bg-gradient-to-br from-cyan-500/30 to-blue-500/30' : 'bg-gradient-to-br from-purple-500/30 to-pink-500/30'"
+          class="w-10 h-10 rounded-xl flex items-center justify-center bg-black/30"
         >
           <svg
             v-if="store.isStreaming"

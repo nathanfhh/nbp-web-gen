@@ -16,6 +16,7 @@ import GenerationHistory from '@/components/GenerationHistory.vue'
 import ThinkingProcess from '@/components/ThinkingProcess.vue'
 import PromptDebug from '@/components/PromptDebug.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import ToastContainer from '@/components/ToastContainer.vue'
 
 const store = useGeneratorStore()
 const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
@@ -127,6 +128,9 @@ const handleGenerate = async () => {
 
 <template>
   <div class="min-h-screen">
+    <!-- Toast Notifications -->
+    <ToastContainer />
+
     <!-- Background Effects -->
     <div class="gradient-bg"></div>
     <ParticleBackground />
@@ -134,10 +138,54 @@ const handleGenerate = async () => {
     <!-- Main Content -->
     <div class="relative z-10 container mx-auto px-4 py-8 lg:py-12">
       <!-- Header -->
-      <header class="text-center mb-12">
+      <header class="text-center mb-12 relative">
+        <!-- Theme Toggle Button -->
+        <button
+          @click="store.toggleTheme"
+          class="absolute right-0 top-0 p-3 rounded-xl transition-all group"
+          :class="store.theme === 'dark'
+            ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+            : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'"
+          :title="store.theme === 'dark' ? '切換至亮色模式' : '切換至暗色模式'"
+        >
+          <!-- Sun icon (shown in dark mode) -->
+          <svg
+            v-if="store.theme === 'dark'"
+            class="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            />
+          </svg>
+          <!-- Moon icon (shown in light mode) -->
+          <svg
+            v-else
+            class="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            />
+          </svg>
+        </button>
+
         <div class="inline-flex items-center gap-3 mb-4">
           <div
-            class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center glow-purple"
+            class="w-12 h-12 rounded-2xl flex items-center justify-center glow-purple"
+            :class="store.theme === 'dark'
+              ? 'bg-gradient-to-br from-purple-500 to-cyan-500'
+              : 'bg-gradient-to-br from-blue-600 to-blue-400'"
           >
             <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -150,11 +198,16 @@ const handleGenerate = async () => {
           </div>
         </div>
         <h1
-          class="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-purple-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent mb-3 glow-text-purple"
+          class="text-4xl lg:text-5xl font-bold bg-clip-text text-transparent mb-3"
+          :class="store.theme === 'dark'
+            ? 'bg-gradient-to-r from-purple-400 via-cyan-400 to-purple-400 glow-text-purple'
+            : 'bg-gradient-to-r from-blue-700 via-blue-500 to-blue-700'"
         >
           NanoBanana
         </h1>
-        <p class="text-gray-400 text-lg">AI 圖像生成工具 · Powered by Gemini</p>
+        <p class="text-lg" :class="store.theme === 'dark' ? 'text-gray-400' : 'text-gray-600'">
+          AI 圖像生成工具
+        </p>
       </header>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
@@ -192,7 +245,7 @@ const handleGenerate = async () => {
         <!-- Right Column - Main Area -->
         <div class="lg:col-span-2 space-y-6">
           <!-- Prompt Input -->
-          <div class="glass-strong p-6 lg:p-8">
+          <div class="glass p-6 lg:p-8">
             <PromptInput />
 
             <!-- Reference Images (shared across all modes) -->
@@ -274,7 +327,7 @@ const handleGenerate = async () => {
           <ThinkingProcess />
 
           <!-- Image Preview -->
-          <div class="glass-strong p-6 lg:p-8">
+          <div class="glass p-6 lg:p-8">
             <ImagePreview />
           </div>
         </div>
@@ -282,7 +335,9 @@ const handleGenerate = async () => {
 
       <!-- Footer -->
       <footer class="mt-16 text-center">
-        <p class="text-gray-500 text-sm">NanoBanana Image Generator</p>
+        <p class="text-sm" :class="store.theme === 'dark' ? 'text-gray-500' : 'text-gray-400'">
+          NanoBanana Image Generator
+        </p>
       </footer>
     </div>
   </div>

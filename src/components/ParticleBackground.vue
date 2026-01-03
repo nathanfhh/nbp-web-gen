@@ -1,9 +1,18 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useGeneratorStore } from '@/stores/generator'
 
+const store = useGeneratorStore()
 const canvas = ref(null)
 let animationId = null
 let particles = []
+
+// Theme-based colors
+const getParticleColor = () => {
+  return store.theme === 'dark'
+    ? { r: 139, g: 92, b: 246 }  // Purple for dark
+    : { r: 13, g: 94, b: 175 }   // Greek blue for light
+}
 
 const config = {
   particleCount: 80,
@@ -31,10 +40,10 @@ class Particle {
     if (this.y < 0 || this.y > this.canvas.height) this.vy *= -1
   }
 
-  draw(ctx) {
+  draw(ctx, color) {
     ctx.beginPath()
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
-    ctx.fillStyle = `rgba(139, 92, 246, ${this.opacity})`
+    ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${this.opacity})`
     ctx.fill()
   }
 }
@@ -47,7 +56,7 @@ const initParticles = () => {
   }
 }
 
-const drawLines = (ctx) => {
+const drawLines = (ctx, color) => {
   for (let i = 0; i < particles.length; i++) {
     for (let j = i + 1; j < particles.length; j++) {
       const dx = particles[i].x - particles[j].x
@@ -59,7 +68,7 @@ const drawLines = (ctx) => {
         ctx.beginPath()
         ctx.moveTo(particles[i].x, particles[i].y)
         ctx.lineTo(particles[j].x, particles[j].y)
-        ctx.strokeStyle = `rgba(139, 92, 246, ${opacity})`
+        ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`
         ctx.lineWidth = 1
         ctx.stroke()
       }
@@ -73,12 +82,13 @@ const animate = () => {
   const ctx = canvas.value.getContext('2d')
   ctx.clearRect(0, 0, canvas.value.width, canvas.value.height)
 
+  const color = getParticleColor()
   particles.forEach((particle) => {
     particle.update()
-    particle.draw(ctx)
+    particle.draw(ctx, color)
   })
 
-  drawLines(ctx)
+  drawLines(ctx, color)
   animationId = requestAnimationFrame(animate)
 }
 
