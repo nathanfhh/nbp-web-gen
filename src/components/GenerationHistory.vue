@@ -54,8 +54,9 @@ const loadHistoryItem = async (item) => {
   if (item.mode === 'generate' && item.options) {
     store.generateOptions.resolution = item.options.resolution || '1k'
     store.generateOptions.ratio = item.options.ratio || '1:1'
-    store.generateOptions.styles = item.options.styles || []
-    store.generateOptions.variations = item.options.variations || []
+    // Use splice to maintain reactivity instead of direct assignment
+    store.generateOptions.styles.splice(0, store.generateOptions.styles.length, ...(item.options.styles || []))
+    store.generateOptions.variations.splice(0, store.generateOptions.variations.length, ...(item.options.variations || []))
   } else if (item.mode === 'story' && item.options) {
     Object.assign(store.storyOptions, item.options)
   } else if (item.mode === 'diagram' && item.options) {

@@ -836,3 +836,105 @@ body {
 .mono {
   font-family: 'JetBrains Mono', monospace;
 }
+
+/* ============================================
+   Scroll Snap Container
+   ============================================ */
+
+html {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+
+.scroll-section {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* ============================================
+   Hero Section Animations
+   ============================================ */
+
+/* Floating animation for hero image */
+.hero-float {
+  animation: heroFloat 4s ease-in-out infinite;
+}
+
+@keyframes heroFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-10px) rotate(-1deg);
+  }
+}
+
+/* Scroll indicator pulsing animation */
+.scroll-indicator {
+  animation: scrollPulse 2s ease-in-out infinite;
+}
+
+@keyframes scrollPulse {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(8px);
+    opacity: 0.5;
+  }
+}
+
+/* ============================================
+   Panel Pop-out Animations
+   ============================================ */
+
+/* Initial state - hidden */
+.panel-animate {
+  opacity: 0;
+  transform: translateY(40px) scale(0.95);
+  transition: none;
+}
+
+/* Visible state - triggered by intersection observer */
+.panel-animate.panel-visible {
+  animation: panelPopIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Staggered delays for different panels */
+[data-panel-id="api-key"].panel-visible { animation-delay: 0ms; }
+[data-panel-id="prompt-input"].panel-visible { animation-delay: 50ms; }
+[data-panel-id="mode-selector"].panel-visible { animation-delay: 100ms; }
+[data-panel-id="common-settings"].panel-visible { animation-delay: 150ms; }
+[data-panel-id="thinking-process"].panel-visible { animation-delay: 200ms; }
+[data-panel-id="history"].panel-visible { animation-delay: 250ms; }
+[data-panel-id="image-preview"].panel-visible { animation-delay: 300ms; }
+[data-panel-id="prompt-debug"].panel-visible { animation-delay: 350ms; }
+
+/* Pop-in with jitter effect */
+@keyframes panelPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.02);
+  }
+  60% {
+    transform: translateY(4px) scale(0.99);
+  }
+  80% {
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

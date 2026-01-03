@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 
 const store = useGeneratorStore()

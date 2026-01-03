@@ -122,7 +122,7 @@ export function useApi() {
   const error = ref(null)
   const { getApiKey } = useLocalStorage()
 
-  const buildRequestBody = (prompt, options = {}, mode = 'generate', referenceImages = []) => {
+  const buildRequestBody = (prompt, options = {}, _mode = 'generate', referenceImages = []) => {
     const parts = []
 
     // Add text prompt

@@ -4,7 +4,7 @@ import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 
 export const useGeneratorStore = defineStore('generator', () => {
-  const { saveSetting, getSetting, addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount } =
+  const { saveSetting, addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount } =
     useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
 

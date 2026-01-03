@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { PREDEFINED_STYLES, PREDEFINED_VARIATIONS } from '@/composables/useApi'
 
@@ -74,14 +74,6 @@ const removeVariation = (variation) => {
   if (index !== -1) {
     store.generateOptions.variations.splice(index, 1)
   }
-}
-
-const isCustomStyle = (style) => {
-  return !PREDEFINED_STYLES.some(s => s.value === style)
-}
-
-const isCustomVariation = (variation) => {
-  return !PREDEFINED_VARIATIONS.some(v => v.value === variation)
 }
 
 // Handle Enter key for IME input (prevent triggering during composition)

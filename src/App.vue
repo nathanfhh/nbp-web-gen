@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from '@/composables/useApi'
 import ParticleBackground from '@/components/ParticleBackground.vue'
@@ -26,13 +26,70 @@ const { generateImageStream, generateStory, editImage, generateDiagram } = useAp
 // App version from package.json (injected by Vite)
 const appVersion = __APP_VERSION__
 
+// Scroll to panels
+const panelsRef = ref(null)
+const thinkingRef = ref(null)
+
+const scrollToContent = () => {
+  panelsRef.value?.scrollIntoView({ behavior: 'smooth' })
+}
+
+const scrollToThinking = () => {
+  thinkingRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// Intersection observer for panel animations
+const observedPanels = ref(new Set())
+
+const setupIntersectionObserver = () => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = entry.target.dataset.panelId
+          if (id && !observedPanels.value.has(id)) {
+            observedPanels.value.add(id)
+            entry.target.classList.add('panel-visible')
+          }
+        }
+      })
+    },
+    { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+  )
+
+  // Observe all panels after mount
+  setTimeout(() => {
+    document.querySelectorAll('[data-panel-id]').forEach((el) => {
+      observer.observe(el)
+    })
+  }, 100)
+
+  return observer
+}
+
+let intersectionObserver = null
+
 onMounted(async () => {
   await store.initialize()
+  intersectionObserver = setupIntersectionObserver()
+})
+
+onUnmounted(() => {
+  intersectionObserver?.disconnect()
 })
 
 // Callback for streaming thinking chunks
 const onThinkingChunk = (chunk) => {
   store.addThinkingChunk(chunk)
+}
+
+// Show all panels immediately (skip animation wait)
+const showAllPanels = () => {
+  document.querySelectorAll('[data-panel-id]').forEach((el) => {
+    el.classList.add('panel-visible')
+    const id = el.dataset.panelId
+    if (id) observedPanels.value.add(id)
+  })
 }
 
 const handleGenerate = async () => {
@@ -45,6 +102,10 @@ const handleGenerate = async () => {
     store.setGenerationError('請先設定 API Key')
     return
   }
+
+  // Show all panels and scroll to thinking process
+  showAllPanels()
+  scrollToThinking()
 
   store.setGenerating(true)
   store.setStreaming(true)
@@ -142,92 +203,104 @@ const handleGenerate = async () => {
     <div class="gradient-bg"></div>
     <ParticleBackground />
 
-    <!-- Main Content -->
-    <div class="relative z-10 container mx-auto px-4 py-8 lg:py-12">
-      <!-- Header -->
-      <header class="text-center mb-12 relative">
-        <!-- Theme Toggle Button -->
-        <button
-          @click="store.toggleTheme"
-          class="absolute right-0 top-0 p-3 rounded-xl transition-all group"
-          :class="store.theme === 'dark'
-            ? 'bg-white/5 border border-white/10 hover:bg-white/10'
-            : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'"
-          :title="store.theme === 'dark' ? '切換至亮色模式' : '切換至暗色模式'"
+    <!-- Hero Section - Full Screen -->
+    <section class="relative z-10 h-dvh flex flex-col items-center justify-center scroll-section">
+      <!-- Theme Toggle Button -->
+      <button
+        @click="store.toggleTheme"
+        class="absolute right-4 top-4 p-3 rounded-xl transition-all group"
+        :class="store.theme === 'dark'
+          ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+          : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'"
+        :title="store.theme === 'dark' ? '切換至亮色模式' : '切換至暗色模式'"
+      >
+        <!-- Sun icon (shown in dark mode) -->
+        <svg
+          v-if="store.theme === 'dark'"
+          class="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <!-- Sun icon (shown in dark mode) -->
-          <svg
-            v-if="store.theme === 'dark'"
-            class="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-            />
-          </svg>
-          <!-- Moon icon (shown in light mode) -->
-          <svg
-            v-else
-            class="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            />
-          </svg>
-        </button>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+          />
+        </svg>
+        <!-- Moon icon (shown in light mode) -->
+        <svg
+          v-else
+          class="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+          />
+        </svg>
+      </button>
 
-        <div class="inline-flex items-center gap-3 mb-4">
-          <div
-            class="w-12 h-12 rounded-2xl flex items-center justify-center glow-purple"
-            :class="store.theme === 'dark'
-              ? 'bg-gradient-to-br from-purple-500 to-cyan-500'
-              : 'bg-gradient-to-br from-blue-600 to-blue-400'"
-          >
-            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
+      <!-- Hero Content -->
+      <div class="text-center">
+        <div class="inline-flex items-center gap-3 mb-6">
+          <img
+            src="/nbp-title.webp"
+            alt="NanoBanana"
+            class="w-40 h-40 lg:w-48 lg:h-48 drop-shadow-2xl hero-float"
+          />
         </div>
         <h1
-          class="text-4xl lg:text-5xl font-bold bg-clip-text text-transparent mb-3"
+          class="text-5xl lg:text-7xl font-bold bg-clip-text text-transparent mb-4"
           :class="store.theme === 'dark'
             ? 'bg-gradient-to-r from-purple-400 via-cyan-400 to-purple-400 glow-text-purple'
             : 'bg-gradient-to-r from-blue-700 via-blue-500 to-blue-700'"
         >
           NanoBanana
         </h1>
-        <p class="text-lg flex items-center justify-center gap-2" :class="store.theme === 'dark' ? 'text-gray-400' : 'text-gray-600'">
+        <p
+          class="text-2xl lg:text-3xl flex items-center justify-center gap-3 mb-2"
+          :class="store.theme === 'dark' ? 'text-gray-300' : 'text-gray-700'"
+        >
           AI 圖像生成工具
-          <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-mono">
-            v{{ appVersion }}
-          </span>
         </p>
-      </header>
+        <span class="inline-block text-sm px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 font-mono">
+          v{{ appVersion }}
+        </span>
+      </div>
+
+      <!-- Scroll Down Button -->
+      <button
+        @click="scrollToContent"
+        class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-400 hover:text-purple-400 transition-colors group cursor-pointer"
+      >
+        <span class="text-sm">開始使用</span>
+        <div class="scroll-indicator">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </div>
+      </button>
+    </section>
+
+    <!-- Main Content -->
+    <section ref="panelsRef" class="relative z-10 container mx-auto px-4 py-12 lg:py-16 scroll-section min-h-dvh">
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <!-- Left Column - Settings -->
         <div class="lg:col-span-1 space-y-6">
           <!-- API Key -->
-          <ApiKeyInput />
+          <div data-panel-id="api-key" class="panel-animate">
+            <ApiKeyInput />
+          </div>
 
           <!-- Mode Selector -->
-          <div class="glass p-6">
+          <div data-panel-id="mode-selector" class="panel-animate glass p-6">
             <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
               <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -243,19 +316,25 @@ const handleGenerate = async () => {
           </div>
 
           <!-- Common Settings -->
-          <CommonSettings />
+          <div data-panel-id="common-settings" class="panel-animate">
+            <CommonSettings />
+          </div>
 
           <!-- History -->
-          <GenerationHistory />
+          <div data-panel-id="history" class="panel-animate">
+            <GenerationHistory />
+          </div>
 
           <!-- Prompt Debug -->
-          <PromptDebug />
+          <div data-panel-id="prompt-debug" class="panel-animate">
+            <PromptDebug />
+          </div>
         </div>
 
         <!-- Right Column - Main Area -->
         <div class="lg:col-span-2 space-y-6">
           <!-- Prompt Input -->
-          <div class="glass p-6 lg:p-8">
+          <div data-panel-id="prompt-input" class="panel-animate glass p-6 lg:p-8">
             <PromptInput />
 
             <!-- Reference Images (shared across all modes) -->
@@ -334,10 +413,12 @@ const handleGenerate = async () => {
           </div>
 
           <!-- Thinking Process -->
-          <ThinkingProcess />
+          <div ref="thinkingRef" data-panel-id="thinking-process" class="panel-animate">
+            <ThinkingProcess />
+          </div>
 
           <!-- Image Preview -->
-          <div class="glass p-6 lg:p-8">
+          <div data-panel-id="image-preview" class="panel-animate glass p-6 lg:p-8">
             <ImagePreview />
           </div>
         </div>
@@ -349,7 +430,7 @@ const handleGenerate = async () => {
           NanoBanana Image Generator
         </p>
       </footer>
-    </div>
+    </section>
   </div>
 </template>
 
