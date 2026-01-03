@@ -297,11 +297,22 @@ export const useGeneratorStore = defineStore('generator', () => {
   }
 
   // Thinking process methods
+  // chunk can be string (text) or object { type: 'text'|'image', content, mimeType? }
   const addThinkingChunk = (chunk) => {
-    thinkingProcess.value.push({
-      content: chunk,
-      timestamp: Date.now(),
-    })
+    if (typeof chunk === 'string') {
+      // Legacy: text-only chunk
+      thinkingProcess.value.push({
+        type: 'text',
+        content: chunk,
+        timestamp: Date.now(),
+      })
+    } else {
+      // New: object with type
+      thinkingProcess.value.push({
+        ...chunk,
+        timestamp: Date.now(),
+      })
+    }
   }
 
   const clearThinkingProcess = () => {

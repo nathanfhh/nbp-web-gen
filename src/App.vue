@@ -102,7 +102,7 @@ const handleGenerate = async () => {
       mode: store.currentMode,
       options: { ...options },
       status: 'success',
-      thinkingText: thinkingText || store.thinkingProcess.map((c) => c.content).join(''),
+      thinkingText: thinkingText || store.thinkingProcess.filter((c) => c.type === 'text').map((c) => c.content).join(''),
     })
 
     // Save settings
@@ -117,7 +117,7 @@ const handleGenerate = async () => {
       options: { ...options },
       status: 'failed',
       error: err.message,
-      thinkingText: store.thinkingProcess.map((c) => c.content).join(''),
+      thinkingText: store.thinkingProcess.filter((c) => c.type === 'text').map((c) => c.content).join(''),
     })
   } finally {
     store.setGenerating(false)

@@ -3,35 +3,63 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { formatElapsed } from '@/composables/useFormatTime'
 import { useToast } from '@/composables/useToast'
+import ImageLightbox from './ImageLightbox.vue'
 
 const store = useGeneratorStore()
 const toast = useToast()
 const contentRef = ref(null)
 const isExpanded = ref(true)
 
-// Combined text from all thinking chunks
-const thinkingText = computed(() => {
-  return store.thinkingProcess.map((chunk) => chunk.content).join('')
+// Lightbox state
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+
+// Extract all thinking images for lightbox
+const thinkingImages = computed(() => {
+  return store.thinkingProcess
+    .filter((chunk) => chunk.type === 'image')
+    .map((chunk) => ({
+      data: chunk.data,
+      mimeType: chunk.mimeType || 'image/png',
+    }))
 })
 
-// Parse thinking text into steps with timestamps
-// Pattern: **Step Title**\n\nContent...
+const openLightbox = (imageIndex) => {
+  lightboxIndex.value = imageIndex
+  lightboxOpen.value = true
+}
+
+// Combined text from all text thinking chunks
+const thinkingText = computed(() => {
+  return store.thinkingProcess
+    .filter((chunk) => chunk.type === 'text')
+    .map((chunk) => chunk.content)
+    .join('')
+})
+
+// Parse thinking process into steps with timestamps
+// Pattern: **Step Title**\n\nContent... (for text)
+// Also includes images between steps
 const thinkingSteps = computed(() => {
   const text = thinkingText.value
-  if (!text) return []
-
   const startTime = store.generationStartTime
+  const allChunks = store.thinkingProcess
 
-  // Build a map of accumulated text length to timestamp
+  // If no content at all, return empty
+  if (!text && thinkingImages.value.length === 0) return []
+
+  // Build a map of accumulated text length to timestamp (only for text chunks)
   let accumulatedLength = 0
   const timestampMap = []
-  for (const chunk of store.thinkingProcess) {
-    timestampMap.push({
-      startPos: accumulatedLength,
-      endPos: accumulatedLength + chunk.content.length,
-      timestamp: chunk.timestamp,
-    })
-    accumulatedLength += chunk.content.length
+  for (const chunk of allChunks) {
+    if (chunk.type === 'text') {
+      timestampMap.push({
+        startPos: accumulatedLength,
+        endPos: accumulatedLength + chunk.content.length,
+        timestamp: chunk.timestamp,
+      })
+      accumulatedLength += chunk.content.length
+    }
   }
 
   // Helper to find timestamp for a position in text
@@ -65,6 +93,7 @@ const thinkingSteps = computed(() => {
       const elapsedMs = startTime ? stepTimestamp - startTime : 0
 
       steps.push({
+        type: 'text',
         title,
         content,
         timestamp: stepTimestamp,
@@ -76,10 +105,11 @@ const thinkingSteps = computed(() => {
     currentPos += 2 + (parts[i]?.length || 0) + 2 + (parts[i + 1]?.length || 0)
   }
 
-  // If no steps found, treat entire text as one step
+  // If no text steps found but we have text, treat entire text as one step
   if (steps.length === 0 && text.trim()) {
-    const firstTimestamp = store.thinkingProcess[0]?.timestamp || startTime
+    const firstTimestamp = allChunks.find((c) => c.type === 'text')?.timestamp || startTime
     steps.push({
+      type: 'text',
       title: '思考中',
       content: text.trim(),
       timestamp: firstTimestamp,
@@ -87,7 +117,36 @@ const thinkingSteps = computed(() => {
     })
   }
 
-  return steps
+  // Now integrate images into the timeline based on timestamps
+  const imageChunks = allChunks.filter((c) => c.type === 'image')
+  const combinedSteps = []
+  let imageIndex = 0 // Track which image we're on for lightbox
+
+  // Merge text steps and images by timestamp
+  let textIdx = 0
+  let imgIdx = 0
+
+  while (textIdx < steps.length || imgIdx < imageChunks.length) {
+    const textStep = steps[textIdx]
+    const imgChunk = imageChunks[imgIdx]
+
+    if (!imgChunk || (textStep && textStep.timestamp <= imgChunk.timestamp)) {
+      combinedSteps.push(textStep)
+      textIdx++
+    } else {
+      combinedSteps.push({
+        type: 'image',
+        data: imgChunk.data,
+        mimeType: imgChunk.mimeType,
+        timestamp: imgChunk.timestamp,
+        elapsedMs: startTime ? imgChunk.timestamp - startTime : 0,
+        imageIndex: imageIndex++,
+      })
+      imgIdx++
+    }
+  }
+
+  return combinedSteps
 })
 
 // Auto-scroll to bottom when new content arrives
@@ -225,8 +284,8 @@ const getStepStatus = (index) => {
           class="absolute left-4 top-10 bottom-0 w-0.5 bg-gradient-to-b from-purple-500/50 to-transparent"
         ></div>
 
-        <!-- Step card -->
-        <div class="flex gap-3 group">
+        <!-- Text Step card -->
+        <div v-if="step.type === 'text'" class="flex gap-3 group">
           <!-- Step indicator -->
           <div class="flex-shrink-0 relative w-8 h-8">
             <div
@@ -293,6 +352,49 @@ const getStepStatus = (index) => {
             </p>
           </div>
         </div>
+
+        <!-- Image Step card -->
+        <div v-else-if="step.type === 'image'" class="flex gap-3 group">
+          <!-- Image indicator -->
+          <div class="flex-shrink-0 relative w-8 h-8">
+            <div
+              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10 bg-gradient-to-br from-emerald-500 to-teal-500 text-white"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Image content -->
+          <div class="flex-1 pb-4">
+            <!-- Image header -->
+            <div class="flex items-center gap-2 mb-2">
+              <h5 class="text-sm font-semibold text-emerald-300">思考草稿</h5>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-gray-500/20 text-gray-400">
+                {{ formatElapsed(step.elapsedMs) }}
+              </span>
+            </div>
+
+            <!-- Image preview -->
+            <div
+              class="relative inline-block cursor-pointer rounded-lg overflow-hidden border border-white/10 hover:border-emerald-500/50 transition-all group/img"
+              @click="openLightbox(step.imageIndex)"
+            >
+              <img
+                :src="`data:${step.mimeType};base64,${step.data}`"
+                :alt="`Thinking image ${step.imageIndex + 1}`"
+                class="max-w-48 max-h-48 object-contain"
+              />
+              <!-- Hover overlay -->
+              <div class="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Streaming cursor -->
@@ -301,6 +403,14 @@ const getStepStatus = (index) => {
         <span class="text-xs text-gray-500">繼續思考中...</span>
       </div>
     </div>
+
+    <!-- Lightbox for thinking images -->
+    <ImageLightbox
+      v-if="thinkingImages.length > 0"
+      v-model="lightboxOpen"
+      :images="thinkingImages"
+      :initial-index="lightboxIndex"
+    />
   </div>
 </template>
 

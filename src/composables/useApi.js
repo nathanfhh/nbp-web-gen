@@ -278,12 +278,21 @@ export function useApi() {
                   if (candidate.content && candidate.content.parts) {
                     for (const part of candidate.content.parts) {
                       if (part.inlineData) {
-                        // Collect ALL images (including thought images for now)
-                        images.push({
+                        const imageData = {
                           data: part.inlineData.data,
                           mimeType: part.inlineData.mimeType || 'image/png',
                           isThought: !!part.thought,
-                        })
+                        }
+                        images.push(imageData)
+
+                        // If this is a thought image, send it to the thinking callback
+                        if (part.thought && onThinkingChunk) {
+                          onThinkingChunk({
+                            type: 'image',
+                            data: part.inlineData.data,
+                            mimeType: part.inlineData.mimeType || 'image/png',
+                          })
+                        }
                       } else if (part.text) {
                         // Check if this is thinking content (thought: true flag)
                         if (part.thought) {
