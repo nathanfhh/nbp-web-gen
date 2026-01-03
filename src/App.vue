@@ -15,6 +15,7 @@ import ImagePreview from '@/components/ImagePreview.vue'
 import GenerationHistory from '@/components/GenerationHistory.vue'
 import ThinkingProcess from '@/components/ThinkingProcess.vue'
 import PromptDebug from '@/components/PromptDebug.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 
 const store = useGeneratorStore()
 const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
@@ -194,6 +195,11 @@ const handleGenerate = async () => {
           <div class="glass-strong p-6 lg:p-8">
             <PromptInput />
 
+            <!-- Reference Images (shared across all modes) -->
+            <div class="mt-6">
+              <ImageUploader />
+            </div>
+
             <!-- Mode-specific Options -->
             <div class="mt-6">
               <div class="divider"></div>
@@ -276,12 +282,7 @@ const handleGenerate = async () => {
 
       <!-- Footer -->
       <footer class="mt-16 text-center">
-        <p class="text-gray-500 text-sm">
-          NanoBanana Image Generator · Powered by
-          <a href="https://ai.google.dev/" target="_blank" class="text-purple-400 hover:text-purple-300"
-            >Google Gemini</a
-          >
-        </p>
+        <p class="text-gray-500 text-sm">NanoBanana Image Generator</p>
       </footer>
     </div>
   </div>

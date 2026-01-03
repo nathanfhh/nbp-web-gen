@@ -1,6 +1,5 @@
 <script setup>
 import { useGeneratorStore } from '@/stores/generator'
-import ImageUploader from './ImageUploader.vue'
 
 const store = useGeneratorStore()
 
@@ -160,7 +159,5 @@ const annotationsOptions = [
       </div>
     </div>
 
-    <!-- Reference Images -->
-    <ImageUploader />
   </div>
 </template>

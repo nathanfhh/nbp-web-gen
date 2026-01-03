@@ -1,6 +1,5 @@
 <script setup>
 import { useGeneratorStore } from '@/stores/generator'
-import ImageUploader from './ImageUploader.vue'
 
 const store = useGeneratorStore()
 
@@ -13,9 +12,8 @@ const resolutions = [
 
 <template>
   <div class="space-y-6">
-    <!-- Image Upload (required for edit mode) -->
-    <ImageUploader />
-    <p v-if="store.referenceImages.length === 0" class="text-xs text-amber-400/80 -mt-2">
+    <!-- Edit mode warning -->
+    <p v-if="store.referenceImages.length === 0" class="text-xs text-amber-400/80">
       編輯模式需要至少上傳一張圖片
     </p>
 

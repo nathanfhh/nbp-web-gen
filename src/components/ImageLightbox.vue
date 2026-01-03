@@ -24,18 +24,40 @@ const slideDirection = ref('') // 'left' or 'right'
 const isVisible = ref(false)
 const isClosing = ref(false)
 
+// Zoom and pan state
+const scale = ref(1)
+const translateX = ref(0)
+const translateY = ref(0)
+const isDragging = ref(false)
+const dragStart = ref({ x: 0, y: 0 })
+const imageRef = ref(null)
+
+const MIN_SCALE = 0.5
+const MAX_SCALE = 5
+const ZOOM_SENSITIVITY = 0.002
+const PINCH_SENSITIVITY = 0.01
+
+// Reset zoom and pan
+const resetTransform = () => {
+  scale.value = 1
+  translateX.value = 0
+  translateY.value = 0
+}
+
 // Watch for external open
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
     currentIndex.value = props.initialIndex
     isVisible.value = true
     isClosing.value = false
+    resetTransform()
     document.body.style.overflow = 'hidden'
   } else {
     isClosing.value = true
     setTimeout(() => {
       isVisible.value = false
       isClosing.value = false
+      resetTransform()
       document.body.style.overflow = ''
     }, 300)
   }
@@ -44,6 +66,11 @@ watch(() => props.modelValue, (newVal) => {
 // Watch initial index changes
 watch(() => props.initialIndex, (newVal) => {
   currentIndex.value = newVal
+})
+
+// Reset transform when image changes
+watch(currentIndex, () => {
+  resetTransform()
 })
 
 const currentImage = computed(() => {
@@ -113,15 +140,100 @@ const handleKeydown = (e) => {
       e.preventDefault()
       close()
       break
+    case '0':
+      // Reset zoom with 0 key
+      e.preventDefault()
+      resetTransform()
+      break
   }
+}
+
+// Wheel event for zoom (scroll) and pan (Mac trackpad)
+const handleWheel = (e) => {
+  if (!props.modelValue) return
+  e.preventDefault()
+
+  // Pinch-to-zoom on Mac trackpad (ctrlKey is set for pinch gestures)
+  if (e.ctrlKey) {
+    const delta = -e.deltaY * PINCH_SENSITIVITY
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value + delta))
+    scale.value = newScale
+    return
+  }
+
+  // When zoomed in: scroll/swipe to pan (both horizontal and vertical)
+  if (scale.value > 1) {
+    translateX.value -= e.deltaX
+    translateY.value -= e.deltaY
+    constrainPan()
+    return
+  }
+
+  // When not zoomed: scroll wheel to zoom
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+    const delta = -e.deltaY * ZOOM_SENSITIVITY
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value + delta))
+    scale.value = newScale
+  }
+}
+
+// Constrain pan to keep image visible
+// Allows panning proportional to zoom level, ensuring image stays partially visible
+const constrainPan = () => {
+  const maxPanX = Math.max(0, (scale.value - 1) * window.innerWidth * 0.4)
+  const maxPanY = Math.max(0, (scale.value - 1) * window.innerHeight * 0.35)
+  translateX.value = Math.max(-maxPanX, Math.min(maxPanX, translateX.value))
+  translateY.value = Math.max(-maxPanY, Math.min(maxPanY, translateY.value))
+}
+
+// Mouse events for drag (left-click or middle-click)
+const handleMouseDown = (e) => {
+  // Left mouse button (0) or middle mouse button (1)
+  if (e.button === 0 || e.button === 1) {
+    e.preventDefault()
+    isDragging.value = true
+    dragStart.value = { x: e.clientX - translateX.value, y: e.clientY - translateY.value }
+  }
+}
+
+const handleMouseMove = (e) => {
+  if (!isDragging.value) return
+  e.preventDefault()
+  translateX.value = e.clientX - dragStart.value.x
+  translateY.value = e.clientY - dragStart.value.y
+  constrainPan()
+}
+
+// Double-click to toggle zoom
+const handleDoubleClick = (e) => {
+  e.preventDefault()
+  if (scale.value > 1) {
+    resetTransform()
+  } else {
+    scale.value = 2
+  }
+}
+
+// Computed transform style
+const imageTransformStyle = computed(() => ({
+  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
+  cursor: isDragging.value ? 'grabbing' : (scale.value > 1 ? 'grab' : 'default'),
+  transition: isDragging.value ? 'none' : 'transform 0.1s ease-out',
+}))
+
+// Global mouseup to handle drag end even when mouse leaves the image
+const handleGlobalMouseUp = () => {
+  isDragging.value = false
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('mouseup', handleGlobalMouseUp)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('mouseup', handleGlobalMouseUp)
   document.body.style.overflow = ''
 })
 
@@ -151,6 +263,15 @@ const downloadCurrentImage = () => {
       >
         <!-- Top toolbar -->
         <div class="lightbox-toolbar">
+          <!-- Zoom indicator / Reset button -->
+          <button
+            v-if="scale !== 1"
+            @click="resetTransform"
+            class="lightbox-btn lightbox-zoom-indicator"
+            title="重置縮放 (按 0)"
+          >
+            {{ Math.round(scale * 100) }}%
+          </button>
           <!-- Download button -->
           <button
             @click="downloadCurrentImage"
@@ -187,7 +308,13 @@ const downloadCurrentImage = () => {
         </button>
 
         <!-- Image container -->
-        <div class="lightbox-content">
+        <div
+          class="lightbox-content"
+          @wheel.prevent="handleWheel"
+          @mousedown="handleMouseDown"
+          @mousemove="handleMouseMove"
+          @dblclick="handleDoubleClick"
+        >
           <div
             class="lightbox-image-wrapper"
             :class="{
@@ -199,9 +326,12 @@ const downloadCurrentImage = () => {
           >
             <img
               v-if="currentImage"
+              ref="imageRef"
               :src="getImageSrc(currentImage)"
               :alt="`Image ${currentIndex + 1}`"
               class="lightbox-image"
+              :style="imageTransformStyle"
+              draggable="false"
             />
           </div>
         </div>
@@ -298,6 +428,13 @@ const downloadCurrentImage = () => {
   transform: scale(1.1);
 }
 
+.lightbox-zoom-indicator {
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-width: 3.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .lightbox-nav {
   position: absolute;
   top: 50%;
@@ -326,7 +463,9 @@ const downloadCurrentImage = () => {
 .lightbox-content {
   max-width: 90vw;
   max-height: 85vh;
-  overflow: hidden;
+  overflow: visible;
+  user-select: none;
+  touch-action: none;
 }
 
 .lightbox-image-wrapper {
