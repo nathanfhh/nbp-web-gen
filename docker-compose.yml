@@ -1,0 +1,11 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    image: nbp-web-gen:latest
+    container_name: nbp-web-gen
+    ports:
+      - "8080:80"
+    restart: unless-stopped

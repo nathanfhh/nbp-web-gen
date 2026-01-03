@@ -17,8 +17,10 @@ import ThinkingProcess from '@/components/ThinkingProcess.vue'
 import PromptDebug from '@/components/PromptDebug.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
+import { useToast } from '@/composables/useToast'
 
 const store = useGeneratorStore()
+const toast = useToast()
 const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
 
 onMounted(async () => {
@@ -89,6 +91,8 @@ const handleGenerate = async () => {
 
     if (result?.images) {
       store.setGeneratedImages(result.images)
+      const imageCount = result.images.length
+      toast.success(`成功生成 ${imageCount} 張圖片`)
     }
 
     // Collect thinking text
