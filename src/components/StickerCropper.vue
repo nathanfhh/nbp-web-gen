@@ -310,33 +310,47 @@ const processImage = () => {
       }
 
       // BFS: process connected background pixels
-      while (queue.length > 0) {
-        const pos = queue.shift()
+      // Use head pointer instead of shift() for O(1) dequeue
+      let head = 0
+      while (head < queue.length) {
+        const pos = queue[head++]
         const x = pos % width
         const y = Math.floor(pos / width)
-        const idx = pos * 4
 
         // Set pixel to transparent
-        data[idx + 3] = 0
+        data[pos * 4 + 3] = 0
 
-        // Check 4-connected neighbors
-        const neighbors = [
-          { nx: x - 1, ny: y }, // left
-          { nx: x + 1, ny: y }, // right
-          { nx: x, ny: y - 1 }, // up
-          { nx: x, ny: y + 1 }, // down
-        ]
-
-        for (const { nx, ny } of neighbors) {
-          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-            const nPos = ny * width + nx
-            if (!visited[nPos]) {
-              const nIdx = nPos * 4
-              if (matchesBg(nIdx)) {
-                visited[nPos] = 1
-                queue.push(nPos)
-              }
-            }
+        // Check 4-connected neighbors (inlined for performance)
+        // Left
+        if (x > 0) {
+          const nPos = pos - 1
+          if (!visited[nPos] && matchesBg(nPos * 4)) {
+            visited[nPos] = 1
+            queue.push(nPos)
+          }
+        }
+        // Right
+        if (x < width - 1) {
+          const nPos = pos + 1
+          if (!visited[nPos] && matchesBg(nPos * 4)) {
+            visited[nPos] = 1
+            queue.push(nPos)
+          }
+        }
+        // Up
+        if (y > 0) {
+          const nPos = pos - width
+          if (!visited[nPos] && matchesBg(nPos * 4)) {
+            visited[nPos] = 1
+            queue.push(nPos)
+          }
+        }
+        // Down
+        if (y < height - 1) {
+          const nPos = pos + width
+          if (!visited[nPos] && matchesBg(nPos * 4)) {
+            visited[nPos] = 1
+            queue.push(nPos)
           }
         }
       }
