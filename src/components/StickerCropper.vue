@@ -667,6 +667,7 @@ onUnmounted(() => {
   animation: cropper-fade-in 0.3s ease-out;
   /* Force light text colors regardless of theme (dark background overlay) */
   color: #e5e7eb;
+  overflow: hidden;
 }
 
 /* Force all text to be light in cropper (override theme) */
@@ -720,8 +721,10 @@ onUnmounted(() => {
 
 .cropper-content {
   display: flex;
-  flex: 1;
-  overflow: hidden;
+  flex: 1 1 0;
+  overflow: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .cropper-left {
@@ -731,6 +734,7 @@ onUnmounted(() => {
   flex-direction: column;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .settings-panel {
@@ -780,10 +784,12 @@ onUnmounted(() => {
 }
 
 .cropper-right {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .stickers-header {
@@ -796,17 +802,23 @@ onUnmounted(() => {
 }
 
 .stickers-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  flex: 1 1 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 1rem;
   padding: 1.5rem;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   align-content: start;
+  min-height: 0;
 }
 
 .sticker-card {
+  width: 140px;
   position: relative;
+  display: flex;
+  flex-direction: column;
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid transparent;
   border-radius: 0.75rem;
@@ -826,7 +838,7 @@ onUnmounted(() => {
 }
 
 .sticker-preview {
-  aspect-ratio: 1;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -836,7 +848,7 @@ onUnmounted(() => {
 
 .sticker-preview img {
   max-width: 100%;
-  max-height: 100%;
+  height: auto;
   object-fit: contain;
 }
 
@@ -846,6 +858,8 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 0.5rem;
   background: rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 .sticker-download {
@@ -901,18 +915,26 @@ onUnmounted(() => {
   opacity: 0;
 }
 
+/* Small screens (tablet and below) */
+@media (max-width: 900px) {
+  .cropper-left {
+    width: 320px;
+  }
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .cropper-content {
     flex-direction: column;
     overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .cropper-left {
     width: 100%;
+    flex: none;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    flex-shrink: 0;
     overflow: visible;
   }
 
@@ -923,25 +945,38 @@ onUnmounted(() => {
   .preview-panel {
     padding: 1rem;
     min-height: 250px;
+    flex: none;
   }
 
   .preview-container {
     min-height: 200px;
+    height: 200px;
   }
 
   .cropper-right {
-    flex-shrink: 0;
-    min-height: 300px;
+    flex: none;
+    min-height: auto;
+    overflow: visible;
   }
 
   .stickers-grid {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    max-height: none;
+    flex: none;
     overflow: visible;
+    min-height: auto;
+  }
+
+  .sticker-card {
+    width: 100px;
   }
 
   .stickers-empty {
     min-height: 150px;
+  }
+
+  .stickers-actions {
+    position: sticky;
+    bottom: 0;
+    background: rgba(10, 10, 15, 0.95);
   }
 }
 </style>
