@@ -38,6 +38,9 @@ const tolerance = ref(30)
 const backgroundColor = ref({ r: 0, g: 0, b: 0 })
 const isPickingColor = ref(false)
 
+// Preview background (for quality check)
+const previewBgWhite = ref(false)
+
 // Cropped stickers
 const croppedStickers = ref([])
 const selectedStickers = ref(new Set())
@@ -58,6 +61,49 @@ watch(() => props.modelValue, (newVal) => {
       resetState()
     }, 300)
   }
+})
+
+// Watch for preview background toggle - regenerate preview URLs
+watch(previewBgWhite, (useWhiteBg) => {
+  if (croppedStickers.value.length === 0) return
+
+  // Update big preview canvas
+  const sourceCanvas = sourceCanvasRef.value
+  const previewCanvas = previewCanvasRef.value
+  if (sourceCanvas && previewCanvas) {
+    const previewCtx = previewCanvas.getContext('2d')
+    previewCanvas.width = sourceCanvas.width
+    previewCanvas.height = sourceCanvas.height
+
+    if (useWhiteBg) {
+      previewCtx.fillStyle = '#ffffff'
+      previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height)
+    } else {
+      previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height)
+    }
+    previewCtx.drawImage(sourceCanvas, 0, 0)
+  }
+
+  // Regenerate previewDataUrl for each sticker
+  croppedStickers.value = croppedStickers.value.map(sticker => {
+    const stickerPreviewCanvas = document.createElement('canvas')
+    stickerPreviewCanvas.width = sticker.width
+    stickerPreviewCanvas.height = sticker.height
+    const stickerPreviewCtx = stickerPreviewCanvas.getContext('2d')
+
+    if (useWhiteBg) {
+      stickerPreviewCtx.fillStyle = '#ffffff'
+      stickerPreviewCtx.fillRect(0, 0, sticker.width, sticker.height)
+    }
+
+    // Draw from the original transparent canvas
+    stickerPreviewCtx.drawImage(sticker.canvas, 0, 0)
+
+    return {
+      ...sticker,
+      previewDataUrl: stickerPreviewCanvas.toDataURL('image/png'),
+    }
+  })
 })
 
 // Load image when src changes
@@ -228,20 +274,24 @@ const processImage = () => {
       // Put processed image data back
       ctx.putImageData(imageData, 0, 0)
 
-      // Copy to preview canvas
+      // Copy to preview canvas (with optional white background)
       previewCanvas.width = sourceCanvas.width
       previewCanvas.height = sourceCanvas.height
+      if (previewBgWhite.value) {
+        previewCtx.fillStyle = '#ffffff'
+        previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height)
+      }
       previewCtx.drawImage(sourceCanvas, 0, 0)
 
       // Find and crop individual stickers
-      findAndCropStickers(sourceCanvas)
+      findAndCropStickers(sourceCanvas, previewBgWhite.value)
     } finally {
       isProcessing.value = false
     }
   })
 }
 
-const findAndCropStickers = (canvas) => {
+const findAndCropStickers = (canvas, useWhiteBg = false) => {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
   const width = canvas.width
   const height = canvas.height
@@ -306,17 +356,29 @@ const findAndCropStickers = (canvas) => {
 
   // Crop each region
   const stickers = validRegions.map((rect, index) => {
+    // Original canvas (transparent background) for download
     const stickerCanvas = document.createElement('canvas')
     stickerCanvas.width = rect.w
     stickerCanvas.height = rect.h
     const stickerCtx = stickerCanvas.getContext('2d')
-
     stickerCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+
+    // Preview canvas (with optional white background)
+    const previewCanvas = document.createElement('canvas')
+    previewCanvas.width = rect.w
+    previewCanvas.height = rect.h
+    const previewCtx = previewCanvas.getContext('2d')
+    if (useWhiteBg) {
+      previewCtx.fillStyle = '#ffffff'
+      previewCtx.fillRect(0, 0, rect.w, rect.h)
+    }
+    previewCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
 
     return {
       id: index,
       canvas: stickerCanvas,
       dataUrl: stickerCanvas.toDataURL('image/png'),
+      previewDataUrl: previewCanvas.toDataURL('image/png'),
       width: rect.w,
       height: rect.h,
       rect,
@@ -506,6 +568,21 @@ onUnmounted(() => {
                 <p class="text-xs text-gray-500 mt-1">數值越高，越能去除接近背景色的像素</p>
               </div>
 
+              <!-- Preview Background Toggle -->
+              <div class="mb-4 flex items-center justify-between">
+                <label class="text-xs text-gray-400">白色背景預覽</label>
+                <button
+                  @click="previewBgWhite = !previewBgWhite"
+                  class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+                  :class="previewBgWhite ? 'bg-purple-500' : 'bg-gray-600'"
+                >
+                  <span
+                    class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"
+                    :class="previewBgWhite ? 'translate-x-[18px]' : 'translate-x-1'"
+                  />
+                </button>
+              </div>
+
               <!-- Process Button -->
               <button
                 @click="processImage"
@@ -529,7 +606,7 @@ onUnmounted(() => {
               <div
                 ref="previewContainerRef"
                 class="preview-container"
-                :class="{ 'cursor-crosshair': isPickingColor }"
+                :class="{ 'cursor-crosshair': isPickingColor, 'bg-white': previewBgWhite }"
                 @click="handleCanvasClick"
               >
                 <canvas ref="sourceCanvasRef" class="hidden"></canvas>
@@ -593,7 +670,7 @@ onUnmounted(() => {
                 @click="toggleSelectSticker(sticker.id)"
               >
                 <div class="sticker-preview">
-                  <img :src="sticker.dataUrl" :alt="`Sticker ${sticker.id + 1}`" />
+                  <img :src="sticker.previewDataUrl" :alt="`Sticker ${sticker.id + 1}`" />
                 </div>
                 <div class="sticker-info">
                   <span class="text-xs text-gray-400">
