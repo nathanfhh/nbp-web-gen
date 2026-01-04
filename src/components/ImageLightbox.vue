@@ -53,6 +53,17 @@ const resetTransform = () => {
   translateY.value = 0
 }
 
+// Track if we pushed history state
+const historyStatePushed = ref(false)
+
+// Handle browser back button / gesture
+const handlePopState = (e) => {
+  if (props.modelValue && e.state?.lightbox !== true) {
+    // User pressed back while lightbox is open - close it
+    emit('update:modelValue', false)
+  }
+}
+
 // Watch for external open
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
@@ -61,8 +72,24 @@ watch(() => props.modelValue, (newVal) => {
     isClosing.value = false
     resetTransform()
     document.body.style.overflow = 'hidden'
+
+    // Push history state to intercept back gesture/button
+    if (!historyStatePushed.value) {
+      history.pushState({ lightbox: true }, '')
+      historyStatePushed.value = true
+    }
   } else {
     isClosing.value = true
+
+    // Pop the history state we added (if still there)
+    if (historyStatePushed.value) {
+      historyStatePushed.value = false
+      // Only go back if we're on our pushed state
+      if (history.state?.lightbox === true) {
+        history.back()
+      }
+    }
+
     setTimeout(() => {
       isVisible.value = false
       isClosing.value = false
@@ -170,15 +197,29 @@ const handleWheel = (e) => {
     return
   }
 
-  // When zoomed in: scroll/swipe to pan (both horizontal and vertical)
+  // Detect mouse wheel vs trackpad:
+  // - Mouse wheel: deltaX is 0, deltaY is discrete (typically >=50)
+  // - Trackpad: both deltaX and deltaY can have small continuous values
+  const isMouseWheel = e.deltaX === 0 && Math.abs(e.deltaY) >= 40
+
+  if (isMouseWheel) {
+    // Mouse wheel: always zoom (even when zoomed in)
+    const delta = -e.deltaY * ZOOM_SENSITIVITY
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value + delta))
+    scale.value = newScale
+    return
+  }
+
+  // Trackpad behavior
   if (scale.value > 1) {
+    // When zoomed in: trackpad swipe to pan
     translateX.value -= e.deltaX
     translateY.value -= e.deltaY
     constrainPan()
     return
   }
 
-  // When not zoomed: scroll wheel to zoom
+  // When not zoomed: vertical scroll to zoom
   if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
     const delta = -e.deltaY * ZOOM_SENSITIVITY
     const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value + delta))
@@ -336,6 +377,13 @@ const handleTouchEnd = (e) => {
       }
     }
 
+    // Check for swipe down to close (only when not zoomed)
+    if (scale.value <= 1 && touchMoved.value && deltaY > 80 && Math.abs(deltaX) < 50) {
+      close()
+      isTouching.value = false
+      return
+    }
+
     // Check for swipe navigation (only when not zoomed)
     if (scale.value <= 1 && touchMoved.value && Math.abs(deltaX) > 50) {
       if (deltaX > 0 && hasPrev.value) {
@@ -371,12 +419,19 @@ const handleGlobalMouseUp = () => {
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('mouseup', handleGlobalMouseUp)
+  window.addEventListener('popstate', handlePopState)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
+  window.removeEventListener('popstate', handlePopState)
   document.body.style.overflow = ''
+
+  // Clean up history state if component unmounts while open
+  if (historyStatePushed.value && history.state?.lightbox === true) {
+    history.back()
+  }
 })
 
 const getImageSrc = (image) => {
