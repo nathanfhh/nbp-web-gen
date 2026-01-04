@@ -905,17 +905,43 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .cropper-content {
     flex-direction: column;
+    overflow-y: auto;
   }
 
   .cropper-left {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    max-height: 50vh;
+    flex-shrink: 0;
+    overflow: visible;
+  }
+
+  .settings-panel {
+    padding: 1rem;
+  }
+
+  .preview-panel {
+    padding: 1rem;
+    min-height: 250px;
+  }
+
+  .preview-container {
+    min-height: 200px;
+  }
+
+  .cropper-right {
+    flex-shrink: 0;
+    min-height: 300px;
   }
 
   .stickers-grid {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    max-height: none;
+    overflow: visible;
+  }
+
+  .stickers-empty {
+    min-height: 150px;
   }
 }
 </style>
