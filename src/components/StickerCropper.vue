@@ -237,141 +237,143 @@ const processImage = () => {
   croppedStickers.value = []
   selectedStickers.value.clear()
 
-  // Use nextTick to allow overlay to render before heavy processing
+  // Use nextTick + requestAnimationFrame to ensure overlay renders before heavy processing
   nextTick(() => {
-    try {
-      const sourceCanvas = sourceCanvasRef.value
-      const previewCanvas = previewCanvasRef.value
-      const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true })
-      const previewCtx = previewCanvas.getContext('2d')
+    requestAnimationFrame(() => {
+      try {
+        const sourceCanvas = sourceCanvasRef.value
+        const previewCanvas = previewCanvasRef.value
+        const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true })
+        const previewCtx = previewCanvas.getContext('2d')
 
-      // Draw original image
-      sourceCanvas.width = originalImage.value.width
-      sourceCanvas.height = originalImage.value.height
-      ctx.drawImage(originalImage.value, 0, 0)
+        // Draw original image
+        sourceCanvas.width = originalImage.value.width
+        sourceCanvas.height = originalImage.value.height
+        ctx.drawImage(originalImage.value, 0, 0)
 
-      // Get image data
-      const imageData = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
-      const data = imageData.data
-      const width = sourceCanvas.width
-      const height = sourceCanvas.height
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
+        const data = imageData.data
+        const width = sourceCanvas.width
+        const height = sourceCanvas.height
 
-      // Remove background using edge-connected flood fill
-      // This protects interior pixels (like black hair) that match background color
-      const { r: bgR, g: bgG, b: bgB } = backgroundColor.value
-      const tol = tolerance.value * 3
+        // Remove background using edge-connected flood fill
+        // This protects interior pixels (like black hair) that match background color
+        const { r: bgR, g: bgG, b: bgB } = backgroundColor.value
+        const tol = tolerance.value * 3
 
-      // Helper: check if pixel matches background color
-      const matchesBg = (idx) => {
-        const r = data[idx]
-        const g = data[idx + 1]
-        const b = data[idx + 2]
-        const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
-        return diff <= tol
-      }
-
-      // Track visited pixels
-      const visited = new Uint8Array(width * height)
-
-      // BFS flood fill from edges
-      const queue = []
-
-      // Add all edge pixels that match background color to queue
-      for (let x = 0; x < width; x++) {
-        // Top edge
-        const topIdx = x * 4
-        if (matchesBg(topIdx)) {
-          queue.push(x)
-          visited[x] = 1
+        // Helper: check if pixel matches background color
+        const matchesBg = (idx) => {
+          const r = data[idx]
+          const g = data[idx + 1]
+          const b = data[idx + 2]
+          const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
+          return diff <= tol
         }
-        // Bottom edge
-        const bottomIdx = ((height - 1) * width + x) * 4
-        const bottomPos = (height - 1) * width + x
-        if (matchesBg(bottomIdx) && !visited[bottomPos]) {
-          queue.push(bottomPos)
-          visited[bottomPos] = 1
-        }
-      }
-      for (let y = 1; y < height - 1; y++) {
-        // Left edge
-        const leftIdx = y * width * 4
-        const leftPos = y * width
-        if (matchesBg(leftIdx) && !visited[leftPos]) {
-          queue.push(leftPos)
-          visited[leftPos] = 1
-        }
-        // Right edge
-        const rightIdx = (y * width + width - 1) * 4
-        const rightPos = y * width + width - 1
-        if (matchesBg(rightIdx) && !visited[rightPos]) {
-          queue.push(rightPos)
-          visited[rightPos] = 1
-        }
-      }
 
-      // BFS: process connected background pixels
-      // Use head pointer instead of shift() for O(1) dequeue
-      let head = 0
-      while (head < queue.length) {
-        const pos = queue[head++]
-        const x = pos % width
-        const y = Math.floor(pos / width)
+        // Track visited pixels
+        const visited = new Uint8Array(width * height)
 
-        // Set pixel to transparent
-        data[pos * 4 + 3] = 0
+        // BFS flood fill from edges
+        const queue = []
 
-        // Check 4-connected neighbors (inlined for performance)
-        // Left
-        if (x > 0) {
-          const nPos = pos - 1
-          if (!visited[nPos] && matchesBg(nPos * 4)) {
-            visited[nPos] = 1
-            queue.push(nPos)
+        // Add all edge pixels that match background color to queue
+        for (let x = 0; x < width; x++) {
+          // Top edge
+          const topIdx = x * 4
+          if (matchesBg(topIdx)) {
+            queue.push(x)
+            visited[x] = 1
+          }
+          // Bottom edge
+          const bottomIdx = ((height - 1) * width + x) * 4
+          const bottomPos = (height - 1) * width + x
+          if (matchesBg(bottomIdx) && !visited[bottomPos]) {
+            queue.push(bottomPos)
+            visited[bottomPos] = 1
           }
         }
-        // Right
-        if (x < width - 1) {
-          const nPos = pos + 1
-          if (!visited[nPos] && matchesBg(nPos * 4)) {
-            visited[nPos] = 1
-            queue.push(nPos)
+        for (let y = 1; y < height - 1; y++) {
+          // Left edge
+          const leftIdx = y * width * 4
+          const leftPos = y * width
+          if (matchesBg(leftIdx) && !visited[leftPos]) {
+            queue.push(leftPos)
+            visited[leftPos] = 1
+          }
+          // Right edge
+          const rightIdx = (y * width + width - 1) * 4
+          const rightPos = y * width + width - 1
+          if (matchesBg(rightIdx) && !visited[rightPos]) {
+            queue.push(rightPos)
+            visited[rightPos] = 1
           }
         }
-        // Up
-        if (y > 0) {
-          const nPos = pos - width
-          if (!visited[nPos] && matchesBg(nPos * 4)) {
-            visited[nPos] = 1
-            queue.push(nPos)
+
+        // BFS: process connected background pixels
+        // Use head pointer instead of shift() for O(1) dequeue
+        let head = 0
+        while (head < queue.length) {
+          const pos = queue[head++]
+          const x = pos % width
+          const y = Math.floor(pos / width)
+
+          // Set pixel to transparent
+          data[pos * 4 + 3] = 0
+
+          // Check 4-connected neighbors (inlined for performance)
+          // Left
+          if (x > 0) {
+            const nPos = pos - 1
+            if (!visited[nPos] && matchesBg(nPos * 4)) {
+              visited[nPos] = 1
+              queue.push(nPos)
+            }
+          }
+          // Right
+          if (x < width - 1) {
+            const nPos = pos + 1
+            if (!visited[nPos] && matchesBg(nPos * 4)) {
+              visited[nPos] = 1
+              queue.push(nPos)
+            }
+          }
+          // Up
+          if (y > 0) {
+            const nPos = pos - width
+            if (!visited[nPos] && matchesBg(nPos * 4)) {
+              visited[nPos] = 1
+              queue.push(nPos)
+            }
+          }
+          // Down
+          if (y < height - 1) {
+            const nPos = pos + width
+            if (!visited[nPos] && matchesBg(nPos * 4)) {
+              visited[nPos] = 1
+              queue.push(nPos)
+            }
           }
         }
-        // Down
-        if (y < height - 1) {
-          const nPos = pos + width
-          if (!visited[nPos] && matchesBg(nPos * 4)) {
-            visited[nPos] = 1
-            queue.push(nPos)
-          }
+
+        // Put processed image data back
+        ctx.putImageData(imageData, 0, 0)
+
+        // Copy to preview canvas (with optional white background)
+        previewCanvas.width = sourceCanvas.width
+        previewCanvas.height = sourceCanvas.height
+        if (previewBgWhite.value) {
+          previewCtx.fillStyle = '#ffffff'
+          previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height)
         }
+        previewCtx.drawImage(sourceCanvas, 0, 0)
+
+        // Find and crop individual stickers
+        findAndCropStickers(sourceCanvas, previewBgWhite.value)
+      } finally {
+        isProcessing.value = false
       }
-
-      // Put processed image data back
-      ctx.putImageData(imageData, 0, 0)
-
-      // Copy to preview canvas (with optional white background)
-      previewCanvas.width = sourceCanvas.width
-      previewCanvas.height = sourceCanvas.height
-      if (previewBgWhite.value) {
-        previewCtx.fillStyle = '#ffffff'
-        previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height)
-      }
-      previewCtx.drawImage(sourceCanvas, 0, 0)
-
-      // Find and crop individual stickers
-      findAndCropStickers(sourceCanvas, previewBgWhite.value)
-    } finally {
-      isProcessing.value = false
-    }
+    })
   })
 }
 
@@ -1112,9 +1114,9 @@ onUnmounted(() => {
 
 /* Processing overlay */
 .processing-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
