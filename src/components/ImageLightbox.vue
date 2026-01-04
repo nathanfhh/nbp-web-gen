@@ -657,16 +657,16 @@ const closeDownloadMenu = () => {
             >
               <button
                 @click="handleFormatSelect('original')"
-                class="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                :class="downloadFormat === 'original' ? 'text-purple-400' : 'text-white'"
+                class="download-option"
+                :class="downloadFormat === 'original' ? 'active' : ''"
               >
                 <span class="w-4">{{ downloadFormat === 'original' ? '✓' : '' }}</span>
                 原始格式
               </button>
               <button
                 @click="handleFormatSelect('webp')"
-                class="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                :class="downloadFormat === 'webp' ? 'text-purple-400' : 'text-white'"
+                class="download-option"
+                :class="downloadFormat === 'webp' ? 'active' : ''"
               >
                 <span class="w-4">{{ downloadFormat === 'webp' ? '✓' : '' }}</span>
                 WebP
@@ -1087,6 +1087,28 @@ const closeDownloadMenu = () => {
   overflow: hidden;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
   z-index: 30;
+}
+
+/* Download option - force light text on dark bg regardless of theme */
+.download-option {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ffffff !important;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.download-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.download-option.active {
+  color: #c084fc !important; /* purple-400 */
 }
 
 /* Vue transition */

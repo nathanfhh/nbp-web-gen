@@ -29,6 +29,7 @@ export const PREDEFINED_STYLES = [
   { value: 'sketch', label: '素描' },
   { value: 'pixel-art', label: '像素風' },
   { value: 'anime', label: '動漫' },
+  { value: 'pixar', label: 'Pixar 3D' },
   { value: 'vintage', label: '復古' },
   { value: 'modern', label: '現代' },
   { value: 'abstract', label: '抽象' },
