@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import JSZip from 'jszip'
 import { useToast } from '@/composables/useToast'
 
@@ -237,8 +237,8 @@ const processImage = () => {
   croppedStickers.value = []
   selectedStickers.value.clear()
 
-  // Use requestAnimationFrame to prevent UI blocking
-  requestAnimationFrame(() => {
+  // Use nextTick to allow overlay to render before heavy processing
+  nextTick(() => {
     try {
       const sourceCanvas = sourceCanvasRef.value
       const previewCanvas = previewCanvasRef.value
@@ -321,10 +321,10 @@ const processImage = () => {
 
         // Check 4-connected neighbors
         const neighbors = [
-          { nx: x - 1, ny: y },     // left
-          { nx: x + 1, ny: y },     // right
-          { nx: x, ny: y - 1 },     // up
-          { nx: x, ny: y + 1 },     // down
+          { nx: x - 1, ny: y }, // left
+          { nx: x + 1, ny: y }, // right
+          { nx: x, ny: y - 1 }, // up
+          { nx: x, ny: y + 1 }, // down
         ]
 
         for (const { nx, ny } of neighbors) {
@@ -797,6 +797,29 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- Processing Overlay -->
+        <Transition name="fade">
+          <div v-if="isProcessing" class="processing-overlay">
+            <div class="processing-content">
+              <div class="processing-spinner">
+                <svg class="w-12 h-12" viewBox="0 0 50 50">
+                  <circle
+                    class="processing-circle"
+                    cx="25"
+                    cy="25"
+                    r="20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  />
+                </svg>
+              </div>
+              <p class="text-white font-medium mt-4">去背處理中...</p>
+              <p class="text-gray-400 text-sm mt-1">大型圖片可能需要數秒</p>
+            </div>
+          </div>
+        </Transition>
       </div>
     </Transition>
   </Teleport>
@@ -1060,6 +1083,74 @@ onUnmounted(() => {
 .cropper-enter-from,
 .cropper-leave-to {
   opacity: 0;
+}
+
+/* Fade transition for processing overlay */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Processing overlay */
+.processing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.9);
+  backdrop-filter: blur(4px);
+}
+
+.processing-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.processing-spinner {
+  color: #a855f7;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.processing-circle {
+  stroke-dasharray: 90, 150;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  animation: spin 1.5s linear infinite, dash 1.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 /* Small screens (tablet and below) */
