@@ -8,6 +8,7 @@ import ModeSelector from '@/components/ModeSelector.vue'
 import PromptInput from '@/components/PromptInput.vue'
 import CommonSettings from '@/components/CommonSettings.vue'
 import GenerateOptions from '@/components/GenerateOptions.vue'
+import StickerOptions from '@/components/StickerOptions.vue'
 import EditOptions from '@/components/EditOptions.vue'
 import StoryOptions from '@/components/StoryOptions.vue'
 import DiagramOptions from '@/components/DiagramOptions.vue'
@@ -129,6 +130,9 @@ const handleGenerate = async () => {
     switch (store.currentMode) {
       case 'generate':
         result = await generateImageStream(store.prompt, options, 'generate', refImages, onThinkingChunk)
+        break
+      case 'sticker':
+        result = await generateImageStream(store.prompt, options, 'sticker', refImages, onThinkingChunk)
         break
       case 'edit':
         if (refImages.length === 0) {
@@ -371,6 +375,7 @@ const handleGenerate = async () => {
 
               <Transition name="fade" mode="out-in">
                 <GenerateOptions v-if="store.currentMode === 'generate'" key="generate" />
+                <StickerOptions v-else-if="store.currentMode === 'sticker'" key="sticker" />
                 <EditOptions v-else-if="store.currentMode === 'edit'" key="edit" />
                 <StoryOptions v-else-if="store.currentMode === 'story'" key="story" />
                 <DiagramOptions v-else-if="store.currentMode === 'diagram'" key="diagram" />

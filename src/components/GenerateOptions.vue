@@ -7,6 +7,9 @@ const store = useGeneratorStore()
 const customStyleInput = ref('')
 const customVariationInput = ref('')
 
+// Options ref
+const options = store.generateOptions
+
 const resolutions = [
   { value: '1k', label: '1K' },
   { value: '2k', label: '2K' },
@@ -23,7 +26,7 @@ const ratios = [
 ]
 
 const toggleStyle = (style) => {
-  const styles = store.generateOptions.styles
+  const styles = options.styles
   const index = styles.indexOf(style)
   if (index === -1) {
     styles.push(style)
@@ -45,8 +48,8 @@ const toggleVariation = (variation) => {
 const addCustomStyle = () => {
   const styles = customStyleInput.value.split(',').map(s => s.trim()).filter(s => s)
   styles.forEach(style => {
-    if (!store.generateOptions.styles.includes(style)) {
-      store.generateOptions.styles.push(style)
+    if (!options.styles.includes(style)) {
+      options.styles.push(style)
     }
   })
   customStyleInput.value = ''
@@ -63,9 +66,9 @@ const addCustomVariation = () => {
 }
 
 const removeStyle = (style) => {
-  const index = store.generateOptions.styles.indexOf(style)
+  const index = options.styles.indexOf(style)
   if (index !== -1) {
-    store.generateOptions.styles.splice(index, 1)
+    options.styles.splice(index, 1)
   }
 }
 
@@ -99,9 +102,9 @@ const handleVariationEnter = (event) => {
         <button
           v-for="res in resolutions"
           :key="res.value"
-          @click="store.generateOptions.resolution = res.value"
+          @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
-          :class="store.generateOptions.resolution === res.value
+          :class="options.resolution === res.value
             ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
@@ -117,9 +120,9 @@ const handleVariationEnter = (event) => {
         <button
           v-for="ratio in ratios"
           :key="ratio.value"
-          @click="store.generateOptions.ratio = ratio.value"
+          @click="options.ratio = ratio.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1.5"
-          :class="store.generateOptions.ratio === ratio.value
+          :class="options.ratio === ratio.value
             ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
@@ -162,7 +165,7 @@ const handleVariationEnter = (event) => {
           :key="style.value"
           @click="toggleStyle(style.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-          :class="store.generateOptions.styles.includes(style.value)
+          :class="options.styles.includes(style.value)
             ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
@@ -171,9 +174,9 @@ const handleVariationEnter = (event) => {
       </div>
 
       <!-- Selected styles -->
-      <div v-if="store.generateOptions.styles.length > 0" class="flex flex-wrap gap-2 pt-2">
+      <div v-if="options.styles.length > 0" class="flex flex-wrap gap-2 pt-2">
         <span
-          v-for="style in store.generateOptions.styles"
+          v-for="style in options.styles"
           :key="style"
           class="tag"
         >

@@ -21,7 +21,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const theme = ref('dark')
 
   // Current mode
-  const currentMode = ref('generate') // generate, edit, story, diagram
+  const currentMode = ref('generate') // generate, edit, story, diagram, sticker
 
   // Prompt
   const prompt = ref('')
@@ -66,6 +66,25 @@ export const useGeneratorStore = defineStore('generator', () => {
     layout: 'unspecified',
     complexity: 'unspecified',
     annotations: 'unspecified',
+  })
+
+  // Sticker mode options
+  const stickerOptions = ref({
+    resolution: '1k',
+    ratio: '1:1',
+    styles: [],
+    // Context/Usage
+    context: 'chat', // chat, group, boss, couple, custom
+    customContext: '',
+    // Text related
+    hasText: true,
+    tones: [], // formal, polite, friendly, sarcastic, custom
+    customTone: '',
+    languages: ['zh-TW'], // zh-TW, en, ja, custom
+    customLanguage: '',
+    // Composition
+    cameraAngles: ['headshot'], // headshot, halfbody, fullbody
+    expressions: ['natural'], // natural, exaggerated, crazy
   })
 
   // Generation state
@@ -119,6 +138,9 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     const savedDiagramOptions = getQuickSetting('diagramOptions')
     if (savedDiagramOptions) diagramOptions.value = { ...diagramOptions.value, ...savedDiagramOptions }
+
+    const savedStickerOptions = getQuickSetting('stickerOptions')
+    if (savedStickerOptions) stickerOptions.value = { ...stickerOptions.value, ...savedStickerOptions }
 
     const savedEditOptions = getQuickSetting('editOptions')
     if (savedEditOptions) {
@@ -189,6 +211,13 @@ export const useGeneratorStore = defineStore('generator', () => {
         updateQuickSetting('diagramOptions', { ...newVal })
       }
     }, { deep: true })
+
+    // Watch sticker options
+    watch(stickerOptions, (newVal) => {
+      if (isInitialized) {
+        updateQuickSetting('stickerOptions', { ...newVal })
+      }
+    }, { deep: true })
   }
 
   // Apply theme to document
@@ -242,6 +271,8 @@ export const useGeneratorStore = defineStore('generator', () => {
         return { ...base, ...storyOptions.value }
       case 'diagram':
         return { ...base, ...diagramOptions.value }
+      case 'sticker':
+        return { ...base, ...stickerOptions.value }
       default:
         return base
     }
@@ -422,6 +453,22 @@ export const useGeneratorStore = defineStore('generator', () => {
           annotations: 'unspecified',
         }
         break
+      case 'sticker':
+        stickerOptions.value = {
+          resolution: '1k',
+          ratio: '1:1',
+          styles: [],
+          context: 'chat',
+          customContext: '',
+          hasText: true,
+          tones: [],
+          customTone: '',
+          languages: ['zh-TW'],
+          customLanguage: '',
+          cameraAngles: ['headshot'],
+          expressions: ['natural'],
+        }
+        break
     }
   }
 
@@ -438,6 +485,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     editOptions,
     storyOptions,
     diagramOptions,
+    stickerOptions,
     referenceImages,
     isGenerating,
     generationError,

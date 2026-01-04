@@ -25,7 +25,11 @@ const modeLabels = {
   edit: '編輯',
   story: '故事',
   diagram: '圖表',
+  sticker: '貼圖',
 }
+
+// Track the current lightbox item's mode
+const lightboxItemMode = ref('')
 
 const formatTime = (timestamp) => {
   const date = new Date(timestamp)
@@ -71,6 +75,22 @@ const loadHistoryItem = async (item) => {
     // Use splice to maintain reactivity instead of direct assignment
     store.generateOptions.styles.splice(0, store.generateOptions.styles.length, ...(item.options.styles || []))
     store.generateOptions.variations.splice(0, store.generateOptions.variations.length, ...(item.options.variations || []))
+  } else if (item.mode === 'sticker' && item.options) {
+    store.stickerOptions.resolution = item.options.resolution || '1k'
+    store.stickerOptions.ratio = item.options.ratio || '1:1'
+    store.stickerOptions.styles.splice(0, store.stickerOptions.styles.length, ...(item.options.styles || []))
+    // Context
+    store.stickerOptions.context = item.options.context || 'chat'
+    store.stickerOptions.customContext = item.options.customContext || ''
+    // Text related
+    store.stickerOptions.hasText = item.options.hasText ?? true
+    store.stickerOptions.tones.splice(0, store.stickerOptions.tones.length, ...(item.options.tones || []))
+    store.stickerOptions.customTone = item.options.customTone || ''
+    store.stickerOptions.languages.splice(0, store.stickerOptions.languages.length, ...(item.options.languages || ['zh-TW']))
+    store.stickerOptions.customLanguage = item.options.customLanguage || ''
+    // Composition
+    store.stickerOptions.cameraAngles.splice(0, store.stickerOptions.cameraAngles.length, ...(item.options.cameraAngles || ['headshot']))
+    store.stickerOptions.expressions.splice(0, store.stickerOptions.expressions.length, ...(item.options.expressions || ['natural']))
   } else if (item.mode === 'story' && item.options) {
     Object.assign(store.storyOptions, item.options)
   } else if (item.mode === 'diagram' && item.options) {
@@ -119,6 +139,7 @@ const openHistoryLightbox = async (item, event) => {
     lightboxImages.value = loadedImages
     lightboxMetadata.value = item.images
     lightboxInitialIndex.value = 0
+    lightboxItemMode.value = item.mode || ''
     showLightbox.value = true
   } catch (err) {
     console.error('Failed to load history images:', err)
@@ -131,6 +152,7 @@ const closeLightbox = () => {
   showLightbox.value = false
   lightboxImages.value = []
   lightboxMetadata.value = []
+  lightboxItemMode.value = ''
 }
 </script>
 
@@ -194,6 +216,7 @@ const closeLightbox = () => {
                 class="text-xs px-2 py-0.5 rounded-md font-medium"
                 :class="{
                   'bg-purple-500/20 text-purple-300': item.mode === 'generate',
+                  'bg-pink-500/20 text-pink-300': item.mode === 'sticker',
                   'bg-cyan-500/20 text-cyan-300': item.mode === 'edit',
                   'bg-amber-500/20 text-amber-300': item.mode === 'story',
                   'bg-emerald-500/20 text-emerald-300': item.mode === 'diagram',
@@ -259,6 +282,7 @@ const closeLightbox = () => {
       :image-metadata="lightboxMetadata"
       :initial-index="lightboxInitialIndex"
       :is-historical="true"
+      :is-sticker-mode="lightboxItemMode === 'sticker'"
       @close="closeLightbox"
     />
   </div>

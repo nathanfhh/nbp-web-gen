@@ -157,6 +157,7 @@ const clearImages = () => {
       :image-metadata="store.generatedImagesMetadata"
       :initial-index="lightboxIndex"
       :is-historical="false"
+      :is-sticker-mode="store.currentMode === 'sticker'"
     />
   </div>
 

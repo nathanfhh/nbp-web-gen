@@ -11,6 +11,12 @@ const modes = [
     icon: 'sparkles',
   },
   {
+    id: 'sticker',
+    name: '貼圖',
+    description: '生成可裁切的貼圖素材',
+    icon: 'sticker',
+  },
+  {
     id: 'edit',
     name: '編輯',
     description: '修改現有圖片',
@@ -54,6 +60,10 @@ const selectMode = (mode) => {
           <!-- Sparkles -->
           <svg v-if="mode.icon === 'sparkles'" class="w-4 h-4" :class="store.currentMode === mode.id ? 'text-purple-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+          </svg>
+          <!-- Sticker -->
+          <svg v-else-if="mode.icon === 'sticker'" class="w-4 h-4" :class="store.currentMode === mode.id ? 'text-purple-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <!-- Pencil -->
           <svg v-else-if="mode.icon === 'pencil'" class="w-4 h-4" :class="store.currentMode === mode.id ? 'text-purple-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -47,6 +47,47 @@ export const PREDEFINED_VARIATIONS = [
   { value: 'time-of-day', label: '時間變化' },
 ]
 
+// Sticker mode prompt prefix
+const STICKER_PROMPT_PREFIX = 'A flat vector sticker sheet, arranged in a grid layout, knolling style. Each item has a thick white die-cut border contour. Isolated on a solid, uniform dark background color that is unlikely to appear in the sticker content (e.g., deep navy, dark teal, or charcoal - pick the best contrast). Wide spacing between items, no overlapping. Clean lines.'
+
+// Sticker context labels for prompt
+const STICKER_CONTEXTS = {
+  chat: 'for casual chat replies',
+  group: 'for group chat interactions',
+  boss: 'for replying to boss/supervisor',
+  couple: 'for couples/romantic interactions',
+  custom: '',
+}
+
+// Sticker tone labels for prompt
+const STICKER_TONES = {
+  formal: 'formal',
+  polite: 'polite',
+  friendly: 'friendly/casual',
+  sarcastic: 'sarcastic/playful roasting',
+}
+
+// Sticker language labels for prompt
+const STICKER_LANGUAGES = {
+  'zh-TW': 'Traditional Chinese',
+  en: 'English',
+  ja: 'Japanese',
+}
+
+// Sticker camera angle labels for prompt
+const STICKER_CAMERA_ANGLES = {
+  headshot: 'headshot/close-up face',
+  halfbody: 'half-body shot',
+  fullbody: 'full-body shot',
+}
+
+// Sticker expression labels for prompt
+const STICKER_EXPRESSIONS = {
+  natural: 'natural expressions',
+  exaggerated: 'exaggerated expressions',
+  crazy: 'over-the-top/crazy expressions',
+}
+
 /**
  * Build enhanced prompt based on mode and options
  * Exported for use in PromptDebug component
@@ -65,6 +106,90 @@ export const buildPrompt = (basePrompt, options, mode) => {
     }
     // Prefix with explicit image generation instruction
     prompt = `Generate an image: ${prompt}`
+  } else if (mode === 'sticker') {
+    // Sticker mode: build comprehensive prompt with all options
+    const stickerParts = []
+
+    // Context/Usage
+    if (options.context) {
+      if (options.context === 'custom' && options.customContext) {
+        stickerParts.push(`for ${options.customContext}`)
+      } else if (STICKER_CONTEXTS[options.context]) {
+        stickerParts.push(STICKER_CONTEXTS[options.context])
+      }
+    }
+
+    // Composition - Camera angles
+    if (options.cameraAngles?.length > 0) {
+      const angleLabels = options.cameraAngles
+        .map(a => STICKER_CAMERA_ANGLES[a])
+        .filter(Boolean)
+      if (angleLabels.length > 0) {
+        stickerParts.push(`covering: ${angleLabels.join(', ')}`)
+      }
+    }
+
+    // Composition - Expressions
+    if (options.expressions?.length > 0) {
+      const exprLabels = options.expressions
+        .map(e => STICKER_EXPRESSIONS[e])
+        .filter(Boolean)
+      if (exprLabels.length > 0) {
+        stickerParts.push(`with ${exprLabels.join(', ')}`)
+      }
+    }
+
+    // Text related
+    if (options.hasText) {
+      const textParts = []
+
+      // Tones
+      if (options.tones?.length > 0) {
+        const toneLabels = options.tones
+          .map(t => STICKER_TONES[t])
+          .filter(Boolean)
+        if (options.customTone) {
+          toneLabels.push(options.customTone)
+        }
+        if (toneLabels.length > 0) {
+          textParts.push(`${toneLabels.join(', ')} tone`)
+        }
+      } else if (options.customTone) {
+        textParts.push(`${options.customTone} tone`)
+      }
+
+      // Languages
+      if (options.languages?.length > 0) {
+        const langLabels = options.languages
+          .map(l => STICKER_LANGUAGES[l])
+          .filter(Boolean)
+        if (options.customLanguage) {
+          langLabels.push(options.customLanguage)
+        }
+        if (langLabels.length > 0) {
+          textParts.push(`text in ${langLabels.join(', ')}`)
+        }
+      } else if (options.customLanguage) {
+        textParts.push(`text in ${options.customLanguage}`)
+      }
+
+      if (textParts.length > 0) {
+        stickerParts.push(`Include text captions with ${textParts.join(', ')}`)
+      } else {
+        stickerParts.push('Include text captions')
+      }
+    } else {
+      stickerParts.push('No text on stickers')
+    }
+
+    // Styles
+    if (options.styles?.length > 0) {
+      prompt += `, ${options.styles.join(', ')} style`
+    }
+
+    // Build final prompt
+    const stickerSuffix = stickerParts.length > 0 ? `. ${stickerParts.join('. ')}.` : ''
+    prompt = `${STICKER_PROMPT_PREFIX} ${prompt}${stickerSuffix}`
   } else if (mode === 'edit') {
     // For edit mode, also add explicit instruction
     prompt = `Edit this image: ${prompt}`
