@@ -65,6 +65,8 @@ watch(() => props.modelValue, (newVal) => {
 
 // Watch for preview background toggle - regenerate preview URLs
 watch(previewBgWhite, (useWhiteBg) => {
+  toast.info(useWhiteBg ? '已切換為白色背景預覽' : '已切換為透明背景預覽')
+
   if (croppedStickers.value.length === 0) return
 
   // Update big preview canvas
@@ -237,10 +239,15 @@ const processImage = () => {
   croppedStickers.value = []
   selectedStickers.value.clear()
 
-  // Use nextTick + requestAnimationFrame to ensure overlay renders before heavy processing
+  const startTime = Date.now()
+  const MIN_DISPLAY_TIME = 500 // Minimum time to show loading overlay
+
+  // Use nextTick + requestAnimationFrame + setTimeout to ensure overlay paints before heavy processing
   nextTick(() => {
     requestAnimationFrame(() => {
-      try {
+      // Additional delay to ensure browser paints the overlay
+      setTimeout(() => {
+        const doProcessing = () => {
         const sourceCanvas = sourceCanvasRef.value
         const previewCanvas = previewCanvasRef.value
         const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true })
@@ -370,9 +377,21 @@ const processImage = () => {
 
         // Find and crop individual stickers
         findAndCropStickers(sourceCanvas, previewBgWhite.value)
-      } finally {
-        isProcessing.value = false
+
+        // Ensure minimum display time for loading overlay
+        const elapsed = Date.now() - startTime
+        const remaining = MIN_DISPLAY_TIME - elapsed
+        if (remaining > 0) {
+          setTimeout(() => {
+            isProcessing.value = false
+          }, remaining)
+        } else {
+          isProcessing.value = false
+        }
       }
+
+        doProcessing()
+      }, 100) // 100ms delay to ensure paint
     })
   })
 }

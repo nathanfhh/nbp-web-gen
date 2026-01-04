@@ -20,7 +20,7 @@ const typeIcons = {
 
 <template>
   <Teleport to="body">
-    <div class="fixed top-4 right-4 z-[9999] space-y-2 pointer-events-none">
+    <div class="fixed top-4 right-4 z-[99999] space-y-2 pointer-events-none">
       <TransitionGroup name="toast">
         <div
           v-for="toast in toasts"
