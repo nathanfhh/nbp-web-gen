@@ -31,3 +31,4 @@ docker-compose.yml
 .DS_Store
 *.md
 LICENSE
+.gemini-clipboard/
