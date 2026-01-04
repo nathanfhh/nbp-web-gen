@@ -18,9 +18,13 @@ import PromptDebug from '@/components/PromptDebug.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 import { useToast } from '@/composables/useToast'
+import { useImageStorage } from '@/composables/useImageStorage'
+import { useIndexedDB } from '@/composables/useIndexedDB'
 
 const store = useGeneratorStore()
 const toast = useToast()
+const imageStorage = useImageStorage()
+const { updateHistoryImages } = useIndexedDB()
 const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
 
 // App version from package.json (injected by Vite)
@@ -165,13 +169,32 @@ const handleGenerate = async () => {
     }
 
     // Save to history with thinking process
-    await store.addToHistory({
+    const historyId = await store.addToHistory({
       prompt: store.prompt,
       mode: store.currentMode,
       options: { ...options },
       status: 'success',
       thinkingText: thinkingText || store.thinkingProcess.filter((c) => c.type === 'text').map((c) => c.content).join(''),
     })
+
+    // Background save images to OPFS (don't block UI)
+    if (result?.images && result.images.length > 0) {
+      imageStorage.saveGeneratedImages(historyId, result.images)
+        .then(async (metadata) => {
+          // Update IndexedDB with image metadata
+          await updateHistoryImages(historyId, metadata)
+          // Update store metadata for current view
+          store.setGeneratedImagesMetadata(metadata)
+          // Update storage usage
+          await store.updateStorageUsage()
+          // Reload history to get updated record with images
+          await store.loadHistory()
+        })
+        .catch((err) => {
+          console.error('Failed to save images to OPFS:', err)
+          toast.warning('圖片儲存失敗，但生成已完成')
+        })
+    }
 
     // Save settings
     await store.saveSettings()

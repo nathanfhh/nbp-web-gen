@@ -78,6 +78,7 @@ const downloadAll = () => {
 
 const clearImages = () => {
   store.clearGeneratedImages()
+  store.clearGeneratedImagesMetadata()
 }
 </script>
 
@@ -153,7 +154,9 @@ const clearImages = () => {
     <ImageLightbox
       v-model="lightboxOpen"
       :images="store.generatedImages"
+      :image-metadata="store.generatedImagesMetadata"
       :initial-index="lightboxIndex"
+      :is-historical="false"
     />
   </div>
 

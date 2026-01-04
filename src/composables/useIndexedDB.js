@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 const DB_NAME = 'nanobanana-generator'
-const DB_VERSION = 1
+const DB_VERSION = 2 // Upgraded for image metadata support
 const STORE_SETTINGS = 'settings'
 const STORE_HISTORY = 'history'
 
@@ -34,20 +34,33 @@ export function useIndexedDB() {
 
       request.onupgradeneeded = (event) => {
         const database = event.target.result
+        const oldVersion = event.oldVersion
 
-        // Settings store - for user preferences
-        if (!database.objectStoreNames.contains(STORE_SETTINGS)) {
-          database.createObjectStore(STORE_SETTINGS, { keyPath: 'key' })
+        // Version 0 -> 1: Initial schema
+        if (oldVersion < 1) {
+          // Settings store - for user preferences
+          if (!database.objectStoreNames.contains(STORE_SETTINGS)) {
+            database.createObjectStore(STORE_SETTINGS, { keyPath: 'key' })
+          }
+
+          // History store - for generation records
+          if (!database.objectStoreNames.contains(STORE_HISTORY)) {
+            const historyStore = database.createObjectStore(STORE_HISTORY, {
+              keyPath: 'id',
+              autoIncrement: true,
+            })
+            historyStore.createIndex('timestamp', 'timestamp', { unique: false })
+            historyStore.createIndex('mode', 'mode', { unique: false })
+          }
         }
 
-        // History store - for generation records
-        if (!database.objectStoreNames.contains(STORE_HISTORY)) {
-          const historyStore = database.createObjectStore(STORE_HISTORY, {
-            keyPath: 'id',
-            autoIncrement: true,
-          })
-          historyStore.createIndex('timestamp', 'timestamp', { unique: false })
-          historyStore.createIndex('mode', 'mode', { unique: false })
+        // Version 1 -> 2: Add image metadata support
+        // No schema changes needed - images field is added to existing records dynamically
+        // Existing records without images field will work fine (images will be undefined)
+        if (oldVersion < 2) {
+          // Future: Could add an index for hasImages if needed
+          // const historyStore = event.target.transaction.objectStore(STORE_HISTORY)
+          // historyStore.createIndex('hasImages', 'hasImages', { unique: false })
         }
       }
     })
@@ -193,6 +206,51 @@ export function useIndexedDB() {
     })
   }
 
+  /**
+   * Update a history record's images metadata
+   * @param {number} id - History record ID
+   * @param {Array} images - Image metadata array
+   * @returns {Promise<boolean>}
+   */
+  const updateHistoryImages = async (id, images) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readwrite')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const getRequest = store.get(id)
+
+      getRequest.onsuccess = () => {
+        const record = getRequest.result
+        if (record) {
+          // Deep clone images to ensure plain objects
+          record.images = JSON.parse(JSON.stringify(images))
+          const putRequest = store.put(record)
+          putRequest.onsuccess = () => resolve(true)
+          putRequest.onerror = () => reject(putRequest.error)
+        } else {
+          reject(new Error(`History record with id ${id} not found`))
+        }
+      }
+      getRequest.onerror = () => reject(getRequest.error)
+    })
+  }
+
+  /**
+   * Get all history record IDs (for cleanup operations)
+   * @returns {Promise<Array<number>>}
+   */
+  const getAllHistoryIds = async () => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readonly')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const request = store.getAllKeys()
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
   return {
     isReady,
     error,
@@ -206,5 +264,7 @@ export function useIndexedDB() {
     deleteHistory,
     clearAllHistory,
     getHistoryCount,
+    updateHistoryImages,
+    getAllHistoryIds,
   }
 }

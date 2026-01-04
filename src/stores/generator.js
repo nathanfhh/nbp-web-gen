@@ -2,11 +2,13 @@ import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
+import { useImageStorage } from '@/composables/useImageStorage'
 
 export const useGeneratorStore = defineStore('generator', () => {
   const { saveSetting, addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount } =
     useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
+  const imageStorage = useImageStorage()
 
   // Flag to prevent saving during initialization
   let isInitialized = false
@@ -83,6 +85,10 @@ export const useGeneratorStore = defineStore('generator', () => {
   const history = ref([])
   const historyCount = ref(0)
 
+  // Image metadata (for current generation)
+  const generatedImagesMetadata = ref([])
+  const storageUsage = ref(0)
+
   // Initialize from storage
   const initialize = async () => {
     // Load API key from localStorage
@@ -122,6 +128,9 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     // Load history from IndexedDB
     await loadHistory()
+
+    // Load storage usage
+    await updateStorageUsage()
 
     // Mark as initialized - now watchers can save
     isInitialized = true
@@ -251,16 +260,34 @@ export const useGeneratorStore = defineStore('generator', () => {
     historyCount.value = await getHistoryCount()
   }
 
-  // Delete from history
+  // Delete from history (also deletes OPFS images)
   const removeFromHistory = async (id) => {
+    // Delete OPFS images first
+    try {
+      await imageStorage.deleteHistoryImages(id)
+    } catch (err) {
+      console.error('Failed to delete OPFS images:', err)
+    }
+    // Delete IndexedDB record
     await deleteHistory(id)
     await loadHistory()
+    // Update storage usage
+    await updateStorageUsage()
   }
 
-  // Clear history
+  // Clear history (also deletes all OPFS images)
   const clearHistory = async () => {
+    // Delete all OPFS images first
+    try {
+      await imageStorage.deleteAllImages()
+    } catch (err) {
+      console.error('Failed to delete all OPFS images:', err)
+    }
+    // Clear IndexedDB history
     await clearAllHistory()
     await loadHistory()
+    // Update storage usage
+    await updateStorageUsage()
   }
 
   // Set generated images
@@ -271,6 +298,25 @@ export const useGeneratorStore = defineStore('generator', () => {
   // Clear generated images
   const clearGeneratedImages = () => {
     generatedImages.value = []
+  }
+
+  // Set generated images metadata
+  const setGeneratedImagesMetadata = (metadata) => {
+    generatedImagesMetadata.value = metadata
+  }
+
+  // Clear generated images metadata
+  const clearGeneratedImagesMetadata = () => {
+    generatedImagesMetadata.value = []
+  }
+
+  // Update storage usage
+  const updateStorageUsage = async () => {
+    try {
+      storageUsage.value = await imageStorage.getStorageUsage()
+    } catch (err) {
+      console.error('Failed to update storage usage:', err)
+    }
   }
 
   // Set generation state
@@ -402,6 +448,8 @@ export const useGeneratorStore = defineStore('generator', () => {
     isStreaming,
     history,
     historyCount,
+    generatedImagesMetadata,
+    storageUsage,
 
     // Computed
     getCurrentOptions,
@@ -418,6 +466,9 @@ export const useGeneratorStore = defineStore('generator', () => {
     clearHistory,
     setGeneratedImages,
     clearGeneratedImages,
+    setGeneratedImagesMetadata,
+    clearGeneratedImagesMetadata,
+    updateStorageUsage,
     setGenerating,
     setGenerationError,
     clearGenerationError,
@@ -428,5 +479,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     addReferenceImage,
     removeReferenceImage,
     clearReferenceImages,
+    imageStorage,
   }
 })

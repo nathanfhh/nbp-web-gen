@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { formatFileSize, calculateCompressionRatio } from '@/composables/useImageCompression'
+import { useImageStorage } from '@/composables/useImageStorage'
 
 const props = defineProps({
   images: {
@@ -14,9 +16,27 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  // Image metadata from OPFS storage
+  imageMetadata: {
+    type: Array,
+    default: () => [],
+  },
+  // Is this historical images (from history, only WebP available)
+  isHistorical: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'close'])
+
+// Image storage for OPFS access
+const imageStorage = useImageStorage()
+
+// Download format preference (original or webp)
+const DOWNLOAD_PREF_KEY = 'nbp-download-format'
+const downloadFormat = ref(localStorage.getItem(DOWNLOAD_PREF_KEY) || 'original')
+const showDownloadMenu = ref(false)
 
 const currentIndex = ref(props.initialIndex)
 const isAnimating = ref(false)
@@ -118,6 +138,7 @@ const hasNext = computed(() => currentIndex.value < props.images.length - 1)
 
 const close = () => {
   emit('update:modelValue', false)
+  emit('close')
 }
 
 const goToPrev = () => {
@@ -435,7 +456,16 @@ onUnmounted(() => {
 })
 
 const getImageSrc = (image) => {
-  return `data:${image.mimeType};base64,${image.data}`
+  // Historical images use Object URL from OPFS
+  if (image.url) {
+    return image.url
+  }
+  // Fresh images use base64 data
+  if (image.data) {
+    return `data:${image.mimeType};base64,${image.data}`
+  }
+  // Fallback: return placeholder or empty
+  return ''
 }
 
 // Image dimensions
@@ -448,34 +478,125 @@ const onImageLoad = (e) => {
   }
 }
 
-// Calculate file size from base64
-const formatFileSize = (base64String) => {
-  if (!base64String) return '0 B'
-  // Base64 size = original size * 4/3, so decoded size = base64 length * 3/4
-  const bytes = Math.round((base64String.length * 3) / 4)
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+// Calculate file size from base64 (for fresh images without metadata)
+const calcBase64Size = (base64String) => {
+  if (!base64String) return 0
+  return Math.round((base64String.length * 3) / 4)
 }
+
+// Get current image metadata
+const currentMetadata = computed(() => {
+  if (!props.imageMetadata || props.imageMetadata.length === 0) return null
+  return props.imageMetadata[currentIndex.value] || null
+})
+
+// Check if compression info is available
+const hasCompressionInfo = computed(() => {
+  return currentMetadata.value && currentMetadata.value.originalSize && currentMetadata.value.compressedSize
+})
 
 const currentImageInfo = computed(() => {
   if (!currentImage.value) return null
-  return {
-    size: formatFileSize(currentImage.value.data),
-    width: imageDimensions.value.width,
-    height: imageDimensions.value.height,
+
+  const meta = currentMetadata.value
+  const info = {
+    width: meta?.width || imageDimensions.value.width,
+    height: meta?.height || imageDimensions.value.height,
     mimeType: currentImage.value.mimeType,
   }
+
+  // If we have metadata with compression info
+  if (meta && meta.originalSize) {
+    info.originalSize = formatFileSize(meta.originalSize)
+    info.compressedSize = formatFileSize(meta.compressedSize)
+    info.originalFormat = meta.originalFormat || 'image/png'
+    info.compressionRatio = calculateCompressionRatio(meta.originalSize, meta.compressedSize)
+  } else {
+    // Fall back to calculating from base64
+    info.size = formatFileSize(calcBase64Size(currentImage.value.data))
+  }
+
+  return info
 })
 
-const downloadCurrentImage = () => {
-  if (!currentImage.value) return
+// Handle download button click
+const handleDownloadClick = () => {
+  if (props.isHistorical) {
+    downloadCurrentImage()
+  } else {
+    showDownloadMenu.value = !showDownloadMenu.value
+  }
+}
+
+// Handle format selection
+const handleFormatSelect = (format) => {
+  downloadFormat.value = format
+  localStorage.setItem(DOWNLOAD_PREF_KEY, format)
+  showDownloadMenu.value = false
+  downloadCurrentImage()
+}
+
+// Download current image
+const isDownloading = ref(false)
+
+const downloadCurrentImage = async () => {
+  if (!currentImage.value || isDownloading.value) return
+
+  isDownloading.value = true
+  showDownloadMenu.value = false
+
   const link = document.createElement('a')
-  link.href = getImageSrc(currentImage.value)
-  link.download = `generated-image-${Date.now()}-${currentIndex.value + 1}.${currentImage.value.mimeType.split('/')[1] || 'png'}`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+  const timestamp = Date.now()
+  const imageNum = currentIndex.value + 1
+
+  try {
+    if (props.isHistorical) {
+      // Historical images: always download WebP from OPFS
+      const meta = currentMetadata.value
+      if (meta?.opfsPath) {
+        const base64 = await imageStorage.getImageBase64(meta.opfsPath)
+        if (base64) {
+          link.href = `data:image/webp;base64,${base64}`
+          link.download = `generated-image-${timestamp}-${imageNum}.webp`
+        }
+      }
+    } else if (downloadFormat.value === 'webp') {
+      // Fresh image, download WebP
+      if (currentMetadata.value?.opfsPath) {
+        // WebP already saved in OPFS
+        const base64 = await imageStorage.getImageBase64(currentMetadata.value.opfsPath)
+        if (base64) {
+          link.href = `data:image/webp;base64,${base64}`
+          link.download = `generated-image-${timestamp}-${imageNum}.webp`
+        }
+      } else {
+        // WebP not ready yet, compress on-the-fly
+        const { compressToWebP, blobToBase64 } = await import('@/composables/useImageCompression')
+        const compressed = await compressToWebP(currentImage.value, { quality: 0.85 })
+        const base64 = await blobToBase64(compressed.blob)
+        link.href = `data:image/webp;base64,${base64}`
+        link.download = `generated-image-${timestamp}-${imageNum}.webp`
+      }
+    } else {
+      // Fresh image, download original
+      link.href = getImageSrc(currentImage.value)
+      const ext = currentImage.value.mimeType?.split('/')[1] || 'png'
+      link.download = `generated-image-${timestamp}-${imageNum}.${ext}`
+    }
+
+    if (link.href) {
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  } finally {
+    isDownloading.value = false
+  }
+}
+
+// Close download menu when clicking outside
+const closeDownloadMenu = () => {
+  showDownloadMenu.value = false
 }
 </script>
 
@@ -487,6 +608,7 @@ const downloadCurrentImage = () => {
         class="lightbox-overlay"
         :class="{ 'is-closing': isClosing }"
         @click.self="close"
+        @click="closeDownloadMenu"
       >
         <!-- Top toolbar -->
         <div class="lightbox-toolbar">
@@ -499,16 +621,59 @@ const downloadCurrentImage = () => {
           >
             {{ Math.round(scale * 100) }}%
           </button>
-          <!-- Download button -->
-          <button
-            @click="downloadCurrentImage"
-            class="lightbox-btn"
-            title="下載圖片"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </button>
+
+          <!-- Download button with format selector -->
+          <div class="download-container" @click.stop>
+            <!-- Combined download button -->
+            <button
+              @click="handleDownloadClick"
+              class="lightbox-btn flex items-center gap-2"
+              :class="{ 'opacity-50 cursor-wait': isDownloading }"
+              :disabled="isDownloading"
+              :title="isHistorical ? '下載 WebP' : '選擇下載格式'"
+            >
+              <!-- Loading spinner -->
+              <svg v-if="isDownloading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <!-- Show current format -->
+              <span class="text-xs font-medium">
+                {{ isHistorical ? 'WebP' : (downloadFormat === 'webp' ? 'WebP' : '原圖') }}
+              </span>
+              <!-- Dropdown arrow for fresh images -->
+              <svg v-if="!isHistorical" class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Download format dropdown -->
+            <div
+              v-if="showDownloadMenu && !isHistorical"
+              class="download-dropdown"
+            >
+              <button
+                @click="handleFormatSelect('original')"
+                class="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                :class="downloadFormat === 'original' ? 'text-purple-400' : 'text-white'"
+              >
+                <span class="w-4">{{ downloadFormat === 'original' ? '✓' : '' }}</span>
+                原始格式
+              </button>
+              <button
+                @click="handleFormatSelect('webp')"
+                class="w-full px-4 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                :class="downloadFormat === 'webp' ? 'text-purple-400' : 'text-white'"
+              >
+                <span class="w-4">{{ downloadFormat === 'webp' ? '✓' : '' }}</span>
+                WebP
+              </button>
+            </div>
+          </div>
+
           <!-- Close button -->
           <button
             @click="close"
@@ -520,6 +685,7 @@ const downloadCurrentImage = () => {
             </svg>
           </button>
         </div>
+
 
         <!-- Navigation: Previous -->
         <button
@@ -600,11 +766,33 @@ const downloadCurrentImage = () => {
 
         <!-- Image Info -->
         <div v-if="currentImageInfo" class="lightbox-info">
+          <!-- Dimensions -->
           <span v-if="currentImageInfo.width && currentImageInfo.height">
             {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
           </span>
-          <span class="lightbox-info-divider"></span>
-          <span>{{ currentImageInfo.size }}</span>
+
+          <!-- Compression info (if available) -->
+          <template v-if="hasCompressionInfo">
+            <span class="lightbox-info-divider"></span>
+            <span class="text-gray-400">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
+            <span class="text-gray-500">{{ currentImageInfo.originalSize }}</span>
+            <span class="lightbox-info-arrow">→</span>
+            <span class="text-purple-400">WebP</span>
+            <span class="text-purple-300">{{ currentImageInfo.compressedSize }}</span>
+            <span class="lightbox-info-ratio text-emerald-400">-{{ currentImageInfo.compressionRatio }}%</span>
+          </template>
+
+          <!-- Simple size (no compression info) -->
+          <template v-else-if="currentImageInfo.size">
+            <span class="lightbox-info-divider"></span>
+            <span>{{ currentImageInfo.size }}</span>
+          </template>
+
+          <!-- Historical indicator -->
+          <template v-if="isHistorical">
+            <span class="lightbox-info-divider"></span>
+            <span class="text-amber-400 text-xs">歷史紀錄</span>
+          </template>
         </div>
       </div>
     </Transition>
@@ -650,7 +838,7 @@ const downloadCurrentImage = () => {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   gap: 0.5rem;
 }
@@ -858,6 +1046,16 @@ const downloadCurrentImage = () => {
   background: rgba(255, 255, 255, 0.3);
 }
 
+.lightbox-info-arrow {
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0.25rem;
+}
+
+.lightbox-info-ratio {
+  font-weight: 500;
+  margin-left: 0.25rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -868,6 +1066,27 @@ const downloadCurrentImage = () => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* Download button container */
+.download-container {
+  position: relative;
+}
+
+/* Download format dropdown */
+.download-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  min-width: 8rem;
+  background: rgba(30, 30, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  z-index: 30;
 }
 
 /* Vue transition */

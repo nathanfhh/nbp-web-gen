@@ -410,6 +410,8 @@ const getStepStatus = (index) => {
       v-model="lightboxOpen"
       :images="thinkingImages"
       :initial-index="lightboxIndex"
+      :image-metadata="[]"
+      :is-historical="false"
     />
   </div>
 </template>
