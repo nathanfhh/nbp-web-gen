@@ -79,6 +79,9 @@ const loadHistoryItem = async (item) => {
     store.stickerOptions.resolution = item.options.resolution || '1k'
     store.stickerOptions.ratio = item.options.ratio || '1:1'
     store.stickerOptions.styles.splice(0, store.stickerOptions.styles.length, ...(item.options.styles || []))
+    // Layout
+    store.stickerOptions.layoutRows = item.options.layoutRows || 3
+    store.stickerOptions.layoutCols = item.options.layoutCols || 3
     // Context
     store.stickerOptions.context = item.options.context || 'chat'
     store.stickerOptions.customContext = item.options.customContext || ''

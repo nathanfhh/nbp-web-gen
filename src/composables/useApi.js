@@ -110,6 +110,12 @@ export const buildPrompt = (basePrompt, options, mode) => {
     // Sticker mode: build comprehensive prompt with all options
     const stickerParts = []
 
+    // Layout (rows x cols)
+    const rows = options.layoutRows || 3
+    const cols = options.layoutCols || 3
+    const totalCount = rows * cols
+    stickerParts.push(`arranged in a ${rows}x${cols} grid (${totalCount} stickers total)`)
+
     // Context/Usage
     if (options.context) {
       if (options.context === 'custom' && options.customContext) {

@@ -73,6 +73,9 @@ export const useGeneratorStore = defineStore('generator', () => {
     resolution: '1k',
     ratio: '1:1',
     styles: [],
+    // Layout
+    layoutRows: 3, // 1-5
+    layoutCols: 3, // 1-5
     // Context/Usage
     context: 'chat', // chat, group, boss, couple, custom
     customContext: '',
@@ -458,6 +461,8 @@ export const useGeneratorStore = defineStore('generator', () => {
           resolution: '1k',
           ratio: '1:1',
           styles: [],
+          layoutRows: 3,
+          layoutCols: 3,
           context: 'chat',
           customContext: '',
           hasText: true,

@@ -191,6 +191,85 @@ const handleStyleEnter = (event) => {
       </div>
     </div>
 
+    <!-- Layout -->
+    <div class="space-y-3">
+      <label class="block text-sm font-medium text-gray-300">佈局</label>
+      <div class="flex items-center gap-4">
+        <!-- Rows -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-400 w-8">列數</span>
+          <div class="flex items-center gap-1">
+            <button
+              @click="options.layoutRows = Math.max(1, options.layoutRows - 1)"
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              :class="{ 'opacity-50 cursor-not-allowed': options.layoutRows <= 1 }"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+              </svg>
+            </button>
+            <span class="w-8 text-center text-pink-300 font-medium">{{ options.layoutRows }}</span>
+            <button
+              @click="options.layoutRows = Math.min(5, options.layoutRows + 1)"
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              :class="{ 'opacity-50 cursor-not-allowed': options.layoutRows >= 5 }"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <!-- X separator -->
+        <span class="text-gray-500 font-medium">×</span>
+        <!-- Cols -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-400 w-8">行數</span>
+          <div class="flex items-center gap-1">
+            <button
+              @click="options.layoutCols = Math.max(1, options.layoutCols - 1)"
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              :class="{ 'opacity-50 cursor-not-allowed': options.layoutCols <= 1 }"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+              </svg>
+            </button>
+            <span class="w-8 text-center text-pink-300 font-medium">{{ options.layoutCols }}</span>
+            <button
+              @click="options.layoutCols = Math.min(5, options.layoutCols + 1)"
+              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              :class="{ 'opacity-50 cursor-not-allowed': options.layoutCols >= 5 }"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- Layout preview -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-500">預覽：</span>
+        <div
+          class="grid gap-0.5 p-2 bg-white/5 rounded-lg"
+          :style="{
+            gridTemplateRows: `repeat(${options.layoutRows}, 1fr)`,
+            gridTemplateColumns: `repeat(${options.layoutCols}, 1fr)`
+          }"
+        >
+          <div
+            v-for="i in options.layoutRows * options.layoutCols"
+            :key="i"
+            class="w-4 h-4 bg-pink-500/30 rounded-sm"
+          ></div>
+        </div>
+        <span class="text-xs text-gray-400">
+          共 {{ options.layoutRows * options.layoutCols }} 張貼圖
+        </span>
+      </div>
+    </div>
+
     <!-- Divider -->
     <div class="border-t border-white/10"></div>
 
