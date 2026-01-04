@@ -253,21 +253,91 @@ const processImage = () => {
       // Get image data
       const imageData = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
       const data = imageData.data
+      const width = sourceCanvas.width
+      const height = sourceCanvas.height
 
-      // Remove background
+      // Remove background using edge-connected flood fill
+      // This protects interior pixels (like black hair) that match background color
       const { r: bgR, g: bgG, b: bgB } = backgroundColor.value
       const tol = tolerance.value * 3
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i]
-        const g = data[i + 1]
-        const b = data[i + 2]
-
-        // Calculate color difference
+      // Helper: check if pixel matches background color
+      const matchesBg = (idx) => {
+        const r = data[idx]
+        const g = data[idx + 1]
+        const b = data[idx + 2]
         const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
+        return diff <= tol
+      }
 
-        if (diff <= tol) {
-          data[i + 3] = 0 // Set alpha to 0
+      // Track visited pixels
+      const visited = new Uint8Array(width * height)
+
+      // BFS flood fill from edges
+      const queue = []
+
+      // Add all edge pixels that match background color to queue
+      for (let x = 0; x < width; x++) {
+        // Top edge
+        const topIdx = x * 4
+        if (matchesBg(topIdx)) {
+          queue.push(x)
+          visited[x] = 1
+        }
+        // Bottom edge
+        const bottomIdx = ((height - 1) * width + x) * 4
+        const bottomPos = (height - 1) * width + x
+        if (matchesBg(bottomIdx) && !visited[bottomPos]) {
+          queue.push(bottomPos)
+          visited[bottomPos] = 1
+        }
+      }
+      for (let y = 1; y < height - 1; y++) {
+        // Left edge
+        const leftIdx = y * width * 4
+        const leftPos = y * width
+        if (matchesBg(leftIdx) && !visited[leftPos]) {
+          queue.push(leftPos)
+          visited[leftPos] = 1
+        }
+        // Right edge
+        const rightIdx = (y * width + width - 1) * 4
+        const rightPos = y * width + width - 1
+        if (matchesBg(rightIdx) && !visited[rightPos]) {
+          queue.push(rightPos)
+          visited[rightPos] = 1
+        }
+      }
+
+      // BFS: process connected background pixels
+      while (queue.length > 0) {
+        const pos = queue.shift()
+        const x = pos % width
+        const y = Math.floor(pos / width)
+        const idx = pos * 4
+
+        // Set pixel to transparent
+        data[idx + 3] = 0
+
+        // Check 4-connected neighbors
+        const neighbors = [
+          { nx: x - 1, ny: y },     // left
+          { nx: x + 1, ny: y },     // right
+          { nx: x, ny: y - 1 },     // up
+          { nx: x, ny: y + 1 },     // down
+        ]
+
+        for (const { nx, ny } of neighbors) {
+          if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+            const nPos = ny * width + nx
+            if (!visited[nPos]) {
+              const nIdx = nPos * 4
+              if (matchesBg(nIdx)) {
+                visited[nPos] = 1
+                queue.push(nPos)
+              }
+            }
+          }
         }
       }
 
