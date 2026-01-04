@@ -161,7 +161,7 @@ const closeLightbox = () => {
       <span>儲存空間：{{ formattedStorageUsage }}</span>
     </div>
 
-    <div v-if="store.history.length > 0" class="space-y-3 max-h-[400px] overflow-y-auto -mr-3 pr-3 history-scroll">
+    <div v-if="store.history.length > 0" class="space-y-3 max-h-[400px] overflow-y-auto -mr-4 pr-[5px] history-scroll">
       <div
         v-for="item in store.history"
         :key="item.id"
