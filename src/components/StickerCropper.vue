@@ -533,13 +533,16 @@ onUnmounted(() => {
                 @click="handleCanvasClick"
               >
                 <canvas ref="sourceCanvasRef" class="hidden"></canvas>
+                <!-- Only show preview canvas after processing -->
                 <canvas
+                  v-show="croppedStickers.length > 0"
                   ref="previewCanvasRef"
                   class="preview-canvas"
                   :class="{ 'opacity-50': isProcessing }"
                 ></canvas>
+                <!-- Show original image before processing -->
                 <img
-                  v-if="!croppedStickers.length && imageLoaded"
+                  v-if="croppedStickers.length === 0 && imageLoaded"
                   :src="imageSrc"
                   class="preview-image"
                   alt="Original"
@@ -662,6 +665,34 @@ onUnmounted(() => {
   background: rgba(10, 10, 15, 0.98);
   backdrop-filter: blur(8px);
   animation: cropper-fade-in 0.3s ease-out;
+  /* Force light text colors regardless of theme (dark background overlay) */
+  color: #e5e7eb;
+}
+
+/* Force all text to be light in cropper (override theme) */
+.cropper-overlay :deep(.text-gray-300),
+.cropper-overlay .text-gray-300 {
+  color: #d1d5db !important;
+}
+
+.cropper-overlay :deep(.text-gray-400),
+.cropper-overlay .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+.cropper-overlay :deep(.text-gray-500),
+.cropper-overlay .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.cropper-overlay :deep(.text-gray-600),
+.cropper-overlay .text-gray-600 {
+  color: #4b5563 !important;
+}
+
+.cropper-overlay :deep(.text-white),
+.cropper-overlay .text-white {
+  color: #ffffff !important;
 }
 
 .cropper-overlay.is-closing {
@@ -728,12 +759,20 @@ onUnmounted(() => {
 
 .preview-canvas,
 .preview-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
 
 .preview-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;

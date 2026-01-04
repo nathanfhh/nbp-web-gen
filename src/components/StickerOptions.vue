@@ -249,7 +249,7 @@ const handleStyleEnter = (event) => {
               v-for="tone in tones"
               :key="tone.value"
               @click="toggleTone(tone.value)"
-              class="py-1.5 px-3 rounded-lg text-xs font-medium transition-all"
+              class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
               :class="options.tones.includes(tone.value)
                 ? 'bg-amber-500/30 border border-amber-500 text-amber-300'
                 : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
@@ -274,7 +274,7 @@ const handleStyleEnter = (event) => {
               v-for="lang in languages"
               :key="lang.value"
               @click="toggleLanguage(lang.value)"
-              class="py-1.5 px-3 rounded-lg text-xs font-medium transition-all"
+              class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
               :class="options.languages.includes(lang.value)
                 ? 'bg-cyan-500/30 border border-cyan-500 text-cyan-300'
                 : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"

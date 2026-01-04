@@ -98,6 +98,16 @@
   color: #be123c !important;
 }
 
+[data-theme="light"] .text-pink-400,
+[data-theme="light"] .text-pink-300 {
+  color: #be185d !important;
+}
+
+[data-theme="light"] .text-violet-400,
+[data-theme="light"] .text-violet-300 {
+  color: #6d28d9 !important;
+}
+
 /* Light theme border overrides */
 [data-theme="light"] .border-white\/10,
 [data-theme="light"] .border-white\/20 {
@@ -132,6 +142,14 @@
 
 [data-theme="light"] .border-rose-500 {
   border-color: #be123c !important;
+}
+
+[data-theme="light"] .border-pink-500 {
+  border-color: #be185d !important;
+}
+
+[data-theme="light"] .border-violet-500 {
+  border-color: #6d28d9 !important;
 }
 
 /* Light theme gradient overrides for step indicators */
@@ -211,6 +229,16 @@
 [data-theme="light"] .bg-cyan-500\/20,
 [data-theme="light"] .bg-cyan-500\/30 {
   background-color: rgba(13, 94, 175, 0.12) !important;
+}
+
+[data-theme="light"] .bg-pink-500\/20,
+[data-theme="light"] .bg-pink-500\/30 {
+  background-color: rgba(190, 24, 93, 0.12) !important;
+}
+
+[data-theme="light"] .bg-violet-500\/20,
+[data-theme="light"] .bg-violet-500\/30 {
+  background-color: rgba(109, 40, 217, 0.12) !important;
 }
 
 /* Light theme content boxes - pure white with subtle border */
