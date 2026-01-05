@@ -61,6 +61,11 @@
   color: #ffffff !important;
 }
 
+/* Keep text white inside dark overlays */
+[data-theme="light"] [class*="bg-black/"].text-white {
+  color: #ffffff !important;
+}
+
 [data-theme="light"] .text-gray-300 {
   color: #374151 !important;
 }
@@ -806,6 +811,21 @@ body {
 .upload-zone.has-image {
   border-style: solid;
   padding: 0;
+}
+
+/* Light theme upload zone compact border visibility */
+[data-theme="light"] .upload-zone-compact {
+  border-color: rgba(13, 94, 175, 0.3) !important;
+}
+
+[data-theme="light"] .upload-zone-compact:hover {
+  border-color: rgba(13, 94, 175, 0.5) !important;
+  background: rgba(13, 94, 175, 0.05) !important;
+}
+
+[data-theme="light"] .upload-zone-compact.dragover {
+  border-color: #0D5EAF !important;
+  background: rgba(13, 94, 175, 0.1) !important;
 }
 
 /* Tab Navigation */
