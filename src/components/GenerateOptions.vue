@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { useStyleOptions } from '@/composables/useStyleOptions'
+import { useArrayToggle } from '@/composables/useArrayToggle'
+import { RESOLUTION_OPTIONS, RATIO_OPTIONS_FULL } from '@/constants'
 
 const store = useGeneratorStore()
 const { PREDEFINED_STYLES, PREDEFINED_VARIATIONS } = useStyleOptions()
@@ -12,86 +14,33 @@ const customVariationInput = ref('')
 // Options ref
 const options = store.generateOptions
 
-const resolutions = [
-  { value: '1k', label: '1K' },
-  { value: '2k', label: '2K' },
-  { value: '4k', label: '4K' },
-]
-
-const ratios = [
-  { value: '1:1', label: '1:1', icon: 'square' },
-  { value: '3:4', label: '3:4', icon: 'portrait' },
-  { value: '4:3', label: '4:3', icon: 'landscape' },
-  { value: '9:16', label: '9:16', icon: 'tall' },
-  { value: '16:9', label: '16:9', icon: 'wide' },
-  { value: '21:9', label: '21:9', icon: 'ultrawide' },
-]
-
-const toggleStyle = (style) => {
-  const styles = options.styles
-  const index = styles.indexOf(style)
-  if (index === -1) {
-    styles.push(style)
-  } else {
-    styles.splice(index, 1)
-  }
-}
-
-const toggleVariation = (variation) => {
-  const variations = store.generateOptions.variations
-  const index = variations.indexOf(variation)
-  if (index === -1) {
-    variations.push(variation)
-  } else {
-    variations.splice(index, 1)
-  }
-}
-
-const addCustomStyle = () => {
-  const styles = customStyleInput.value.split(',').map(s => s.trim()).filter(s => s)
-  styles.forEach(style => {
-    if (!options.styles.includes(style)) {
-      options.styles.push(style)
-    }
-  })
-  customStyleInput.value = ''
-}
-
-const addCustomVariation = () => {
-  const variations = customVariationInput.value.split(',').map(s => s.trim()).filter(s => s)
-  variations.forEach(variation => {
-    if (!store.generateOptions.variations.includes(variation)) {
-      store.generateOptions.variations.push(variation)
-    }
-  })
-  customVariationInput.value = ''
-}
-
-const removeStyle = (style) => {
-  const index = options.styles.indexOf(style)
-  if (index !== -1) {
-    options.styles.splice(index, 1)
-  }
-}
-
-const removeVariation = (variation) => {
-  const index = store.generateOptions.variations.indexOf(variation)
-  if (index !== -1) {
-    store.generateOptions.variations.splice(index, 1)
-  }
-}
+// Use array toggle composable for styles and variations
+const stylesToggle = useArrayToggle(() => options.styles)
+const variationsToggle = useArrayToggle(() => options.variations)
 
 // Handle Enter key for IME input (prevent triggering during composition)
 const handleStyleEnter = (event) => {
   if (!event.isComposing) {
-    addCustomStyle()
+    stylesToggle.addFromInput(customStyleInput.value)
+    customStyleInput.value = ''
   }
 }
 
 const handleVariationEnter = (event) => {
   if (!event.isComposing) {
-    addCustomVariation()
+    variationsToggle.addFromInput(customVariationInput.value)
+    customVariationInput.value = ''
   }
+}
+
+const addCustomStyle = () => {
+  stylesToggle.addFromInput(customStyleInput.value)
+  customStyleInput.value = ''
+}
+
+const addCustomVariation = () => {
+  variationsToggle.addFromInput(customVariationInput.value)
+  customVariationInput.value = ''
 }
 </script>
 
@@ -102,7 +51,7 @@ const handleVariationEnter = (event) => {
       <label class="block text-sm font-medium text-gray-300">{{ $t('options.resolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
-          v-for="res in resolutions"
+          v-for="res in RESOLUTION_OPTIONS"
           :key="res.value"
           @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
@@ -120,7 +69,7 @@ const handleVariationEnter = (event) => {
       <label class="block text-sm font-medium text-gray-300">{{ $t('options.aspectRatio') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
-          v-for="ratio in ratios"
+          v-for="ratio in RATIO_OPTIONS_FULL"
           :key="ratio.value"
           @click="options.ratio = ratio.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1.5"
@@ -165,9 +114,9 @@ const handleVariationEnter = (event) => {
         <button
           v-for="style in PREDEFINED_STYLES"
           :key="style.value"
-          @click="toggleStyle(style.value)"
+          @click="stylesToggle.toggle(style.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-          :class="options.styles.includes(style.value)
+          :class="stylesToggle.has(style.value)
             ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
@@ -183,7 +132,7 @@ const handleVariationEnter = (event) => {
           class="tag"
         >
           {{ PREDEFINED_STYLES.find(s => s.value === style)?.label || style }}
-          <button @click="removeStyle(style)" class="tag-remove">
+          <button @click="stylesToggle.remove(style)" class="tag-remove">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -213,9 +162,9 @@ const handleVariationEnter = (event) => {
         <button
           v-for="variation in PREDEFINED_VARIATIONS"
           :key="variation.value"
-          @click="toggleVariation(variation.value)"
+          @click="variationsToggle.toggle(variation.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-          :class="store.generateOptions.variations.includes(variation.value)
+          :class="variationsToggle.has(variation.value)
             ? 'bg-cyan-500/30 border border-cyan-500 text-cyan-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
@@ -224,15 +173,14 @@ const handleVariationEnter = (event) => {
       </div>
 
       <!-- Selected variations -->
-      <div v-if="store.generateOptions.variations.length > 0" class="flex flex-wrap gap-2 pt-2">
+      <div v-if="options.variations.length > 0" class="flex flex-wrap gap-2 pt-2">
         <span
-          v-for="variation in store.generateOptions.variations"
+          v-for="variation in options.variations"
           :key="variation"
-          class="tag"
-          style="background: rgba(6, 182, 212, 0.15); border-color: rgba(6, 182, 212, 0.3); color: #22d3ee;"
+          class="tag tag-cyan"
         >
           {{ PREDEFINED_VARIATIONS.find(v => v.value === variation)?.label || variation }}
-          <button @click="removeVariation(variation)" class="tag-remove">
+          <button @click="variationsToggle.remove(variation)" class="tag-remove">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>

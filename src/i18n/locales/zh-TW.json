@@ -150,7 +150,7 @@
   },
   "story": {
     "steps": "分鏡步驟",
-    "stepsUnit": "{count} 張",
+    "stepsUnit": "{count} 步",
     "stepsHint": "此為建議步驟數，實際生成圖片張數可能因 AI 詮釋而有所不同",
     "type": {
       "label": "序列類型",
