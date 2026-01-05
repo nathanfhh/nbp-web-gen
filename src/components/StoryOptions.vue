@@ -86,6 +86,7 @@ const formatOptions = computed(() => [
           {{ step.label }}
         </button>
       </div>
+      <p class="text-xs text-gray-500">{{ $t('story.stepsHint') }}</p>
     </div>
 
     <!-- Type -->

@@ -151,6 +151,7 @@
   "story": {
     "steps": "Story Steps",
     "stepsUnit": "{count} images",
+    "stepsHint": "This is a suggested step count. Actual number of images may vary based on AI interpretation.",
     "type": {
       "label": "Sequence Type",
       "unspecified": "Unspecified",
