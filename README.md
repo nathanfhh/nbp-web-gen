@@ -1,6 +1,6 @@
 # Nano Banana Pro Web Generator (NBP Web Gen)
 
-[![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/) [![Vite](https://img.shields.io/badge/Vite-6.x-blue.svg)](https://vitejs.dev/) [![Gemini API](https://img.shields.io/badge/Powered%20by-Gemini-8E75B2.svg)](https://deepmind.google/technologies/gemini/) [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet.svg)](https://claude.ai/code) [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue.svg)](https://nathanfhh.github.io/nbp-web-gen/)
+[![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/) [![Vite](https://img.shields.io/badge/Vite-7.x-blue.svg)](https://vitejs.dev/) [![Gemini API](https://img.shields.io/badge/Powered%20by-Gemini-8E75B2.svg)](https://deepmind.google/technologies/gemini/) [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet.svg)](https://claude.ai/code) [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue.svg)](https://nathanfhh.github.io/nbp-web-gen/)
 
 > **🔒 100% Client-Side | No Backend | Your Data Stays in Your Browser**
 
