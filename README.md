@@ -41,6 +41,7 @@ This project is a testament to the power of AI-assisted development:
 *   **Advanced Generation:** Full support for styles (Watercolor, Pixar 3D, Cyberpunk) and variations (Lighting, Angle, Composition).
 *   **Visual Storytelling:** Create consistent multi-step storyboards or process visualizations.
 *   **Technical Diagrams:** Generate flowcharts, architecture diagrams, and mind maps from text.
+*   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
 *   **Smart History:** Local IndexedDB storage for your generation history.
 *   **Privacy First:** API keys are stored only in your browser's local storage; no backend server is involved.
 
@@ -123,6 +124,7 @@ npm run build
 *   **進階圖像生成：** 支援多種藝術風格（水彩、Pixar 3D、Cyberpunk）與變體控制（光影、角度、構圖）。
 *   **視覺故事模式：** 可生成連貫的多步驟故事板或流程圖。
 *   **技術圖表生成：** 透過文字描述產生流程圖、系統架構圖與心智圖。
+*   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
 *   **智慧歷史紀錄：** 使用 IndexedDB 將您的生成紀錄完整保存在本地端。
 *   **隱私優先：** API Key 僅儲存於您的瀏覽器 Local Storage，完全不經過任何第三方伺服器。
 
