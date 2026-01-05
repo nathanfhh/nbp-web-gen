@@ -349,7 +349,7 @@ const handleGenerate = async () => {
     </section>
 
     <!-- Main Content -->
-    <section ref="panelsRef" class="relative z-10 container mx-auto px-4 py-12 lg:py-16 scroll-section min-h-dvh">
+    <section ref="panelsRef" class="relative z-10 container mx-auto px-4 pt-6 pb-12 lg:pt-8 lg:pb-16 scroll-section min-h-dvh">
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <!-- Left Column - Settings -->
