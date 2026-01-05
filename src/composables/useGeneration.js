@@ -4,6 +4,7 @@ import { useApi } from './useApi'
 import { useToast } from './useToast'
 import { useImageStorage } from './useImageStorage'
 import { useIndexedDB } from './useIndexedDB'
+import { useAnalytics } from './useAnalytics'
 
 /**
  * Composable for handling image generation logic
@@ -16,6 +17,7 @@ export function useGeneration() {
   const imageStorage = useImageStorage()
   const { updateHistoryImages } = useIndexedDB()
   const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
+  const { trackGenerateSuccess, trackGenerateFailed } = useAnalytics()
 
   /**
    * Callback for streaming thinking chunks
@@ -143,6 +145,14 @@ export function useGeneration() {
         store.setGeneratedImages(result.images)
         const imageCount = result.images.length
         toast.success(t('toast.generateSuccess', { count: imageCount }))
+
+        // Track GA4 event
+        trackGenerateSuccess({
+          mode: store.currentMode,
+          imageCount,
+          hasReferenceImages: refImages.length > 0,
+          options,
+        })
       }
 
       // Collect thinking text
@@ -181,6 +191,12 @@ export function useGeneration() {
     } catch (err) {
       const errorMessage = err.message || t('toast.generateFailed')
       store.setGenerationError(errorMessage)
+
+      // Track GA4 event
+      trackGenerateFailed({
+        mode: store.currentMode,
+        error: errorMessage,
+      })
 
       // Save failed attempt to history
       await store.addToHistory({
