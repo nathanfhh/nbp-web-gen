@@ -1,6 +1,10 @@
 # Nano Banana Pro Web Generator (NBP Web Gen)
 
-[![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/) [![Vite](https://img.shields.io/badge/Vite-6.x-blue.svg)](https://vitejs.dev/) [![Gemini API](https://img.shields.io/badge/Powered%20by-Gemini-8E75B2.svg)](https://deepmind.google/technologies/gemini/)
+[![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/) [![Vite](https://img.shields.io/badge/Vite-6.x-blue.svg)](https://vitejs.dev/) [![Gemini API](https://img.shields.io/badge/Powered%20by-Gemini-8E75B2.svg)](https://deepmind.google/technologies/gemini/) [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue.svg)](https://nathanfhh.github.io/nbp-web-gen/)
+
+> **🔒 100% Client-Side | No Backend | Your Data Stays in Your Browser**
+
+**🚀 [Live Demo: https://nathanfhh.github.io/nbp-web-gen/](https://nathanfhh.github.io/nbp-web-gen/)**
 
 [English](#english) | [Traditional Chinese](#traditional-chinese)
 
@@ -84,6 +88,11 @@ npm run build
 ---
 
 <a name="traditional-chinese"></a>
+
+> **🔒 100% 純前端 | 無後端伺服器 | 資料完全留在您的瀏覽器**
+
+**🚀 [線上體驗: https://nathanfhh.github.io/nbp-web-gen/](https://nathanfhh.github.io/nbp-web-gen/)**
+
 ## 🍌 關於本專案
 
 **Nano Banana Pro Web Gen** 是一個專為 Google Gemini 圖像生成模型（特別是 `gemini-3-pro-image-preview`）打造的現代化網頁介面。
