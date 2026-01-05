@@ -1,6 +1,6 @@
 {
   "name": "nbp-web-gen",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -17,8 +17,7 @@
     "jszip": "^3.10.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.26",
-    "vue-i18n": "^11.2.8",
-    "vue-router": "^4.6.4"
+    "vue-i18n": "^11.2.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

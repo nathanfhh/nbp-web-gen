@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useImageStorage } from '@/composables/useImageStorage'
+import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions } from '@/constants'
 
 export const useGeneratorStore = defineStore('generator', () => {
   const { saveSetting, addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount } =
@@ -12,6 +13,10 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   // Flag to prevent saving during initialization
   let isInitialized = false
+
+  // ============================================================================
+  // State
+  // ============================================================================
 
   // API Key state
   const apiKey = ref('')
@@ -27,68 +32,19 @@ export const useGeneratorStore = defineStore('generator', () => {
   const prompt = ref('')
 
   // Common settings
-  const temperature = ref(1.0)
-  const seed = ref('')
+  const temperature = ref(DEFAULT_TEMPERATURE)
+  const seed = ref(DEFAULT_SEED)
 
-  // Generate mode options
-  const generateOptions = ref({
-    resolution: '1k',
-    ratio: '1:1',
-    styles: [],
-    variations: [],
-  })
-
-  // Edit mode options
-  const editOptions = ref({
-    resolution: '1k',
-    inputImage: null,
-    inputImagePreview: null,
-  })
+  // Mode-specific options (using defaults from constants)
+  // Use getDefaultOptions to deep clone arrays and avoid shared references
+  const generateOptions = ref(getDefaultOptions('generate'))
+  const editOptions = ref(getDefaultOptions('edit'))
+  const storyOptions = ref(getDefaultOptions('story'))
+  const diagramOptions = ref(getDefaultOptions('diagram'))
+  const stickerOptions = ref(getDefaultOptions('sticker'))
 
   // Reference images (shared across all modes, max 5)
   const referenceImages = ref([])
-
-  // Story mode options
-  const storyOptions = ref({
-    resolution: '1k',
-    steps: 4,
-    type: 'unspecified',
-    style: 'unspecified',
-    transition: 'unspecified',
-    format: 'unspecified',
-  })
-
-  // Diagram mode options
-  const diagramOptions = ref({
-    resolution: '1k',
-    type: 'unspecified',
-    style: 'unspecified',
-    layout: 'unspecified',
-    complexity: 'unspecified',
-    annotations: 'unspecified',
-  })
-
-  // Sticker mode options
-  const stickerOptions = ref({
-    resolution: '1k',
-    ratio: '1:1',
-    styles: [],
-    // Layout
-    layoutRows: 3, // 1-5
-    layoutCols: 3, // 1-5
-    // Context/Usage
-    context: 'chat', // chat, group, boss, couple, custom
-    customContext: '',
-    // Text related
-    hasText: true,
-    tones: [], // formal, polite, friendly, sarcastic, custom
-    customTone: '',
-    languages: ['zh-TW'], // zh-TW, en, ja, custom
-    customLanguage: '',
-    // Composition
-    cameraAngles: ['headshot'], // headshot, halfbody, fullbody
-    expressions: ['natural'], // natural, exaggerated, crazy
-  })
 
   // Generation state
   const isGenerating = ref(false)
@@ -111,7 +67,22 @@ export const useGeneratorStore = defineStore('generator', () => {
   const generatedImagesMetadata = ref([])
   const storageUsage = ref(0)
 
-  // Initialize from storage
+  // ============================================================================
+  // Options Map (for easier access)
+  // ============================================================================
+
+  const optionsMap = {
+    generate: generateOptions,
+    edit: editOptions,
+    story: storyOptions,
+    diagram: diagramOptions,
+    sticker: stickerOptions,
+  }
+
+  // ============================================================================
+  // Initialization
+  // ============================================================================
+
   const initialize = async () => {
     // Load API key from localStorage
     apiKey.value = getApiKey()
@@ -133,21 +104,26 @@ export const useGeneratorStore = defineStore('generator', () => {
     const savedSeed = getQuickSetting('seed')
     if (savedSeed !== null) seed.value = savedSeed
 
-    const savedGenerateOptions = getQuickSetting('generateOptions')
-    if (savedGenerateOptions) generateOptions.value = { ...generateOptions.value, ...savedGenerateOptions }
+    // Load mode-specific options
+    const modeOptionsToLoad = ['generateOptions', 'storyOptions', 'diagramOptions', 'stickerOptions']
+    modeOptionsToLoad.forEach((optionKey) => {
+      const savedOption = getQuickSetting(optionKey)
+      if (savedOption) {
+        const targetRef = {
+          generateOptions,
+          storyOptions,
+          diagramOptions,
+          stickerOptions,
+        }[optionKey]
+        if (targetRef) {
+          targetRef.value = { ...targetRef.value, ...savedOption }
+        }
+      }
+    })
 
-    const savedStoryOptions = getQuickSetting('storyOptions')
-    if (savedStoryOptions) storyOptions.value = { ...storyOptions.value, ...savedStoryOptions }
-
-    const savedDiagramOptions = getQuickSetting('diagramOptions')
-    if (savedDiagramOptions) diagramOptions.value = { ...diagramOptions.value, ...savedDiagramOptions }
-
-    const savedStickerOptions = getQuickSetting('stickerOptions')
-    if (savedStickerOptions) stickerOptions.value = { ...stickerOptions.value, ...savedStickerOptions }
-
+    // Load edit options (only resolution, not images)
     const savedEditOptions = getQuickSetting('editOptions')
     if (savedEditOptions) {
-      // Don't restore image data, only resolution
       editOptions.value.resolution = savedEditOptions.resolution || '1k'
     }
 
@@ -164,71 +140,65 @@ export const useGeneratorStore = defineStore('generator', () => {
     setupWatchers()
   }
 
-  // Setup watchers for auto-saving settings
+  // ============================================================================
+  // Watchers Setup (Simplified with loop)
+  // ============================================================================
+
   const setupWatchers = () => {
-    // Watch current mode
-    watch(currentMode, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('currentMode', newVal)
-      }
+    // Simple value watchers
+    const simpleWatchers = [
+      ['currentMode', currentMode],
+      ['temperature', temperature],
+      ['seed', seed],
+    ]
+
+    simpleWatchers.forEach(([key, refValue]) => {
+      watch(refValue, (newVal) => {
+        if (isInitialized) {
+          updateQuickSetting(key, newVal)
+        }
+      })
     })
 
-    // Watch temperature
-    watch(temperature, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('temperature', newVal)
-      }
+    // Deep watchers for options objects
+    const deepWatchers = [
+      ['generateOptions', generateOptions],
+      ['storyOptions', storyOptions],
+      ['diagramOptions', diagramOptions],
+      ['stickerOptions', stickerOptions],
+    ]
+
+    deepWatchers.forEach(([key, refValue]) => {
+      watch(
+        refValue,
+        (newVal) => {
+          if (isInitialized) {
+            updateQuickSetting(key, { ...newVal })
+          }
+        },
+        { deep: true },
+      )
     })
 
-    // Watch seed
-    watch(seed, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('seed', newVal)
-      }
-    })
-
-    // Watch generate options
-    watch(generateOptions, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('generateOptions', { ...newVal })
-      }
-    }, { deep: true })
-
-    // Watch edit options (only resolution)
-    watch(() => editOptions.value.resolution, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('editOptions', { resolution: newVal })
-      }
-    })
-
-    // Watch story options
-    watch(storyOptions, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('storyOptions', { ...newVal })
-      }
-    }, { deep: true })
-
-    // Watch diagram options
-    watch(diagramOptions, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('diagramOptions', { ...newVal })
-      }
-    }, { deep: true })
-
-    // Watch sticker options
-    watch(stickerOptions, (newVal) => {
-      if (isInitialized) {
-        updateQuickSetting('stickerOptions', { ...newVal })
-      }
-    }, { deep: true })
+    // Special watcher for edit options (only resolution)
+    watch(
+      () => editOptions.value.resolution,
+      (newVal) => {
+        if (isInitialized) {
+          updateQuickSetting('editOptions', { resolution: newVal })
+        }
+      },
+    )
   }
 
-  // Apply theme to document
+  // ============================================================================
+  // Theme
+  // ============================================================================
+
   const applyTheme = (themeName) => {
     document.documentElement.setAttribute('data-theme', themeName)
   }
 
-  // Toggle theme
   const toggleTheme = () => {
     const newTheme = theme.value === 'dark' ? 'light' : 'dark'
     theme.value = newTheme
@@ -236,13 +206,19 @@ export const useGeneratorStore = defineStore('generator', () => {
     updateQuickSetting('theme', newTheme)
   }
 
-  // Save API key
+  // ============================================================================
+  // API Key
+  // ============================================================================
+
   const saveApiKey = (key) => {
     apiKey.value = key
     setApiKey(key)
   }
 
-  // Save settings to IndexedDB
+  // ============================================================================
+  // Settings
+  // ============================================================================
+
   const saveSettings = async () => {
     await saveSetting('currentMode', currentMode.value)
     await saveSetting('temperature', temperature.value)
@@ -252,7 +228,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     await saveSetting('diagramOptions', diagramOptions.value)
   }
 
-  // Set mode
   const setMode = (mode) => {
     currentMode.value = mode
     // Auto-saved by watcher
@@ -265,36 +240,28 @@ export const useGeneratorStore = defineStore('generator', () => {
       seed: seed.value,
     }
 
-    switch (currentMode.value) {
-      case 'generate':
-        return { ...base, ...generateOptions.value }
-      case 'edit':
-        return { ...base, ...editOptions.value }
-      case 'story':
-        return { ...base, ...storyOptions.value }
-      case 'diagram':
-        return { ...base, ...diagramOptions.value }
-      case 'sticker':
-        return { ...base, ...stickerOptions.value }
-      default:
-        return base
+    const modeOptions = optionsMap[currentMode.value]
+    if (modeOptions) {
+      return { ...base, ...modeOptions.value }
     }
+    return base
   })
 
-  // Add to history
+  // ============================================================================
+  // History
+  // ============================================================================
+
   const addToHistory = async (record) => {
     const id = await addHistory(record)
     await loadHistory()
     return id
   }
 
-  // Load history
   const loadHistory = async () => {
     history.value = await getHistory(50)
     historyCount.value = await getHistoryCount()
   }
 
-  // Delete from history (also deletes OPFS images)
   const removeFromHistory = async (id) => {
     // Delete OPFS images first
     try {
@@ -309,7 +276,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     await updateStorageUsage()
   }
 
-  // Clear history (also deletes all OPFS images)
   const clearHistory = async () => {
     // Delete all OPFS images first
     try {
@@ -324,27 +290,26 @@ export const useGeneratorStore = defineStore('generator', () => {
     await updateStorageUsage()
   }
 
-  // Set generated images
+  // ============================================================================
+  // Generated Images
+  // ============================================================================
+
   const setGeneratedImages = (images) => {
     generatedImages.value = images
   }
 
-  // Clear generated images
   const clearGeneratedImages = () => {
     generatedImages.value = []
   }
 
-  // Set generated images metadata
   const setGeneratedImagesMetadata = (metadata) => {
     generatedImagesMetadata.value = metadata
   }
 
-  // Clear generated images metadata
   const clearGeneratedImagesMetadata = () => {
     generatedImagesMetadata.value = []
   }
 
-  // Update storage usage
   const updateStorageUsage = async () => {
     try {
       storageUsage.value = await imageStorage.getStorageUsage()
@@ -353,7 +318,10 @@ export const useGeneratorStore = defineStore('generator', () => {
     }
   }
 
-  // Set generation state
+  // ============================================================================
+  // Generation State
+  // ============================================================================
+
   const setGenerating = (value) => {
     isGenerating.value = value
     if (value) {
@@ -366,17 +334,18 @@ export const useGeneratorStore = defineStore('generator', () => {
     }
   }
 
-  // Set generation error
   const setGenerationError = (error) => {
     generationError.value = error
   }
 
-  // Clear generation error
   const clearGenerationError = () => {
     generationError.value = null
   }
 
-  // Thinking process methods
+  // ============================================================================
+  // Thinking Process
+  // ============================================================================
+
   // chunk can be string (text) or object { type: 'text'|'image', content, mimeType? }
   const addThinkingChunk = (chunk) => {
     if (typeof chunk === 'string') {
@@ -403,7 +372,10 @@ export const useGeneratorStore = defineStore('generator', () => {
     isStreaming.value = value
   }
 
-  // Reference images methods
+  // ============================================================================
+  // Reference Images
+  // ============================================================================
+
   const addReferenceImage = (image) => {
     if (referenceImages.value.length >= 5) return false
     referenceImages.value.push(image)
@@ -418,64 +390,22 @@ export const useGeneratorStore = defineStore('generator', () => {
     referenceImages.value = []
   }
 
-  // Reset all options for current mode
+  // ============================================================================
+  // Reset Options
+  // ============================================================================
+
   const resetCurrentOptions = () => {
-    switch (currentMode.value) {
-      case 'generate':
-        generateOptions.value = {
-          resolution: '1k',
-          ratio: '1:1',
-          styles: [],
-          variations: [],
-        }
-        break
-      case 'edit':
-        editOptions.value = {
-          resolution: '1k',
-          inputImage: null,
-          inputImagePreview: null,
-        }
-        break
-      case 'story':
-        storyOptions.value = {
-          resolution: '1k',
-          steps: 4,
-          type: 'unspecified',
-          style: 'unspecified',
-          transition: 'unspecified',
-          format: 'unspecified',
-        }
-        break
-      case 'diagram':
-        diagramOptions.value = {
-          resolution: '1k',
-          type: 'unspecified',
-          style: 'unspecified',
-          layout: 'unspecified',
-          complexity: 'unspecified',
-          annotations: 'unspecified',
-        }
-        break
-      case 'sticker':
-        stickerOptions.value = {
-          resolution: '1k',
-          ratio: '1:1',
-          styles: [],
-          layoutRows: 3,
-          layoutCols: 3,
-          context: 'chat',
-          customContext: '',
-          hasText: true,
-          tones: [],
-          customTone: '',
-          languages: ['zh-TW'],
-          customLanguage: '',
-          cameraAngles: ['headshot'],
-          expressions: ['natural'],
-        }
-        break
+    const defaults = getDefaultOptions(currentMode.value)
+    const targetRef = optionsMap[currentMode.value]
+
+    if (targetRef && defaults) {
+      targetRef.value = defaults
     }
   }
+
+  // ============================================================================
+  // Exports
+  // ============================================================================
 
   return {
     // State

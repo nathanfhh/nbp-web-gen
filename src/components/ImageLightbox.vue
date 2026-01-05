@@ -5,7 +5,7 @@ import { formatFileSize, calculateCompressionRatio } from '@/composables/useImag
 import { useImageStorage } from '@/composables/useImageStorage'
 import StickerCropper from '@/components/StickerCropper.vue'
 
-const { t } = useI18n()
+useI18n() // Enable $t in template
 
 const props = defineProps({
   images: {

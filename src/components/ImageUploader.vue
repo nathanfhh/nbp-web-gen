@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 
-const { t } = useI18n()
+useI18n() // Enable $t in template
 const store = useGeneratorStore()
 const isDragging = ref(false)
 const fileInput = ref(null)

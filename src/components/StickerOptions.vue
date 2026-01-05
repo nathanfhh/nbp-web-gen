@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useStyleOptions } from '@/composables/useStyleOptions'
+import { useMultiArrayToggle } from '@/composables/useArrayToggle'
+import { RESOLUTION_OPTIONS, RATIO_OPTIONS_STANDARD } from '@/constants'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -12,21 +14,14 @@ const customStyleInput = ref('')
 
 const options = computed(() => store.stickerOptions)
 
-// Resolutions
-const resolutions = [
-  { value: '1k', label: '1K' },
-  { value: '2k', label: '2K' },
-  { value: '4k', label: '4K' },
-]
-
-// Aspect ratios
-const ratios = [
-  { value: '1:1', label: '1:1' },
-  { value: '3:4', label: '3:4' },
-  { value: '4:3', label: '4:3' },
-  { value: '9:16', label: '9:16' },
-  { value: '16:9', label: '16:9' },
-]
+// Use multi array toggle for all array options
+const togglers = useMultiArrayToggle({
+  styles: () => options.value.styles,
+  tones: () => options.value.tones,
+  languages: () => options.value.languages,
+  cameraAngles: () => options.value.cameraAngles,
+  expressions: () => options.value.expressions,
+})
 
 // Context options with i18n
 const contexts = computed(() => [
@@ -66,72 +61,9 @@ const expressions = computed(() => [
   { value: 'crazy', label: t('sticker.composition.expression.crazy') },
 ])
 
-// Toggle functions
-const toggleStyle = (style) => {
-  const styles = options.value.styles
-  const index = styles.indexOf(style)
-  if (index === -1) {
-    styles.push(style)
-  } else {
-    styles.splice(index, 1)
-  }
-}
-
-const toggleTone = (tone) => {
-  const tones = options.value.tones
-  const index = tones.indexOf(tone)
-  if (index === -1) {
-    tones.push(tone)
-  } else {
-    tones.splice(index, 1)
-  }
-}
-
-const toggleLanguage = (lang) => {
-  const languages = options.value.languages
-  const index = languages.indexOf(lang)
-  if (index === -1) {
-    languages.push(lang)
-  } else {
-    languages.splice(index, 1)
-  }
-}
-
-const toggleCameraAngle = (angle) => {
-  const angles = options.value.cameraAngles
-  const index = angles.indexOf(angle)
-  if (index === -1) {
-    angles.push(angle)
-  } else {
-    angles.splice(index, 1)
-  }
-}
-
-const toggleExpression = (expr) => {
-  const expressions = options.value.expressions
-  const index = expressions.indexOf(expr)
-  if (index === -1) {
-    expressions.push(expr)
-  } else {
-    expressions.splice(index, 1)
-  }
-}
-
 const addCustomStyle = () => {
-  const styles = customStyleInput.value.split(',').map(s => s.trim()).filter(s => s)
-  styles.forEach(style => {
-    if (!options.value.styles.includes(style)) {
-      options.value.styles.push(style)
-    }
-  })
+  togglers.styles.addFromInput(customStyleInput.value)
   customStyleInput.value = ''
-}
-
-const removeStyle = (style) => {
-  const index = options.value.styles.indexOf(style)
-  if (index !== -1) {
-    options.value.styles.splice(index, 1)
-  }
 }
 
 const handleStyleEnter = (event) => {
@@ -148,7 +80,7 @@ const handleStyleEnter = (event) => {
       <label class="block text-sm font-medium text-gray-300">{{ $t('options.resolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
-          v-for="res in resolutions"
+          v-for="res in RESOLUTION_OPTIONS"
           :key="res.value"
           @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
@@ -166,7 +98,7 @@ const handleStyleEnter = (event) => {
       <label class="block text-sm font-medium text-gray-300">{{ $t('options.aspectRatio') }}</label>
       <div class="grid grid-cols-5 gap-2">
         <button
-          v-for="ratio in ratios"
+          v-for="ratio in RATIO_OPTIONS_STANDARD"
           :key="ratio.value"
           @click="options.ratio = ratio.value"
           class="py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1"
@@ -331,9 +263,9 @@ const handleStyleEnter = (event) => {
             <button
               v-for="tone in tones"
               :key="tone.value"
-              @click="toggleTone(tone.value)"
+              @click="togglers.tones.toggle(tone.value)"
               class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-              :class="options.tones.includes(tone.value)
+              :class="togglers.tones.has(tone.value)
                 ? 'bg-amber-500/30 border border-amber-500 text-amber-300'
                 : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
             >
@@ -356,9 +288,9 @@ const handleStyleEnter = (event) => {
             <button
               v-for="lang in languages"
               :key="lang.value"
-              @click="toggleLanguage(lang.value)"
+              @click="togglers.languages.toggle(lang.value)"
               class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-              :class="options.languages.includes(lang.value)
+              :class="togglers.languages.has(lang.value)
                 ? 'bg-cyan-500/30 border border-cyan-500 text-cyan-300'
                 : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
             >
@@ -390,9 +322,9 @@ const handleStyleEnter = (event) => {
           <button
             v-for="angle in cameraAngles"
             :key="angle.value"
-            @click="toggleCameraAngle(angle.value)"
+            @click="togglers.cameraAngles.toggle(angle.value)"
             class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-            :class="options.cameraAngles.includes(angle.value)
+            :class="togglers.cameraAngles.has(angle.value)
               ? 'bg-emerald-500/30 border border-emerald-500 text-emerald-300'
               : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
           >
@@ -408,9 +340,9 @@ const handleStyleEnter = (event) => {
           <button
             v-for="expr in expressions"
             :key="expr.value"
-            @click="toggleExpression(expr.value)"
+            @click="togglers.expressions.toggle(expr.value)"
             class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-            :class="options.expressions.includes(expr.value)
+            :class="togglers.expressions.has(expr.value)
               ? 'bg-violet-500/30 border border-violet-500 text-violet-300'
               : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
           >
@@ -430,9 +362,9 @@ const handleStyleEnter = (event) => {
         <button
           v-for="style in PREDEFINED_STYLES"
           :key="style.value"
-          @click="toggleStyle(style.value)"
+          @click="togglers.styles.toggle(style.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
-          :class="options.styles.includes(style.value)
+          :class="togglers.styles.has(style.value)
             ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
@@ -448,7 +380,7 @@ const handleStyleEnter = (event) => {
           class="tag"
         >
           {{ PREDEFINED_STYLES.find(s => s.value === style)?.label || style }}
-          <button @click="removeStyle(style)" class="tag-remove">
+          <button @click="togglers.styles.remove(style)" class="tag-remove">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>

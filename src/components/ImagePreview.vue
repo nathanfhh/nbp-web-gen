@@ -5,7 +5,7 @@ import { useGeneratorStore } from '@/stores/generator'
 import { formatElapsed } from '@/composables/useFormatTime'
 import ImageLightbox from './ImageLightbox.vue'
 
-const { t } = useI18n()
+useI18n() // Enable $t in template
 const store = useGeneratorStore()
 
 // Lightbox state
