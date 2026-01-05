@@ -257,7 +257,7 @@ const handleGenerate = async () => {
             class="text-sm font-medium group-hover:scale-110 transition-transform inline-block"
             :class="store.theme === 'dark' ? 'text-gray-300' : 'text-gray-600'"
           >
-            {{ locale === 'zh-TW' ? $t('language.en') : $t('language.zhTW') }}
+            {{ locale === 'zh-TW' ? $t('language.zhTW') + ' → ' + $t('language.en') : $t('language.en') + ' → ' + $t('language.zhTW') }}
           </span>
         </button>
         <!-- Theme Toggle Button -->

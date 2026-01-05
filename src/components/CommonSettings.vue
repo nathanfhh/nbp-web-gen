@@ -7,10 +7,10 @@ const { t } = useI18n()
 const store = useGeneratorStore()
 
 const temperatureLabel = computed(() => {
-  const temp = store.temperature
-  if (temp < 0.5) return t('settings.temperature.conservative')
-  if (temp < 1.0) return t('settings.temperature.balanced')
-  if (temp < 1.5) return t('settings.temperature.creative')
+  const temperatureValue = store.temperature
+  if (temperatureValue < 0.5) return t('settings.temperature.conservative')
+  if (temperatureValue < 1.0) return t('settings.temperature.balanced')
+  if (temperatureValue < 1.5) return t('settings.temperature.creative')
   return t('settings.temperature.wild')
 })
 </script>

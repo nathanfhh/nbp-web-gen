@@ -32,7 +32,7 @@ export function saveLocale(locale) {
 const i18n = createI18n({
   legacy: false, // Use Composition API
   locale: getDefaultLocale(),
-  fallbackLocale: 'zh-TW',
+  fallbackLocale: 'en',
   messages: {
     'zh-TW': zhTW,
     en: en,
