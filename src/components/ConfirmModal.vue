@@ -1,18 +1,20 @@
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const isOpen = ref(false)
 const title = ref('')
 const message = ref('')
-const confirmText = ref('確定')
-const cancelText = ref('取消')
+const confirmText = ref('')
+const cancelText = ref('')
 const resolvePromise = ref(null)
 
 const show = (options = {}) => {
-  title.value = options.title || '確認'
-  message.value = options.message || '確定要執行此操作嗎？'
-  confirmText.value = options.confirmText || '確定'
-  cancelText.value = options.cancelText || '取消'
+  title.value = options.title || t('confirm.defaultTitle')
+  message.value = options.message || t('confirm.defaultMessage')
+  confirmText.value = options.confirmText || t('common.confirm')
+  cancelText.value = options.cancelText || t('common.cancel')
   isOpen.value = true
 
   return new Promise((resolve) => {

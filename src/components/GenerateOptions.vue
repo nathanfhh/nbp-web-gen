@@ -1,9 +1,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
-import { PREDEFINED_STYLES, PREDEFINED_VARIATIONS } from '@/composables/useApi'
+import { useStyleOptions } from '@/composables/useStyleOptions'
 
 const store = useGeneratorStore()
+const { PREDEFINED_STYLES, PREDEFINED_VARIATIONS } = useStyleOptions()
+
 const customStyleInput = ref('')
 const customVariationInput = ref('')
 
@@ -97,7 +99,7 @@ const handleVariationEnter = (event) => {
   <div class="space-y-6">
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">解析度</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.resolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in resolutions"
@@ -115,7 +117,7 @@ const handleVariationEnter = (event) => {
 
     <!-- Ratio -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">寬高比</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.aspectRatio') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="ratio in ratios"
@@ -158,7 +160,7 @@ const handleVariationEnter = (event) => {
 
     <!-- Styles -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">風格</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.styles') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="style in PREDEFINED_STYLES"
@@ -194,19 +196,19 @@ const handleVariationEnter = (event) => {
         <input
           v-model="customStyleInput"
           type="text"
-          placeholder="自訂風格"
+          :placeholder="$t('options.customStyle')"
           class="input-premium text-sm flex-1"
           @keydown.enter="handleStyleEnter"
         />
         <button @click="addCustomStyle" class="btn-secondary py-2 px-4 text-sm">
-          新增
+          {{ $t('common.add') }}
         </button>
       </div>
     </div>
 
     <!-- Variations -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">變化類型</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.variation') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="variation in PREDEFINED_VARIATIONS"
@@ -243,12 +245,12 @@ const handleVariationEnter = (event) => {
         <input
           v-model="customVariationInput"
           type="text"
-          placeholder="自訂變化"
+          :placeholder="$t('options.customVariation')"
           class="input-premium text-sm flex-1"
           @keydown.enter="handleVariationEnter"
         />
         <button @click="addCustomVariation" class="btn-secondary py-2 px-4 text-sm">
-          新增
+          {{ $t('common.add') }}
         </button>
       </div>
     </div>

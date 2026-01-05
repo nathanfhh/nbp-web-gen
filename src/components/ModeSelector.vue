@@ -1,40 +1,43 @@
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 
-const modes = [
+const modes = computed(() => [
   {
     id: 'generate',
-    name: '生成',
-    description: '從文字描述創建圖片',
+    name: t('modes.generate.name'),
+    description: t('modes.generate.description'),
     icon: 'sparkles',
   },
   {
     id: 'sticker',
-    name: '貼圖',
-    description: '生成可裁切的貼圖素材',
+    name: t('modes.sticker.name'),
+    description: t('modes.sticker.description'),
     icon: 'sticker',
   },
   {
     id: 'edit',
-    name: '編輯',
-    description: '修改現有圖片',
+    name: t('modes.edit.name'),
+    description: t('modes.edit.description'),
     icon: 'pencil',
   },
   {
     id: 'story',
-    name: '故事',
-    description: '生成連續故事序列',
+    name: t('modes.story.name'),
+    description: t('modes.story.description'),
     icon: 'film',
   },
   {
     id: 'diagram',
-    name: '圖表',
-    description: '創建技術圖表',
+    name: t('modes.diagram.name'),
+    description: t('modes.diagram.description'),
     icon: 'chart',
   },
-]
+])
 
 const selectMode = (mode) => {
   store.setMode(mode)

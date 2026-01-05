@@ -1,6 +1,9 @@
 <script setup>
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 
 const resolutions = [
@@ -9,51 +12,51 @@ const resolutions = [
   { value: '4k', label: '4K' },
 ]
 
-const typeOptions = [
-  { value: 'unspecified', label: '不指定' },
-  { value: 'flowchart', label: '流程圖' },
-  { value: 'architecture', label: '架構圖' },
-  { value: 'network', label: '網路拓撲' },
-  { value: 'database', label: '資料庫' },
-  { value: 'wireframe', label: '線框圖' },
-  { value: 'mindmap', label: '心智圖' },
-  { value: 'sequence', label: '時序圖' },
-]
+const typeOptions = computed(() => [
+  { value: 'unspecified', label: t('diagram.type.unspecified') },
+  { value: 'flowchart', label: t('diagram.type.flowchart') },
+  { value: 'architecture', label: t('diagram.type.architecture') },
+  { value: 'network', label: t('diagram.type.network') },
+  { value: 'database', label: t('diagram.type.database') },
+  { value: 'wireframe', label: t('diagram.type.wireframe') },
+  { value: 'mindmap', label: t('diagram.type.mindmap') },
+  { value: 'sequence', label: t('diagram.type.sequence') },
+])
 
-const styleOptions = [
-  { value: 'unspecified', label: '不指定' },
-  { value: 'clean', label: '清爽' },
-  { value: 'hand-drawn', label: '手繪' },
-  { value: 'technical', label: '技術' },
-]
+const styleOptions = computed(() => [
+  { value: 'unspecified', label: t('diagram.style.unspecified') },
+  { value: 'clean', label: t('diagram.style.clean') },
+  { value: 'hand-drawn', label: t('diagram.style.handDrawn') },
+  { value: 'technical', label: t('diagram.style.technical') },
+])
 
-const layoutOptions = [
-  { value: 'unspecified', label: '不指定' },
-  { value: 'horizontal', label: '水平' },
-  { value: 'vertical', label: '垂直' },
-  { value: 'hierarchical', label: '階層' },
-  { value: 'circular', label: '環形' },
-]
+const layoutOptions = computed(() => [
+  { value: 'unspecified', label: t('diagram.layout.unspecified') },
+  { value: 'horizontal', label: t('diagram.layout.horizontal') },
+  { value: 'vertical', label: t('diagram.layout.vertical') },
+  { value: 'hierarchical', label: t('diagram.layout.hierarchical') },
+  { value: 'circular', label: t('diagram.layout.circular') },
+])
 
-const complexityOptions = [
-  { value: 'unspecified', label: '不指定' },
-  { value: 'simple', label: '簡單' },
-  { value: 'detailed', label: '詳細' },
-  { value: 'comprehensive', label: '全面' },
-]
+const complexityOptions = computed(() => [
+  { value: 'unspecified', label: t('diagram.complexity.unspecified') },
+  { value: 'simple', label: t('diagram.complexity.simple') },
+  { value: 'detailed', label: t('diagram.complexity.detailed') },
+  { value: 'comprehensive', label: t('diagram.complexity.comprehensive') },
+])
 
-const annotationsOptions = [
-  { value: 'unspecified', label: '不指定' },
-  { value: 'minimal', label: '精簡標註' },
-  { value: 'detailed', label: '詳細標註' },
-]
+const annotationsOptions = computed(() => [
+  { value: 'unspecified', label: t('diagram.annotations.unspecified') },
+  { value: 'minimal', label: t('diagram.annotations.minimal') },
+  { value: 'detailed', label: t('diagram.annotations.detailed') },
+])
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">畫質</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.quality') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in resolutions"
@@ -71,7 +74,7 @@ const annotationsOptions = [
 
     <!-- Type -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">圖表類型</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.type.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           v-for="opt in typeOptions"
@@ -89,7 +92,7 @@ const annotationsOptions = [
 
     <!-- Style -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">視覺風格</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.style.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           v-for="opt in styleOptions"
@@ -107,7 +110,7 @@ const annotationsOptions = [
 
     <!-- Layout -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">版面配置</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.layout.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
         <button
           v-for="opt in layoutOptions"
@@ -125,7 +128,7 @@ const annotationsOptions = [
 
     <!-- Complexity -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">複雜度</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.complexity.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           v-for="opt in complexityOptions"
@@ -143,7 +146,7 @@ const annotationsOptions = [
 
     <!-- Annotations -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">標註等級</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.annotations.label') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="opt in annotationsOptions"

@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 const imageStorage = useImageStorage()
 const confirmModal = ref(null)
@@ -20,13 +22,13 @@ const isLoadingImages = ref(false)
 // Format storage usage
 const formattedStorageUsage = computed(() => formatFileSize(store.storageUsage))
 
-const modeLabels = {
-  generate: '生成',
-  edit: '編輯',
-  story: '故事',
-  diagram: '圖表',
-  sticker: '貼圖',
-}
+const modeLabels = computed(() => ({
+  generate: t('modes.generate.name'),
+  edit: t('modes.edit.name'),
+  story: t('modes.story.name'),
+  diagram: t('modes.diagram.name'),
+  sticker: t('modes.sticker.name'),
+}))
 
 // Track the current lightbox item's mode
 const lightboxItemMode = ref('')
@@ -36,10 +38,10 @@ const formatTime = (timestamp) => {
   const now = new Date()
   const diff = now - date
 
-  if (diff < 60000) return '剛剛'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分鐘前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小時前`
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`
+  if (diff < 60000) return t('history.time.justNow')
+  if (diff < 3600000) return t('history.time.minutesAgo', { count: Math.floor(diff / 60000) })
+  if (diff < 86400000) return t('history.time.hoursAgo', { count: Math.floor(diff / 3600000) })
+  if (diff < 604800000) return t('history.time.daysAgo', { count: Math.floor(diff / 86400000) })
 
   return date.toLocaleDateString('zh-TW', {
     month: 'short',
@@ -56,10 +58,10 @@ const truncatePrompt = (prompt, maxLength = 60) => {
 
 const loadHistoryItem = async (item) => {
   const confirmed = await confirmModal.value?.show({
-    title: '載入紀錄',
-    message: '載入此紀錄將會覆蓋目前的輸入和設定，確定要繼續嗎？',
-    confirmText: '載入',
-    cancelText: '取消',
+    title: t('history.loadConfirmTitle'),
+    message: t('history.loadConfirmMessage'),
+    confirmText: t('history.loadConfirmButton'),
+    cancelText: t('common.cancel'),
   })
 
   if (!confirmed) return
@@ -105,10 +107,10 @@ const deleteItem = async (id, event) => {
   event.stopPropagation()
 
   const confirmed = await confirmModal.value?.show({
-    title: '刪除紀錄',
-    message: '確定要刪除此紀錄嗎？',
-    confirmText: '刪除',
-    cancelText: '取消',
+    title: t('history.deleteConfirmTitle'),
+    message: t('history.deleteConfirmMessage'),
+    confirmText: t('common.delete'),
+    cancelText: t('common.cancel'),
   })
 
   if (!confirmed) return
@@ -117,10 +119,10 @@ const deleteItem = async (id, event) => {
 
 const clearAll = async () => {
   const confirmed = await confirmModal.value?.show({
-    title: '清除全部',
-    message: '確定要清除所有歷史紀錄嗎？此操作無法復原。',
-    confirmText: '清除全部',
-    cancelText: '取消',
+    title: t('history.clearConfirmTitle'),
+    message: t('history.clearConfirmMessage'),
+    confirmText: t('history.clearConfirmButton'),
+    cancelText: t('common.cancel'),
   })
 
   if (confirmed) {
@@ -166,7 +168,7 @@ const closeLightbox = () => {
         <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        歷史紀錄
+        {{ $t('history.title') }}
         <span v-if="store.historyCount > 0" class="badge">{{ store.historyCount }}</span>
       </h3>
       <button
@@ -174,7 +176,7 @@ const closeLightbox = () => {
         @click="clearAll"
         class="text-xs text-gray-500 hover:text-red-400 transition-colors"
       >
-        清除全部
+        {{ $t('common.clearAll') }}
       </button>
     </div>
 
@@ -183,7 +185,7 @@ const closeLightbox = () => {
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
       </svg>
-      <span>儲存空間：{{ formattedStorageUsage }}</span>
+      <span>{{ $t('history.storage', { size: formattedStorageUsage }) }}</span>
     </div>
 
     <div v-if="store.history.length > 0" class="space-y-3 max-h-[400px] overflow-y-auto -mr-4 pr-[5px] history-scroll">
@@ -239,7 +241,7 @@ const closeLightbox = () => {
                 class="text-xs px-2 py-0.5 rounded-md"
                 :class="item.status === 'success' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'"
               >
-                {{ item.status === 'success' ? '成功' : '失敗' }}
+                {{ item.status === 'success' ? $t('history.status.success') : $t('history.status.failed') }}
               </span>
             </div>
           </div>
@@ -261,7 +263,7 @@ const closeLightbox = () => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <p class="text-sm text-gray-500">尚無歷史紀錄</p>
+      <p class="text-sm text-gray-500">{{ $t('history.empty') }}</p>
     </div>
 
     <!-- Confirm Modal -->
@@ -274,7 +276,7 @@ const closeLightbox = () => {
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
         </svg>
-        <span class="text-white text-sm">載入圖片中...</span>
+        <span class="text-white text-sm">{{ $t('history.loadingImages') }}</span>
       </div>
     </div>
 

@@ -1,0 +1,385 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "clearAll": "Clear All",
+    "delete": "Delete",
+    "add": "Add",
+    "download": "Download",
+    "downloadAll": "Download All",
+    "copy": "Copy",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "remove": "Remove",
+    "change": "Change",
+    "characters": "characters"
+  },
+  "hero": {
+    "subtitle": "AI Image Generator",
+    "startUsing": "Get Started"
+  },
+  "theme": {
+    "switchToLight": "Switch to Light Mode",
+    "switchToDark": "Switch to Dark Mode"
+  },
+  "language": {
+    "label": "Language",
+    "zhTW": "繁中",
+    "en": "EN"
+  },
+  "apiKey": {
+    "title": "API Key",
+    "subtitle": "Google Gemini API",
+    "placeholder": "Enter your Gemini API Key...",
+    "save": "Save API Key",
+    "hint": "API Key is stored locally in your browser and will not be sent to any server.",
+    "getKey": "Get API Key"
+  },
+  "modes": {
+    "title": "Generation Mode",
+    "generate": {
+      "name": "Generate",
+      "description": "Create images from text descriptions"
+    },
+    "sticker": {
+      "name": "Sticker",
+      "description": "Generate croppable sticker sheets"
+    },
+    "edit": {
+      "name": "Edit",
+      "description": "Modify existing images"
+    },
+    "story": {
+      "name": "Story",
+      "description": "Generate sequential story images"
+    },
+    "diagram": {
+      "name": "Diagram",
+      "description": "Create technical diagrams"
+    }
+  },
+  "prompt": {
+    "label": "Prompt Description",
+    "hint": "Tip: The more detailed your description, the better the results",
+    "placeholders": {
+      "generate": "Describe the image you want to generate, e.g., a cat under the starry sky...",
+      "edit": "Describe the changes you want to make, e.g., add sunglasses...",
+      "story": "Describe the story theme, e.g., a seed growing into a tree...",
+      "diagram": "Describe the diagram content, e.g., user login flowchart..."
+    }
+  },
+  "settings": {
+    "title": "Advanced Settings",
+    "temperature": {
+      "label": "Temperature",
+      "conservative": "Conservative",
+      "balanced": "Balanced",
+      "creative": "Creative",
+      "wild": "Wild"
+    },
+    "seed": {
+      "label": "Seed (Random Seed)",
+      "placeholder": "Leave empty for random seed",
+      "hint": "Same seed and prompt will produce the same result for reproducibility",
+      "generate": "Generate random seed"
+    }
+  },
+  "options": {
+    "resolution": "Resolution",
+    "outputResolution": "Output Resolution",
+    "quality": "Quality",
+    "aspectRatio": "Aspect Ratio",
+    "style": "Style",
+    "styles": "Styles",
+    "variation": "Variation Types",
+    "customStyle": "Custom style",
+    "customVariation": "Custom variation"
+  },
+  "sticker": {
+    "layout": "Layout",
+    "rows": "Rows",
+    "cols": "Cols",
+    "preview": "Preview:",
+    "totalStickers": "{count} stickers total",
+    "context": {
+      "title": "Usage Context",
+      "chat": "Chat Replies",
+      "group": "Group Chat",
+      "boss": "Boss Replies",
+      "couple": "Couples",
+      "custom": "Custom",
+      "placeholder": "Enter custom context..."
+    },
+    "text": {
+      "title": "Text Options",
+      "tone": {
+        "label": "Tone (Multi-select)",
+        "formal": "Formal",
+        "polite": "Polite",
+        "friendly": "Friendly",
+        "sarcastic": "Sarcastic",
+        "placeholder": "Custom tone..."
+      },
+      "language": {
+        "label": "Text Language (Multi-select)",
+        "zhTW": "Chinese",
+        "en": "English",
+        "ja": "Japanese",
+        "placeholder": "Custom language..."
+      }
+    },
+    "composition": {
+      "title": "Composition",
+      "cameraAngle": {
+        "label": "Camera Angle (Multi-select)",
+        "headshot": "Headshot",
+        "halfbody": "Half-body",
+        "fullbody": "Full-body"
+      },
+      "expression": {
+        "label": "Expression Intensity (Multi-select)",
+        "natural": "Natural",
+        "exaggerated": "Exaggerated",
+        "crazy": "Over-the-top"
+      }
+    }
+  },
+  "edit": {
+    "warning": "Edit mode requires at least one uploaded image"
+  },
+  "story": {
+    "steps": "Story Steps",
+    "stepsUnit": "{count} images",
+    "type": {
+      "label": "Sequence Type",
+      "unspecified": "Unspecified",
+      "story": "Story",
+      "process": "Process",
+      "tutorial": "Tutorial",
+      "timeline": "Timeline"
+    },
+    "style": {
+      "label": "Visual Consistency",
+      "unspecified": "Unspecified",
+      "consistent": "Consistent",
+      "evolving": "Evolving"
+    },
+    "transition": {
+      "label": "Transition Effect",
+      "unspecified": "Unspecified",
+      "smooth": "Smooth",
+      "dramatic": "Dramatic",
+      "fade": "Fade"
+    },
+    "format": {
+      "label": "Output Format",
+      "unspecified": "Unspecified",
+      "storyboard": "Storyboard",
+      "individual": "Individual"
+    }
+  },
+  "diagram": {
+    "type": {
+      "label": "Diagram Type",
+      "unspecified": "Unspecified",
+      "flowchart": "Flowchart",
+      "architecture": "Architecture",
+      "network": "Network Topology",
+      "database": "Database",
+      "wireframe": "Wireframe",
+      "mindmap": "Mind Map",
+      "sequence": "Sequence Diagram"
+    },
+    "style": {
+      "label": "Visual Style",
+      "unspecified": "Unspecified",
+      "clean": "Clean",
+      "handDrawn": "Hand-drawn",
+      "technical": "Technical"
+    },
+    "layout": {
+      "label": "Layout",
+      "unspecified": "Unspecified",
+      "horizontal": "Horizontal",
+      "vertical": "Vertical",
+      "hierarchical": "Hierarchical",
+      "circular": "Circular"
+    },
+    "complexity": {
+      "label": "Complexity",
+      "unspecified": "Unspecified",
+      "simple": "Simple",
+      "detailed": "Detailed",
+      "comprehensive": "Comprehensive"
+    },
+    "annotations": {
+      "label": "Annotation Level",
+      "unspecified": "Unspecified",
+      "minimal": "Minimal",
+      "detailed": "Detailed"
+    }
+  },
+  "imageUploader": {
+    "title": "Reference Images",
+    "dragDrop": "Drag & drop, click to select, or paste",
+    "maxImages": "Max {count} images, supports JPG, PNG, WebP"
+  },
+  "generate": {
+    "button": "Generate",
+    "generating": "Generating..."
+  },
+  "preview": {
+    "title": "Generated Results",
+    "zoom": "Zoom Preview",
+    "loading": "Generating...",
+    "loadingHint": "Please wait, this may take some time",
+    "empty": "No images generated yet",
+    "emptyHint": "Enter a prompt and click Generate to start"
+  },
+  "history": {
+    "title": "History",
+    "empty": "No history yet",
+    "storage": "Storage: {size}",
+    "loadRecord": "Load Record",
+    "loadConfirmTitle": "Load Record",
+    "loadConfirmMessage": "Loading this record will overwrite your current input and settings. Continue?",
+    "loadConfirmButton": "Load",
+    "deleteConfirmTitle": "Delete Record",
+    "deleteConfirmMessage": "Are you sure you want to delete this record?",
+    "clearConfirmTitle": "Clear All",
+    "clearConfirmMessage": "Are you sure you want to clear all history? This cannot be undone.",
+    "clearConfirmButton": "Clear All",
+    "loadingImages": "Loading images...",
+    "status": {
+      "success": "Success",
+      "failed": "Failed"
+    },
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{count} min ago",
+      "hoursAgo": "{count} hr ago",
+      "daysAgo": "{count} days ago"
+    }
+  },
+  "thinking": {
+    "title": "Thinking Process",
+    "aiThinking": "AI Thinking...",
+    "streaming": "Streaming response",
+    "steps": "{count} steps",
+    "copyContent": "Copy content",
+    "copiedToClipboard": "Copied to clipboard",
+    "copyFailed": "Copy failed",
+    "waiting": "Waiting for AI response...",
+    "processing": "Processing",
+    "continueThinking": "Still thinking...",
+    "thinkingDraft": "Thinking Draft",
+    "defaultTitle": "Thinking"
+  },
+  "promptDebug": {
+    "title": "Composed Prompt"
+  },
+  "confirm": {
+    "defaultTitle": "Confirm",
+    "defaultMessage": "Are you sure you want to proceed?"
+  },
+  "toast": {
+    "generateSuccess": "Successfully generated {count} images",
+    "imageSaveFailed": "Failed to save images, but generation completed",
+    "generateFailed": "Generation failed, please try again"
+  },
+  "errors": {
+    "noPrompt": "Please enter a prompt description",
+    "noApiKey": "Please set up your API Key first",
+    "noEditImage": "Please upload an image to edit first",
+    "apiKeyNotSet": "API Key not set",
+    "apiRequestFailed": "API request failed: {status}",
+    "noImageInResponse": "No image in API response",
+    "invalidResponseFormat": "Invalid API response format",
+    "noImageData": "No image data in API response"
+  },
+  "footer": {
+    "title": "NanoBanana Image Generator"
+  },
+  "lightbox": {
+    "resetZoom": "Reset Zoom (Press 0)",
+    "cropSticker": "Crop Sticker",
+    "crop": "Crop",
+    "downloadWebp": "Download WebP",
+    "selectFormat": "Select Download Format",
+    "webp": "WebP",
+    "original": "Original",
+    "originalFormat": "Original Format",
+    "close": "Close",
+    "historical": "Historical"
+  },
+  "stickerCropper": {
+    "title": "Sticker Cropper Tool",
+    "settings": {
+      "title": "Background Removal Settings",
+      "bgColor": "Background Color",
+      "pickColor": "Pick Color",
+      "pickingColor": "Picking...",
+      "tolerance": "Tolerance",
+      "toleranceHint": "Higher values remove more pixels similar to background color",
+      "whiteBgPreview": "White Background Preview"
+    },
+    "preview": {
+      "title": "Preview",
+      "loading": "Loading image..."
+    },
+    "results": {
+      "title": "Crop Results",
+      "count": "({count} stickers)",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "downloadThis": "Download this sticker",
+      "hint": "Adjust settings and click \"Start Processing\"",
+      "autoDetect": "System will auto-detect and crop stickers"
+    },
+    "buttons": {
+      "process": "Start Processing",
+      "processing": "Processing...",
+      "download": "Download Selected ({count})",
+      "downloading": "Packing..."
+    },
+    "overlay": {
+      "processing": "Processing background removal...",
+      "hint": "Large images may take a few seconds"
+    },
+    "toast": {
+      "whiteBg": "Switched to white background preview",
+      "transparentBg": "Switched to transparent background preview",
+      "waitLoading": "Please wait for image to load",
+      "clickImage": "Please click on image area",
+      "colorPicked": "Background color selected",
+      "cropSuccess": "Successfully cropped {count} stickers",
+      "noStickers": "No stickers detected, please adjust tolerance and retry"
+    }
+  },
+  "storyProgress": {
+    "generating": "Generating image {current}/{total}"
+  },
+  "styles": {
+    "photorealistic": "Photorealistic",
+    "watercolor": "Watercolor",
+    "oilPainting": "Oil Painting",
+    "sketch": "Sketch",
+    "pixelArt": "Pixel Art",
+    "anime": "Anime",
+    "pixar": "Pixar 3D",
+    "vintage": "Vintage",
+    "modern": "Modern",
+    "abstract": "Abstract",
+    "minimalist": "Minimalist"
+  },
+  "variations": {
+    "lighting": "Lighting",
+    "angle": "Angle",
+    "colorPalette": "Color Palette",
+    "composition": "Composition",
+    "mood": "Mood",
+    "season": "Season",
+    "timeOfDay": "Time of Day"
+  }
+}

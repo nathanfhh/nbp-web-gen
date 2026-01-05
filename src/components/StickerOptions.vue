@@ -1,9 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import { PREDEFINED_STYLES } from '@/composables/useApi'
+import { useStyleOptions } from '@/composables/useStyleOptions'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
+const { PREDEFINED_STYLES } = useStyleOptions()
+
 const customStyleInput = ref('')
 
 const options = computed(() => store.stickerOptions)
@@ -24,43 +28,43 @@ const ratios = [
   { value: '16:9', label: '16:9' },
 ]
 
-// Context options
-const contexts = [
-  { value: 'chat', label: '聊天回覆' },
-  { value: 'group', label: '群組互動' },
-  { value: 'boss', label: '主管回覆' },
-  { value: 'couple', label: '情侶撒嬌' },
-  { value: 'custom', label: '其他自訂' },
-]
+// Context options with i18n
+const contexts = computed(() => [
+  { value: 'chat', label: t('sticker.context.chat') },
+  { value: 'group', label: t('sticker.context.group') },
+  { value: 'boss', label: t('sticker.context.boss') },
+  { value: 'couple', label: t('sticker.context.couple') },
+  { value: 'custom', label: t('sticker.context.custom') },
+])
 
-// Tone options
-const tones = [
-  { value: 'formal', label: '正式' },
-  { value: 'polite', label: '禮貌' },
-  { value: 'friendly', label: '朋友式' },
-  { value: 'sarcastic', label: '嘴砲式' },
-]
+// Tone options with i18n
+const tones = computed(() => [
+  { value: 'formal', label: t('sticker.text.tone.formal') },
+  { value: 'polite', label: t('sticker.text.tone.polite') },
+  { value: 'friendly', label: t('sticker.text.tone.friendly') },
+  { value: 'sarcastic', label: t('sticker.text.tone.sarcastic') },
+])
 
-// Language options
-const languages = [
-  { value: 'zh-TW', label: '繁中' },
-  { value: 'en', label: '英文' },
-  { value: 'ja', label: '日文' },
-]
+// Language options with i18n
+const languages = computed(() => [
+  { value: 'zh-TW', label: t('sticker.text.language.zhTW') },
+  { value: 'en', label: t('sticker.text.language.en') },
+  { value: 'ja', label: t('sticker.text.language.ja') },
+])
 
-// Camera angle options
-const cameraAngles = [
-  { value: 'headshot', label: '大頭' },
-  { value: 'halfbody', label: '半身' },
-  { value: 'fullbody', label: '全身' },
-]
+// Camera angle options with i18n
+const cameraAngles = computed(() => [
+  { value: 'headshot', label: t('sticker.composition.cameraAngle.headshot') },
+  { value: 'halfbody', label: t('sticker.composition.cameraAngle.halfbody') },
+  { value: 'fullbody', label: t('sticker.composition.cameraAngle.fullbody') },
+])
 
-// Expression options
-const expressions = [
-  { value: 'natural', label: '自然' },
-  { value: 'exaggerated', label: '誇張' },
-  { value: 'crazy', label: '崩壞' },
-]
+// Expression options with i18n
+const expressions = computed(() => [
+  { value: 'natural', label: t('sticker.composition.expression.natural') },
+  { value: 'exaggerated', label: t('sticker.composition.expression.exaggerated') },
+  { value: 'crazy', label: t('sticker.composition.expression.crazy') },
+])
 
 // Toggle functions
 const toggleStyle = (style) => {
@@ -141,7 +145,7 @@ const handleStyleEnter = (event) => {
   <div class="space-y-6">
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">解析度</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.resolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in resolutions"
@@ -159,7 +163,7 @@ const handleStyleEnter = (event) => {
 
     <!-- Ratio -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">寬高比</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.aspectRatio') }}</label>
       <div class="grid grid-cols-5 gap-2">
         <button
           v-for="ratio in ratios"
@@ -193,11 +197,11 @@ const handleStyleEnter = (event) => {
 
     <!-- Layout -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">佈局</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('sticker.layout') }}</label>
       <div class="flex items-center gap-4">
         <!-- Rows -->
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-400 w-8">列數</span>
+          <span class="text-xs text-gray-400 w-8">{{ $t('sticker.rows') }}</span>
           <div class="flex items-center gap-1">
             <button
               @click="options.layoutRows = Math.max(1, options.layoutRows - 1)"
@@ -224,7 +228,7 @@ const handleStyleEnter = (event) => {
         <span class="text-gray-500 font-medium">×</span>
         <!-- Cols -->
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-400 w-8">行數</span>
+          <span class="text-xs text-gray-400 w-8">{{ $t('sticker.cols') }}</span>
           <div class="flex items-center gap-1">
             <button
               @click="options.layoutCols = Math.max(1, options.layoutCols - 1)"
@@ -250,7 +254,7 @@ const handleStyleEnter = (event) => {
       </div>
       <!-- Layout preview -->
       <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">預覽：</span>
+        <span class="text-xs text-gray-500">{{ $t('sticker.preview') }}</span>
         <div
           class="grid gap-0.5 p-2 bg-white/5 rounded-lg"
           :style="{
@@ -265,7 +269,7 @@ const handleStyleEnter = (event) => {
           ></div>
         </div>
         <span class="text-xs text-gray-400">
-          共 {{ options.layoutRows * options.layoutCols }} 張貼圖
+          {{ $t('sticker.totalStickers', { count: options.layoutRows * options.layoutCols }) }}
         </span>
       </div>
     </div>
@@ -275,7 +279,7 @@ const handleStyleEnter = (event) => {
 
     <!-- Context/Usage -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">情境用途</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('sticker.context.title') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="ctx in contexts"
@@ -294,7 +298,7 @@ const handleStyleEnter = (event) => {
         v-if="options.context === 'custom'"
         v-model="options.customContext"
         type="text"
-        placeholder="輸入自訂情境..."
+        :placeholder="$t('sticker.context.placeholder')"
         class="input-premium text-sm w-full"
       />
     </div>
@@ -305,7 +309,7 @@ const handleStyleEnter = (event) => {
     <!-- Text Related -->
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <label class="text-sm font-medium text-gray-300">文字相關</label>
+        <label class="text-sm font-medium text-gray-300">{{ $t('sticker.text.title') }}</label>
         <button
           @click="options.hasText = !options.hasText"
           class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
@@ -322,7 +326,7 @@ const handleStyleEnter = (event) => {
       <div v-if="options.hasText" class="space-y-4 pl-4 border-l-2 border-pink-500/30">
         <!-- Tone (multi-select) -->
         <div class="space-y-2">
-          <label class="block text-xs font-medium text-gray-400">口吻（可多選）</label>
+          <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.text.tone.label') }}</label>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="tone in tones"
@@ -340,14 +344,14 @@ const handleStyleEnter = (event) => {
           <input
             v-model="options.customTone"
             type="text"
-            placeholder="自訂口吻..."
+            :placeholder="$t('sticker.text.tone.placeholder')"
             class="input-premium text-xs w-full"
           />
         </div>
 
         <!-- Language (multi-select) -->
         <div class="space-y-2">
-          <label class="block text-xs font-medium text-gray-400">文字語言（可多選）</label>
+          <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.text.language.label') }}</label>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="lang in languages"
@@ -365,7 +369,7 @@ const handleStyleEnter = (event) => {
           <input
             v-model="options.customLanguage"
             type="text"
-            placeholder="自訂語言..."
+            :placeholder="$t('sticker.text.language.placeholder')"
             class="input-premium text-xs w-full"
           />
         </div>
@@ -377,11 +381,11 @@ const handleStyleEnter = (event) => {
 
     <!-- Composition -->
     <div class="space-y-4">
-      <label class="block text-sm font-medium text-gray-300">構圖</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('sticker.composition.title') }}</label>
 
       <!-- Camera Angles (multi-select) -->
       <div class="space-y-2">
-        <label class="block text-xs font-medium text-gray-400">鏡位（可多選）</label>
+        <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.composition.cameraAngle.label') }}</label>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="angle in cameraAngles"
@@ -399,7 +403,7 @@ const handleStyleEnter = (event) => {
 
       <!-- Expression Intensity (multi-select) -->
       <div class="space-y-2">
-        <label class="block text-xs font-medium text-gray-400">表情誇張度（可多選）</label>
+        <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.composition.expression.label') }}</label>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="expr in expressions"
@@ -421,7 +425,7 @@ const handleStyleEnter = (event) => {
 
     <!-- Styles -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">風格</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.styles') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="style in PREDEFINED_STYLES"
@@ -457,12 +461,12 @@ const handleStyleEnter = (event) => {
         <input
           v-model="customStyleInput"
           type="text"
-          placeholder="自訂風格"
+          :placeholder="$t('options.customStyle')"
           class="input-premium text-sm flex-1"
           @keydown.enter="handleStyleEnter"
         />
         <button @click="addCustomStyle" class="btn-secondary py-2 px-4 text-sm">
-          新增
+          {{ $t('common.add') }}
         </button>
       </div>
     </div>

@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 const isDragging = ref(false)
 const fileInput = ref(null)
@@ -87,7 +89,7 @@ const triggerFileInput = () => {
   <div class="space-y-3" @paste="handlePaste">
     <div class="flex items-center justify-between">
       <label class="block text-sm font-medium text-gray-300">
-        參考圖片
+        {{ $t('imageUploader.title') }}
         <span class="text-gray-500 font-normal ml-1">({{ store.referenceImages.length }}/{{ MAX_IMAGES }})</span>
       </label>
       <button
@@ -95,7 +97,7 @@ const triggerFileInput = () => {
         @click="clearAll"
         class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
       >
-        清除全部
+        {{ $t('common.clearAll') }}
       </button>
     </div>
 
@@ -115,7 +117,7 @@ const triggerFileInput = () => {
           <button
             @click="removeImage(index)"
             class="p-1.5 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
-            title="移除"
+            :title="$t('common.remove')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -153,8 +155,8 @@ const triggerFileInput = () => {
           </svg>
         </div>
         <div class="text-left">
-          <p class="text-gray-300 text-sm font-medium">拖放圖片、點擊選擇或貼上</p>
-          <p class="text-xs text-gray-500 mt-0.5">最多 {{ MAX_IMAGES }} 張，支援 JPG、PNG、WebP</p>
+          <p class="text-gray-300 text-sm font-medium">{{ $t('imageUploader.dragDrop') }}</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ $t('imageUploader.maxImages', { count: MAX_IMAGES }) }}</p>
         </div>
       </div>
     </div>

@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { formatElapsed } from '@/composables/useFormatTime'
 import { useToast } from '@/composables/useToast'
 import ImageLightbox from './ImageLightbox.vue'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 const toast = useToast()
 const contentRef = ref(null)
@@ -110,7 +112,7 @@ const thinkingSteps = computed(() => {
     const firstTimestamp = allChunks.find((c) => c.type === 'text')?.timestamp || startTime
     steps.push({
       type: 'text',
-      title: '思考中',
+      title: t('thinking.defaultTitle'),
       content: text.trim(),
       timestamp: firstTimestamp,
       elapsedMs: startTime ? firstTimestamp - startTime : 0,
@@ -167,10 +169,10 @@ const toggleExpanded = () => {
 const copyToClipboard = async () => {
   try {
     await navigator.clipboard.writeText(thinkingText.value)
-    toast.success('已複製到剪貼簿')
+    toast.success(t('thinking.copiedToClipboard'))
   } catch (err) {
     console.error('Failed to copy:', err)
-    toast.error('複製失敗')
+    toast.error(t('thinking.copyFailed'))
   }
 }
 
@@ -218,10 +220,10 @@ const getStepStatus = (index) => {
         </div>
         <div>
           <h4 class="text-sm font-semibold text-white">
-            {{ store.isStreaming ? 'AI 思考中...' : '思考過程' }}
+            {{ store.isStreaming ? $t('thinking.aiThinking') : $t('thinking.title') }}
           </h4>
           <p class="text-xs text-gray-500">
-            {{ store.isStreaming ? '串流回應中' : `${thinkingSteps.length} 個步驟` }}
+            {{ store.isStreaming ? $t('thinking.streaming') : $t('thinking.steps', { count: thinkingSteps.length }) }}
           </p>
         </div>
       </div>
@@ -229,7 +231,7 @@ const getStepStatus = (index) => {
         <button
           @click="copyToClipboard"
           class="p-2 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-300"
-          title="複製內容"
+          :title="$t('thinking.copyContent')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -269,7 +271,7 @@ const getStepStatus = (index) => {
           <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
           <div class="absolute inset-0 rounded-full bg-cyan-400/30 animate-ping"></div>
         </div>
-        <span class="text-gray-400 text-sm">等待 AI 回應...</span>
+        <span class="text-gray-400 text-sm">{{ $t('thinking.waiting') }}</span>
       </div>
 
       <!-- Steps -->
@@ -339,7 +341,7 @@ const getStepStatus = (index) => {
                 v-if="getStepStatus(index) === 'active'"
                 class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-medium"
               >
-                處理中
+                {{ $t('thinking.processing') }}
               </span>
             </div>
 
@@ -370,7 +372,7 @@ const getStepStatus = (index) => {
           <div class="flex-1 pb-4">
             <!-- Image header -->
             <div class="flex items-center gap-2 mb-2">
-              <h5 class="text-sm font-semibold text-emerald-300">思考草稿</h5>
+              <h5 class="text-sm font-semibold text-emerald-300">{{ $t('thinking.thinkingDraft') }}</h5>
               <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-gray-500/20 text-gray-400">
                 {{ formatElapsed(step.elapsedMs) }}
               </span>
@@ -400,7 +402,7 @@ const getStepStatus = (index) => {
       <!-- Streaming cursor -->
       <div v-if="store.isStreaming && thinkingSteps.length > 0" class="flex items-center gap-2 pl-11 pt-2">
         <span class="inline-block w-2 h-4 bg-cyan-400 animate-pulse rounded-sm"></span>
-        <span class="text-xs text-gray-500">繼續思考中...</span>
+        <span class="text-xs text-gray-500">{{ $t('thinking.continueThinking') }}</span>
       </div>
     </div>
 

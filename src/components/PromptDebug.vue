@@ -1,9 +1,11 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { buildPrompt } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 const toast = useToast()
 
@@ -15,10 +17,10 @@ const composedPrompt = computed(() => {
 const copyToClipboard = async () => {
   try {
     await navigator.clipboard.writeText(composedPrompt.value)
-    toast.success('已複製到剪貼簿')
+    toast.success(t('thinking.copiedToClipboard'))
   } catch (err) {
     console.error('Failed to copy:', err)
-    toast.error('複製失敗')
+    toast.error(t('thinking.copyFailed'))
   }
 }
 </script>
@@ -30,12 +32,12 @@ const copyToClipboard = async () => {
         <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
-        組合後的 Prompt
+        {{ $t('promptDebug.title') }}
       </h4>
       <button
         @click="copyToClipboard"
         class="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-300"
-        title="複製"
+        :title="$t('common.copy')"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />

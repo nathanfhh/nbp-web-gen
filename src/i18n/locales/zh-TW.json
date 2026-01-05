@@ -1,0 +1,385 @@
+{
+  "common": {
+    "save": "儲存",
+    "cancel": "取消",
+    "clear": "清除",
+    "clearAll": "清除全部",
+    "delete": "刪除",
+    "add": "新增",
+    "download": "下載",
+    "downloadAll": "全部下載",
+    "copy": "複製",
+    "confirm": "確定",
+    "loading": "載入中...",
+    "remove": "移除",
+    "change": "更換",
+    "characters": "字元"
+  },
+  "hero": {
+    "subtitle": "AI 圖像生成工具",
+    "startUsing": "開始使用"
+  },
+  "theme": {
+    "switchToLight": "切換至亮色模式",
+    "switchToDark": "切換至暗色模式"
+  },
+  "language": {
+    "label": "語言",
+    "zhTW": "繁中",
+    "en": "EN"
+  },
+  "apiKey": {
+    "title": "API Key",
+    "subtitle": "Google Gemini API",
+    "placeholder": "輸入您的 Gemini API Key...",
+    "save": "儲存 API Key",
+    "hint": "API Key 僅儲存在您的瀏覽器本地，不會傳送至任何伺服器。",
+    "getKey": "取得 API Key"
+  },
+  "modes": {
+    "title": "生成模式",
+    "generate": {
+      "name": "生成",
+      "description": "從文字描述創建圖片"
+    },
+    "sticker": {
+      "name": "貼圖",
+      "description": "生成可裁切的貼圖素材"
+    },
+    "edit": {
+      "name": "編輯",
+      "description": "修改現有圖片"
+    },
+    "story": {
+      "name": "故事",
+      "description": "生成連續故事序列"
+    },
+    "diagram": {
+      "name": "圖表",
+      "description": "創建技術圖表"
+    }
+  },
+  "prompt": {
+    "label": "Prompt 描述",
+    "hint": "提示：描述越詳細，生成效果越好",
+    "placeholders": {
+      "generate": "描述您想要生成的圖片，例如：一隻在星空下的貓咪...",
+      "edit": "描述您想要對圖片進行的修改，例如：加上太陽眼鏡...",
+      "story": "描述故事的主題，例如：一顆種子成長為大樹的過程...",
+      "diagram": "描述圖表的內容，例如：使用者登入的流程圖..."
+    }
+  },
+  "settings": {
+    "title": "進階設定",
+    "temperature": {
+      "label": "Temperature",
+      "conservative": "保守",
+      "balanced": "平衡",
+      "creative": "創意",
+      "wild": "狂野"
+    },
+    "seed": {
+      "label": "Seed（隨機種子）",
+      "placeholder": "留空使用隨機種子",
+      "hint": "相同的 seed 與 prompt 會產生相同的結果，方便重現",
+      "generate": "生成隨機種子"
+    }
+  },
+  "options": {
+    "resolution": "解析度",
+    "outputResolution": "輸出解析度",
+    "quality": "畫質",
+    "aspectRatio": "寬高比",
+    "style": "風格",
+    "styles": "風格",
+    "variation": "變化類型",
+    "customStyle": "自訂風格",
+    "customVariation": "自訂變化"
+  },
+  "sticker": {
+    "layout": "佈局",
+    "rows": "列數",
+    "cols": "行數",
+    "preview": "預覽：",
+    "totalStickers": "共 {count} 張貼圖",
+    "context": {
+      "title": "情境用途",
+      "chat": "聊天回覆",
+      "group": "群組互動",
+      "boss": "主管回覆",
+      "couple": "情侶撒嬌",
+      "custom": "其他自訂",
+      "placeholder": "輸入自訂情境..."
+    },
+    "text": {
+      "title": "文字相關",
+      "tone": {
+        "label": "口吻（可多選）",
+        "formal": "正式",
+        "polite": "禮貌",
+        "friendly": "朋友式",
+        "sarcastic": "嘴砲式",
+        "placeholder": "自訂口吻..."
+      },
+      "language": {
+        "label": "文字語言（可多選）",
+        "zhTW": "繁中",
+        "en": "英文",
+        "ja": "日文",
+        "placeholder": "自訂語言..."
+      }
+    },
+    "composition": {
+      "title": "構圖",
+      "cameraAngle": {
+        "label": "鏡位（可多選）",
+        "headshot": "大頭",
+        "halfbody": "半身",
+        "fullbody": "全身"
+      },
+      "expression": {
+        "label": "表情誇張度（可多選）",
+        "natural": "自然",
+        "exaggerated": "誇張",
+        "crazy": "崩壞"
+      }
+    }
+  },
+  "edit": {
+    "warning": "編輯模式需要至少上傳一張圖片"
+  },
+  "story": {
+    "steps": "分鏡步驟",
+    "stepsUnit": "{count} 張",
+    "type": {
+      "label": "序列類型",
+      "unspecified": "不指定",
+      "story": "故事",
+      "process": "流程",
+      "tutorial": "教學",
+      "timeline": "時間軸"
+    },
+    "style": {
+      "label": "視覺一致性",
+      "unspecified": "不指定",
+      "consistent": "一致",
+      "evolving": "演進"
+    },
+    "transition": {
+      "label": "轉場效果",
+      "unspecified": "不指定",
+      "smooth": "順暢",
+      "dramatic": "戲劇化",
+      "fade": "淡出"
+    },
+    "format": {
+      "label": "輸出格式",
+      "unspecified": "不指定",
+      "storyboard": "分鏡板",
+      "individual": "單張"
+    }
+  },
+  "diagram": {
+    "type": {
+      "label": "圖表類型",
+      "unspecified": "不指定",
+      "flowchart": "流程圖",
+      "architecture": "架構圖",
+      "network": "網路拓撲",
+      "database": "資料庫",
+      "wireframe": "線框圖",
+      "mindmap": "心智圖",
+      "sequence": "時序圖"
+    },
+    "style": {
+      "label": "視覺風格",
+      "unspecified": "不指定",
+      "clean": "清爽",
+      "handDrawn": "手繪",
+      "technical": "技術"
+    },
+    "layout": {
+      "label": "版面配置",
+      "unspecified": "不指定",
+      "horizontal": "水平",
+      "vertical": "垂直",
+      "hierarchical": "階層",
+      "circular": "環形"
+    },
+    "complexity": {
+      "label": "複雜度",
+      "unspecified": "不指定",
+      "simple": "簡單",
+      "detailed": "詳細",
+      "comprehensive": "全面"
+    },
+    "annotations": {
+      "label": "標註等級",
+      "unspecified": "不指定",
+      "minimal": "精簡標註",
+      "detailed": "詳細標註"
+    }
+  },
+  "imageUploader": {
+    "title": "參考圖片",
+    "dragDrop": "拖放圖片、點擊選擇或貼上",
+    "maxImages": "最多 {count} 張，支援 JPG、PNG、WebP"
+  },
+  "generate": {
+    "button": "開始生成",
+    "generating": "生成中..."
+  },
+  "preview": {
+    "title": "生成結果",
+    "zoom": "放大預覽",
+    "loading": "生成中...",
+    "loadingHint": "請稍候，這可能需要一些時間",
+    "empty": "尚未生成圖片",
+    "emptyHint": "輸入 Prompt 後點擊生成按鈕開始"
+  },
+  "history": {
+    "title": "歷史紀錄",
+    "empty": "尚無歷史紀錄",
+    "storage": "儲存空間：{size}",
+    "loadRecord": "載入紀錄",
+    "loadConfirmTitle": "載入紀錄",
+    "loadConfirmMessage": "載入此紀錄將會覆蓋目前的輸入和設定，確定要繼續嗎？",
+    "loadConfirmButton": "載入",
+    "deleteConfirmTitle": "刪除紀錄",
+    "deleteConfirmMessage": "確定要刪除此紀錄嗎？",
+    "clearConfirmTitle": "清除全部",
+    "clearConfirmMessage": "確定要清除所有歷史紀錄嗎？此操作無法復原。",
+    "clearConfirmButton": "清除全部",
+    "loadingImages": "載入圖片中...",
+    "status": {
+      "success": "成功",
+      "failed": "失敗"
+    },
+    "time": {
+      "justNow": "剛剛",
+      "minutesAgo": "{count} 分鐘前",
+      "hoursAgo": "{count} 小時前",
+      "daysAgo": "{count} 天前"
+    }
+  },
+  "thinking": {
+    "title": "思考過程",
+    "aiThinking": "AI 思考中...",
+    "streaming": "串流回應中",
+    "steps": "{count} 個步驟",
+    "copyContent": "複製內容",
+    "copiedToClipboard": "已複製到剪貼簿",
+    "copyFailed": "複製失敗",
+    "waiting": "等待 AI 回應...",
+    "processing": "處理中",
+    "continueThinking": "繼續思考中...",
+    "thinkingDraft": "思考草稿",
+    "defaultTitle": "思考中"
+  },
+  "promptDebug": {
+    "title": "組合後的 Prompt"
+  },
+  "confirm": {
+    "defaultTitle": "確認",
+    "defaultMessage": "確定要執行此操作嗎？"
+  },
+  "toast": {
+    "generateSuccess": "成功生成 {count} 張圖片",
+    "imageSaveFailed": "圖片儲存失敗，但生成已完成",
+    "generateFailed": "生成失敗，請重試"
+  },
+  "errors": {
+    "noPrompt": "請輸入 Prompt 描述",
+    "noApiKey": "請先設定 API Key",
+    "noEditImage": "請先上傳要編輯的圖片",
+    "apiKeyNotSet": "API Key 未設定",
+    "apiRequestFailed": "API 請求失敗: {status}",
+    "noImageInResponse": "API 回應中沒有圖片",
+    "invalidResponseFormat": "無效的 API 回應格式",
+    "noImageData": "API 回應中沒有圖片數據"
+  },
+  "footer": {
+    "title": "NanoBanana Image Generator"
+  },
+  "lightbox": {
+    "resetZoom": "重置縮放 (按 0)",
+    "cropSticker": "裁切貼圖",
+    "crop": "裁切",
+    "downloadWebp": "下載 WebP",
+    "selectFormat": "選擇下載格式",
+    "webp": "WebP",
+    "original": "原圖",
+    "originalFormat": "原始格式",
+    "close": "關閉",
+    "historical": "歷史紀錄"
+  },
+  "stickerCropper": {
+    "title": "貼圖裁切工具",
+    "settings": {
+      "title": "去背設定",
+      "bgColor": "背景顏色",
+      "pickColor": "點擊取色",
+      "pickingColor": "取色中...",
+      "tolerance": "容許值 (Tolerance)",
+      "toleranceHint": "數值越高，越能去除接近背景色的像素",
+      "whiteBgPreview": "白色背景預覽"
+    },
+    "preview": {
+      "title": "預覽",
+      "loading": "載入圖片中..."
+    },
+    "results": {
+      "title": "裁切結果",
+      "count": "({count} 張)",
+      "selectAll": "全選",
+      "deselectAll": "取消全選",
+      "downloadThis": "下載此貼圖",
+      "hint": "調整設定後點擊「開始處理」",
+      "autoDetect": "系統將自動偵測並裁切貼圖"
+    },
+    "buttons": {
+      "process": "開始處理",
+      "processing": "處理中...",
+      "download": "下載已選 ({count} 張)",
+      "downloading": "打包中..."
+    },
+    "overlay": {
+      "processing": "去背處理中...",
+      "hint": "大型圖片可能需要數秒"
+    },
+    "toast": {
+      "whiteBg": "已切換為白色背景預覽",
+      "transparentBg": "已切換為透明背景預覽",
+      "waitLoading": "請先等待圖片載入完成",
+      "clickImage": "請點擊圖片區域",
+      "colorPicked": "已選取背景顏色",
+      "cropSuccess": "成功裁切出 {count} 張貼圖",
+      "noStickers": "未偵測到獨立貼圖，請調整容許值後重試"
+    }
+  },
+  "storyProgress": {
+    "generating": "生成第 {current}/{total} 張圖片"
+  },
+  "styles": {
+    "photorealistic": "寫實攝影",
+    "watercolor": "水彩畫",
+    "oilPainting": "油畫",
+    "sketch": "素描",
+    "pixelArt": "像素風",
+    "anime": "動漫",
+    "pixar": "Pixar 3D",
+    "vintage": "復古",
+    "modern": "現代",
+    "abstract": "抽象",
+    "minimalist": "極簡"
+  },
+  "variations": {
+    "lighting": "光線變化",
+    "angle": "角度變化",
+    "colorPalette": "配色變化",
+    "composition": "構圖變化",
+    "mood": "氛圍變化",
+    "season": "季節變化",
+    "timeOfDay": "時間變化"
+  }
+}
