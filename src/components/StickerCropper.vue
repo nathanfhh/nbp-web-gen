@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import JSZip from 'jszip'
 import { useToast } from '@/composables/useToast'
 
+const { t } = useI18n()
 const toast = useToast()
 
 const props = defineProps({
@@ -65,7 +67,7 @@ watch(() => props.modelValue, (newVal) => {
 
 // Watch for preview background toggle - regenerate preview URLs
 watch(previewBgWhite, (useWhiteBg) => {
-  toast.info(useWhiteBg ? '已切換為白色背景預覽' : '已切換為透明背景預覽')
+  toast.info(useWhiteBg ? t('stickerCropper.toast.whiteBg') : t('stickerCropper.toast.transparentBg'))
 
   if (croppedStickers.value.length === 0) return
 
@@ -165,19 +167,19 @@ const handleCanvasClick = (e) => {
 
   // Check if canvas has valid dimensions
   if (canvas.width === 0 || canvas.height === 0) {
-    toast.warning('請先等待圖片載入完成')
+    toast.warning(t('stickerCropper.toast.waitLoading'))
     return
   }
 
   if (!container) {
-    toast.warning('請先等待圖片載入完成')
+    toast.warning(t('stickerCropper.toast.waitLoading'))
     return
   }
 
   const containerRect = container.getBoundingClientRect()
 
   if (containerRect.width === 0 || containerRect.height === 0) {
-    toast.warning('請先等待圖片載入完成')
+    toast.warning(t('stickerCropper.toast.waitLoading'))
     return
   }
 
@@ -207,7 +209,7 @@ const handleCanvasClick = (e) => {
 
   // Check if click is within the image bounds
   if (clickX < 0 || clickX > displayWidth || clickY < 0 || clickY > displayHeight) {
-    toast.warning('請點擊圖片區域')
+    toast.warning(t('stickerCropper.toast.clickImage'))
     return
   }
 
@@ -229,7 +231,7 @@ const handleCanvasClick = (e) => {
   }
 
   isPickingColor.value = false
-  toast.success('已選取背景顏色')
+  toast.success(t('stickerCropper.toast.colorPicked'))
 }
 
 const processImage = () => {
@@ -497,9 +499,9 @@ const findAndCropStickers = (canvas, useWhiteBg = false) => {
 
   // Show toast
   if (stickers.length > 0) {
-    toast.success(`成功裁切出 ${stickers.length} 張貼圖`)
+    toast.success(t('stickerCropper.toast.cropSuccess', { count: stickers.length }))
   } else {
-    toast.warning('未偵測到獨立貼圖，請調整容許值後重試')
+    toast.warning(t('stickerCropper.toast.noStickers'))
   }
 }
 
@@ -617,7 +619,7 @@ onUnmounted(() => {
             <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            貼圖裁切工具
+            {{ $t('stickerCropper.title') }}
           </h2>
           <button
             @click="close"
@@ -635,11 +637,11 @@ onUnmounted(() => {
           <div class="cropper-left">
             <!-- Settings Panel -->
             <div class="settings-panel">
-              <h3 class="text-sm font-medium text-gray-300 mb-3">去背設定</h3>
+              <h3 class="text-sm font-medium text-gray-300 mb-3">{{ $t('stickerCropper.settings.title') }}</h3>
 
               <!-- Background Color -->
               <div class="mb-4">
-                <label class="block text-xs text-gray-400 mb-2">背景顏色</label>
+                <label class="block text-xs text-gray-400 mb-2">{{ $t('stickerCropper.settings.bgColor') }}</label>
                 <div class="flex items-center gap-2">
                   <div
                     class="w-8 h-8 rounded border border-white/20"
@@ -653,7 +655,7 @@ onUnmounted(() => {
                       ? 'bg-purple-500 text-white'
                       : 'bg-white/10 text-gray-300 hover:bg-white/20'"
                   >
-                    {{ isPickingColor ? '取色中...' : '點擊取色' }}
+                    {{ isPickingColor ? $t('stickerCropper.settings.pickingColor') : $t('stickerCropper.settings.pickColor') }}
                   </button>
                 </div>
               </div>
@@ -661,7 +663,7 @@ onUnmounted(() => {
               <!-- Tolerance -->
               <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-2">
-                  容許值 (Tolerance): <span class="text-purple-400 font-medium">{{ tolerance }}</span>
+                  {{ $t('stickerCropper.settings.tolerance') }}: <span class="text-purple-400 font-medium">{{ tolerance }}</span>
                 </label>
                 <input
                   v-model="tolerance"
@@ -670,12 +672,12 @@ onUnmounted(() => {
                   max="100"
                   class="w-full accent-purple-500"
                 />
-                <p class="text-xs text-gray-500 mt-1">數值越高，越能去除接近背景色的像素</p>
+                <p class="text-xs text-gray-500 mt-1">{{ $t('stickerCropper.settings.toleranceHint') }}</p>
               </div>
 
               <!-- Preview Background Toggle -->
               <div class="mb-4 flex items-center justify-between">
-                <label class="text-xs text-gray-400">白色背景預覽</label>
+                <label class="text-xs text-gray-400">{{ $t('stickerCropper.settings.whiteBgPreview') }}</label>
                 <button
                   @click="previewBgWhite = !previewBgWhite"
                   class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
@@ -701,13 +703,13 @@ onUnmounted(() => {
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                 </svg>
-                {{ isProcessing ? '處理中...' : '開始處理' }}
+                {{ isProcessing ? $t('stickerCropper.buttons.processing') : $t('stickerCropper.buttons.process') }}
               </button>
             </div>
 
             <!-- Preview Canvas -->
             <div class="preview-panel">
-              <h3 class="text-sm font-medium text-gray-300 mb-3">預覽</h3>
+              <h3 class="text-sm font-medium text-gray-300 mb-3">{{ $t('stickerCropper.preview.title') }}</h3>
               <div
                 ref="previewContainerRef"
                 class="preview-container"
@@ -733,7 +735,7 @@ onUnmounted(() => {
                   <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p class="text-gray-500 text-sm mt-2">載入圖片中...</p>
+                  <p class="text-gray-500 text-sm mt-2">{{ $t('stickerCropper.preview.loading') }}</p>
                 </div>
               </div>
             </div>
@@ -743,9 +745,9 @@ onUnmounted(() => {
           <div class="cropper-right">
             <div class="stickers-header">
               <h3 class="text-sm font-medium text-gray-300">
-                裁切結果
+                {{ $t('stickerCropper.results.title') }}
                 <span v-if="croppedStickers.length" class="text-purple-400">
-                  ({{ croppedStickers.length }} 張)
+                  {{ $t('stickerCropper.results.count', { count: croppedStickers.length }) }}
                 </span>
               </h3>
               <div v-if="croppedStickers.length" class="flex items-center gap-2">
@@ -753,14 +755,14 @@ onUnmounted(() => {
                   @click="selectAllStickers"
                   class="text-xs text-gray-400 hover:text-white transition-colors"
                 >
-                  全選
+                  {{ $t('stickerCropper.results.selectAll') }}
                 </button>
                 <span class="text-gray-600">|</span>
                 <button
                   @click="deselectAllStickers"
                   class="text-xs text-gray-400 hover:text-white transition-colors"
                 >
-                  取消全選
+                  {{ $t('stickerCropper.results.deselectAll') }}
                 </button>
               </div>
             </div>
@@ -784,7 +786,7 @@ onUnmounted(() => {
                   <button
                     @click.stop="downloadSingleSticker(sticker)"
                     class="sticker-download"
-                    title="下載此貼圖"
+                    :title="$t('stickerCropper.results.downloadThis')"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -806,8 +808,8 @@ onUnmounted(() => {
               <svg class="w-16 h-16 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p class="text-gray-500 text-sm mt-3">調整設定後點擊「開始處理」</p>
-              <p class="text-gray-600 text-xs mt-1">系統將自動偵測並裁切貼圖</p>
+              <p class="text-gray-500 text-sm mt-3">{{ $t('stickerCropper.results.hint') }}</p>
+              <p class="text-gray-600 text-xs mt-1">{{ $t('stickerCropper.results.autoDetect') }}</p>
             </div>
 
             <!-- Download All Button -->
@@ -827,7 +829,7 @@ onUnmounted(() => {
                 <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                {{ isDownloading ? '打包中...' : `下載已選 (${selectedStickers.size} 張)` }}
+                {{ isDownloading ? $t('stickerCropper.buttons.downloading') : $t('stickerCropper.buttons.download', { count: selectedStickers.size }) }}
               </button>
             </div>
           </div>
@@ -850,8 +852,8 @@ onUnmounted(() => {
                   />
                 </svg>
               </div>
-              <p class="text-white font-medium mt-4">去背處理中...</p>
-              <p class="text-gray-400 text-sm mt-1">大型圖片可能需要數秒</p>
+              <p class="text-white font-medium mt-4">{{ $t('stickerCropper.overlay.processing') }}</p>
+              <p class="text-gray-400 text-sm mt-1">{{ $t('stickerCropper.overlay.hint') }}</p>
             </div>
           </div>
         </Transition>

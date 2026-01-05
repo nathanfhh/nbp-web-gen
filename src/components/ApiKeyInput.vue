@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 const inputKey = ref('')
 const showKey = ref(false)
@@ -84,16 +86,16 @@ onMounted(() => {
           </svg>
         </div>
         <div>
-          <h3 class="font-semibold text-white">API Key</h3>
-          <p class="text-sm text-gray-400">Google Gemini API</p>
+          <h3 class="font-semibold text-white">{{ $t('apiKey.title') }}</h3>
+          <p class="text-sm text-gray-400">{{ $t('apiKey.subtitle') }}</p>
         </div>
       </div>
       <div v-if="store.hasApiKey && !isEditing" class="flex items-center gap-2">
         <button @click="startEditing" class="btn-secondary text-sm py-2 px-4">
-          更換
+          {{ $t('common.change') }}
         </button>
         <button @click="clearKey" class="text-red-400 hover:text-red-300 text-sm py-2 px-4">
-          清除
+          {{ $t('common.clear') }}
         </button>
       </div>
     </div>
@@ -138,7 +140,7 @@ onMounted(() => {
         <input
           v-model="inputKey"
           :type="showKey ? 'text' : 'password'"
-          placeholder="輸入您的 Gemini API Key..."
+          :placeholder="$t('apiKey.placeholder')"
           class="input-premium pr-12 font-mono"
           @keyup.enter="saveKey"
         />
@@ -172,16 +174,16 @@ onMounted(() => {
       </div>
       <div class="flex gap-3">
         <button @click="saveKey" :disabled="!inputKey.trim()" class="btn-premium flex-1">
-          儲存 API Key
+          {{ $t('apiKey.save') }}
         </button>
         <button v-if="store.hasApiKey" @click="cancelEditing" class="btn-secondary">
-          取消
+          {{ $t('common.cancel') }}
         </button>
       </div>
       <p class="text-xs text-gray-500">
-        API Key 僅儲存在您的瀏覽器本地，不會傳送至任何伺服器。
+        {{ $t('apiKey.hint') }}
         <a href="https://aistudio.google.com/apikey" target="_blank" class="text-purple-400 hover:text-purple-300">
-          取得 API Key
+          {{ $t('apiKey.getKey') }}
         </a>
       </p>
     </div>

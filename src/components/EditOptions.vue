@@ -1,6 +1,8 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 
+const { t } = useI18n()
 const store = useGeneratorStore()
 
 const resolutions = [
@@ -14,12 +16,12 @@ const resolutions = [
   <div class="space-y-6">
     <!-- Edit mode warning -->
     <p v-if="store.referenceImages.length === 0" class="text-xs text-amber-400/80">
-      編輯模式需要至少上傳一張圖片
+      {{ $t('edit.warning') }}
     </p>
 
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">輸出解析度</label>
+      <label class="block text-sm font-medium text-gray-300">{{ $t('options.outputResolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in resolutions"

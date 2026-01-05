@@ -1,8 +1,12 @@
 import { ref } from 'vue'
 import { useLocalStorage } from './useLocalStorage'
+import i18n from '@/i18n'
 
 const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const DEFAULT_MODEL = 'gemini-3-pro-image-preview'
+
+// Helper to get translated error messages
+const t = (key, params) => i18n.global.t(key, params)
 
 // Aspect ratio mapping
 const ASPECT_RATIOS = {
@@ -20,32 +24,6 @@ const RESOLUTIONS = {
   '2k': '2K',
   '4k': '4K',
 }
-
-// Predefined styles
-export const PREDEFINED_STYLES = [
-  { value: 'photorealistic', label: '寫實攝影' },
-  { value: 'watercolor', label: '水彩畫' },
-  { value: 'oil-painting', label: '油畫' },
-  { value: 'sketch', label: '素描' },
-  { value: 'pixel-art', label: '像素風' },
-  { value: 'anime', label: '動漫' },
-  { value: 'pixar', label: 'Pixar 3D' },
-  { value: 'vintage', label: '復古' },
-  { value: 'modern', label: '現代' },
-  { value: 'abstract', label: '抽象' },
-  { value: 'minimalist', label: '極簡' },
-]
-
-// Predefined variations
-export const PREDEFINED_VARIATIONS = [
-  { value: 'lighting', label: '光線變化' },
-  { value: 'angle', label: '角度變化' },
-  { value: 'color-palette', label: '配色變化' },
-  { value: 'composition', label: '構圖變化' },
-  { value: 'mood', label: '氛圍變化' },
-  { value: 'season', label: '季節變化' },
-  { value: 'time-of-day', label: '時間變化' },
-]
 
 // Sticker mode prompt prefix
 const STICKER_PROMPT_PREFIX = 'A flat vector sticker sheet, arranged in a grid layout, knolling style. Each item has a thick white die-cut border contour. Isolated on a solid, uniform dark background color that is unlikely to appear in the sticker content (e.g., deep navy, dark teal, or charcoal - pick the best contrast). Wide spacing between items, no overlapping. Clean lines.'
@@ -337,7 +315,7 @@ export function useApi() {
   ) => {
     const apiKey = getApiKey()
     if (!apiKey) {
-      throw new Error('API Key 未設定')
+      throw new Error(t('errors.apiKeyNotSet'))
     }
 
     isLoading.value = true
@@ -364,7 +342,7 @@ export function useApi() {
 
       if (!response.ok) {
         const errorText = await response.text()
-        let errorMessage = `API 請求失敗: ${response.status}`
+        let errorMessage = t('errors.apiRequestFailed', { status: response.status })
         try {
           const errorData = JSON.parse(errorText)
           errorMessage = errorData.error?.message || errorMessage
@@ -474,7 +452,7 @@ export function useApi() {
       finalImages = finalImages.map(({ data, mimeType }) => ({ data, mimeType }))
 
       if (finalImages.length === 0) {
-        throw new Error('API 回應中沒有圖片數據')
+        throw new Error(t('errors.noImageData'))
       }
 
       return {
@@ -500,7 +478,7 @@ export function useApi() {
   const generateImage = async (prompt, options = {}, mode = 'generate', referenceImages = []) => {
     const apiKey = getApiKey()
     if (!apiKey) {
-      throw new Error('API Key 未設定')
+      throw new Error(t('errors.apiKeyNotSet'))
     }
 
     isLoading.value = true
@@ -527,7 +505,7 @@ export function useApi() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error?.message || `API 請求失敗: ${response.status}`)
+        throw new Error(errorData.error?.message || t('errors.apiRequestFailed', { status: response.status }))
       }
 
       const data = await response.json()
@@ -553,12 +531,12 @@ export function useApi() {
 
   const extractImageFromResponse = (response) => {
     if (!response.candidates || response.candidates.length === 0) {
-      throw new Error('API 回應中沒有圖片')
+      throw new Error(t('errors.noImageInResponse'))
     }
 
     const candidate = response.candidates[0]
     if (!candidate.content || !candidate.content.parts) {
-      throw new Error('無效的 API 回應格式')
+      throw new Error(t('errors.invalidResponseFormat'))
     }
 
     const images = []
@@ -576,7 +554,7 @@ export function useApi() {
     }
 
     if (images.length === 0) {
-      throw new Error('API 回應中沒有圖片數據')
+      throw new Error(t('errors.noImageData'))
     }
 
     return {
@@ -603,7 +581,7 @@ export function useApi() {
       }
 
       if (onThinkingChunk) {
-        onThinkingChunk(`\n--- 生成第 ${i}/${steps} 張圖片 ---\n`)
+        onThinkingChunk(`\n--- ${t('storyProgress.generating', { current: i, total: steps })} ---\n`)
       }
 
       // Only pass reference images for the first step
@@ -638,7 +616,5 @@ export function useApi() {
     generateStory,
     editImage,
     generateDiagram,
-    PREDEFINED_STYLES,
-    PREDEFINED_VARIATIONS,
   }
 }
