@@ -487,7 +487,7 @@ const handleGenerate = async () => {
           {{ $t('footer.title') }}
         </p>
         <a
-          href="https://github.com/nathanfhh"
+          href="https://github.com/nathanfhh/nbp-web-gen"
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center justify-center p-2 rounded-lg transition-all"
