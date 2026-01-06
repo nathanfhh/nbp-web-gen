@@ -22,14 +22,16 @@ const createSegmentationWorker = () => {
 
   worker.onerror = (err) => {
     console.error('Segmentation worker error:', err)
-    if (!isMounted) return
+    // Always reset processing state on error, even after unmount
     isProcessing.value = false
+    processingContext = null
+    if (!isMounted) return
     toast.error(t('stickerCropper.toast.processingError'))
   }
 
   worker.onmessage = (e) => {
     if (!isMounted || !processingContext) return
-    const { width, height, ctx, sourceCanvas, previewCanvas, startTime, MIN_DISPLAY_TIME } = processingContext
+    const { width, height, ctx, sourceCanvas, previewCanvas, startTime, MIN_DISPLAY_TIME, useWhiteBg } = processingContext
     const { imageData: processedData, regions } = e.data
 
     // Put processed image data back to canvas
@@ -44,14 +46,14 @@ const createSegmentationWorker = () => {
     const previewCtx = previewCanvas.getContext('2d')
     previewCanvas.width = width
     previewCanvas.height = height
-    if (previewBgWhite.value) {
+    if (useWhiteBg) {
       previewCtx.fillStyle = '#ffffff'
       previewCtx.fillRect(0, 0, width, height)
     }
     previewCtx.drawImage(sourceCanvas, 0, 0)
 
     // Crop stickers from regions, then finish processing
-    cropStickersFromRegions(sourceCanvas, regions, previewBgWhite.value, () => {
+    cropStickersFromRegions(sourceCanvas, regions, useWhiteBg, () => {
       // Ensure minimum display time
       const elapsed = Date.now() - startTime
       const remaining = MIN_DISPLAY_TIME - elapsed
@@ -296,6 +298,7 @@ const handleCanvasClick = (e) => {
 
 const processImage = () => {
   if (!originalImage.value || !sourceCanvasRef.value || !previewCanvasRef.value) return
+  if (isProcessing.value) return  // Prevent concurrent processing
 
   isProcessing.value = true
   croppedStickers.value = []
@@ -326,7 +329,7 @@ const processImage = () => {
         segmentationWorker = createSegmentationWorker()
       }
 
-      // Store context for worker callback
+      // Store context for worker callback (capture values at invocation time)
       processingContext = {
         width,
         height,
@@ -335,6 +338,7 @@ const processImage = () => {
         previewCanvas,
         startTime,
         MIN_DISPLAY_TIME,
+        useWhiteBg: previewBgWhite.value,  // Capture current value for consistency
       }
 
       // Send to Worker (transferable for zero-copy)
@@ -358,6 +362,7 @@ const processImage = () => {
 const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) => {
   if (validRegions.length === 0) {
     if (isMounted) toast.warning(t('stickerCropper.toast.noStickers'))
+    processingContext = null  // Clear stale context
     onComplete?.()
     return
   }
