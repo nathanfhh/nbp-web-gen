@@ -38,7 +38,7 @@ This project is a testament to the power of AI-assisted development:
 
 ## ✨ Key Features
 
-*   **Advanced Generation:** Full support for styles (Watercolor, Pixar 3D, Cyberpunk) and variations (Lighting, Angle, Composition).
+*   **Advanced Generation:** Full support for styles (Watercolor, Pixar 3D, Pixel Art, etc.) and variations (Lighting, Angle, Composition).
 *   **Visual Storytelling:** Create consistent multi-step storyboards or process visualizations.
 *   **Technical Diagrams:** Generate flowcharts, architecture diagrams, and mind maps from text.
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
@@ -59,7 +59,6 @@ Unlike simple grid chopping, our segmentation engine uses a computer vision appr
 3.  **Bounding Box Optimization:**
     *   The algorithm calculates the minimal bounding box ($[x_{min}, y_{min}, x_{max}, y_{max}]$) for each detected object.
     *   **Noise Filtering:** Tiny artifacts or stray pixels are discarded based on a calculated area threshold.
-    *   **Margin Injection:** A calculated padding is added to each bounding box to ensure the white die-cut border (characteristic of stickers) is preserved and not clipped.
 4.  **Canvas Extraction:** Finally, each validated region is extracted into a new `Canvas` context and exported as an individual transparent PNG, ready for use in messaging apps like Telegram, WhatsApp, or Line.
 
 ---
@@ -122,7 +121,7 @@ npm run build
 
 ## ✨ 核心特色
 
-*   **進階圖像生成：** 支援多種藝術風格（水彩、Pixar 3D、Cyberpunk）與變體控制（光影、角度、構圖）。
+*   **進階圖像生成：** 支援多種藝術風格（水彩、Pixar 3D、像素風等）與變體控制（光影、角度、構圖）。
 *   **視覺故事模式：** 可生成連貫的多步驟故事板或流程圖。
 *   **技術圖表生成：** 透過文字描述產生流程圖、系統架構圖與心智圖。
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
@@ -143,7 +142,6 @@ npm run build
 3.  **邊界框優化 (Bounding Box Optimization)：**
     *   針對每個偵測到的物件計算最小邊界框 ($[x_{min}, y_{min}, x_{max}, y_{max}]$)。
     *   **雜訊過濾：** 自動過濾掉面積過小的噪點或生成瑕疵。
-    *   **邊距注入 (Margin Injection)：** 在裁切框周圍動態加入安全邊距，確保貼圖特有的白邊 (Die-cut border) 能夠完整保留，不會被切斷。
 4.  **畫布提取 (Canvas Extraction)：** 最後，將每個驗證後的區域提取到新的 `Canvas` 上下文中，並匯出為獨立的透明背景 PNG 檔案，可直接用於 Telegram、WhatsApp 或 Line 等通訊軟體。
 
 ---
