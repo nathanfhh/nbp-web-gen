@@ -287,7 +287,8 @@
   "toast": {
     "generateSuccess": "Successfully generated {count} images",
     "imageSaveFailed": "Failed to save images, but generation completed",
-    "generateFailed": "Generation failed, please try again"
+    "generateFailed": "Generation failed, please try again",
+    "appUpdated": "App has been updated to the latest version!"
   },
   "errors": {
     "noPrompt": "Please enter a prompt description",

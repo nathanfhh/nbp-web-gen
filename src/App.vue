@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
+import { useToast } from '@/composables/useToast'
 import { saveLocale } from '@/i18n'
 import ParticleBackground from '@/components/ParticleBackground.vue'
 import ApiKeyInput from '@/components/ApiKeyInput.vue'
@@ -24,7 +25,25 @@ import GitHubLink from '@/components/GitHubLink.vue'
 
 const store = useGeneratorStore()
 const { handleGenerate: executeGenerate } = useGeneration()
-const { locale } = useI18n()
+const { t, locale } = useI18n()
+const toast = useToast()
+
+// Build hash for update detection (injected by Vite)
+const buildHash = __BUILD_HASH__
+const BUILD_HASH_KEY = 'nbp-build-hash'
+
+// Check if app has been updated
+const checkAppUpdate = () => {
+  const storedHash = localStorage.getItem(BUILD_HASH_KEY)
+
+  // Update stored hash
+  localStorage.setItem(BUILD_HASH_KEY, buildHash)
+
+  // Show update notification if hash changed (and not first visit)
+  if (storedHash && storedHash !== buildHash && buildHash !== 'dev') {
+    toast.success(t('toast.appUpdated'), 5000)
+  }
+}
 
 // Language toggle
 const toggleLocale = () => {
@@ -82,6 +101,7 @@ let intersectionObserver = null
 onMounted(async () => {
   await store.initialize()
   intersectionObserver = setupIntersectionObserver()
+  checkAppUpdate()
 })
 
 onUnmounted(() => {
