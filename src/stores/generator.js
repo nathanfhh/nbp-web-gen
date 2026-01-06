@@ -197,6 +197,12 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   const applyTheme = (themeName) => {
     document.documentElement.setAttribute('data-theme', themeName)
+    // Update PWA theme-color meta tag
+    const themeColor = themeName === 'dark' ? '#111827' : '#ffffff'
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', themeColor)
+    }
   }
 
   const toggleTheme = () => {
