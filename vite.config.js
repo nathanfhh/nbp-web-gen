@@ -26,7 +26,7 @@ export default defineConfig({
         name: 'Nano Banana Pro Web Gen',
         short_name: 'NBP Web Gen',
         description: 'AI-powered image generation with Google Gemini',
-        theme_color: '#fbbf24',
+        theme_color: '#111827',
         background_color: '#1f2937',
         display: 'standalone',
         icons: [

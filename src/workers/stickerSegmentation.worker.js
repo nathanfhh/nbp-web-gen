@@ -187,14 +187,21 @@ function findConnectedComponents(data, width, height, minSize = 20) {
   }
 
   // Convert to regions and filter small ones
-  // Allow regions that either: have sufficient area, OR have at least one dimension >= minSize
-  // This ensures thin but long stickers (like banners) pass through
-  const minArea = minSize * minSize
+  // Filter strategy:
+  //   1. Large enough area (>= minSize²) → always pass
+  //   2. Thin banners: smaller area but both dimensions must be meaningful
+  //      to avoid 1-pixel-wide noise lines from anti-aliasing
+  const minArea = minSize * minSize           // 400 for minSize=20
+  const minThinDim = Math.max(8, minSize / 3) // 8 for minSize=20 (minimum meaningful dimension)
   const regions = []
   for (const [/* label */, box] of boundingBoxes) {
     const w = box.maxX - box.minX + 1
     const h = box.maxY - box.minY + 1
-    if (w * h > minArea || w >= minSize || h >= minSize) {
+    const area = w * h
+    const minDim = Math.min(w, h)
+
+    // Pass if: area >= threshold, OR smaller area but both dimensions are meaningful
+    if (area >= minArea || (area >= minArea / 4 && minDim >= minThinDim)) {
       regions.push({ x: box.minX, y: box.minY, w, h })
     }
   }
