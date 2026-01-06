@@ -191,7 +191,7 @@ function findConnectedComponents(data, width, height, minSize = 20) {
   // This ensures thin but long stickers (like banners) pass through
   const minArea = minSize * minSize
   const regions = []
-  for (const [, box] of boundingBoxes) {
+  for (const [/* label */, box] of boundingBoxes) {
     const w = box.maxX - box.minX + 1
     const h = box.maxY - box.minY + 1
     if (w * h > minArea || w >= minSize || h >= minSize) {

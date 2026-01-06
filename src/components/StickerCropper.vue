@@ -58,7 +58,9 @@ const createSegmentationWorker = () => {
       const elapsed = Date.now() - startTime
       const remaining = MIN_DISPLAY_TIME - elapsed
       if (remaining > 0) {
-        setTimeout(() => { isProcessing.value = false }, remaining)
+        setTimeout(() => {
+          if (isMounted) isProcessing.value = false
+        }, remaining)
       } else {
         isProcessing.value = false
       }
@@ -393,9 +395,10 @@ const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) =
       return
     }
 
-    // Process 2 stickers per frame for balance
-    const batchSize = 2
-    for (let i = 0; i < batchSize && index < validRegions.length; i++, index++) {
+    // Process stickers in batches to balance responsiveness vs throughput
+    // 2 per frame keeps UI smooth while avoiding excessive rAF overhead
+    const STICKERS_PER_FRAME = 2
+    for (let i = 0; i < STICKERS_PER_FRAME && index < validRegions.length; i++, index++) {
       const rect = validRegions[index]
 
       // Original canvas (transparent background)
