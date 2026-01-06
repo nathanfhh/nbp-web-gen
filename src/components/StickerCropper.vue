@@ -111,6 +111,17 @@ const previewBgWhite = ref(false)
 const croppedStickers = ref([])
 const selectedStickers = ref(new Set())
 
+// Track if we pushed history state (for back gesture handling)
+const historyStatePushed = ref(false)
+
+// Handle browser back button / gesture
+const handlePopState = (e) => {
+  if (props.modelValue && e.state?.stickerCropper !== true) {
+    // User pressed back while cropper is open - close it
+    close()
+  }
+}
+
 // Watch for open/close
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
@@ -118,8 +129,24 @@ watch(() => props.modelValue, (newVal) => {
     isClosing.value = false
     document.body.style.overflow = 'hidden'
     loadImage()
+
+    // Push history state to intercept back gesture/button
+    if (!historyStatePushed.value) {
+      history.pushState({ stickerCropper: true }, '')
+      historyStatePushed.value = true
+    }
   } else {
     isClosing.value = true
+
+    // Pop the history state we added (if still there)
+    if (historyStatePushed.value) {
+      historyStatePushed.value = false
+      // Only go back if we're on our pushed state
+      if (history.state?.stickerCropper === true) {
+        history.back()
+      }
+    }
+
     setTimeout(() => {
       isVisible.value = false
       isClosing.value = false
@@ -532,12 +559,20 @@ const handleKeydown = (e) => {
 onMounted(() => {
   isMounted = true
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('popstate', handlePopState)
 })
 
 onUnmounted(() => {
   isMounted = false
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('popstate', handlePopState)
   document.body.style.overflow = ''
+
+  // Clean up history state if component unmounts while open
+  if (historyStatePushed.value && history.state?.stickerCropper === true) {
+    history.back()
+  }
+
   // Reset processing state to avoid stuck state
   isProcessing.value = false
   processingContext = null
