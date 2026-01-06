@@ -186,12 +186,14 @@ function findConnectedComponents(data, width, height, minSize = 20) {
     }
   }
 
-  // Convert to regions and filter small ones
+  // Convert to regions and filter small ones by area
+  // Using area allows thin but long stickers (like banners) to pass through
+  const minArea = minSize * minSize
   const regions = []
   for (const [, box] of boundingBoxes) {
     const w = box.maxX - box.minX + 1
     const h = box.maxY - box.minY + 1
-    if (w > minSize && h > minSize) {
+    if (w * h > minArea) {
       regions.push({ x: box.minX, y: box.minY, w, h })
     }
   }

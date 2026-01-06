@@ -13,6 +13,57 @@ const { trackCropStickers, trackDownloadStickers } = useAnalytics()
 // Web Worker for CCL segmentation
 let segmentationWorker = null
 let rafId = null  // Track rAF for cleanup
+let processingContext = null  // Store context for worker callbacks
+
+// Create worker with handlers set once
+const createSegmentationWorker = () => {
+  const worker = new SegmentationWorker()
+
+  worker.onerror = (err) => {
+    console.error('Segmentation worker error:', err)
+    isProcessing.value = false
+    toast.error(t('stickerCropper.toast.processingError'))
+  }
+
+  worker.onmessage = (e) => {
+    if (!processingContext) return
+    const { width, height, ctx, sourceCanvas, previewCanvas, startTime, MIN_DISPLAY_TIME } = processingContext
+    const { imageData: processedData, regions } = e.data
+
+    // Put processed image data back to canvas
+    const newImageData = new ImageData(
+      new Uint8ClampedArray(processedData),
+      width,
+      height
+    )
+    ctx.putImageData(newImageData, 0, 0)
+
+    // Copy to preview canvas
+    const previewCtx = previewCanvas.getContext('2d')
+    previewCanvas.width = width
+    previewCanvas.height = height
+    if (previewBgWhite.value) {
+      previewCtx.fillStyle = '#ffffff'
+      previewCtx.fillRect(0, 0, width, height)
+    }
+    previewCtx.drawImage(sourceCanvas, 0, 0)
+
+    // Crop stickers from regions, then finish processing
+    cropStickersFromRegions(sourceCanvas, regions, previewBgWhite.value, () => {
+      // Ensure minimum display time
+      const elapsed = Date.now() - startTime
+      const remaining = MIN_DISPLAY_TIME - elapsed
+      if (remaining > 0) {
+        setTimeout(() => { isProcessing.value = false }, remaining)
+      } else {
+        isProcessing.value = false
+      }
+      processingContext = null
+    })
+  }
+
+  return worker
+}
 
 const props = defineProps({
   modelValue: {
@@ -268,51 +319,20 @@ const processImage = () => {
       const width = sourceCanvas.width
       const height = sourceCanvas.height
 
-      // Create worker if not exists
+      // Create worker if not exists (handlers are set once at creation)
       if (!segmentationWorker) {
-        segmentationWorker = new SegmentationWorker()
+        segmentationWorker = createSegmentationWorker()
       }
 
-      // Handle Worker errors
-      segmentationWorker.onerror = (err) => {
-        console.error('Segmentation worker error:', err)
-        isProcessing.value = false
-        toast.error(t('stickerCropper.toast.processingError'))
-      }
-
-      // Process in Worker (background removal + CCL)
-      segmentationWorker.onmessage = (e) => {
-        const { imageData: processedData, regions } = e.data
-
-        // Put processed image data back to canvas
-        const newImageData = new ImageData(
-          new Uint8ClampedArray(processedData),
-          width,
-          height
-        )
-        ctx.putImageData(newImageData, 0, 0)
-
-        // Copy to preview canvas
-        const previewCtx = previewCanvas.getContext('2d')
-        previewCanvas.width = width
-        previewCanvas.height = height
-        if (previewBgWhite.value) {
-          previewCtx.fillStyle = '#ffffff'
-          previewCtx.fillRect(0, 0, width, height)
-        }
-        previewCtx.drawImage(sourceCanvas, 0, 0)
-
-        // Crop stickers from regions, then finish processing
-        cropStickersFromRegions(sourceCanvas, regions, previewBgWhite.value, () => {
-          // Ensure minimum display time
-          const elapsed = Date.now() - startTime
-          const remaining = MIN_DISPLAY_TIME - elapsed
-          if (remaining > 0) {
-            setTimeout(() => { isProcessing.value = false }, remaining)
-          } else {
-            isProcessing.value = false
-          }
-        })
+      // Store context for worker callback
+      processingContext = {
+        width,
+        height,
+        ctx,
+        sourceCanvas,
+        previewCanvas,
+        startTime,
+        MIN_DISPLAY_TIME,
       }
 
       // Send to Worker (transferable for zero-copy)
@@ -500,6 +520,9 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
+  // Reset processing state to avoid stuck state
+  isProcessing.value = false
+  processingContext = null
   // Cancel pending rAF
   if (rafId) {
     cancelAnimationFrame(rafId)
