@@ -13,9 +13,9 @@
 <a name="english"></a>
 ## 🍌 About The Project
 
-**Nano Banana Pro Web Gen** is a cutting-edge web interface designed to unlock the full potential of Google's Gemini image generation models (specifically `gemini-3-pro-image-preview`). 
+**Nano Banana Pro Web Gen** is a modern web interface designed to unlock the full potential of Google's Gemini image generation models (namely `gemini-3-pro-image-preview`). 
 
-While starting as a web adaptation of existing CLI tools, this project has evolved into a feature-rich PWA (Progressive Web App) with unique capabilities like **Automated Sticker Segmentation**, **Visual Storytelling**, and **Technical Diagramming**.
+While starting as a web adaptation of existing CLI tools, this project has evolved into a feature-rich PWA with unique capabilities like **Automated Sticker Segmentation**, **Visual Storytelling**, and **Technical Diagramming**.
 
 ### 💡 Origins & Acknowledgements
 
@@ -42,8 +42,9 @@ This project is a testament to the power of AI-assisted development:
 *   **Visual Storytelling:** Create consistent multi-step storyboards or process visualizations.
 *   **Technical Diagrams:** Generate flowcharts, architecture diagrams, and mind maps from text.
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
-*   **Smart History:** Local IndexedDB storage for your generation history.
+*   **Smart History:** Local storage using IndexedDB and OPFS (Origin Private File System) for your generation history.
 *   **Privacy First:** API keys are stored only in your browser's local storage; no backend server is involved.
+*   **Installable PWA:** Install as a native-like app with offline support and automatic updates.
 
 ### 🧩 Spotlight: Intelligent Sticker Segmentation
 
@@ -54,7 +55,7 @@ One of the unique features of this web version is the **Sticker Mode**, which no
 Unlike simple grid chopping, our segmentation engine uses a computer vision approach to isolate stickers:
 
 1.  **Thresholding & Masking:** The engine analyzes the pixel data of the generated "sticker sheet" to identify the background color (usually uniform) versus the subject content. It creates a binary mask of "content" vs. "empty space."
-2.  **Connected-Component Labeling (CCL):** We employ a single-pass algorithm to detect distinct "blobs" of non-background pixels. This groups adjacent pixels into coherent objects (individual stickers).
+2.  **Projection-Based Segmentation:** We scan horizontally to find rows containing content, then vertically within each row region to isolate individual stickers. This efficiently separates grid-aligned stickers.
 3.  **Bounding Box Optimization:**
     *   The algorithm calculates the minimal bounding box ($[x_{min}, y_{min}, x_{max}, y_{max}]$) for each detected object.
     *   **Noise Filtering:** Tiny artifacts or stray pixels are discarded based on a calculated area threshold.
@@ -96,9 +97,9 @@ npm run build
 
 ## 🍌 關於本專案
 
-**Nano Banana Pro Web Gen** 是一個專為 Google Gemini 圖像生成模型（特別是 `gemini-3-pro-image-preview`）打造的現代化網頁介面。
+**Nano Banana Pro Web Gen** 是一個專為 Google Gemini 圖像生成模型（即 `gemini-3-pro-image-preview`）打造的現代化網頁介面。
 
-本專案最初是為了將強大的 CLI 工具網頁化，隨後發展成為一個功能豐富的 PWA 應用，並加入了許多獨家功能，如**自動化貼圖分割**、**視覺故事生成**以及**技術圖表繪製**。
+本專案最初是為了將強大的 CLI 工具網頁化，隨後發展成為一個功能豐富的 PWA，並加入了許多獨家功能，如**自動化貼圖分割**、**視覺故事生成**以及**技術圖表繪製**。
 
 ### 💡 發想源起與致謝
 
@@ -125,19 +126,20 @@ npm run build
 *   **視覺故事模式：** 可生成連貫的多步驟故事板或流程圖。
 *   **技術圖表生成：** 透過文字描述產生流程圖、系統架構圖與心智圖。
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
-*   **智慧歷史紀錄：** 使用 IndexedDB 將您的生成紀錄完整保存在本地端。
+*   **智慧歷史紀錄：** 使用 IndexedDB 與 OPFS (Origin Private File System) 將您的生成紀錄完整保存在本地端。
 *   **隱私優先：** API Key 僅儲存於您的瀏覽器 Local Storage，完全不經過任何第三方伺服器。
+*   **可安裝 PWA：** 支援安裝為類原生應用程式，具備離線支援與自動更新功能。
 
 ### 🧩 技術亮點：智慧貼圖分割 (Sticker Segmentation)
 
 本專案最獨特的功能之一是 **貼圖模式 (Sticker Mode)**，它不僅能生成貼圖拼貼 (Sticker Sheet)，還內建了純前端執行的**智慧裁切引擎**。
 
-**運作原理 (高階工程視角)：**
+**運作原理 (工程概述)：**
 
 不同於傳統的固定網格裁切，我們採用電腦視覺 (Computer Vision) 的方法來精確分離每一張貼圖：
 
 1.  **閾值處理與遮罩 (Thresholding & Masking)：** 引擎會分析生成圖片的像素數據，自動識別背景色（通常為純色）與主體內容，建立出「內容」與「空區域」的二值化遮罩 (Binary Mask)。
-2.  **連通分量標記 (Connected-Component Labeling, CCL)：** 我們使用演算法掃描遮罩，偵測所有相連的非背景像素區域，將相鄰的像素分組為獨立的物件（即每一張獨立的貼圖）。
+2.  **投影分割 (Projection-Based Segmentation)：** 先水平掃描找出包含內容的行區域，再於每個行區域內垂直掃描以分離各個貼圖。此方法能有效分割網格排列的貼圖。
 3.  **邊界框優化 (Bounding Box Optimization)：**
     *   針對每個偵測到的物件計算最小邊界框 ($[x_{min}, y_{min}, x_{max}, y_{max}]$)。
     *   **雜訊過濾：** 自動過濾掉面積過小的噪點或生成瑕疵。
@@ -163,7 +165,7 @@ npm install
 npm run dev
 ```
 
-### 建置生產版本
+### 編譯發布版
 
 ```bash
 npm run build
