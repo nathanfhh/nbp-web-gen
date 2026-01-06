@@ -52,14 +52,16 @@ One of the unique features of this web version is the **Sticker Mode**, which no
 
 **How it works (High-Level Engineering):**
 
-Unlike simple grid chopping, our segmentation engine uses a computer vision approach to isolate stickers:
+Unlike simple grid chopping, our segmentation engine uses a projection-based approach optimized for grid-layout sticker sheets:
 
-1.  **Thresholding & Masking:** The engine analyzes the pixel data of the generated "sticker sheet" to identify the background color (usually uniform) versus the subject content. It creates a binary mask of "content" vs. "empty space."
-2.  **Connected-Component Labeling (CCL):** Using BFS flood fill, the algorithm identifies and labels each distinct group of connected non-transparent pixels as a separate object (individual sticker).
-3.  **Bounding Box Optimization:**
-    *   The algorithm calculates the minimal bounding box ($[x_{min}, y_{min}, x_{max}, y_{max}]$) for each detected object.
-    *   **Noise Filtering:** Tiny artifacts or stray pixels are discarded based on a calculated area threshold.
-4.  **Canvas Extraction:** Finally, each validated region is extracted into a new `Canvas` context and exported as an individual transparent PNG, ready for use in messaging apps like Telegram, WhatsApp, or Line.
+1.  **Edge-Connected Background Removal:** Using BFS flood fill starting from image edges, the engine removes background pixels while preserving interior content (e.g., black hair that matches background color).
+2.  **Projection-Based Region Detection:**
+    *   **Horizontal Scan:** Identifies rows containing content by scanning for non-transparent pixels.
+    *   **Vertical Scan:** For each content row, scans columns to find individual sticker boundaries.
+    *   This approach naturally groups text bubbles with their associated characters, even when not pixel-connected.
+3.  **Noise Filtering:** Regions smaller than the threshold (20×20 pixels) are automatically discarded.
+4.  **Web Worker Offloading:** All heavy pixel processing runs in a dedicated Web Worker to keep the UI responsive.
+5.  **Canvas Extraction:** Each validated region is extracted into a new `Canvas` context and exported as an individual transparent PNG, ready for use in messaging apps like Telegram, WhatsApp, or Line.
 
 ---
 
@@ -135,14 +137,16 @@ npm run build
 
 **運作原理 (工程概述)：**
 
-不同於傳統的固定網格裁切，我們採用電腦視覺 (Computer Vision) 的方法來精確分離每一張貼圖：
+不同於傳統的固定網格裁切，我們採用投影法 (Projection-Based) 針對網格佈局貼圖進行優化：
 
-1.  **閾值處理與遮罩 (Thresholding & Masking)：** 引擎會分析生成圖片的像素數據，自動識別背景色（通常為純色）與主體內容，建立出「內容」與「空區域」的二值化遮罩 (Binary Mask)。
-2.  **連通分量標記 (Connected-Component Labeling, CCL)：** 使用 BFS 洪水填充演算法，識別並標記每個相連的非透明像素群組為獨立物件（即每一張獨立的貼圖）。
-3.  **邊界框優化 (Bounding Box Optimization)：**
-    *   針對每個偵測到的物件計算最小邊界框 ($[x_{min}, y_{min}, x_{max}, y_{max}]$)。
-    *   **雜訊過濾：** 自動過濾掉面積過小的噪點或生成瑕疵。
-4.  **畫布提取 (Canvas Extraction)：** 最後，將每個驗證後的區域提取到新的 `Canvas` 上下文中，並匯出為獨立的透明背景 PNG 檔案，可直接用於 Telegram、WhatsApp 或 Line 等通訊軟體。
+1.  **邊緣連通去背 (Edge-Connected Background Removal)：** 使用 BFS 洪水填充從圖片邊緣開始移除背景像素，同時保護內部內容（如與背景色相同的黑色頭髮）。
+2.  **投影式區域偵測 (Projection-Based Region Detection)：**
+    *   **水平掃描：** 逐行掃描非透明像素，識別有內容的列。
+    *   **垂直掃描：** 對每個內容列，掃描欄位找出個別貼圖邊界。
+    *   此方法能自然地將文字氣泡與角色歸為同一區塊，即使它們在像素層級並未連接。
+3.  **雜訊過濾：** 自動過濾小於閾值 (20×20 像素) 的區域。
+4.  **Web Worker 卸載：** 所有繁重的像素處理都在專用 Web Worker 中執行，確保 UI 流暢。
+5.  **畫布提取 (Canvas Extraction)：** 將每個驗證後的區域提取到新的 `Canvas` 上下文中，並匯出為獨立的透明背景 PNG 檔案，可直接用於 Telegram、WhatsApp 或 Line 等通訊軟體。
 
 ---
 

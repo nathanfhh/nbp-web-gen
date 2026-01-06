@@ -1,12 +1,12 @@
 /**
  * Sticker Segmentation Worker
- * Performs background removal + CCL off the main thread
+ * Performs background removal + projection-based region detection off the main thread
  */
 
 /**
  * Remove background using edge-connected flood fill
  * Protects interior pixels that match background color
- * @param {Uint8ClampedArray} pixelData - Raw RGBA pixel data, modified in place
+ * @param {Uint8ClampedArray} data - Raw RGBA pixel data, modified in place
  * @param {number} width
  * @param {number} height
  * @param {{r: number, g: number, b: number}} bgColor
@@ -109,123 +109,91 @@ function removeBackground(data, width, height, bgColor, tolerance) {
 }
 
 /**
- * Find connected components using BFS flood fill
+ * Find sticker regions using projection-based segmentation
+ * Better for grid-based sticker sheets where text and characters may be separate
  * @param {Uint8ClampedArray} data - Raw RGBA pixel data
  * @param {number} width
  * @param {number} height
  * @param {number} minSize - Minimum region size to keep
  * @returns {Array<{x: number, y: number, w: number, h: number}>}
  */
-function findConnectedComponents(data, width, height, minSize = 20) {
-  const totalPixels = width * height
-  const labels = new Int32Array(totalPixels)
-  let currentLabel = 0
-  const boundingBoxes = new Map()
+function findRegionsProjection(data, width, height, minSize = 20) {
+  // Helper: check if row has any non-transparent content
+  const isRowHasContent = (y) => {
+    const rowStart = y * width * 4
+    for (let x = 0; x < width; x++) {
+      if (data[rowStart + x * 4 + 3] > 0) return true
+    }
+    return false
+  }
 
-  // Helper: check if pixel is non-transparent
-  const isContent = (pos) => data[pos * 4 + 3] > 0
+  // Helper: check if column has content in Y range
+  const isColHasContent = (x, yStart, yEnd) => {
+    for (let y = yStart; y < yEnd; y++) {
+      if (data[(y * width + x) * 4 + 3] > 0) return true
+    }
+    return false
+  }
+
+  const regions = []
+
+  // Step 1: Find horizontal rows with content
+  const rowRegions = []
+  let inContent = false
+  let startY = 0
 
   for (let y = 0; y < height; y++) {
+    const hasContent = isRowHasContent(y)
+    if (hasContent && !inContent) {
+      inContent = true
+      startY = y
+    } else if (!hasContent && inContent) {
+      inContent = false
+      rowRegions.push({ y: startY, h: y - startY })
+    }
+  }
+  if (inContent) rowRegions.push({ y: startY, h: height - startY })
+
+  // Step 2: For each row, find columns with content
+  for (const row of rowRegions) {
+    let inItem = false
+    let startX = 0
+
     for (let x = 0; x < width; x++) {
-      const pos = y * width + x
-
-      // Skip if already labeled or transparent
-      if (labels[pos] !== 0 || !isContent(pos)) continue
-
-      // Start new component
-      currentLabel++
-      labels[pos] = currentLabel
-      const queue = [pos]
-      let head = 0
-      let minX = x, minY = y, maxX = x, maxY = y
-
-      // BFS flood fill
-      while (head < queue.length) {
-        const p = queue[head++]
-        const px = p % width
-        const py = (p / width) | 0
-
-        // Update bounding box
-        if (px < minX) minX = px
-        if (px > maxX) maxX = px
-        if (py < minY) minY = py
-        if (py > maxY) maxY = py
-
-        // Check 4-connected neighbors
-        if (px > 0) {
-          const np = p - 1
-          if (labels[np] === 0 && isContent(np)) {
-            labels[np] = currentLabel
-            queue.push(np)
-          }
-        }
-        if (px < width - 1) {
-          const np = p + 1
-          if (labels[np] === 0 && isContent(np)) {
-            labels[np] = currentLabel
-            queue.push(np)
-          }
-        }
-        if (py > 0) {
-          const np = p - width
-          if (labels[np] === 0 && isContent(np)) {
-            labels[np] = currentLabel
-            queue.push(np)
-          }
-        }
-        if (py < height - 1) {
-          const np = p + width
-          if (labels[np] === 0 && isContent(np)) {
-            labels[np] = currentLabel
-            queue.push(np)
-          }
-        }
+      const hasContent = isColHasContent(x, row.y, row.y + row.h)
+      if (hasContent && !inItem) {
+        inItem = true
+        startX = x
+      } else if (!hasContent && inItem) {
+        inItem = false
+        regions.push({ x: startX, y: row.y, w: x - startX, h: row.h })
       }
-
-      boundingBoxes.set(currentLabel, { minX, minY, maxX, maxY })
     }
+    if (inItem) regions.push({ x: startX, y: row.y, w: width - startX, h: row.h })
   }
 
-  // Convert to regions and filter small ones
-  // Filter strategy:
-  //   1. Large enough area (>= minSize²) → always pass
-  //   2. Thin banners: smaller area but both dimensions must be meaningful
-  //      to avoid 1-pixel-wide noise lines from anti-aliasing
-  const minArea = minSize * minSize           // 400 for minSize=20
-  const minThinDim = Math.max(8, minSize / 3) // 8 for minSize=20 (minimum meaningful dimension)
-  const regions = []
-  for (const [/* label */, box] of boundingBoxes) {
-    const w = box.maxX - box.minX + 1
-    const h = box.maxY - box.minY + 1
-    const area = w * h
-    const minDim = Math.min(w, h)
-
-    // Pass if: area >= threshold, OR smaller area but both dimensions are meaningful
-    if (area >= minArea || (area >= minArea / 4 && minDim >= minThinDim)) {
-      regions.push({ x: box.minX, y: box.minY, w, h })
-    }
-  }
+  // Filter out small noise regions
+  const validRegions = regions.filter(r => r.w > minSize && r.h > minSize)
 
   // Sort by position (top-to-bottom, left-to-right)
-  regions.sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x)
+  validRegions.sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x)
 
-  return regions
+  return validRegions
 }
 
 // Handle messages from main thread
 self.onmessage = function(e) {
-  // Rename to pixelData for clarity (it's Uint8ClampedArray, not ImageData object)
   const { imageData: pixelData, width, height, backgroundColor, tolerance, minSize } = e.data
 
   // Step 1: Remove background (modifies pixelData in place)
   removeBackground(pixelData, width, height, backgroundColor, tolerance)
 
-  // Step 2: Find connected components
-  const regions = findConnectedComponents(pixelData, width, height, minSize)
+  // Step 2: Find regions using projection-based segmentation
+  const regions = findRegionsProjection(pixelData, width, height, minSize)
 
   // Return processed pixel data and regions
   self.postMessage(
-    { imageData: pixelData, regions },  // Keep key as 'imageData' for API compatibility
+    { imageData: pixelData, regions },
     [pixelData.buffer]  // Transfer back
   )
 }
