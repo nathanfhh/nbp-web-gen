@@ -355,7 +355,8 @@
       "clickImage": "請點擊圖片區域",
       "colorPicked": "已選取背景顏色",
       "cropSuccess": "成功裁切出 {count} 張貼圖",
-      "noStickers": "未偵測到獨立貼圖，請調整容許值後重試"
+      "noStickers": "未偵測到獨立貼圖，請調整容許值後重試",
+      "processingError": "處理失敗，請重試"
     }
   },
   "storyProgress": {

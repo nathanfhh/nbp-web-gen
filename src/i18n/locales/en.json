@@ -355,7 +355,8 @@
       "clickImage": "Please click on image area",
       "colorPicked": "Background color selected",
       "cropSuccess": "Successfully cropped {count} stickers",
-      "noStickers": "No stickers detected, please adjust tolerance and retry"
+      "noStickers": "No stickers detected, please adjust tolerance and retry",
+      "processingError": "Processing failed, please try again"
     }
   },
   "storyProgress": {

@@ -3,9 +3,73 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import JSZip from 'jszip'
 import { useToast } from '@/composables/useToast'
+import { useAnalytics } from '@/composables/useAnalytics'
+import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 
 const { t } = useI18n()
 const toast = useToast()
+const { trackCropStickers, trackDownloadStickers } = useAnalytics()
+
+// Web Worker for CCL segmentation
+let segmentationWorker = null
+let rafId = null  // Track rAF for cleanup
+let processingContext = null  // Store context for worker callbacks
+let isMounted = false  // Guard against callbacks after unmount
+
+// Create worker with handlers set once
+const createSegmentationWorker = () => {
+  const worker = new SegmentationWorker()
+
+  worker.onerror = (err) => {
+    console.error('Segmentation worker error:', err)
+    // Always reset processing state on error, even after unmount
+    isProcessing.value = false
+    processingContext = null
+    if (!isMounted) return
+    toast.error(t('stickerCropper.toast.processingError'))
+  }
+
+  worker.onmessage = (e) => {
+    if (!isMounted || !processingContext) return
+    const { width, height, ctx, sourceCanvas, previewCanvas, startTime, MIN_DISPLAY_TIME, useWhiteBg } = processingContext
+    const { imageData: processedData, regions } = e.data
+
+    // Put processed image data back to canvas
+    const newImageData = new ImageData(
+      new Uint8ClampedArray(processedData),
+      width,
+      height
+    )
+    ctx.putImageData(newImageData, 0, 0)
+
+    // Copy to preview canvas
+    const previewCtx = previewCanvas.getContext('2d')
+    previewCanvas.width = width
+    previewCanvas.height = height
+    if (useWhiteBg) {
+      previewCtx.fillStyle = '#ffffff'
+      previewCtx.fillRect(0, 0, width, height)
+    }
+    previewCtx.drawImage(sourceCanvas, 0, 0)
+
+    // Crop stickers from regions, then finish processing
+    cropStickersFromRegions(sourceCanvas, regions, useWhiteBg, () => {
+      // Ensure minimum display time
+      const elapsed = Date.now() - startTime
+      const remaining = MIN_DISPLAY_TIME - elapsed
+      if (remaining > 0) {
+        setTimeout(() => {
+          if (isMounted) isProcessing.value = false
+        }, remaining)
+      } else {
+        if (isMounted) isProcessing.value = false
+      }
+      processingContext = null
+    })
+  }
+
+  return worker
+}
 
 const props = defineProps({
   modelValue: {
@@ -236,273 +300,141 @@ const handleCanvasClick = (e) => {
 
 const processImage = () => {
   if (!originalImage.value || !sourceCanvasRef.value || !previewCanvasRef.value) return
+  if (isProcessing.value) return  // Prevent concurrent processing
 
   isProcessing.value = true
   croppedStickers.value = []
   selectedStickers.value.clear()
 
   const startTime = Date.now()
-  const MIN_DISPLAY_TIME = 500 // Minimum time to show loading overlay
+  const MIN_DISPLAY_TIME = 500
 
-  // Use nextTick + requestAnimationFrame + setTimeout to ensure overlay paints before heavy processing
+  // Use nextTick + rAF to ensure loading overlay paints before Worker starts
   nextTick(() => {
     requestAnimationFrame(() => {
-      // Additional delay to ensure browser paints the overlay
-      setTimeout(() => {
-        const doProcessing = () => {
-        const sourceCanvas = sourceCanvasRef.value
-        const previewCanvas = previewCanvasRef.value
-        const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true })
-        const previewCtx = previewCanvas.getContext('2d')
+      const sourceCanvas = sourceCanvasRef.value
+      const previewCanvas = previewCanvasRef.value
+      const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true })
 
-        // Draw original image
-        sourceCanvas.width = originalImage.value.width
-        sourceCanvas.height = originalImage.value.height
-        ctx.drawImage(originalImage.value, 0, 0)
+      // Draw original image
+      sourceCanvas.width = originalImage.value.width
+      sourceCanvas.height = originalImage.value.height
+      ctx.drawImage(originalImage.value, 0, 0)
 
-        // Get image data
-        const imageData = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
-        const data = imageData.data
-        const width = sourceCanvas.width
-        const height = sourceCanvas.height
+      // Get image data
+      const imageData = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height)
+      const width = sourceCanvas.width
+      const height = sourceCanvas.height
 
-        // Remove background using edge-connected flood fill
-        // This protects interior pixels (like black hair) that match background color
-        const { r: bgR, g: bgG, b: bgB } = backgroundColor.value
-        const tol = tolerance.value * 3
-
-        // Helper: check if pixel matches background color
-        const matchesBg = (idx) => {
-          const r = data[idx]
-          const g = data[idx + 1]
-          const b = data[idx + 2]
-          const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB)
-          return diff <= tol
-        }
-
-        // Track visited pixels
-        const visited = new Uint8Array(width * height)
-
-        // BFS flood fill from edges
-        const queue = []
-
-        // Add all edge pixels that match background color to queue
-        for (let x = 0; x < width; x++) {
-          // Top edge
-          const topIdx = x * 4
-          if (matchesBg(topIdx)) {
-            queue.push(x)
-            visited[x] = 1
-          }
-          // Bottom edge
-          const bottomIdx = ((height - 1) * width + x) * 4
-          const bottomPos = (height - 1) * width + x
-          if (matchesBg(bottomIdx) && !visited[bottomPos]) {
-            queue.push(bottomPos)
-            visited[bottomPos] = 1
-          }
-        }
-        for (let y = 1; y < height - 1; y++) {
-          // Left edge
-          const leftIdx = y * width * 4
-          const leftPos = y * width
-          if (matchesBg(leftIdx) && !visited[leftPos]) {
-            queue.push(leftPos)
-            visited[leftPos] = 1
-          }
-          // Right edge
-          const rightIdx = (y * width + width - 1) * 4
-          const rightPos = y * width + width - 1
-          if (matchesBg(rightIdx) && !visited[rightPos]) {
-            queue.push(rightPos)
-            visited[rightPos] = 1
-          }
-        }
-
-        // BFS: process connected background pixels
-        // Use head pointer instead of shift() for O(1) dequeue
-        let head = 0
-        while (head < queue.length) {
-          const pos = queue[head++]
-          const x = pos % width
-          const y = Math.floor(pos / width)
-
-          // Set pixel to transparent
-          data[pos * 4 + 3] = 0
-
-          // Check 4-connected neighbors (inlined for performance)
-          // Left
-          if (x > 0) {
-            const nPos = pos - 1
-            if (!visited[nPos] && matchesBg(nPos * 4)) {
-              visited[nPos] = 1
-              queue.push(nPos)
-            }
-          }
-          // Right
-          if (x < width - 1) {
-            const nPos = pos + 1
-            if (!visited[nPos] && matchesBg(nPos * 4)) {
-              visited[nPos] = 1
-              queue.push(nPos)
-            }
-          }
-          // Up
-          if (y > 0) {
-            const nPos = pos - width
-            if (!visited[nPos] && matchesBg(nPos * 4)) {
-              visited[nPos] = 1
-              queue.push(nPos)
-            }
-          }
-          // Down
-          if (y < height - 1) {
-            const nPos = pos + width
-            if (!visited[nPos] && matchesBg(nPos * 4)) {
-              visited[nPos] = 1
-              queue.push(nPos)
-            }
-          }
-        }
-
-        // Put processed image data back
-        ctx.putImageData(imageData, 0, 0)
-
-        // Copy to preview canvas (with optional white background)
-        previewCanvas.width = sourceCanvas.width
-        previewCanvas.height = sourceCanvas.height
-        if (previewBgWhite.value) {
-          previewCtx.fillStyle = '#ffffff'
-          previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height)
-        }
-        previewCtx.drawImage(sourceCanvas, 0, 0)
-
-        // Find and crop individual stickers
-        findAndCropStickers(sourceCanvas, previewBgWhite.value)
-
-        // Ensure minimum display time for loading overlay
-        const elapsed = Date.now() - startTime
-        const remaining = MIN_DISPLAY_TIME - elapsed
-        if (remaining > 0) {
-          setTimeout(() => {
-            isProcessing.value = false
-          }, remaining)
-        } else {
-          isProcessing.value = false
-        }
+      // Create worker if not exists (handlers are set once at creation)
+      if (!segmentationWorker) {
+        segmentationWorker = createSegmentationWorker()
       }
 
-        doProcessing()
-      }, 100) // 100ms delay to ensure paint
+      // Store context for worker callback (capture values at invocation time)
+      processingContext = {
+        width,
+        height,
+        ctx,
+        sourceCanvas,
+        previewCanvas,
+        startTime,
+        MIN_DISPLAY_TIME,
+        useWhiteBg: previewBgWhite.value,  // Capture current value for consistency
+      }
+
+      // Send to Worker (transferable for zero-copy)
+      // Note: Must spread reactive objects for structured clone
+      const { r, g, b } = backgroundColor.value
+      segmentationWorker.postMessage(
+        {
+          imageData: imageData.data,
+          width,
+          height,
+          backgroundColor: { r, g, b },
+          tolerance: tolerance.value,
+          minSize: 20,
+        },
+        [imageData.data.buffer]
+      )
     })
   })
 }
 
-const findAndCropStickers = (canvas, useWhiteBg = false) => {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  const width = canvas.width
-  const height = canvas.height
-  const imgData = ctx.getImageData(0, 0, width, height).data
-
-  // Helper: check if row has content
-  const isRowHasContent = (y) => {
-    for (let x = 0; x < width; x++) {
-      if (imgData[(y * width + x) * 4 + 3] > 0) return true
-    }
-    return false
+const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) => {
+  if (validRegions.length === 0) {
+    if (isMounted) toast.warning(t('stickerCropper.toast.noStickers'))
+    onComplete?.()
+    processingContext = null  // Clear stale context after callback
+    return
   }
 
-  // Helper: check if column has content in Y range
-  const isColHasContent = (x, yStart, yEnd) => {
-    for (let y = yStart; y < yEnd; y++) {
-      if (imgData[(y * width + x) * 4 + 3] > 0) return true
+  // Process stickers in batches using rAF to avoid blocking UI
+  const stickers = []
+  let index = 0
+
+  const processNext = () => {
+    // Guard against unmounted state
+    if (!isMounted) {
+      rafId = null
+      return
     }
-    return false
-  }
 
-  const regions = []
-
-  // Step 1: Find horizontal rows with content
-  const rowRegions = []
-  let inContent = false
-  let startY = 0
-
-  for (let y = 0; y < height; y++) {
-    const hasContent = isRowHasContent(y)
-    if (hasContent && !inContent) {
-      inContent = true
-      startY = y
-    } else if (!hasContent && inContent) {
-      inContent = false
-      rowRegions.push({ y: startY, h: y - startY })
+    if (index >= validRegions.length) {
+      // All done
+      croppedStickers.value = stickers
+      stickers.forEach(s => selectedStickers.value.add(s.id))
+      toast.success(t('stickerCropper.toast.cropSuccess', { count: stickers.length }))
+      trackCropStickers({
+        count: stickers.length,
+        imageWidth: canvas.width,
+        imageHeight: canvas.height,
+      })
+      rafId = null
+      onComplete?.()
+      return
     }
-  }
-  if (inContent) rowRegions.push({ y: startY, h: height - startY })
 
-  // Step 2: For each row, find columns with content
-  rowRegions.forEach(row => {
-    let inItem = false
-    let startX = 0
+    // Process stickers in batches to balance responsiveness vs throughput
+    // 2 per frame keeps UI smooth while avoiding excessive rAF overhead
+    const STICKERS_PER_FRAME = 2
+    for (let i = 0; i < STICKERS_PER_FRAME && index < validRegions.length; i++, index++) {
+      const rect = validRegions[index]
 
-    for (let x = 0; x < width; x++) {
-      const hasContent = isColHasContent(x, row.y, row.y + row.h)
-      if (hasContent && !inItem) {
-        inItem = true
-        startX = x
-      } else if (!hasContent && inItem) {
-        inItem = false
-        regions.push({ x: startX, y: row.y, w: x - startX, h: row.h })
+      // Original canvas (transparent background)
+      const stickerCanvas = document.createElement('canvas')
+      stickerCanvas.width = rect.w
+      stickerCanvas.height = rect.h
+      const stickerCtx = stickerCanvas.getContext('2d')
+      stickerCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+
+      // Preview canvas (with optional white background)
+      const previewCanvas = document.createElement('canvas')
+      previewCanvas.width = rect.w
+      previewCanvas.height = rect.h
+      const previewCtx = previewCanvas.getContext('2d')
+      if (useWhiteBg) {
+        previewCtx.fillStyle = '#ffffff'
+        previewCtx.fillRect(0, 0, rect.w, rect.h)
       }
+      previewCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+
+      stickers.push({
+        id: stickers.length,
+        canvas: stickerCanvas,
+        dataUrl: stickerCanvas.toDataURL('image/png'),
+        previewDataUrl: previewCanvas.toDataURL('image/png'),
+        width: rect.w,
+        height: rect.h,
+        rect,
+      })
     }
-    if (inItem) regions.push({ x: startX, y: row.y, w: width - startX, h: row.h })
-  })
 
-  // Filter out small noise regions (< 20x20)
-  const MIN_SIZE = 20
-  const validRegions = regions.filter(r => r.w > MIN_SIZE && r.h > MIN_SIZE)
-
-  // Crop each region
-  const stickers = validRegions.map((rect, index) => {
-    // Original canvas (transparent background) for download
-    const stickerCanvas = document.createElement('canvas')
-    stickerCanvas.width = rect.w
-    stickerCanvas.height = rect.h
-    const stickerCtx = stickerCanvas.getContext('2d')
-    stickerCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
-
-    // Preview canvas (with optional white background)
-    const previewCanvas = document.createElement('canvas')
-    previewCanvas.width = rect.w
-    previewCanvas.height = rect.h
-    const previewCtx = previewCanvas.getContext('2d')
-    if (useWhiteBg) {
-      previewCtx.fillStyle = '#ffffff'
-      previewCtx.fillRect(0, 0, rect.w, rect.h)
-    }
-    previewCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
-
-    return {
-      id: index,
-      canvas: stickerCanvas,
-      dataUrl: stickerCanvas.toDataURL('image/png'),
-      previewDataUrl: previewCanvas.toDataURL('image/png'),
-      width: rect.w,
-      height: rect.h,
-      rect,
-    }
-  })
-
-  croppedStickers.value = stickers
-
-  // Select all by default
-  stickers.forEach(s => selectedStickers.value.add(s.id))
-
-  // Show toast
-  if (stickers.length > 0) {
-    toast.success(t('stickerCropper.toast.cropSuccess', { count: stickers.length }))
-  } else {
-    toast.warning(t('stickerCropper.toast.noStickers'))
+    // Continue next frame
+    rafId = requestAnimationFrame(processNext)
   }
+
+  rafId = requestAnimationFrame(processNext)
 }
 
 const toggleSelectSticker = (id) => {
@@ -532,6 +464,7 @@ const downloadSingleSticker = (sticker) => {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+  trackDownloadStickers({ count: 1, format: 'single' })
 }
 
 const downloadSelectedAsZip = async () => {
@@ -561,6 +494,7 @@ const downloadSelectedAsZip = async () => {
     document.body.removeChild(link)
 
     URL.revokeObjectURL(url)
+    trackDownloadStickers({ count: selected.length, format: 'zip' })
   } finally {
     isDownloading.value = false
   }
@@ -596,12 +530,27 @@ const handleKeydown = (e) => {
 }
 
 onMounted(() => {
+  isMounted = true
   window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  isMounted = false
   window.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
+  // Reset processing state to avoid stuck state
+  isProcessing.value = false
+  processingContext = null
+  // Cancel pending rAF
+  if (rafId) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+  // Terminate worker to free resources
+  if (segmentationWorker) {
+    segmentationWorker.terminate()
+    segmentationWorker = null
+  }
 })
 </script>
 

@@ -55,7 +55,7 @@ One of the unique features of this web version is the **Sticker Mode**, which no
 Unlike simple grid chopping, our segmentation engine uses a computer vision approach to isolate stickers:
 
 1.  **Thresholding & Masking:** The engine analyzes the pixel data of the generated "sticker sheet" to identify the background color (usually uniform) versus the subject content. It creates a binary mask of "content" vs. "empty space."
-2.  **Projection-Based Segmentation:** We scan horizontally to find rows containing content, then vertically within each row region to isolate individual stickers. This efficiently separates grid-aligned stickers.
+2.  **Connected-Component Labeling (CCL):** Using BFS flood fill, the algorithm identifies and labels each distinct group of connected non-transparent pixels as a separate object (individual sticker).
 3.  **Bounding Box Optimization:**
     *   The algorithm calculates the minimal bounding box ($[x_{min}, y_{min}, x_{max}, y_{max}]$) for each detected object.
     *   **Noise Filtering:** Tiny artifacts or stray pixels are discarded based on a calculated area threshold.
@@ -138,7 +138,7 @@ npm run build
 不同於傳統的固定網格裁切，我們採用電腦視覺 (Computer Vision) 的方法來精確分離每一張貼圖：
 
 1.  **閾值處理與遮罩 (Thresholding & Masking)：** 引擎會分析生成圖片的像素數據，自動識別背景色（通常為純色）與主體內容，建立出「內容」與「空區域」的二值化遮罩 (Binary Mask)。
-2.  **投影分割 (Projection-Based Segmentation)：** 先水平掃描找出包含內容的行區域，再於每個行區域內垂直掃描以分離各個貼圖。此方法能有效分割網格排列的貼圖。
+2.  **連通分量標記 (Connected-Component Labeling, CCL)：** 使用 BFS 洪水填充演算法，識別並標記每個相連的非透明像素群組為獨立物件（即每一張獨立的貼圖）。
 3.  **邊界框優化 (Bounding Box Optimization)：**
     *   針對每個偵測到的物件計算最小邊界框 ($[x_{min}, y_{min}, x_{max}, y_{max}]$)。
     *   **雜訊過濾：** 自動過濾掉面積過小的噪點或生成瑕疵。
