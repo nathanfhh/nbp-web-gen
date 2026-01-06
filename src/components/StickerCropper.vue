@@ -62,7 +62,7 @@ const createSegmentationWorker = () => {
           if (isMounted) isProcessing.value = false
         }, remaining)
       } else {
-        isProcessing.value = false
+        if (isMounted) isProcessing.value = false
       }
       processingContext = null
     })
@@ -364,8 +364,8 @@ const processImage = () => {
 const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) => {
   if (validRegions.length === 0) {
     if (isMounted) toast.warning(t('stickerCropper.toast.noStickers'))
-    processingContext = null  // Clear stale context
     onComplete?.()
+    processingContext = null  // Clear stale context after callback
     return
   }
 
