@@ -38,9 +38,32 @@ export function useAnalytics() {
     })
   }
 
+  /**
+   * Track sticker cropping
+   */
+  const trackCropStickers = ({ count, imageWidth, imageHeight }) => {
+    trackEvent('crop_stickers', {
+      sticker_count: count,
+      image_width: imageWidth,
+      image_height: imageHeight,
+    })
+  }
+
+  /**
+   * Track sticker download
+   */
+  const trackDownloadStickers = ({ count, format }) => {
+    trackEvent('download_stickers', {
+      sticker_count: count,
+      format, // 'single' or 'zip'
+    })
+  }
+
   return {
     trackEvent,
     trackGenerateSuccess,
     trackGenerateFailed,
+    trackCropStickers,
+    trackDownloadStickers,
   }
 }
