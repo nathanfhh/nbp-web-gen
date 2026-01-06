@@ -64,7 +64,7 @@ onMounted(() => {
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-xl flex items-center justify-center transition-all"
+          class="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all"
           :class="store.hasApiKey ? 'bg-emerald-500' : 'bg-amber-500/20'"
         >
           <svg
