@@ -288,7 +288,7 @@
     "generateSuccess": "成功生成 {count} 張圖片",
     "imageSaveFailed": "圖片儲存失敗，但生成已完成",
     "generateFailed": "生成失敗，請重試",
-    "appUpdated": "應用程式已更新至最新版本！"
+    "appUpdated": "應用程式已更新至 v{version}！"
   },
   "errors": {
     "noPrompt": "請輸入 Prompt 描述",

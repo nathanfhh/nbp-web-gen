@@ -41,7 +41,7 @@ const checkAppUpdate = () => {
 
   // Show update notification if hash changed (and not first visit)
   if (storedHash && storedHash !== buildHash && buildHash !== 'dev') {
-    toast.success(t('toast.appUpdated'), 5000)
+    toast.success(t('toast.appUpdated', { version: appVersion }), 5000)
   }
 }
 
