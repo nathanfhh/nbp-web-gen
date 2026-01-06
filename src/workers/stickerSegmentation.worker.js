@@ -6,7 +6,7 @@
 /**
  * Remove background using edge-connected flood fill
  * Protects interior pixels that match background color
- * @param {Uint8ClampedArray} data - ImageData.data (RGBA), modified in place
+ * @param {Uint8ClampedArray} pixelData - Raw RGBA pixel data, modified in place
  * @param {number} width
  * @param {number} height
  * @param {{r: number, g: number, b: number}} bgColor
@@ -110,7 +110,7 @@ function removeBackground(data, width, height, bgColor, tolerance) {
 
 /**
  * Find connected components using BFS flood fill
- * @param {Uint8ClampedArray} data - ImageData.data (RGBA)
+ * @param {Uint8ClampedArray} data - Raw RGBA pixel data
  * @param {number} width
  * @param {number} height
  * @param {number} minSize - Minimum region size to keep
@@ -206,17 +206,18 @@ function findConnectedComponents(data, width, height, minSize = 20) {
 
 // Handle messages from main thread
 self.onmessage = function(e) {
-  const { imageData, width, height, backgroundColor, tolerance, minSize } = e.data
+  // Rename to pixelData for clarity (it's Uint8ClampedArray, not ImageData object)
+  const { imageData: pixelData, width, height, backgroundColor, tolerance, minSize } = e.data
 
-  // Step 1: Remove background (modifies imageData in place)
-  removeBackground(imageData, width, height, backgroundColor, tolerance)
+  // Step 1: Remove background (modifies pixelData in place)
+  removeBackground(pixelData, width, height, backgroundColor, tolerance)
 
   // Step 2: Find connected components
-  const regions = findConnectedComponents(imageData, width, height, minSize)
+  const regions = findConnectedComponents(pixelData, width, height, minSize)
 
-  // Return processed image data and regions
+  // Return processed pixel data and regions
   self.postMessage(
-    { imageData, regions },
-    [imageData.buffer]  // Transfer back
+    { imageData: pixelData, regions },  // Keep key as 'imageData' for API compatibility
+    [pixelData.buffer]  // Transfer back
   )
 }

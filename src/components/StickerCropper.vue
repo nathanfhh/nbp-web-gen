@@ -14,6 +14,7 @@ const { trackCropStickers, trackDownloadStickers } = useAnalytics()
 let segmentationWorker = null
 let rafId = null  // Track rAF for cleanup
 let processingContext = null  // Store context for worker callbacks
+let isMounted = false  // Guard against callbacks after unmount
 
 // Create worker with handlers set once
 const createSegmentationWorker = () => {
@@ -21,12 +22,13 @@ const createSegmentationWorker = () => {
 
   worker.onerror = (err) => {
     console.error('Segmentation worker error:', err)
+    if (!isMounted) return
     isProcessing.value = false
     toast.error(t('stickerCropper.toast.processingError'))
   }
 
   worker.onmessage = (e) => {
-    if (!processingContext) return
+    if (!isMounted || !processingContext) return
     const { width, height, ctx, sourceCanvas, previewCanvas, startTime, MIN_DISPLAY_TIME } = processingContext
     const { imageData: processedData, regions } = e.data
 
@@ -355,7 +357,7 @@ const processImage = () => {
 
 const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) => {
   if (validRegions.length === 0) {
-    toast.warning(t('stickerCropper.toast.noStickers'))
+    if (isMounted) toast.warning(t('stickerCropper.toast.noStickers'))
     onComplete?.()
     return
   }
@@ -365,6 +367,12 @@ const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) =
   let index = 0
 
   const processNext = () => {
+    // Guard against unmounted state
+    if (!isMounted) {
+      rafId = null
+      return
+    }
+
     if (index >= validRegions.length) {
       // All done
       croppedStickers.value = stickers
@@ -514,10 +522,12 @@ const handleKeydown = (e) => {
 }
 
 onMounted(() => {
+  isMounted = true
   window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  isMounted = false
   window.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
   // Reset processing state to avoid stuck state
