@@ -212,7 +212,7 @@ const handleGenerate = async () => {
         <div class="inline-flex items-center gap-3 mb-6">
           <img
             src="/nbp-title.webp"
-            alt="NanoBanana"
+            alt="Nano Banana Pro"
             class="w-40 h-40 lg:w-48 lg:h-48 drop-shadow-2xl hero-float"
           />
         </div>
@@ -224,7 +224,7 @@ const handleGenerate = async () => {
               : 'bg-gradient-to-r from-blue-700 via-blue-500 to-blue-700'
           "
         >
-          NanoBanana
+          Nano Banana Pro
         </h1>
         <p
           class="text-2xl lg:text-3xl flex items-center justify-center gap-3 mb-2"
@@ -262,7 +262,7 @@ const handleGenerate = async () => {
     <!-- Main Content -->
     <section
       ref="panelsRef"
-      class="relative z-10 container mx-auto px-4 pt-6 pb-12 lg:pt-8 lg:pb-16 scroll-section min-h-dvh"
+      class="relative z-10 container mx-auto px-4 pt-6 pb-6 lg:pt-8 lg:pb-8 scroll-section min-h-dvh"
     >
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <!-- Left Column - Settings -->
@@ -406,7 +406,7 @@ const handleGenerate = async () => {
       </div>
 
       <!-- Footer -->
-      <footer class="mt-16 text-center space-y-3">
+      <footer class="mt-8 text-center space-y-3">
         <p class="text-sm" :class="store.theme === 'dark' ? 'text-gray-500' : 'text-gray-400'">
           {{ $t('footer.title') }}
         </p>
