@@ -1,13 +1,25 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/zh-tw'
+import 'dayjs/locale/en'
 import { useGeneratorStore } from '@/stores/generator'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 
-const { t } = useI18n()
+dayjs.extend(relativeTime)
+
+const { t, locale } = useI18n()
+
+// Sync dayjs locale with i18n locale
+watchEffect(() => {
+  const dayjsLocale = locale.value === 'zh-TW' ? 'zh-tw' : 'en'
+  dayjs.locale(dayjsLocale)
+})
 const store = useGeneratorStore()
 const imageStorage = useImageStorage()
 const confirmModal = ref(null)
@@ -16,6 +28,7 @@ const confirmModal = ref(null)
 const showLightbox = ref(false)
 const lightboxImages = ref([])
 const lightboxMetadata = ref([])
+const lightboxHistoryId = ref(null)
 const lightboxInitialIndex = ref(0)
 const isLoadingImages = ref(false)
 
@@ -34,21 +47,7 @@ const modeLabels = computed(() => ({
 const lightboxItemMode = ref('')
 
 const formatTime = (timestamp) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diff = now - date
-
-  if (diff < 60000) return t('history.time.justNow')
-  if (diff < 3600000) return t('history.time.minutesAgo', { count: Math.floor(diff / 60000) })
-  if (diff < 86400000) return t('history.time.hoursAgo', { count: Math.floor(diff / 3600000) })
-  if (diff < 604800000) return t('history.time.daysAgo', { count: Math.floor(diff / 86400000) })
-
-  return date.toLocaleDateString('zh-TW', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return dayjs(timestamp).fromNow()
 }
 
 const truncatePrompt = (prompt, maxLength = 60) => {
@@ -143,6 +142,7 @@ const openHistoryLightbox = async (item, event) => {
     const loadedImages = await imageStorage.loadHistoryImages(item)
     lightboxImages.value = loadedImages
     lightboxMetadata.value = item.images
+    lightboxHistoryId.value = item.id
     lightboxInitialIndex.value = 0
     lightboxItemMode.value = item.mode || ''
     showLightbox.value = true
@@ -157,6 +157,7 @@ const closeLightbox = () => {
   showLightbox.value = false
   lightboxImages.value = []
   lightboxMetadata.value = []
+  lightboxHistoryId.value = null
   lightboxItemMode.value = ''
 }
 </script>
@@ -199,20 +200,25 @@ const closeLightbox = () => {
           <!-- Thumbnail (if images exist) -->
           <div
             v-if="item.images && item.images.length > 0"
-            @click="openHistoryLightbox(item, $event)"
-            class="relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
+            class="flex-shrink-0 flex flex-col items-center gap-1"
           >
-            <img
-              :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
-              :alt="`History image ${item.id}`"
-              class="w-full h-full object-cover"
-            />
             <div
-              v-if="item.images.length > 1"
-              class="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+              @click="openHistoryLightbox(item, $event)"
+              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
             >
-              +{{ item.images.length - 1 }}
+              <img
+                :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
+                :alt="`History image ${item.id}`"
+                class="w-full h-full object-cover"
+              />
+              <div
+                v-if="item.images.length > 1"
+                class="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+              >
+                +{{ item.images.length - 1 }}
+              </div>
             </div>
+            <span class="text-xs text-gray-600">#{{ item.id }}</span>
           </div>
 
           <div class="flex-1 min-w-0">
@@ -286,6 +292,7 @@ const closeLightbox = () => {
       :images="lightboxImages"
       :image-metadata="lightboxMetadata"
       :initial-index="lightboxInitialIndex"
+      :history-id="lightboxHistoryId"
       :is-historical="true"
       :is-sticker-mode="lightboxItemMode === 'sticker'"
       @close="closeLightbox"

@@ -1,6 +1,6 @@
 {
   "name": "nbp-web-gen",
-  "version": "0.6.7",
+  "version": "0.7.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,7 +14,9 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "dayjs": "^1.11.19",
     "jszip": "^3.10.1",
+    "pdf-lib": "^1.17.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.26",
     "vue-i18n": "^11.2.8"

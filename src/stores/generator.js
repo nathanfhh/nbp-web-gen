@@ -65,6 +65,7 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   // Image metadata (for current generation)
   const generatedImagesMetadata = ref([])
+  const currentHistoryId = ref(null)
   const storageUsage = ref(0)
 
   // ============================================================================
@@ -316,6 +317,10 @@ export const useGeneratorStore = defineStore('generator', () => {
     generatedImagesMetadata.value = []
   }
 
+  const setCurrentHistoryId = (id) => {
+    currentHistoryId.value = id
+  }
+
   const updateStorageUsage = async () => {
     try {
       storageUsage.value = await imageStorage.getStorageUsage()
@@ -438,6 +443,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     history,
     historyCount,
     generatedImagesMetadata,
+    currentHistoryId,
     storageUsage,
 
     // Computed
@@ -457,6 +463,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     clearGeneratedImages,
     setGeneratedImagesMetadata,
     clearGeneratedImagesMetadata,
+    setCurrentHistoryId,
     updateStorageUsage,
     setGenerating,
     setGenerationError,

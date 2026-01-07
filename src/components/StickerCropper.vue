@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import JSZip from 'jszip'
+import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
 import { useAnalytics } from '@/composables/useAnalytics'
 import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
@@ -9,6 +10,7 @@ import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 const { t } = useI18n()
 const toast = useToast()
 const { trackCropStickers, trackDownloadStickers } = useAnalytics()
+const pdfGenerator = usePdfGenerator()
 
 // Web Worker for CCL segmentation
 let segmentationWorker = null
@@ -79,6 +81,14 @@ const props = defineProps({
   imageSrc: {
     type: String,
     default: '',
+  },
+  imageIndex: {
+    type: Number,
+    default: 0,
+  },
+  historyId: {
+    type: Number,
+    default: null,
   },
 })
 
@@ -487,7 +497,7 @@ const deselectAllStickers = () => {
 const downloadSingleSticker = (sticker) => {
   const link = document.createElement('a')
   link.href = sticker.dataUrl
-  link.download = `sticker-${sticker.id + 1}.png`
+  link.download = `image-${imagePrefix.value}-sticker-${sticker.id + 1}.png`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -507,7 +517,7 @@ const downloadSelectedAsZip = async () => {
       // Convert data URL to blob
       const response = await fetch(sticker.dataUrl)
       const blob = await response.blob()
-      zip.file(`sticker-${sticker.id + 1}.png`, blob)
+      zip.file(`image-${imagePrefix.value}-sticker-${sticker.id + 1}.png`, blob)
     }
 
     const content = await zip.generateAsync({ type: 'blob' })
@@ -515,13 +525,42 @@ const downloadSelectedAsZip = async () => {
 
     const link = document.createElement('a')
     link.href = url
-    link.download = `stickers-${Date.now()}.zip`
+    link.download = `image-${imagePrefix.value}-stickers.zip`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
 
     URL.revokeObjectURL(url)
     trackDownloadStickers({ count: selected.length, format: 'zip' })
+  } catch (err) {
+    console.error('ZIP generation failed:', err)
+    toast.error(t('stickerCropper.toast.zipError'))
+  } finally {
+    isDownloading.value = false
+  }
+}
+
+const downloadSelectedAsPdf = async () => {
+  const selected = croppedStickers.value.filter(s => selectedStickers.value.has(s.id))
+  if (selected.length === 0) return
+
+  isDownloading.value = true
+
+  try {
+    // Prepare image data for worker
+    const imageDataArray = []
+    for (const sticker of selected) {
+      const response = await fetch(sticker.dataUrl)
+      const blob = await response.blob()
+      const arrayBuffer = await blob.arrayBuffer()
+      imageDataArray.push({ data: arrayBuffer, mimeType: 'image/png' })
+    }
+
+    await pdfGenerator.generateAndDownload(imageDataArray, `image-${imagePrefix.value}-stickers`)
+    trackDownloadStickers({ count: selected.length, format: 'pdf' })
+  } catch (err) {
+    console.error('PDF generation failed:', err)
+    toast.error(t('stickerCropper.toast.pdfError'))
   } finally {
     isDownloading.value = false
   }
@@ -545,6 +584,12 @@ const resetState = () => {
 const bgColorHex = computed(() => {
   const { r, g, b } = backgroundColor.value
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+})
+
+// Unique identifier for sticker filenames (historyId-imageIndex or just imageIndex+1)
+const imagePrefix = computed(() => {
+  const imgNum = props.imageIndex + 1
+  return props.historyId ? `${props.historyId}-${imgNum}` : `${imgNum}`
 })
 
 // Keyboard handling
@@ -796,12 +841,12 @@ onUnmounted(() => {
               <p class="text-gray-600 text-xs mt-1">{{ $t('stickerCropper.results.autoDetect') }}</p>
             </div>
 
-            <!-- Download All Button -->
+            <!-- Download Buttons -->
             <div v-if="croppedStickers.length" class="stickers-actions">
               <button
                 @click="downloadSelectedAsZip"
                 :disabled="selectedStickers.size === 0 || isDownloading"
-                class="download-all-btn"
+                class="download-btn"
                 :class="selectedStickers.size > 0 && !isDownloading
                   ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                   : 'bg-gray-700 text-gray-400 cursor-not-allowed'"
@@ -813,7 +858,24 @@ onUnmounted(() => {
                 <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                {{ isDownloading ? $t('stickerCropper.buttons.downloading') : $t('stickerCropper.buttons.download', { count: selectedStickers.size }) }}
+                {{ isDownloading ? $t('stickerCropper.buttons.downloading') : $t('stickerCropper.buttons.downloadZip', { count: selectedStickers.size }) }}
+              </button>
+              <button
+                @click="downloadSelectedAsPdf"
+                :disabled="selectedStickers.size === 0 || isDownloading"
+                class="download-btn"
+                :class="selectedStickers.size > 0 && !isDownloading
+                  ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'"
+              >
+                <svg v-if="isDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                {{ isDownloading ? $t('stickerCropper.buttons.downloading') : $t('stickerCropper.buttons.downloadPdf', { count: selectedStickers.size }) }}
               </button>
             </div>
           </div>
@@ -1081,17 +1143,20 @@ onUnmounted(() => {
   padding: 1rem 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
+  display: flex;
+  gap: 0.5rem;
 }
 
-.download-all-btn {
-  width: 100%;
+.download-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 0.5rem;
   border-radius: 0.5rem;
   font-weight: 500;
+  font-size: 0.875rem;
   transition: all 0.2s;
 }
 

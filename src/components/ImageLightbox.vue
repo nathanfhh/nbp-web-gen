@@ -3,9 +3,13 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatFileSize, calculateCompressionRatio } from '@/composables/useImageCompression'
 import { useImageStorage } from '@/composables/useImageStorage'
+import { usePdfGenerator } from '@/composables/usePdfGenerator'
+import { useToast } from '@/composables/useToast'
 import StickerCropper from '@/components/StickerCropper.vue'
+import JSZip from 'jszip'
 
-useI18n() // Enable $t in template
+const { t } = useI18n()
+const toast = useToast()
 
 const props = defineProps({
   images: {
@@ -35,12 +39,20 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // History ID for unique sticker naming
+  historyId: {
+    type: Number,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])
 
 // Image storage for OPFS access
 const imageStorage = useImageStorage()
+
+// PDF generator
+const pdfGenerator = usePdfGenerator()
 
 // Download format preference (original or webp)
 const DOWNLOAD_PREF_KEY = 'nbp-download-format'
@@ -622,6 +634,105 @@ const closeCropper = () => {
   showCropper.value = false
   cropperImageSrc.value = ''
 }
+
+// Batch download state
+const showBatchMenu = ref(false)
+const isBatchDownloading = ref(false)
+
+const toggleBatchMenu = () => {
+  showBatchMenu.value = !showBatchMenu.value
+  showDownloadMenu.value = false
+}
+
+// Convert image to blob
+const imageToBlob = async (image) => {
+  if (image.url) {
+    // Historical images - fetch from Object URL
+    const response = await fetch(image.url)
+    return await response.blob()
+  }
+  if (image.data) {
+    // Fresh images - convert base64 to blob
+    const byteString = atob(image.data)
+    const arrayBuffer = new ArrayBuffer(byteString.length)
+    const uint8Array = new Uint8Array(arrayBuffer)
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i)
+    }
+    return new Blob([arrayBuffer], { type: image.mimeType || 'image/png' })
+  }
+  return null
+}
+
+
+// Download all images as ZIP
+const downloadAllAsZip = async () => {
+  if (props.images.length === 0 || isBatchDownloading.value) return
+
+  isBatchDownloading.value = true
+  showBatchMenu.value = false
+
+  try {
+    const zip = new JSZip()
+
+    const prefix = props.historyId ? `${props.historyId}-` : ''
+
+    for (let i = 0; i < props.images.length; i++) {
+      const image = props.images[i]
+      const blob = await imageToBlob(image)
+      if (blob) {
+        const ext = image.mimeType?.split('/')[1] || 'png'
+        zip.file(`image-${prefix}${i + 1}.${ext}`, blob)
+      }
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(content)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `images-${prefix}${Date.now()}.zip`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('ZIP generation failed:', err)
+    toast.error(t('lightbox.zipError'))
+  } finally {
+    isBatchDownloading.value = false
+  }
+}
+
+// Download all images as PDF (using Web Worker via composable)
+const downloadAllAsPdf = async () => {
+  if (props.images.length === 0 || isBatchDownloading.value) return
+
+  isBatchDownloading.value = true
+  showBatchMenu.value = false
+
+  try {
+    // Prepare image data for worker
+    const imageDataArray = []
+    for (const image of props.images) {
+      const blob = await imageToBlob(image)
+      if (!blob) continue
+
+      const arrayBuffer = await blob.arrayBuffer()
+      const mimeType = image.mimeType || blob.type || 'image/png'
+      imageDataArray.push({ data: arrayBuffer, mimeType })
+    }
+
+    const prefix = props.historyId ? `${props.historyId}-` : ''
+    await pdfGenerator.generateAndDownload(imageDataArray, `images-${prefix}${Date.now()}`)
+  } catch (err) {
+    console.error('PDF generation failed:', err)
+    toast.error(t('lightbox.pdfError'))
+  } finally {
+    isBatchDownloading.value = false
+  }
+}
 </script>
 
 <template>
@@ -707,6 +818,45 @@ const closeCropper = () => {
               >
                 <span class="w-4">{{ downloadFormat === 'webp' ? '✓' : '' }}</span>
                 WebP
+              </button>
+            </div>
+          </div>
+
+          <!-- Batch download button (only when multiple images) -->
+          <div v-if="images.length > 1" class="download-container" @click.stop>
+            <button
+              @click="toggleBatchMenu"
+              class="lightbox-btn flex items-center gap-2"
+              :class="{ 'opacity-50 cursor-wait': isBatchDownloading }"
+              :disabled="isBatchDownloading"
+              :title="$t('lightbox.downloadAll')"
+            >
+              <svg v-if="isBatchDownloading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              <span class="text-xs font-medium">{{ $t('lightbox.all') }} ({{ images.length }})</span>
+              <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Batch download dropdown -->
+            <div v-if="showBatchMenu" class="download-dropdown">
+              <button @click="downloadAllAsZip" class="download-option">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                ZIP
+              </button>
+              <button @click="downloadAllAsPdf" class="download-option">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                PDF
               </button>
             </div>
           </div>
@@ -839,6 +989,8 @@ const closeCropper = () => {
     <StickerCropper
       v-model="showCropper"
       :image-src="cropperImageSrc"
+      :image-index="currentIndex"
+      :history-id="historyId"
       @close="closeCropper"
     />
   </Teleport>
