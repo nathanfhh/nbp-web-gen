@@ -870,15 +870,31 @@ export function usePeerSync() {
   }
 
   /**
-   * Send binary data with stats tracking and type prefix
+   * Wait for DataChannel buffer to drain below threshold
+   * This implements backpressure to prevent overwhelming the channel
+   */
+  const waitForBufferDrain = async (threshold = 64 * 1024) => {
+    const dc = connection.value?.dataChannel
+    if (!dc) return
+
+    while (dc.bufferedAmount > threshold) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+  }
+
+  /**
+   * Send binary data with stats tracking, type prefix, and backpressure
    * @param {ArrayBuffer|Uint8Array} data - Binary data to send
    */
-  const sendBinary = (data) => {
+  const sendBinary = async (data) => {
     const raw = data instanceof Uint8Array ? data : new Uint8Array(data)
     // Prepend MSG_TYPE_BINARY prefix
     const packet = new Uint8Array(1 + raw.length)
     packet[0] = MSG_TYPE_BINARY
     packet.set(raw, 1)
+
+    // Wait for buffer to drain before sending more (backpressure)
+    await waitForBufferDrain()
 
     transferStats.value.bytesSent += packet.length
     connection.value.send(packet)
@@ -956,7 +972,7 @@ export function usePeerSync() {
                 packet.set(headerBytes, 4)
                 packet.set(compressed, 4 + headerBytes.length)
 
-                sendBinary(packet)
+                await sendBinary(packet)
                 addDebug(`Sent image ${i + 1}/${record.images.length}: ${formatBytes(rawData.length)} → ${formatBytes(compressed.length)} (${((1 - compressed.length / rawData.length) * 100).toFixed(0)}% saved)`)
               }
             }
