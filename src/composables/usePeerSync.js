@@ -206,6 +206,50 @@ async function gzipDecompress(compressed) {
   return new Uint8Array(await decompressedBlob.arrayBuffer())
 }
 
+// Message type prefixes for raw binary mode
+const MSG_TYPE_JSON = 0x4A    // 'J' - JSON control message
+const MSG_TYPE_BINARY = 0x42  // 'B' - Binary data packet (images)
+
+/**
+ * Encode a JSON object as binary with type prefix
+ * @param {object} obj - JSON-serializable object
+ * @returns {Uint8Array}
+ */
+function encodeJsonMessage(obj) {
+  const jsonStr = JSON.stringify(obj)
+  const jsonBytes = new TextEncoder().encode(jsonStr)
+  const packet = new Uint8Array(1 + jsonBytes.length)
+  packet[0] = MSG_TYPE_JSON
+  packet.set(jsonBytes, 1)
+  return packet
+}
+
+/**
+ * Decode a binary packet - returns { type: 'json', data } or { type: 'binary', data }
+ * @param {ArrayBuffer|Uint8Array} rawData
+ * @returns {{ type: 'json' | 'binary', data: object | Uint8Array }}
+ */
+function decodeMessage(rawData) {
+  const data = rawData instanceof Uint8Array ? rawData : new Uint8Array(rawData)
+  const type = data[0]
+
+  if (type === MSG_TYPE_JSON) {
+    try {
+      const jsonStr = new TextDecoder().decode(data.slice(1))
+      return { type: 'json', data: JSON.parse(jsonStr) }
+    } catch (e) {
+      console.error('Failed to decode JSON message:', e)
+      // Return as binary if JSON parse fails
+      return { type: 'binary', data: data.slice(1) }
+    }
+  } else if (type === MSG_TYPE_BINARY) {
+    return { type: 'binary', data: data.slice(1) }
+  } else {
+    // Fallback - try to parse as binary image packet (legacy or unknown)
+    return { type: 'binary', data }
+  }
+}
+
 /**
  * Format bytes to human readable string
  * @param {number} bytes
@@ -455,7 +499,7 @@ export function usePeerSync() {
 
       const conn = peer.value.connect(targetPeerId, {
         reliable: true,
-        serialization: 'json',
+        serialization: 'none', // Raw binary mode - bypass PeerJS serialization entirely
       })
       connection.value = conn
 
@@ -582,9 +626,15 @@ export function usePeerSync() {
     }
     checkIceState()
 
-    conn.on('data', (data) => {
-      addDebug(`Received data: type=${data?.type}`)
-      handleIncomingData(data)
+    conn.on('data', async (data) => {
+      const size = data instanceof ArrayBuffer ? data.byteLength : data?.length || 0
+      addDebug(`Received data: ${size} bytes`)
+      try {
+        await handleIncomingData(data)
+      } catch (err) {
+        console.error('Error handling incoming data:', err)
+        addDebug(`Data handling error: ${err.message}`)
+      }
     })
 
     conn.on('close', () => {
@@ -614,16 +664,29 @@ export function usePeerSync() {
   const pendingImages = ref([])
 
   /**
-   * Handle incoming data (JSON messages or binary packets)
+   * Handle incoming data - all data comes as binary in 'none' serialization mode
    */
-  const handleIncomingData = async (data) => {
-    // Check if it's binary data (ArrayBuffer or Uint8Array)
-    if (data instanceof ArrayBuffer || data instanceof Uint8Array) {
-      await handleBinaryData(data)
-      return
-    }
+  const handleIncomingData = async (rawData) => {
+    // Track received bytes (total including type prefix)
+    const rawBytes = rawData instanceof ArrayBuffer ? rawData.byteLength : rawData.length
+    transferStats.value.bytesReceived += rawBytes
 
-    // JSON message handling
+    // With serialization: 'none', all data is ArrayBuffer
+    const decoded = decodeMessage(rawData)
+
+    if (decoded.type === 'json') {
+      // Handle JSON control messages
+      await handleJsonMessage(decoded.data)
+    } else if (decoded.type === 'binary') {
+      // Handle binary image packets
+      await handleBinaryData(decoded.data)
+    }
+  }
+
+  /**
+   * Handle decoded JSON control messages
+   */
+  const handleJsonMessage = async (data) => {
     if (data.type === 'confirm_pairing') {
       remoteConfirmed.value = true
       // Only start sending if BOTH sides confirmed
@@ -674,7 +737,7 @@ export function usePeerSync() {
   const handleBinaryData = async (data) => {
     try {
       const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data
-      transferStats.value.bytesReceived += bytes.length
+      // Note: bytesReceived already tracked in handleIncomingData
 
       // Parse header length (4 bytes, little-endian)
       const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
@@ -789,7 +852,7 @@ export function usePeerSync() {
     if (!connection.value) return
 
     localConfirmed.value = true
-    connection.value.send({ type: 'confirm_pairing' })
+    connection.value.send(encodeJsonMessage({ type: 'confirm_pairing' }))
 
     // Check if remote already confirmed - if so, we can proceed
     if (remoteConfirmed.value) {
@@ -802,13 +865,18 @@ export function usePeerSync() {
   }
 
   /**
-   * Send binary data with stats tracking
+   * Send binary data with stats tracking and type prefix
    * @param {ArrayBuffer|Uint8Array} data - Binary data to send
    */
   const sendBinary = (data) => {
-    const bytes = data.byteLength || data.length
-    transferStats.value.bytesSent += bytes
-    connection.value.send(data)
+    const raw = data instanceof Uint8Array ? data : new Uint8Array(data)
+    // Prepend MSG_TYPE_BINARY prefix
+    const packet = new Uint8Array(1 + raw.length)
+    packet[0] = MSG_TYPE_BINARY
+    packet.set(raw, 1)
+
+    transferStats.value.bytesSent += packet.length
+    connection.value.send(packet)
   }
 
   /**
@@ -824,8 +892,8 @@ export function usePeerSync() {
       const records = await indexedDB.getAllHistory()
       transferProgress.value = { current: 0, total: records.length, phase: 'sending' }
 
-      // Send metadata first (small JSON message)
-      connection.value.send({ type: 'history_meta', count: records.length })
+      // Send metadata first (encoded as binary JSON)
+      connection.value.send(encodeJsonMessage({ type: 'history_meta', count: records.length }))
 
       let sent = 0
       let failed = 0
@@ -848,7 +916,7 @@ export function usePeerSync() {
           }
 
           // Send record start with metadata
-          connection.value.send({ type: 'record_start', meta: recordMeta })
+          connection.value.send(encodeJsonMessage({ type: 'record_start', meta: recordMeta }))
 
           // Send each image as separate compressed binary
           if (record.images && record.images.length > 0) {
@@ -890,7 +958,7 @@ export function usePeerSync() {
           }
 
           // Send record end
-          connection.value.send({ type: 'record_end', uuid })
+          connection.value.send(encodeJsonMessage({ type: 'record_end', uuid }))
           sent++
         } catch (err) {
           console.error('Failed to send record:', err)
@@ -903,13 +971,13 @@ export function usePeerSync() {
         await new Promise(r => setTimeout(r, 20))
       }
 
-      connection.value.send({
+      connection.value.send(encodeJsonMessage({
         type: 'transfer_complete',
         imported: sent,
         skipped: 0,
         failed,
         total: records.length,
-      })
+      }))
 
       stopStatsTracking()
       status.value = 'completed'
