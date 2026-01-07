@@ -8,7 +8,7 @@
 
 ### 📺 Video Introduction | 影片介紹
 
-[![Nano Banana Pro Demo](https://img.youtube.com/vi/w7yAHJq66Pk/hqdefault.jpg)](https://youtu.be/w7yAHJq66Pk)
+[![Nano Banana Pro Demo](https://img.youtube.com/vi/w7yAHJq66Pk/maxresdefault.jpg)](https://youtu.be/w7yAHJq66Pk)
 
 [English](#english) | [Traditional Chinese](#traditional-chinese)
 
