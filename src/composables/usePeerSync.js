@@ -499,7 +499,7 @@ export function usePeerSync() {
 
       const conn = peer.value.connect(targetPeerId, {
         reliable: true,
-        serialization: 'none', // Raw binary mode - bypass PeerJS serialization entirely
+        serialization: 'binary', // Binary mode - PeerJS will pass through Uint8Array efficiently
       })
       connection.value = conn
 
@@ -664,22 +664,27 @@ export function usePeerSync() {
   const pendingImages = ref([])
 
   /**
-   * Handle incoming data - all data comes as binary in 'none' serialization mode
+   * Handle incoming data - supports both binary (Uint8Array/ArrayBuffer) and msgpack-decoded data
    */
   const handleIncomingData = async (rawData) => {
-    // Track received bytes (total including type prefix)
-    const rawBytes = rawData instanceof ArrayBuffer ? rawData.byteLength : rawData.length
-    transferStats.value.bytesReceived += rawBytes
+    // With serialization: 'binary', PeerJS may pass through Uint8Array or decode via msgpack
+    // We need to handle both cases
+    if (rawData instanceof ArrayBuffer || rawData instanceof Uint8Array) {
+      // Binary data with our type prefix
+      const rawBytes = rawData instanceof ArrayBuffer ? rawData.byteLength : rawData.length
+      transferStats.value.bytesReceived += rawBytes
 
-    // With serialization: 'none', all data is ArrayBuffer
-    const decoded = decodeMessage(rawData)
+      const decoded = decodeMessage(rawData)
 
-    if (decoded.type === 'json') {
-      // Handle JSON control messages
-      await handleJsonMessage(decoded.data)
-    } else if (decoded.type === 'binary') {
-      // Handle binary image packets
-      await handleBinaryData(decoded.data)
+      if (decoded.type === 'json') {
+        await handleJsonMessage(decoded.data)
+      } else if (decoded.type === 'binary') {
+        await handleBinaryData(decoded.data)
+      }
+    } else if (typeof rawData === 'object' && rawData !== null) {
+      // Msgpack decoded object (fallback for compatibility)
+      // This shouldn't happen with our binary encoding, but handle it for safety
+      await handleJsonMessage(rawData)
     }
   }
 

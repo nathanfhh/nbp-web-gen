@@ -210,7 +210,7 @@ const errorMessage = computed(() => {
 
           <!-- Mode Selection -->
           <template v-if="mode === null">
-            <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            <p class="text-sm text-gray-600 dark:text-gray-300 mb-6">
               {{ $t('peerSync.description') }}
             </p>
 
@@ -227,7 +227,7 @@ const errorMessage = computed(() => {
                 </div>
                 <div class="text-left">
                   <div class="text-gray-900 dark:text-white font-medium">{{ $t('peerSync.sendMode.title') }}</div>
-                  <div class="text-xs text-gray-600 dark:text-gray-400">{{ $t('peerSync.sendMode.description') }}</div>
+                  <div class="text-xs text-gray-600 dark:text-gray-300">{{ $t('peerSync.sendMode.description') }}</div>
                 </div>
               </button>
 
@@ -243,7 +243,7 @@ const errorMessage = computed(() => {
                 </div>
                 <div class="text-left">
                   <div class="text-gray-900 dark:text-white font-medium">{{ $t('peerSync.receiveMode.title') }}</div>
-                  <div class="text-xs text-gray-600 dark:text-gray-400">{{ $t('peerSync.receiveMode.description') }}</div>
+                  <div class="text-xs text-gray-600 dark:text-gray-300">{{ $t('peerSync.receiveMode.description') }}</div>
                 </div>
               </button>
             </div>
@@ -275,7 +275,7 @@ const errorMessage = computed(() => {
 
               <Transition name="slide">
                 <div v-if="showTurnSettings" class="mt-4 space-y-3">
-                  <p class="text-xs text-gray-600 dark:text-gray-400">
+                  <p class="text-xs text-gray-600 dark:text-gray-300">
                     {{ $t('peerSync.turn.description') }}
                   </p>
                   <a
@@ -290,7 +290,7 @@ const errorMessage = computed(() => {
                     </svg>
                   </a>
                   <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ $t('peerSync.turn.tokenIdLabel') }}</label>
+                    <label class="block text-xs text-gray-500 dark:text-gray-300 mb-1">{{ $t('peerSync.turn.tokenIdLabel') }}</label>
                     <input
                       v-model="turnTokenId"
                       type="text"
@@ -299,7 +299,7 @@ const errorMessage = computed(() => {
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ $t('peerSync.turn.apiTokenLabel') }}</label>
+                    <label class="block text-xs text-gray-500 dark:text-gray-300 mb-1">{{ $t('peerSync.turn.apiTokenLabel') }}</label>
                     <input
                       v-model="apiToken"
                       type="password"
@@ -341,7 +341,7 @@ const errorMessage = computed(() => {
                   </div>
                 </div>
 
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ $t('peerSync.shareCode') }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">{{ $t('peerSync.shareCode') }}</p>
 
                 <!-- Connection Code -->
                 <div class="bg-gray-100 dark:bg-black/30 rounded-xl p-6 mb-4">
@@ -350,14 +350,14 @@ const errorMessage = computed(() => {
                   </div>
                 </div>
 
-                <p class="text-xs text-gray-500 mb-4">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
                   {{ $t('peerSync.waitingConnection') }}
                 </p>
 
                 <!-- Debug Log -->
                 <div v-if="sync.debugLog.value.length" class="mt-4 p-3 bg-gray-100 dark:bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
-                  <p class="text-xs text-gray-500 mb-1">Debug:</p>
-                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Debug:</p>
+                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-600 dark:text-gray-300 font-mono">
                     {{ log }}
                   </p>
                 </div>
@@ -367,7 +367,7 @@ const errorMessage = computed(() => {
             <!-- Paired - Show emojis -->
             <template v-else-if="sync.status.value === 'paired' && !sync.pairingConfirmed.value">
               <div class="text-center">
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
 
                 <!-- Pairing Emojis -->
                 <div class="bg-gray-100 dark:bg-black/30 rounded-xl p-6 mb-6">
@@ -402,7 +402,7 @@ const errorMessage = computed(() => {
                 </div>
 
                 <p class="text-gray-900 dark:text-white font-medium mb-2">{{ $t('peerSync.sending') }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
                   {{ sync.transferProgress.value.current }} / {{ sync.transferProgress.value.total }}
                 </p>
 
@@ -434,7 +434,7 @@ const errorMessage = computed(() => {
                 </div>
 
                 <p class="text-gray-900 dark:text-white font-medium mb-2">{{ $t('peerSync.completed') }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400">
+                <p class="text-sm text-gray-600 dark:text-gray-300">
                   {{ $t('peerSync.sentCount', { count: sync.transferResult.value?.sent || 0 }) }}
                 </p>
                 <!-- Final transfer stats -->
@@ -466,7 +466,7 @@ const errorMessage = computed(() => {
             <!-- Enter Code -->
             <template v-if="sync.status.value === 'idle'">
               <div class="text-center">
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ $t('peerSync.enterCode') }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">{{ $t('peerSync.enterCode') }}</p>
 
                 <!-- Code Input -->
                 <input
@@ -504,8 +504,8 @@ const errorMessage = computed(() => {
 
                 <!-- Debug Log -->
                 <div v-if="sync.debugLog.value.length" class="mt-4 p-3 bg-gray-100 dark:bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
-                  <p class="text-xs text-gray-500 mb-1">Debug:</p>
-                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                  <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Debug:</p>
+                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-600 dark:text-gray-300 font-mono">
                     {{ log }}
                   </p>
                 </div>
@@ -515,7 +515,7 @@ const errorMessage = computed(() => {
             <!-- Paired - Show emojis -->
             <template v-else-if="sync.status.value === 'paired' && !sync.pairingConfirmed.value">
               <div class="text-center">
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
 
                 <!-- Pairing Emojis -->
                 <div class="bg-gray-100 dark:bg-black/30 rounded-xl p-6 mb-6">
@@ -550,7 +550,7 @@ const errorMessage = computed(() => {
                 </div>
 
                 <p class="text-gray-900 dark:text-white font-medium mb-2">{{ $t('peerSync.receiving') }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
                   {{ sync.transferProgress.value.current }} / {{ sync.transferProgress.value.total }}
                 </p>
 
