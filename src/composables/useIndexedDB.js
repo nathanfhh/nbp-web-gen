@@ -2,8 +2,7 @@ import { ref } from 'vue'
 import { generateUUID } from './useUUID'
 
 const DB_NAME = 'nanobanana-generator'
-const DB_VERSION = 3 // Upgraded for UUID support
-const STORE_SETTINGS = 'settings'
+const DB_VERSION = 3
 const STORE_HISTORY = 'history'
 
 let db = null
@@ -39,11 +38,6 @@ export function useIndexedDB() {
 
         // Version 0 -> 1: Initial schema
         if (oldVersion < 1) {
-          // Settings store - for user preferences
-          if (!database.objectStoreNames.contains(STORE_SETTINGS)) {
-            database.createObjectStore(STORE_SETTINGS, { keyPath: 'key' })
-          }
-
           // History store - for generation records
           if (!database.objectStoreNames.contains(STORE_HISTORY)) {
             const historyStore = database.createObjectStore(STORE_HISTORY, {
@@ -55,14 +49,7 @@ export function useIndexedDB() {
           }
         }
 
-        // Version 1 -> 2: Add image metadata support
-        // No schema changes needed - images field is added to existing records dynamically
-        // Existing records without images field will work fine (images will be undefined)
-        if (oldVersion < 2) {
-          // Future: Could add an index for hasImages if needed
-          // const historyStore = event.target.transaction.objectStore(STORE_HISTORY)
-          // historyStore.createIndex('hasImages', 'hasImages', { unique: false })
-        }
+        // Version 1 -> 2: No schema changes (images field added dynamically to records)
 
         // Version 2 -> 3: Add UUID support for cross-device sync
         if (oldVersion < 3) {
@@ -72,51 +59,6 @@ export function useIndexedDB() {
           }
         }
       }
-    })
-  }
-
-  // Settings operations
-  const saveSetting = async (key, value) => {
-    await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_SETTINGS], 'readwrite')
-      const store = transaction.objectStore(STORE_SETTINGS)
-      // Deep clone to ensure plain objects (Vue reactive objects can't be cloned by IndexedDB)
-      const record = JSON.parse(JSON.stringify({ key, value, updatedAt: Date.now() }))
-      const request = store.put(record)
-
-      request.onsuccess = () => resolve(true)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  const getSetting = async (key) => {
-    await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_SETTINGS], 'readonly')
-      const store = transaction.objectStore(STORE_SETTINGS)
-      const request = store.get(key)
-
-      request.onsuccess = () => resolve(request.result?.value ?? null)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  const getAllSettings = async () => {
-    await initDB()
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_SETTINGS], 'readonly')
-      const store = transaction.objectStore(STORE_SETTINGS)
-      const request = store.getAll()
-
-      request.onsuccess = () => {
-        const settings = {}
-        request.result.forEach((item) => {
-          settings[item.key] = item.value
-        })
-        resolve(settings)
-      }
-      request.onerror = () => reject(request.error)
     })
   }
 
@@ -351,9 +293,6 @@ export function useIndexedDB() {
     isReady,
     error,
     initDB,
-    saveSetting,
-    getSetting,
-    getAllSettings,
     addHistory,
     getHistory,
     getHistoryById,

@@ -182,9 +182,6 @@ export function useGeneration() {
       // Set current history ID for ImagePreview to use
       store.setCurrentHistoryId(historyId)
 
-      // Save settings
-      await store.saveSettings()
-
       // Call onComplete callback
       if (callbacks.onComplete) {
         callbacks.onComplete({ success: true, result })

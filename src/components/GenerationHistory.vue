@@ -253,7 +253,7 @@ const handleImported = async () => {
                 +{{ item.images.length - 1 }}
               </div>
             </div>
-            <span class="text-xs text-gray-600">#{{ item.id }}</span>
+            <span class="text-xs text-gray-600 font-mono">#{{ item.id }}</span>
           </div>
 
           <div class="flex-1 min-w-0">

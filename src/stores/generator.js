@@ -6,8 +6,7 @@ import { useImageStorage } from '@/composables/useImageStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions } from '@/constants'
 
 export const useGeneratorStore = defineStore('generator', () => {
-  const { saveSetting, addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount, migrateAddUUIDs } =
-    useIndexedDB()
+  const { addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount, migrateAddUUIDs } = useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
   const imageStorage = useImageStorage()
 
@@ -229,15 +228,6 @@ export const useGeneratorStore = defineStore('generator', () => {
   // Settings
   // ============================================================================
 
-  const saveSettings = async () => {
-    await saveSetting('currentMode', currentMode.value)
-    await saveSetting('temperature', temperature.value)
-    await saveSetting('seed', seed.value)
-    await saveSetting('generateOptions', generateOptions.value)
-    await saveSetting('storyOptions', storyOptions.value)
-    await saveSetting('diagramOptions', diagramOptions.value)
-  }
-
   const setMode = (mode) => {
     currentMode.value = mode
     // Auto-saved by watcher
@@ -456,7 +446,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     initialize,
     toggleTheme,
     saveApiKey,
-    saveSettings,
     setMode,
     addToHistory,
     loadHistory,
