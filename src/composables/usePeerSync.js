@@ -685,16 +685,23 @@ export function usePeerSync() {
       const header = JSON.parse(new TextDecoder().decode(headerBytes))
 
       if (header.type === 'record_image') {
+        // Verify uuid matches current pending record
+        if (!pendingRecord.value || pendingRecord.value.uuid !== header.uuid) {
+          addDebug(`Ignoring image for unknown/mismatched record: ${header.uuid}`)
+          return
+        }
+
         // Extract compressed data
         const compressed = bytes.slice(4 + headerLength)
 
         // Decompress
         const imageData = await gzipDecompress(compressed)
 
-        addDebug(`Received image ${header.index}: ${formatBytes(header.compressedSize)} → ${formatBytes(imageData.length)}`)
+        addDebug(`Received image ${header.uuid}:${header.index}: ${formatBytes(header.compressedSize)} → ${formatBytes(imageData.length)}`)
 
-        // Store for later saving
+        // Store for later saving (with uuid for extra safety)
         pendingImages.value.push({
+          uuid: header.uuid,
           index: header.index,
           width: header.width,
           height: header.height,
@@ -732,9 +739,11 @@ export function usePeerSync() {
 
       const historyId = await indexedDB.addHistoryWithUUID(historyRecord)
 
-      // Save images to OPFS (sort by index to ensure correct order)
+      // Save images to OPFS (filter by uuid and sort by index)
       if (images.length > 0) {
-        const sortedImages = [...images].sort((a, b) => a.index - b.index)
+        const sortedImages = images
+          .filter(img => img.uuid === meta.uuid) // Only images for this record
+          .sort((a, b) => a.index - b.index)
         const imageMetadata = []
 
         for (const img of sortedImages) {
