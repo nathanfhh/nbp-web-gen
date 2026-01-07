@@ -336,6 +336,9 @@
     "historical": "Historical",
     "downloadAll": "Download All Images",
     "all": "All",
+    "currentImage": "Current Image",
+    "allImages": "All ({count} images)",
+    "exportAs": "Export As",
     "pdfError": "Failed to generate PDF",
     "zipError": "Failed to generate ZIP"
   },

@@ -540,21 +540,17 @@ const currentImageInfo = computed(() => {
   return info
 })
 
-// Handle download button click
-const handleDownloadClick = () => {
-  if (props.isHistorical) {
-    downloadCurrentImage()
-  } else {
-    showDownloadMenu.value = !showDownloadMenu.value
-  }
+// Toggle unified download menu
+const toggleDownloadMenu = () => {
+  showDownloadMenu.value = !showDownloadMenu.value
 }
 
-// Handle format selection
-const handleFormatSelect = (format) => {
+// Download current image with specified format
+const downloadWithFormat = async (format) => {
   downloadFormat.value = format
   localStorage.setItem(DOWNLOAD_PREF_KEY, format)
   showDownloadMenu.value = false
-  downloadCurrentImage()
+  await downloadCurrentImage()
 }
 
 // Download current image
@@ -636,13 +632,10 @@ const closeCropper = () => {
 }
 
 // Batch download state
-const showBatchMenu = ref(false)
 const isBatchDownloading = ref(false)
 
-const toggleBatchMenu = () => {
-  showBatchMenu.value = !showBatchMenu.value
-  showDownloadMenu.value = false
-}
+// Combined loading state for download button
+const isAnyDownloading = computed(() => isDownloading.value || isBatchDownloading.value)
 
 // Convert image to blob
 const imageToBlob = async (image) => {
@@ -670,7 +663,7 @@ const downloadAllAsZip = async () => {
   if (props.images.length === 0 || isBatchDownloading.value) return
 
   isBatchDownloading.value = true
-  showBatchMenu.value = false
+  showDownloadMenu.value = false
 
   try {
     const zip = new JSZip()
@@ -710,7 +703,7 @@ const downloadAllAsPdf = async () => {
   if (props.images.length === 0 || isBatchDownloading.value) return
 
   isBatchDownloading.value = true
-  showBatchMenu.value = false
+  showDownloadMenu.value = false
 
   try {
     // Prepare image data for worker
@@ -770,82 +763,60 @@ const downloadAllAsPdf = async () => {
             <span class="text-xs font-medium">{{ $t('lightbox.crop') }}</span>
           </button>
 
-          <!-- Download button with format selector -->
+          <!-- Unified download button -->
           <div class="download-container" @click.stop>
-            <!-- Combined download button -->
             <button
-              @click="handleDownloadClick"
+              @click="toggleDownloadMenu"
               class="lightbox-btn flex items-center gap-2"
-              :class="{ 'opacity-50 cursor-wait': isDownloading }"
-              :disabled="isDownloading"
-              :title="isHistorical ? $t('lightbox.downloadWebp') : $t('lightbox.selectFormat')"
+              :class="{ 'opacity-50 cursor-wait': isAnyDownloading }"
+              :disabled="isAnyDownloading"
+              :title="$t('common.download')"
             >
               <!-- Loading spinner -->
-              <svg v-if="isDownloading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg v-if="isAnyDownloading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
               </svg>
               <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <!-- Show current format -->
-              <span class="text-xs font-medium">
-                {{ isHistorical ? $t('lightbox.webp') : (downloadFormat === 'webp' ? $t('lightbox.webp') : $t('lightbox.original')) }}
-              </span>
-              <!-- Dropdown arrow for fresh images -->
-              <svg v-if="!isHistorical" class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            <!-- Download format dropdown -->
-            <div
-              v-if="showDownloadMenu && !isHistorical"
-              class="download-dropdown"
-            >
-              <button
-                @click="handleFormatSelect('original')"
-                class="download-option"
-                :class="downloadFormat === 'original' ? 'active' : ''"
-              >
-                <span class="w-4">{{ downloadFormat === 'original' ? '✓' : '' }}</span>
-                {{ $t('lightbox.originalFormat') }}
-              </button>
-              <button
-                @click="handleFormatSelect('webp')"
-                class="download-option"
-                :class="downloadFormat === 'webp' ? 'active' : ''"
-              >
-                <span class="w-4">{{ downloadFormat === 'webp' ? '✓' : '' }}</span>
-                WebP
-              </button>
-            </div>
-          </div>
-
-          <!-- Batch download button (only when multiple images) -->
-          <div v-if="images.length > 1" class="download-container" @click.stop>
-            <button
-              @click="toggleBatchMenu"
-              class="lightbox-btn flex items-center gap-2"
-              :class="{ 'opacity-50 cursor-wait': isBatchDownloading }"
-              :disabled="isBatchDownloading"
-              :title="$t('lightbox.downloadAll')"
-            >
-              <svg v-if="isBatchDownloading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-              <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-              </svg>
-              <span class="text-xs font-medium">{{ $t('lightbox.all') }} ({{ images.length }})</span>
+              <span class="text-xs font-medium">{{ $t('common.download') }}</span>
               <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
-            <!-- Batch download dropdown -->
-            <div v-if="showBatchMenu" class="download-dropdown">
+            <!-- Unified download dropdown -->
+            <div v-if="showDownloadMenu" class="download-dropdown download-dropdown-wide">
+              <!-- Current image section -->
+              <div class="download-section-label">{{ $t('lightbox.currentImage') }}</div>
+              <button
+                v-if="!isHistorical"
+                @click="downloadWithFormat('original')"
+                class="download-option"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ $t('lightbox.originalFormat') }}
+              </button>
+              <button
+                @click="downloadWithFormat('webp')"
+                class="download-option"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                WebP
+              </button>
+
+              <!-- Divider -->
+              <div class="download-divider"></div>
+
+              <!-- Batch download section -->
+              <div class="download-section-label">
+                {{ images.length > 1 ? $t('lightbox.allImages', { count: images.length }) : $t('lightbox.exportAs') }}
+              </div>
               <button @click="downloadAllAsZip" class="download-option">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1274,9 +1245,10 @@ const downloadAllAsPdf = async () => {
 .download-dropdown {
   position: absolute;
   top: 100%;
+  left: 0;
   right: 0;
   margin-top: 0.5rem;
-  min-width: 8rem;
+  min-width: max-content;
   background: rgba(30, 30, 40, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0.5rem;
@@ -1306,6 +1278,28 @@ const downloadAllAsPdf = async () => {
 
 .download-option.active {
   color: #c084fc !important; /* purple-400 */
+}
+
+/* Wide dropdown for unified download menu */
+.download-dropdown-wide {
+  min-width: 10rem;
+}
+
+/* Section label in dropdown */
+.download-section-label {
+  padding: 0.375rem 1rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Divider in dropdown */
+.download-divider {
+  height: 1px;
+  margin: 0.375rem 0;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Vue transition */

@@ -225,11 +225,11 @@ const clearImages = () => {
           <!-- Dropdown menu -->
           <div
             v-if="showBatchMenu"
-            class="absolute right-0 mt-1 py-1 w-28 rounded-lg bg-gray-800/95 backdrop-blur-sm border border-white/10 shadow-xl z-50"
+            class="batch-download-dropdown"
           >
             <button
               @click="downloadAllAsZip"
-              class="w-full px-3 py-2 text-sm text-left text-gray-300 hover:bg-white/10 flex items-center gap-2"
+              class="batch-download-option"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -238,7 +238,7 @@ const clearImages = () => {
             </button>
             <button
               @click="downloadAllAsPdf"
-              class="w-full px-3 py-2 text-sm text-left text-gray-300 hover:bg-white/10 flex items-center gap-2"
+              class="batch-download-option"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -332,3 +332,37 @@ const clearImages = () => {
     <p class="text-sm text-gray-500 mt-1">{{ $t('preview.emptyHint') }}</p>
   </div>
 </template>
+
+<style scoped>
+/* Batch download dropdown - theme-aware */
+.batch-download-dropdown {
+  position: absolute;
+  right: 0;
+  left: 0;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0;
+  border-radius: 0.5rem;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+  background: var(--glass-strong-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.batch-download-option {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.batch-download-option:hover {
+  background: var(--glass-bg);
+}
+</style>

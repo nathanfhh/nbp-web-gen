@@ -336,6 +336,9 @@
     "historical": "歷史紀錄",
     "downloadAll": "下載全部圖片",
     "all": "全部",
+    "currentImage": "當前圖片",
+    "allImages": "全部 ({count} 張)",
+    "exportAs": "匯出為",
     "pdfError": "PDF 產生失敗",
     "zipError": "ZIP 產生失敗"
   },
