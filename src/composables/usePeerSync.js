@@ -325,6 +325,9 @@ export function usePeerSync() {
   const transferProgress = ref({ current: 0, total: 0, phase: '' })
   const transferResult = ref(null)
 
+  // Receiver-side counters for imported/skipped/failed
+  const receiverCounts = ref({ imported: 0, skipped: 0, failed: 0 })
+
   // Transfer stats (bytes, speed)
   const transferStats = ref({
     bytesSent: 0,
@@ -744,16 +747,28 @@ export function usePeerSync() {
         }
 
         const finalImageCount = pendingImages.value.length
-        await saveReceivedRecord(pendingRecord.value, pendingImages.value)
+        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value)
         transferProgress.value.current++
 
+        // Update receiver counts based on result
+        if (result.skipped) {
+          receiverCounts.value.skipped++
+          addDebug(`Record ${data.uuid} skipped (duplicate)`)
+        } else if (result.failed) {
+          receiverCounts.value.failed++
+          addDebug(`Record ${data.uuid} failed to save`)
+        } else {
+          receiverCounts.value.imported++
+        }
+
         // Send ACK back to sender so they know we received this record
-        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}`)
+        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}, skipped: ${!!result.skipped}`)
         connection.value.send(encodeJsonMessage({
           type: 'record_ack',
           uuid: data.uuid,
           receivedImages: finalImageCount,
           expectedImages: expectedImages,
+          skipped: !!result.skipped,
         }))
 
         pendingRecord.value = null
@@ -767,23 +782,25 @@ export function usePeerSync() {
         pendingRecordAckResolve.value = null
       }
     } else if (data.type === 'transfer_complete') {
-      // Sender says they're done - send back acknowledgment with our actual count
-      const actualReceived = transferProgress.value.current
-      addDebug(`Received transfer_complete, sender reports ${data.total}, we received ${actualReceived}`)
+      // Sender says they're done - send back acknowledgment with our actual counts
+      addDebug(`Received transfer_complete, sender reports ${data.total}, we processed: imported=${receiverCounts.value.imported}, skipped=${receiverCounts.value.skipped}, failed=${receiverCounts.value.failed}`)
 
-      // Send acknowledgment back to sender
+      // Send acknowledgment back to sender with our counts
       connection.value.send(encodeJsonMessage({
         type: 'transfer_ack',
-        receivedCount: actualReceived,
+        receivedCount: transferProgress.value.current,
         expectedCount: data.total,
+        imported: receiverCounts.value.imported,
+        skipped: receiverCounts.value.skipped,
+        failed: receiverCounts.value.failed,
       }))
 
       stopStatsTracking()
       status.value = 'completed'
       transferResult.value = {
-        imported: actualReceived, // Use our actual count, not sender's
-        skipped: data.skipped,
-        failed: data.failed,
+        imported: receiverCounts.value.imported,
+        skipped: receiverCounts.value.skipped,
+        failed: receiverCounts.value.failed,
         total: data.total,
       }
     } else if (data.type === 'transfer_ack') {
@@ -927,6 +944,8 @@ export function usePeerSync() {
       pairingConfirmed.value = true
       if (transferDirection.value === 'send') {
         await sendHistoryData()
+      } else if (transferDirection.value === 'receive') {
+        startStatsTracking()
       }
     }
     // Otherwise wait for remote confirmation via handleIncomingData
@@ -1144,13 +1163,15 @@ export function usePeerSync() {
 
       try {
         const ack = await ackPromise
-        addDebug(`ACK received: ${ack.receivedCount}/${ack.expectedCount}`)
+        addDebug(`ACK received: imported=${ack.imported}, skipped=${ack.skipped}, failed=${ack.failed}`)
 
         stopStatsTracking()
         status.value = 'completed'
         transferResult.value = {
-          sent: ack.receivedCount, // Use receiver's actual count
-          failed: records.length - ack.receivedCount,
+          sent: ack.imported, // Actually imported records
+          imported: ack.imported,
+          skipped: ack.skipped,
+          failed: ack.failed,
           total: records.length,
         }
       } catch (ackErr) {
@@ -1277,6 +1298,8 @@ export function usePeerSync() {
     // Clear pending ACK resolvers
     pendingAckResolve.value = null
     pendingRecordAckResolve.value = null
+    // Reset receiver counts
+    receiverCounts.value = { imported: 0, skipped: 0, failed: 0 }
   }
 
   onUnmounted(() => {
