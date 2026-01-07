@@ -945,8 +945,8 @@ export function usePeerSync() {
 
     if (!dc || typeof dc.bufferedAmount === 'undefined') {
       addDebug(`Warning: Cannot access DataChannel (dc=${!!dc}), skipping buffer drain`)
-      // Fallback: just wait a fixed time
-      await new Promise(r => setTimeout(r, 2000))
+      // Fallback: short wait (per-record ACK provides the real flow control)
+      await new Promise(r => setTimeout(r, 50))
       return
     }
 
@@ -965,6 +965,16 @@ export function usePeerSync() {
       }
     }
     addDebug(`Buffer drained to ${dc.bufferedAmount}`)
+  }
+
+  /**
+   * Send JSON message with stats tracking
+   * @param {object} obj - JSON-serializable object
+   */
+  const sendJson = (obj) => {
+    const packet = encodeJsonMessage(obj)
+    transferStats.value.bytesSent += packet.length
+    connection.value.send(packet)
   }
 
   /**
@@ -998,8 +1008,8 @@ export function usePeerSync() {
       const records = await indexedDB.getAllHistory()
       transferProgress.value = { current: 0, total: records.length, phase: 'sending' }
 
-      // Send metadata first (encoded as binary JSON)
-      connection.value.send(encodeJsonMessage({ type: 'history_meta', count: records.length }))
+      // Send metadata first
+      sendJson({ type: 'history_meta', count: records.length })
 
       let sent = 0
       let failed = 0
@@ -1022,7 +1032,7 @@ export function usePeerSync() {
           }
 
           // Send record start with metadata
-          connection.value.send(encodeJsonMessage({ type: 'record_start', meta: recordMeta }))
+          sendJson({ type: 'record_start', meta: recordMeta })
 
           // Send each image as separate compressed binary
           if (record.images && record.images.length > 0) {
@@ -1069,7 +1079,7 @@ export function usePeerSync() {
           await new Promise(r => setTimeout(r, 100))
 
           // Send record end
-          connection.value.send(encodeJsonMessage({ type: 'record_end', uuid }))
+          sendJson({ type: 'record_end', uuid })
 
           // Wait for receiver to acknowledge this record before continuing
           addDebug(`Waiting for record_ack: ${uuid}`)
@@ -1112,13 +1122,13 @@ export function usePeerSync() {
 
       // Send transfer_complete and wait for ACK from receiver
       addDebug('Sending transfer_complete, waiting for ACK...')
-      connection.value.send(encodeJsonMessage({
+      sendJson({
         type: 'transfer_complete',
         imported: sent,
         skipped: 0,
         failed,
         total: records.length,
-      }))
+      })
 
       // Wait for receiver to acknowledge (with timeout)
       const ackPromise = new Promise((resolve, reject) => {

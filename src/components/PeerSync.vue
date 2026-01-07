@@ -390,7 +390,7 @@ const errorMessage = computed(() => {
             </template>
 
             <!-- Transferring -->
-            <template v-else-if="sync.status.value === 'transferring' || sync.pairingConfirmed.value">
+            <template v-else-if="sync.status.value === 'transferring' || (sync.pairingConfirmed.value && sync.status.value !== 'completed' && sync.status.value !== 'error')">
               <div class="text-center">
                 <div class="mb-4">
                   <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/20 mb-4">
@@ -538,7 +538,7 @@ const errorMessage = computed(() => {
             </template>
 
             <!-- Transferring -->
-            <template v-else-if="sync.status.value === 'transferring' || sync.pairingConfirmed.value">
+            <template v-else-if="sync.status.value === 'transferring' || (sync.pairingConfirmed.value && sync.status.value !== 'completed' && sync.status.value !== 'error')">
               <div class="text-center">
                 <div class="mb-4">
                   <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-500/20 mb-4">
