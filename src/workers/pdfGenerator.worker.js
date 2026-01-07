@@ -40,17 +40,19 @@ async function generatePdf(images) {
     const mimeType = image.mimeType || 'image/png'
 
     // pdf-lib only supports PNG and JPEG
-    const isPng = mimeType === 'image/png'
     const isJpeg = mimeType === 'image/jpeg' || mimeType === 'image/jpg'
+    const isPng = mimeType === 'image/png'
+    let useJpegEmbed = isJpeg
 
     if (!isPng && !isJpeg) {
       // Convert WebP/other formats to PNG using OffscreenCanvas
       const blob = new Blob([arrayBuffer], { type: mimeType })
       arrayBuffer = await convertToPng(blob)
+      useJpegEmbed = false // Converted to PNG, must use PNG embed
     }
 
     // Embed image
-    const pdfImage = isJpeg
+    const pdfImage = useJpegEmbed
       ? await pdfDoc.embedJpg(arrayBuffer)
       : await pdfDoc.embedPng(arrayBuffer)
 

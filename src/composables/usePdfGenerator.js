@@ -60,17 +60,26 @@ export function usePdfGenerator() {
   const generateAndDownload = async (images, filename = 'images') => {
     const pdfBytes = await generatePdf(images)
 
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
+    let url = null
+    let link = null
 
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${filename}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+      url = URL.createObjectURL(blob)
 
-    URL.revokeObjectURL(url)
+      link = document.createElement('a')
+      link.href = url
+      link.download = `${filename}.pdf`
+      document.body.appendChild(link)
+      link.click()
+    } finally {
+      if (link?.parentNode) {
+        link.parentNode.removeChild(link)
+      }
+      if (url) {
+        URL.revokeObjectURL(url)
+      }
+    }
   }
 
   return {

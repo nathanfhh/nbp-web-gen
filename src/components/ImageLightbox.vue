@@ -639,10 +639,6 @@ const closeCropper = () => {
 const showBatchMenu = ref(false)
 const isBatchDownloading = ref(false)
 
-const closeBatchMenu = () => {
-  showBatchMenu.value = false
-}
-
 const toggleBatchMenu = () => {
   showBatchMenu.value = !showBatchMenu.value
   showDownloadMenu.value = false
