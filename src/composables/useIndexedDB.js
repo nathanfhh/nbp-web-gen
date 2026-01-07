@@ -1,7 +1,8 @@
 import { ref } from 'vue'
+import { generateUUID } from './useUUID'
 
 const DB_NAME = 'nanobanana-generator'
-const DB_VERSION = 2 // Upgraded for image metadata support
+const DB_VERSION = 3 // Upgraded for UUID support
 const STORE_SETTINGS = 'settings'
 const STORE_HISTORY = 'history'
 
@@ -62,6 +63,14 @@ export function useIndexedDB() {
           // const historyStore = event.target.transaction.objectStore(STORE_HISTORY)
           // historyStore.createIndex('hasImages', 'hasImages', { unique: false })
         }
+
+        // Version 2 -> 3: Add UUID support for cross-device sync
+        if (oldVersion < 3) {
+          const historyStore = event.target.transaction.objectStore(STORE_HISTORY)
+          if (!historyStore.indexNames.contains('uuid')) {
+            historyStore.createIndex('uuid', 'uuid', { unique: true })
+          }
+        }
       }
     })
   }
@@ -121,6 +130,7 @@ export function useIndexedDB() {
       const historyRecord = JSON.parse(JSON.stringify({
         ...record,
         timestamp: Date.now(),
+        uuid: record.uuid || generateUUID(),
       }))
       const request = store.add(historyRecord)
 
@@ -251,6 +261,92 @@ export function useIndexedDB() {
     })
   }
 
+  /**
+   * Get all history records (for export, no pagination)
+   * @returns {Promise<Array>}
+   */
+  const getAllHistory = async () => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readonly')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const request = store.getAll()
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Check if a history record with given UUID exists
+   * @param {string} uuid
+   * @returns {Promise<boolean>}
+   */
+  const hasHistoryByUUID = async (uuid) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readonly')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const index = store.index('uuid')
+      const request = index.get(uuid)
+
+      request.onsuccess = () => resolve(!!request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Add a history record with existing UUID (for import)
+   * @param {Object} record - Record with uuid field
+   * @returns {Promise<number>} - New record ID
+   */
+  const addHistoryWithUUID = async (record) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readwrite')
+      const store = transaction.objectStore(STORE_HISTORY)
+      // Deep clone and ensure uuid exists
+      const historyRecord = JSON.parse(JSON.stringify({
+        ...record,
+        uuid: record.uuid || generateUUID(),
+      }))
+      // Remove original id to let autoIncrement generate new one
+      delete historyRecord.id
+      const request = store.add(historyRecord)
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Migrate existing records to add UUID (idempotent, run on init)
+   * @returns {Promise<boolean>}
+   */
+  const migrateAddUUIDs = async () => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readwrite')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const request = store.openCursor()
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result
+        if (cursor) {
+          const record = cursor.value
+          if (!record.uuid) {
+            record.uuid = generateUUID()
+            cursor.update(record)
+          }
+          cursor.continue()
+        } else {
+          resolve(true)
+        }
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+
   return {
     isReady,
     error,
@@ -266,5 +362,9 @@ export function useIndexedDB() {
     getHistoryCount,
     updateHistoryImages,
     getAllHistoryIds,
+    getAllHistory,
+    hasHistoryByUUID,
+    addHistoryWithUUID,
+    migrateAddUUIDs,
   }
 }

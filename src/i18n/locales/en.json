@@ -257,6 +257,32 @@
       "failed": "Failed"
     }
   },
+  "historyTransfer": {
+    "title": "Export/Import",
+    "export": {
+      "title": "Export History",
+      "description": "Export all history records to a JSON file with images",
+      "button": "Export",
+      "progress": "Processing {current}/{total}"
+    },
+    "import": {
+      "title": "Import History",
+      "description": "Import history records from a JSON file",
+      "dragDrop": "Drag & drop JSON file or click to select",
+      "progress": "Processing {current}/{total}"
+    },
+    "result": {
+      "title": "Import Result",
+      "imported": "Imported",
+      "skipped": "Skipped (duplicate)",
+      "failed": "Failed"
+    },
+    "invalidFile": "Please select a valid JSON file",
+    "exportSuccess": "Successfully exported {count} records",
+    "exportError": "Export failed, please try again",
+    "importSuccess": "Successfully imported {imported} records, skipped {skipped} duplicates",
+    "importError": "Import failed, please check the file format"
+  },
   "thinking": {
     "title": "Thinking Process",
     "aiThinking": "AI Thinking...",

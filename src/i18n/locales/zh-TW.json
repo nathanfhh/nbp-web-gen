@@ -257,6 +257,32 @@
       "failed": "失敗"
     }
   },
+  "historyTransfer": {
+    "title": "匯出/匯入",
+    "export": {
+      "title": "匯出歷史紀錄",
+      "description": "將所有歷史紀錄匯出為 JSON 檔案，包含圖片",
+      "button": "匯出",
+      "progress": "正在處理 {current}/{total}"
+    },
+    "import": {
+      "title": "匯入歷史紀錄",
+      "description": "從 JSON 檔案匯入歷史紀錄",
+      "dragDrop": "拖放 JSON 檔案或點擊選擇",
+      "progress": "正在處理 {current}/{total}"
+    },
+    "result": {
+      "title": "匯入結果",
+      "imported": "成功匯入",
+      "skipped": "跳過重複",
+      "failed": "匯入失敗"
+    },
+    "invalidFile": "請選擇有效的 JSON 檔案",
+    "exportSuccess": "成功匯出 {count} 筆紀錄",
+    "exportError": "匯出失敗，請重試",
+    "importSuccess": "成功匯入 {imported} 筆紀錄，跳過 {skipped} 筆重複",
+    "importError": "匯入失敗，請確認檔案格式正確"
+  },
   "thinking": {
     "title": "思考過程",
     "aiThinking": "AI 思考中...",
