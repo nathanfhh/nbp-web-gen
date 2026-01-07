@@ -210,7 +210,7 @@ const errorMessage = computed(() => {
 
           <!-- Mode Selection -->
           <template v-if="mode === null">
-            <p class="text-sm text-gray-600 dark:text-gray-300 mb-6">
+            <p class="text-sm text-gray-600 dark:text-white/80 mb-6">
               {{ $t('peerSync.description') }}
             </p>
 
@@ -227,7 +227,7 @@ const errorMessage = computed(() => {
                 </div>
                 <div class="text-left">
                   <div class="text-gray-900 dark:text-white font-medium">{{ $t('peerSync.sendMode.title') }}</div>
-                  <div class="text-xs text-gray-600 dark:text-gray-300">{{ $t('peerSync.sendMode.description') }}</div>
+                  <div class="text-xs text-gray-600 dark:text-white/70">{{ $t('peerSync.sendMode.description') }}</div>
                 </div>
               </button>
 
@@ -243,7 +243,7 @@ const errorMessage = computed(() => {
                 </div>
                 <div class="text-left">
                   <div class="text-gray-900 dark:text-white font-medium">{{ $t('peerSync.receiveMode.title') }}</div>
-                  <div class="text-xs text-gray-600 dark:text-gray-300">{{ $t('peerSync.receiveMode.description') }}</div>
+                  <div class="text-xs text-gray-600 dark:text-white/70">{{ $t('peerSync.receiveMode.description') }}</div>
                 </div>
               </button>
             </div>
@@ -252,7 +252,7 @@ const errorMessage = computed(() => {
             <div class="mt-6 pt-4 border-t border-gray-200 dark:border-white/10">
               <button
                 @click="showTurnSettings = !showTurnSettings"
-                class="w-full flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                class="w-full flex items-center justify-between text-sm text-gray-600 dark:text-white/80 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <div class="flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,7 +275,7 @@ const errorMessage = computed(() => {
 
               <Transition name="slide">
                 <div v-if="showTurnSettings" class="mt-4 space-y-3">
-                  <p class="text-xs text-gray-600 dark:text-gray-300">
+                  <p class="text-xs text-gray-600 dark:text-white/70">
                     {{ $t('peerSync.turn.description') }}
                   </p>
                   <a
@@ -290,7 +290,7 @@ const errorMessage = computed(() => {
                     </svg>
                   </a>
                   <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-300 mb-1">{{ $t('peerSync.turn.tokenIdLabel') }}</label>
+                    <label class="block text-xs text-gray-500 dark:text-white/70 mb-1">{{ $t('peerSync.turn.tokenIdLabel') }}</label>
                     <input
                       v-model="turnTokenId"
                       type="text"
@@ -299,7 +299,7 @@ const errorMessage = computed(() => {
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-300 mb-1">{{ $t('peerSync.turn.apiTokenLabel') }}</label>
+                    <label class="block text-xs text-gray-500 dark:text-white/70 mb-1">{{ $t('peerSync.turn.apiTokenLabel') }}</label>
                     <input
                       v-model="apiToken"
                       type="password"
@@ -376,7 +376,7 @@ const errorMessage = computed(() => {
                   </div>
                 </div>
 
-                <p class="text-xs text-gray-500 mb-6">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-6">
                   {{ $t('peerSync.confirmMatch') }}
                 </p>
 
@@ -524,7 +524,7 @@ const errorMessage = computed(() => {
                   </div>
                 </div>
 
-                <p class="text-xs text-gray-500 mb-6">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-6">
                   {{ $t('peerSync.confirmMatch') }}
                 </p>
 
@@ -589,19 +589,19 @@ const errorMessage = computed(() => {
                     <div class="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
                       {{ sync.transferResult.value?.imported || 0 }}
                     </div>
-                    <div class="text-xs text-gray-500">{{ $t('peerSync.result.imported') }}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('peerSync.result.imported') }}</div>
                   </div>
                   <div>
                     <div class="text-lg font-semibold text-amber-600 dark:text-amber-400">
                       {{ sync.transferResult.value?.skipped || 0 }}
                     </div>
-                    <div class="text-xs text-gray-500">{{ $t('peerSync.result.skipped') }}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('peerSync.result.skipped') }}</div>
                   </div>
                   <div>
                     <div class="text-lg font-semibold text-red-600 dark:text-red-400">
                       {{ sync.transferResult.value?.failed || 0 }}
                     </div>
-                    <div class="text-xs text-gray-500">{{ $t('peerSync.result.failed') }}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $t('peerSync.result.failed') }}</div>
                   </div>
                 </div>
               </div>

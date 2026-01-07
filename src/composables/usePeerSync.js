@@ -663,6 +663,12 @@ export function usePeerSync() {
   const pendingRecord = ref(null)
   const pendingImages = ref([])
 
+  // Sender-side: promise resolver for waiting ACK from receiver
+  const pendingAckResolve = ref(null)
+
+  // Sender-side: promise resolver for per-record ACK
+  const pendingRecordAckResolve = ref(null)
+
   /**
    * Handle incoming data - supports both binary (Uint8Array/ArrayBuffer) and msgpack-decoded data
    */
@@ -718,19 +724,76 @@ export function usePeerSync() {
     } else if (data.type === 'record_end') {
       // New binary protocol: end of record, save to DB
       if (pendingRecord.value && pendingRecord.value.uuid === data.uuid) {
+        const expectedImages = pendingRecord.value.imageCount || 0
+        const receivedImages = pendingImages.value.length
+
+        // If we haven't received all images yet, wait a bit for them to arrive
+        if (receivedImages < expectedImages) {
+          addDebug(`Waiting for remaining images: ${receivedImages}/${expectedImages}`)
+          // Wait up to 10 seconds for missing images (100ms intervals)
+          for (let i = 0; i < 100; i++) {
+            await new Promise(r => setTimeout(r, 100))
+            if (pendingImages.value.length >= expectedImages) {
+              addDebug(`All images received: ${pendingImages.value.length}/${expectedImages}`)
+              break
+            }
+            if (i % 10 === 0) {
+              addDebug(`Still waiting: ${pendingImages.value.length}/${expectedImages}`)
+            }
+          }
+        }
+
+        const finalImageCount = pendingImages.value.length
         await saveReceivedRecord(pendingRecord.value, pendingImages.value)
         transferProgress.value.current++
+
+        // Send ACK back to sender so they know we received this record
+        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}`)
+        connection.value.send(encodeJsonMessage({
+          type: 'record_ack',
+          uuid: data.uuid,
+          receivedImages: finalImageCount,
+          expectedImages: expectedImages,
+        }))
+
         pendingRecord.value = null
         pendingImages.value = []
       }
+    } else if (data.type === 'record_ack') {
+      // Sender receives per-record ACK from receiver
+      addDebug(`Received record_ack for ${data.uuid}, images: ${data.receivedImages}`)
+      if (pendingRecordAckResolve.value) {
+        pendingRecordAckResolve.value(data)
+        pendingRecordAckResolve.value = null
+      }
     } else if (data.type === 'transfer_complete') {
+      // Sender says they're done - send back acknowledgment with our actual count
+      const actualReceived = transferProgress.value.current
+      addDebug(`Received transfer_complete, sender reports ${data.total}, we received ${actualReceived}`)
+
+      // Send acknowledgment back to sender
+      connection.value.send(encodeJsonMessage({
+        type: 'transfer_ack',
+        receivedCount: actualReceived,
+        expectedCount: data.total,
+      }))
+
       stopStatsTracking()
       status.value = 'completed'
       transferResult.value = {
-        imported: data.imported,
+        imported: actualReceived, // Use our actual count, not sender's
         skipped: data.skipped,
         failed: data.failed,
         total: data.total,
+      }
+    } else if (data.type === 'transfer_ack') {
+      // Sender receives acknowledgment from receiver
+      addDebug(`Received transfer_ack: ${data.receivedCount}/${data.expectedCount} records`)
+
+      // Resolve the pending ACK promise if exists
+      if (pendingAckResolve.value) {
+        pendingAckResolve.value(data)
+        pendingAckResolve.value = null
       }
     }
   }
@@ -874,12 +937,34 @@ export function usePeerSync() {
    * This implements backpressure to prevent overwhelming the channel
    */
   const waitForBufferDrain = async (threshold = 64 * 1024) => {
-    const dc = connection.value?.dataChannel
-    if (!dc) return
+    // PeerJS stores DataChannel in different properties depending on version
+    // Common property names: dataChannel, _dc, _channel
+    const dc = connection.value?.dataChannel ||
+               connection.value?._dc ||
+               connection.value?._channel
 
-    while (dc.bufferedAmount > threshold) {
-      await new Promise((resolve) => setTimeout(resolve, 10))
+    if (!dc || typeof dc.bufferedAmount === 'undefined') {
+      addDebug(`Warning: Cannot access DataChannel (dc=${!!dc}), skipping buffer drain`)
+      // Fallback: just wait a fixed time
+      await new Promise(r => setTimeout(r, 2000))
+      return
     }
+
+    addDebug(`Waiting for buffer drain, current: ${dc.bufferedAmount}, threshold: ${threshold}`)
+    let waitCount = 0
+    while (dc.bufferedAmount > threshold) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      waitCount++
+      if (waitCount % 20 === 0) {
+        addDebug(`Still draining... bufferedAmount: ${dc.bufferedAmount}`)
+      }
+      // Safety timeout: max 60 seconds
+      if (waitCount > 1200) {
+        addDebug(`Buffer drain timeout after 60s, bufferedAmount: ${dc.bufferedAmount}`)
+        break
+      }
+    }
+    addDebug(`Buffer drained to ${dc.bufferedAmount}`)
   }
 
   /**
@@ -978,20 +1063,55 @@ export function usePeerSync() {
             }
           }
 
+          // Wait for all image data to be sent before record_end
+          await waitForBufferDrain(0)
+          // Small delay to ensure receiver processes images before record_end
+          await new Promise(r => setTimeout(r, 100))
+
           // Send record end
           connection.value.send(encodeJsonMessage({ type: 'record_end', uuid }))
-          sent++
+
+          // Wait for receiver to acknowledge this record before continuing
+          addDebug(`Waiting for record_ack: ${uuid}`)
+          const recordAckPromise = new Promise((resolve, reject) => {
+            pendingRecordAckResolve.value = resolve
+            // Timeout after 60 seconds per record (large images may take time)
+            setTimeout(() => {
+              if (pendingRecordAckResolve.value) {
+                pendingRecordAckResolve.value = null
+                reject(new Error(`Record ACK timeout: ${uuid}`))
+              }
+            }, 60000)
+          })
+
+          try {
+            const ack = await recordAckPromise
+            const sentImageCount = record.images?.length || 0
+            if (ack.receivedImages !== sentImageCount) {
+              addDebug(`⚠️ Image mismatch for ${uuid}: sent ${sentImageCount}, received ${ack.receivedImages}`)
+            } else {
+              addDebug(`Record ${uuid} acknowledged, ${ack.receivedImages}/${sentImageCount} images OK`)
+            }
+            sent++
+          } catch (ackErr) {
+            addDebug(`Record ${uuid} ACK failed: ${ackErr.message}`)
+            failed++
+          }
         } catch (err) {
           console.error('Failed to send record:', err)
+          addDebug(`Failed to send record: ${err.message}`)
           failed++
         }
 
         transferProgress.value.current++
-
-        // Small delay to prevent flooding
-        await new Promise(r => setTimeout(r, 20))
       }
 
+      // Wait for buffer to drain
+      addDebug('Waiting for buffer to drain...')
+      await waitForBufferDrain(0)
+
+      // Send transfer_complete and wait for ACK from receiver
+      addDebug('Sending transfer_complete, waiting for ACK...')
       connection.value.send(encodeJsonMessage({
         type: 'transfer_complete',
         imported: sent,
@@ -1000,9 +1120,36 @@ export function usePeerSync() {
         total: records.length,
       }))
 
-      stopStatsTracking()
-      status.value = 'completed'
-      transferResult.value = { sent, failed, total: records.length }
+      // Wait for receiver to acknowledge (with timeout)
+      const ackPromise = new Promise((resolve, reject) => {
+        pendingAckResolve.value = resolve
+        // Timeout after 30 seconds
+        setTimeout(() => {
+          if (pendingAckResolve.value) {
+            pendingAckResolve.value = null
+            reject(new Error('ACK timeout'))
+          }
+        }, 30000)
+      })
+
+      try {
+        const ack = await ackPromise
+        addDebug(`ACK received: ${ack.receivedCount}/${ack.expectedCount}`)
+
+        stopStatsTracking()
+        status.value = 'completed'
+        transferResult.value = {
+          sent: ack.receivedCount, // Use receiver's actual count
+          failed: records.length - ack.receivedCount,
+          total: records.length,
+        }
+      } catch (ackErr) {
+        addDebug(`ACK error: ${ackErr.message}`)
+        // Still mark as completed but show warning
+        stopStatsTracking()
+        status.value = 'completed'
+        transferResult.value = { sent, failed, total: records.length }
+      }
 
     } catch (err) {
       console.error('Send failed:', err)
@@ -1117,6 +1264,9 @@ export function usePeerSync() {
     // Clear pending record state
     pendingRecord.value = null
     pendingImages.value = []
+    // Clear pending ACK resolvers
+    pendingAckResolve.value = null
+    pendingRecordAckResolve.value = null
   }
 
   onUnmounted(() => {
