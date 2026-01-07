@@ -1,11 +1,16 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import JSZip from 'jszip'
 import { useGeneratorStore } from '@/stores/generator'
 import { formatElapsed } from '@/composables/useFormatTime'
+import { usePdfGenerator } from '@/composables/usePdfGenerator'
+import { useToast } from '@/composables/useToast'
 import ImageLightbox from './ImageLightbox.vue'
 
-useI18n() // Enable $t in template
+const { t } = useI18n()
+const toast = useToast()
+const pdfGenerator = usePdfGenerator()
 const store = useGeneratorStore()
 
 // Lightbox state
@@ -70,12 +75,107 @@ const downloadImage = (image, index) => {
   document.body.removeChild(link)
 }
 
-const downloadAll = () => {
-  store.generatedImages.forEach((image, index) => {
-    setTimeout(() => {
-      downloadImage(image, index)
-    }, index * 500)
-  })
+// Batch download state
+const isBatchDownloading = ref(false)
+const showBatchMenu = ref(false)
+
+// Close dropdown when clicking outside
+const closeBatchMenu = (e) => {
+  if (showBatchMenu.value && !e.target.closest('.relative')) {
+    showBatchMenu.value = false
+  }
+}
+
+watch(showBatchMenu, (val) => {
+  if (val) {
+    document.addEventListener('click', closeBatchMenu)
+  } else {
+    document.removeEventListener('click', closeBatchMenu)
+  }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  document.removeEventListener('click', closeBatchMenu)
+})
+
+// Convert image to Blob
+const imageToBlob = (image) => {
+  if (image.data) {
+    const byteString = atob(image.data)
+    const arrayBuffer = new ArrayBuffer(byteString.length)
+    const uint8Array = new Uint8Array(arrayBuffer)
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i)
+    }
+    return new Blob([arrayBuffer], { type: image.mimeType || 'image/png' })
+  }
+  return null
+}
+
+// Download all images as ZIP
+const downloadAllAsZip = async () => {
+  if (store.generatedImages.length === 0 || isBatchDownloading.value) return
+
+  isBatchDownloading.value = true
+  showBatchMenu.value = false
+
+  try {
+    const zip = new JSZip()
+
+    for (let i = 0; i < store.generatedImages.length; i++) {
+      const image = store.generatedImages[i]
+      const blob = imageToBlob(image)
+      if (blob) {
+        const ext = image.mimeType?.split('/')[1] || 'png'
+        zip.file(`image-${i + 1}.${ext}`, blob)
+      }
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' })
+    const url = URL.createObjectURL(content)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `images-${Date.now()}.zip`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('ZIP generation failed:', err)
+    toast.error(t('lightbox.zipError'))
+  } finally {
+    isBatchDownloading.value = false
+  }
+}
+
+// Download all images as PDF
+const downloadAllAsPdf = async () => {
+  if (store.generatedImages.length === 0 || isBatchDownloading.value) return
+
+  isBatchDownloading.value = true
+  showBatchMenu.value = false
+
+  try {
+    const imageDataArray = []
+    for (const image of store.generatedImages) {
+      const blob = imageToBlob(image)
+      if (!blob) continue
+
+      const arrayBuffer = await blob.arrayBuffer()
+      const mimeType = image.mimeType || blob.type || 'image/png'
+      imageDataArray.push({ data: arrayBuffer, mimeType })
+    }
+
+    await pdfGenerator.generateAndDownload(imageDataArray, `images-${Date.now()}`)
+  } catch (err) {
+    console.error('PDF generation failed:', err)
+    toast.error(t('lightbox.pdfError'))
+  } finally {
+    isBatchDownloading.value = false
+  }
 }
 
 const clearImages = () => {
@@ -102,12 +202,51 @@ const clearImages = () => {
         </span>
       </h3>
       <div class="flex gap-2">
-        <button @click="downloadAll" class="btn-secondary py-2 px-4 text-sm">
-          <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          {{ $t('common.downloadAll') }}
-        </button>
+        <!-- Batch download dropdown -->
+        <div class="relative">
+          <button
+            @click="showBatchMenu = !showBatchMenu"
+            class="btn-secondary py-2 px-4 text-sm flex items-center gap-1"
+            :class="{ 'opacity-50 cursor-wait': isBatchDownloading }"
+            :disabled="isBatchDownloading"
+          >
+            <svg v-if="isBatchDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            {{ $t('common.downloadAll') }}
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <!-- Dropdown menu -->
+          <div
+            v-if="showBatchMenu"
+            class="absolute right-0 mt-1 py-1 w-28 rounded-lg bg-gray-800/95 backdrop-blur-sm border border-white/10 shadow-xl z-50"
+          >
+            <button
+              @click="downloadAllAsZip"
+              class="w-full px-3 py-2 text-sm text-left text-gray-300 hover:bg-white/10 flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              ZIP
+            </button>
+            <button
+              @click="downloadAllAsPdf"
+              class="w-full px-3 py-2 text-sm text-left text-gray-300 hover:bg-white/10 flex items-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              PDF
+            </button>
+          </div>
+        </div>
         <button @click="clearImages" class="text-gray-400 hover:text-gray-300 py-2 px-4 text-sm">
           {{ $t('common.clear') }}
         </button>
