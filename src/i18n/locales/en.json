@@ -415,5 +415,62 @@
     "mood": "Mood",
     "season": "Season",
     "timeOfDay": "Time of Day"
+  },
+  "peerSync": {
+    "title": "Cross-Device Sync",
+    "description": "Sync history records to another device via P2P connection",
+    "sendMode": {
+      "title": "Send Data",
+      "description": "Send history from this device"
+    },
+    "receiveMode": {
+      "title": "Receive Data",
+      "description": "Receive history from another device"
+    },
+    "shareCode": "Enter this code on the other device",
+    "waitingConnection": "Waiting for connection...",
+    "enterCode": "Enter the sender's connection code",
+    "codePlaceholder": "ABC123",
+    "connectButton": "Connect",
+    "verifyEmojis": "Verify both devices show the same icons",
+    "confirmMatch": "If icons match, the connection is secure and ready to transfer",
+    "confirmButton": "Confirm & Start Transfer",
+    "sending": "Sending data...",
+    "receiving": "Receiving data...",
+    "completed": "Transfer Complete!",
+    "sentCount": "Sent {count} records",
+    "errorTitle": "Connection Failed",
+    "invalidCode": "Invalid code format, please enter 6 alphanumeric characters",
+    "connectionTimeout": "Connection timed out, please make sure the other device has sync open",
+    "iceFailed": "P2P connection failed, network may not support direct connection",
+    "tryAgain": "Try Again",
+    "sendSuccess": "Data sent successfully",
+    "receiveSuccess": "Data received successfully",
+    "error": "An error occurred during sync",
+    "status": {
+      "waiting": "Waiting for connection",
+      "connecting": "Connecting...",
+      "paired": "Paired",
+      "transferring": "Transferring",
+      "completed": "Completed",
+      "error": "Error occurred"
+    },
+    "result": {
+      "imported": "Imported",
+      "skipped": "Skipped (duplicate)",
+      "failed": "Failed"
+    },
+    "turn": {
+      "title": "TURN Server Settings",
+      "description": "For NAT traversal, you may need TURN server credentials. Get free credentials from Metered.ca.",
+      "getCredentials": "Get Free TURN Credentials",
+      "urlLabel": "TURN Server Host",
+      "usernameLabel": "Username",
+      "credentialLabel": "Credential",
+      "usernamePlaceholder": "Enter username",
+      "credentialPlaceholder": "Enter credential/password",
+      "saved": "TURN settings saved",
+      "cleared": "TURN settings cleared"
+    }
   }
 }

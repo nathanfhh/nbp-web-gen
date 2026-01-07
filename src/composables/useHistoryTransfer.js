@@ -3,6 +3,7 @@ import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
 import { useOPFS } from './useOPFS'
 import { generateUUID } from './useUUID'
+import { generateThumbnailFromBlob } from './useImageCompression'
 
 const EXPORT_VERSION = 1
 
@@ -199,38 +200,6 @@ export function useHistoryTransfer() {
       isImporting.value = false
       progress.value = { current: 0, total: 0, phase: '' }
     }
-  }
-
-  /**
-   * Generate thumbnail from Blob
-   * @param {Blob} blob
-   * @returns {Promise<string>} Base64 thumbnail (without data: prefix)
-   */
-  const generateThumbnailFromBlob = async (blob) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      const url = URL.createObjectURL(blob)
-
-      img.onload = () => {
-        URL.revokeObjectURL(url)
-        const canvas = document.createElement('canvas')
-        const maxSize = 64
-        const ratio = Math.min(maxSize / img.width, maxSize / img.height)
-        canvas.width = img.width * ratio
-        canvas.height = img.height * ratio
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        const dataUrl = canvas.toDataURL('image/webp', 0.6)
-        resolve(dataUrl.split(',')[1])
-      }
-
-      img.onerror = () => {
-        URL.revokeObjectURL(url)
-        reject(new Error('Failed to load image for thumbnail'))
-      }
-
-      img.src = url
-    })
   }
 
   return {

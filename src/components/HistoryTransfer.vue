@@ -3,10 +3,14 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHistoryTransfer } from '@/composables/useHistoryTransfer'
 import { useToast } from '@/composables/useToast'
+import PeerSync from '@/components/PeerSync.vue'
 
 const { t } = useI18n()
 const toast = useToast()
 const transfer = useHistoryTransfer()
+
+// Peer sync modal
+const showPeerSync = ref(false)
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -151,6 +155,28 @@ const close = () => {
             </button>
           </div>
 
+          <!-- Cross-Device Sync -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-gray-300 mb-2">
+              {{ $t('peerSync.title') }}
+            </h4>
+            <p class="text-xs text-gray-500 mb-3">
+              {{ $t('peerSync.description') }}
+            </p>
+            <button
+              @click="showPeerSync = true"
+              class="w-full py-3 px-4 rounded-xl text-sm font-medium transition-all bg-cyan-500/30 border border-cyan-500 text-cyan-300 hover:bg-cyan-500/40 flex items-center justify-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span>{{ $t('peerSync.title') }}</span>
+            </button>
+          </div>
+
+          <!-- Divider -->
+          <div class="border-t border-white/10 mb-6"></div>
+
           <!-- Export Section -->
           <div class="mb-6">
             <h4 class="text-sm font-medium text-gray-300 mb-2">
@@ -274,6 +300,9 @@ const close = () => {
       </div>
     </Transition>
   </Teleport>
+
+  <!-- Peer Sync Modal -->
+  <PeerSync v-model="showPeerSync" @synced="$emit('imported')" />
 </template>
 
 <style scoped>

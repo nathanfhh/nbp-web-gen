@@ -169,6 +169,55 @@ export const generateThumbnail = async (imageData, options = {}) => {
 }
 
 /**
+ * Generate a thumbnail from a Blob
+ * @param {Blob} blob - Image blob
+ * @param {Object} options - Thumbnail options
+ * @param {number} options.maxSize - Max width/height, default 64
+ * @param {number} options.quality - WebP quality, default 0.6
+ * @returns {Promise<string>} Base64 encoded thumbnail (without data: prefix)
+ */
+export const generateThumbnailFromBlob = async (blob, options = {}) => {
+  const { maxSize = 64, quality = THUMBNAIL_QUALITY } = options
+
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(blob)
+
+    img.onload = async () => {
+      URL.revokeObjectURL(url)
+
+      // Calculate thumbnail dimensions (maintain aspect ratio)
+      let { naturalWidth: width, naturalHeight: height } = img
+      const ratio = Math.min(maxSize / width, maxSize / height)
+      width = Math.round(width * ratio)
+      height = Math.round(height * ratio)
+
+      // Create canvas and draw
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, width, height)
+
+      // Convert to WebP and then to base64
+      const thumbnailBlob = await new Promise((res) => {
+        canvas.toBlob(res, 'image/webp', quality)
+      })
+      const base64 = await blobToBase64(thumbnailBlob)
+      resolve(base64)
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load image for thumbnail'))
+    }
+
+    img.src = url
+  })
+}
+
+/**
  * Compress multiple images to WebP
  * @param {Array<Object>} images - Array of { data: base64, mimeType: string }
  * @param {Object} options - Compression options
@@ -230,6 +279,7 @@ export function useImageCompression() {
     getImageDimensions,
     compressToWebP,
     generateThumbnail,
+    generateThumbnailFromBlob,
     compressImages,
     calculateCompressionRatio,
     formatFileSize,

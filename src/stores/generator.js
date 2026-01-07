@@ -200,6 +200,12 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   const applyTheme = (themeName) => {
     document.documentElement.setAttribute('data-theme', themeName)
+    // Also set class for Tailwind dark: variants to work
+    if (themeName === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
     // Update PWA theme-color meta tag
     const themeColor = themeName === 'dark' ? '#111827' : '#ffffff'
     const metaThemeColor = document.querySelector('meta[name="theme-color"]')

@@ -415,5 +415,62 @@
     "mood": "氛圍變化",
     "season": "季節變化",
     "timeOfDay": "時間變化"
+  },
+  "peerSync": {
+    "title": "跨裝置同步",
+    "description": "透過 P2P 連線即時同步歷史紀錄到另一台裝置",
+    "sendMode": {
+      "title": "發送資料",
+      "description": "從這台裝置發送歷史紀錄"
+    },
+    "receiveMode": {
+      "title": "接收資料",
+      "description": "從另一台裝置接收歷史紀錄"
+    },
+    "shareCode": "請在另一台裝置輸入以下連線碼",
+    "waitingConnection": "等待對方連線中...",
+    "enterCode": "輸入發送方的連線碼",
+    "codePlaceholder": "ABC123",
+    "connectButton": "連線",
+    "verifyEmojis": "請確認雙方裝置顯示相同的圖示",
+    "confirmMatch": "如果圖示相同，表示連線正確，可以安全傳輸",
+    "confirmButton": "確認，開始傳輸",
+    "sending": "正在發送資料...",
+    "receiving": "正在接收資料...",
+    "completed": "傳輸完成！",
+    "sentCount": "已發送 {count} 筆紀錄",
+    "errorTitle": "連線失敗",
+    "invalidCode": "連線碼格式錯誤，請輸入 6 位英數字",
+    "connectionTimeout": "連線逾時，請確認對方已開啟同步功能",
+    "iceFailed": "P2P 連線失敗，網路環境可能不支援直連",
+    "tryAgain": "重試",
+    "sendSuccess": "資料發送完成",
+    "receiveSuccess": "資料接收完成",
+    "error": "同步時發生錯誤",
+    "status": {
+      "waiting": "等待連線中",
+      "connecting": "連線中...",
+      "paired": "已配對",
+      "transferring": "傳輸中",
+      "completed": "已完成",
+      "error": "發生錯誤"
+    },
+    "result": {
+      "imported": "成功匯入",
+      "skipped": "跳過重複",
+      "failed": "匯入失敗"
+    },
+    "turn": {
+      "title": "TURN 伺服器設定",
+      "description": "若網路環境受限（如 NAT 後），可能需要 TURN 伺服器來中繼連線。可從 Metered.ca 取得免費憑證。",
+      "getCredentials": "取得免費 TURN 憑證",
+      "urlLabel": "TURN 伺服器位址",
+      "usernameLabel": "使用者名稱",
+      "credentialLabel": "密碼",
+      "usernamePlaceholder": "輸入使用者名稱",
+      "credentialPlaceholder": "輸入密碼",
+      "saved": "TURN 設定已儲存",
+      "cleared": "TURN 設定已清除"
+    }
   }
 }
