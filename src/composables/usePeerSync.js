@@ -180,6 +180,58 @@ async function buildIceServers() {
   return FALLBACK_ICE_SERVERS
 }
 
+// ============================================================================
+// Binary Transfer Utilities
+// ============================================================================
+
+/**
+ * Compress data using gzip via CompressionStream API
+ * @param {Uint8Array} data - Raw binary data
+ * @returns {Promise<Uint8Array>} - Compressed data
+ */
+async function gzipCompress(data) {
+  const stream = new Blob([data]).stream().pipeThrough(new CompressionStream('gzip'))
+  const compressedBlob = await new Response(stream).blob()
+  return new Uint8Array(await compressedBlob.arrayBuffer())
+}
+
+/**
+ * Decompress gzip data via DecompressionStream API
+ * @param {Uint8Array} compressed - Gzip compressed data
+ * @returns {Promise<Uint8Array>} - Decompressed data
+ */
+async function gzipDecompress(compressed) {
+  const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))
+  const decompressedBlob = await new Response(stream).blob()
+  return new Uint8Array(await decompressedBlob.arrayBuffer())
+}
+
+/**
+ * Format bytes to human readable string
+ * @param {number} bytes
+ * @returns {string}
+ */
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+/**
+ * Format speed to human readable string
+ * @param {number} bytesPerSec
+ * @returns {string}
+ */
+function formatSpeed(bytesPerSec) {
+  if (bytesPerSec < 1024) return `${bytesPerSec.toFixed(0)} B/s`
+  if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`
+  return `${(bytesPerSec / (1024 * 1024)).toFixed(2)} MB/s`
+}
+
+// ============================================================================
+// Connection Code & Pairing
+// ============================================================================
+
 // Generate 6-char alphanumeric code (easy to type)
 function generateConnectionCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Exclude confusing chars: 0OI1
@@ -228,6 +280,39 @@ export function usePeerSync() {
   const transferDirection = ref(null) // 'send' | 'receive'
   const transferProgress = ref({ current: 0, total: 0, phase: '' })
   const transferResult = ref(null)
+
+  // Transfer stats (bytes, speed)
+  const transferStats = ref({
+    bytesSent: 0,
+    bytesReceived: 0,
+    startTime: null,
+    speed: 0,           // current speed in bytes/sec
+    speedFormatted: '', // human readable speed
+    totalFormatted: '', // human readable total bytes
+  })
+
+  // Update speed calculation periodically
+  let statsInterval = null
+  const startStatsTracking = () => {
+    transferStats.value.startTime = Date.now()
+    transferStats.value.bytesSent = 0
+    transferStats.value.bytesReceived = 0
+    statsInterval = setInterval(() => {
+      const elapsed = (Date.now() - transferStats.value.startTime) / 1000
+      if (elapsed > 0) {
+        const totalBytes = transferStats.value.bytesSent + transferStats.value.bytesReceived
+        transferStats.value.speed = totalBytes / elapsed
+        transferStats.value.speedFormatted = formatSpeed(transferStats.value.speed)
+        transferStats.value.totalFormatted = formatBytes(totalBytes)
+      }
+    }, 500)
+  }
+  const stopStatsTracking = () => {
+    if (statsInterval) {
+      clearInterval(statsInterval)
+      statsInterval = null
+    }
+  }
 
   const isConnected = computed(() => status.value === 'paired' || status.value === 'transferring')
 
@@ -524,10 +609,21 @@ export function usePeerSync() {
   const localConfirmed = ref(false)
   const remoteConfirmed = ref(false)
 
+  // Receiver-side: pending record being assembled
+  const pendingRecord = ref(null)
+  const pendingImages = ref([])
+
   /**
-   * Handle incoming data
+   * Handle incoming data (JSON messages or binary packets)
    */
   const handleIncomingData = async (data) => {
+    // Check if it's binary data (ArrayBuffer or Uint8Array)
+    if (data instanceof ArrayBuffer || data instanceof Uint8Array) {
+      await handleBinaryData(data)
+      return
+    }
+
+    // JSON message handling
     if (data.type === 'confirm_pairing') {
       remoteConfirmed.value = true
       // Only start sending if BOTH sides confirmed
@@ -536,16 +632,31 @@ export function usePeerSync() {
         await sendHistoryData()
       } else if (transferDirection.value === 'receive' && localConfirmed.value) {
         pairingConfirmed.value = true
+        startStatsTracking() // Start tracking on receiver side
       }
     } else if (data.type === 'history_meta') {
       // Receiver gets metadata first
       transferProgress.value = { current: 0, total: data.count, phase: 'receiving' }
       status.value = 'transferring'
     } else if (data.type === 'history_record') {
-      // Receiver processes each record
+      // Legacy: old-style record with embedded base64 images
       await processIncomingRecord(data.record)
       transferProgress.value.current++
+    } else if (data.type === 'record_start') {
+      // New binary protocol: start of record
+      pendingRecord.value = data.meta
+      pendingImages.value = []
+      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images`)
+    } else if (data.type === 'record_end') {
+      // New binary protocol: end of record, save to DB
+      if (pendingRecord.value && pendingRecord.value.uuid === data.uuid) {
+        await saveReceivedRecord(pendingRecord.value, pendingImages.value)
+        transferProgress.value.current++
+        pendingRecord.value = null
+        pendingImages.value = []
+      }
     } else if (data.type === 'transfer_complete') {
+      stopStatsTracking()
       status.value = 'completed'
       transferResult.value = {
         imported: data.imported,
@@ -553,6 +664,112 @@ export function usePeerSync() {
         failed: data.failed,
         total: data.total,
       }
+    }
+  }
+
+  /**
+   * Handle binary packet (compressed image data)
+   * Packet format: [4-byte header length][JSON header][compressed data]
+   */
+  const handleBinaryData = async (data) => {
+    try {
+      const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data
+      transferStats.value.bytesReceived += bytes.length
+
+      // Parse header length (4 bytes, little-endian)
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+      const headerLength = view.getUint32(0, true)
+
+      // Parse JSON header
+      const headerBytes = bytes.slice(4, 4 + headerLength)
+      const header = JSON.parse(new TextDecoder().decode(headerBytes))
+
+      if (header.type === 'record_image') {
+        // Extract compressed data
+        const compressed = bytes.slice(4 + headerLength)
+
+        // Decompress
+        const imageData = await gzipDecompress(compressed)
+
+        addDebug(`Received image ${header.index}: ${formatBytes(header.compressedSize)} → ${formatBytes(imageData.length)}`)
+
+        // Store for later saving
+        pendingImages.value.push({
+          index: header.index,
+          width: header.width,
+          height: header.height,
+          mimeType: header.mimeType,
+          data: imageData, // raw binary, not base64!
+        })
+      }
+    } catch (err) {
+      console.error('Failed to handle binary data:', err)
+      addDebug(`Binary parse error: ${err.message}`)
+    }
+  }
+
+  /**
+   * Save received record to IndexedDB/OPFS (new binary protocol)
+   */
+  const saveReceivedRecord = async (meta, images) => {
+    try {
+      // Check if UUID already exists
+      if (meta.uuid && (await indexedDB.hasHistoryByUUID(meta.uuid))) {
+        addDebug(`Skipped duplicate: ${meta.uuid}`)
+        return { skipped: true }
+      }
+
+      const historyRecord = {
+        uuid: meta.uuid || generateUUID(),
+        timestamp: meta.timestamp,
+        prompt: meta.prompt,
+        mode: meta.mode,
+        options: meta.options,
+        status: meta.status,
+        thinkingText: meta.thinkingText,
+        error: meta.error,
+      }
+
+      const historyId = await indexedDB.addHistoryWithUUID(historyRecord)
+
+      // Save images to OPFS (sort by index to ensure correct order)
+      if (images.length > 0) {
+        const sortedImages = [...images].sort((a, b) => a.index - b.index)
+        const imageMetadata = []
+
+        for (const img of sortedImages) {
+          const ext = img.mimeType === 'image/png' ? 'png' : 'webp'
+          const opfsPath = `/images/${historyId}/${img.index}.${ext}`
+
+          // Create blob from raw binary
+          const blob = new Blob([img.data], { type: img.mimeType })
+          await opfs.writeFile(opfsPath, blob)
+
+          // Generate thumbnail
+          const thumbnail = await generateThumbnailFromBlob(blob)
+
+          imageMetadata.push({
+            index: img.index,
+            width: img.width,
+            height: img.height,
+            opfsPath,
+            thumbnail,
+            originalSize: blob.size,
+            compressedSize: blob.size,
+            originalFormat: img.mimeType,
+            compressedFormat: img.mimeType,
+          })
+        }
+
+        await indexedDB.updateHistoryImages(historyId, imageMetadata)
+      }
+
+      addDebug(`Saved record: ${meta.uuid}`)
+      return { imported: true }
+    } catch (err) {
+      console.error('Failed to save record:', err)
+      addDebug(`Save error: ${err.message}`)
+      return { failed: true }
     }
   }
 
@@ -576,18 +793,29 @@ export function usePeerSync() {
   }
 
   /**
-   * Send history data (sender side)
+   * Send binary data with stats tracking
+   * @param {ArrayBuffer|Uint8Array} data - Binary data to send
+   */
+  const sendBinary = (data) => {
+    const bytes = data.byteLength || data.length
+    transferStats.value.bytesSent += bytes
+    connection.value.send(data)
+  }
+
+  /**
+   * Send history data (sender side) - Binary transfer with gzip compression
    */
   const sendHistoryData = async () => {
     if (!connection.value) return
 
     status.value = 'transferring'
+    startStatsTracking()
 
     try {
       const records = await indexedDB.getAllHistory()
       transferProgress.value = { current: 0, total: records.length, phase: 'sending' }
 
-      // Send metadata first
+      // Send metadata first (small JSON message)
       connection.value.send({ type: 'history_meta', count: records.length })
 
       let sent = 0
@@ -595,8 +823,11 @@ export function usePeerSync() {
 
       for (const record of records) {
         try {
-          const exportRecord = {
-            uuid: record.uuid || generateUUID(),
+          const uuid = record.uuid || generateUUID()
+
+          // Prepare record metadata (without image data)
+          const recordMeta = {
+            uuid,
             timestamp: record.timestamp,
             prompt: record.prompt,
             mode: record.mode,
@@ -604,25 +835,53 @@ export function usePeerSync() {
             status: record.status,
             thinkingText: record.thinkingText,
             error: record.error,
+            imageCount: record.images?.length || 0,
           }
 
-          // Load images and convert to base64
+          // Send record start with metadata
+          connection.value.send({ type: 'record_start', meta: recordMeta })
+
+          // Send each image as separate compressed binary
           if (record.images && record.images.length > 0) {
-            exportRecord.images = []
-            for (const img of record.images) {
-              const base64 = await imageStorage.getImageBase64(img.opfsPath)
-              if (base64) {
-                exportRecord.images.push({
+            for (let i = 0; i < record.images.length; i++) {
+              const img = record.images[i]
+              const blob = await imageStorage.loadImageBlob(img.opfsPath)
+              if (blob) {
+                // Get raw binary from blob
+                const arrayBuffer = await blob.arrayBuffer()
+                const rawData = new Uint8Array(arrayBuffer)
+
+                // Compress with gzip
+                const compressed = await gzipCompress(rawData)
+
+                // Create a header with image info (as JSON prefix)
+                const header = JSON.stringify({
+                  type: 'record_image',
+                  uuid,
                   index: img.index,
                   width: img.width,
                   height: img.height,
-                  data: base64,
+                  originalSize: rawData.length,
+                  compressedSize: compressed.length,
+                  mimeType: blob.type || 'image/webp',
                 })
+                const headerBytes = new TextEncoder().encode(header)
+
+                // Combine: [4-byte header length][header][compressed data]
+                const packet = new Uint8Array(4 + headerBytes.length + compressed.length)
+                const view = new DataView(packet.buffer)
+                view.setUint32(0, headerBytes.length, true) // little-endian
+                packet.set(headerBytes, 4)
+                packet.set(compressed, 4 + headerBytes.length)
+
+                sendBinary(packet)
+                addDebug(`Sent image ${i + 1}/${record.images.length}: ${formatBytes(rawData.length)} → ${formatBytes(compressed.length)} (${((1 - compressed.length / rawData.length) * 100).toFixed(0)}% saved)`)
               }
             }
           }
 
-          connection.value.send({ type: 'history_record', record: exportRecord })
+          // Send record end
+          connection.value.send({ type: 'record_end', uuid })
           sent++
         } catch (err) {
           console.error('Failed to send record:', err)
@@ -632,7 +891,7 @@ export function usePeerSync() {
         transferProgress.value.current++
 
         // Small delay to prevent flooding
-        await new Promise(r => setTimeout(r, 50))
+        await new Promise(r => setTimeout(r, 20))
       }
 
       connection.value.send({
@@ -643,11 +902,13 @@ export function usePeerSync() {
         total: records.length,
       })
 
+      stopStatsTracking()
       status.value = 'completed'
       transferResult.value = { sent, failed, total: records.length }
 
     } catch (err) {
       console.error('Send failed:', err)
+      stopStatsTracking()
       error.value = err.message
       status.value = 'error'
     }
@@ -724,6 +985,9 @@ export function usePeerSync() {
    */
   const cleanup = () => {
     addDebug('Cleanup called')
+    // Stop stats tracking
+    stopStatsTracking()
+
     if (connection.value) {
       try {
         connection.value.close()
@@ -748,9 +1012,13 @@ export function usePeerSync() {
     remoteConfirmed.value = false
     transferProgress.value = { current: 0, total: 0, phase: '' }
     transferResult.value = null
+    transferStats.value = { bytesSent: 0, bytesReceived: 0, startTime: null, speed: 0, speedFormatted: '', totalFormatted: '' }
     error.value = null
     transferDirection.value = null
     debugLog.value = []
+    // Clear pending record state
+    pendingRecord.value = null
+    pendingImages.value = []
   }
 
   onUnmounted(() => {
@@ -767,6 +1035,7 @@ export function usePeerSync() {
     transferDirection,
     transferProgress,
     transferResult,
+    transferStats,
     isConnected,
     debugLog,
 
@@ -782,5 +1051,9 @@ export function usePeerSync() {
     hasCfTurnCredentials,
     clearCfTurnCredentials,
     fetchCfIceServers,
+
+    // Utilities
+    formatBytes,
+    formatSpeed,
   }
 }

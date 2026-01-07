@@ -402,9 +402,15 @@ const errorMessage = computed(() => {
                 </div>
 
                 <p class="text-gray-900 dark:text-white font-medium mb-2">{{ $t('peerSync.sending') }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   {{ sync.transferProgress.value.current }} / {{ sync.transferProgress.value.total }}
                 </p>
+
+                <!-- Transfer stats -->
+                <div v-if="sync.transferStats.value.totalFormatted" class="text-xs text-gray-500 dark:text-gray-400 mb-4 flex items-center justify-center gap-3">
+                  <span>{{ sync.transferStats.value.totalFormatted }}</span>
+                  <span class="text-cyan-500 dark:text-cyan-400">{{ sync.transferStats.value.speedFormatted }}</span>
+                </div>
 
                 <!-- Progress bar -->
                 <div class="w-full h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
@@ -430,6 +436,10 @@ const errorMessage = computed(() => {
                 <p class="text-gray-900 dark:text-white font-medium mb-2">{{ $t('peerSync.completed') }}</p>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                   {{ $t('peerSync.sentCount', { count: sync.transferResult.value?.sent || 0 }) }}
+                </p>
+                <!-- Final transfer stats -->
+                <p v-if="sync.transferStats.value.totalFormatted" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {{ sync.transferStats.value.totalFormatted }}
                 </p>
               </div>
             </template>
@@ -540,9 +550,15 @@ const errorMessage = computed(() => {
                 </div>
 
                 <p class="text-gray-900 dark:text-white font-medium mb-2">{{ $t('peerSync.receiving') }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   {{ sync.transferProgress.value.current }} / {{ sync.transferProgress.value.total }}
                 </p>
+
+                <!-- Transfer stats -->
+                <div v-if="sync.transferStats.value.totalFormatted" class="text-xs text-gray-500 dark:text-gray-400 mb-4 flex items-center justify-center gap-3">
+                  <span>{{ sync.transferStats.value.totalFormatted }}</span>
+                  <span class="text-purple-500 dark:text-purple-400">{{ sync.transferStats.value.speedFormatted }}</span>
+                </div>
 
                 <!-- Progress bar -->
                 <div class="w-full h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
