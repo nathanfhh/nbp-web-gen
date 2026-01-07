@@ -675,12 +675,14 @@ const downloadAllAsZip = async () => {
   try {
     const zip = new JSZip()
 
+    const prefix = props.historyId ? `${props.historyId}-` : ''
+
     for (let i = 0; i < props.images.length; i++) {
       const image = props.images[i]
       const blob = await imageToBlob(image)
       if (blob) {
         const ext = image.mimeType?.split('/')[1] || 'png'
-        zip.file(`image-${i + 1}.${ext}`, blob)
+        zip.file(`image-${prefix}${i + 1}.${ext}`, blob)
       }
     }
 
@@ -689,7 +691,7 @@ const downloadAllAsZip = async () => {
 
     const link = document.createElement('a')
     link.href = url
-    link.download = `images-${Date.now()}.zip`
+    link.download = `images-${prefix}${Date.now()}.zip`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -722,7 +724,8 @@ const downloadAllAsPdf = async () => {
       imageDataArray.push({ data: arrayBuffer, mimeType })
     }
 
-    await pdfGenerator.generateAndDownload(imageDataArray, `images-${Date.now()}`)
+    const prefix = props.historyId ? `${props.historyId}-` : ''
+    await pdfGenerator.generateAndDownload(imageDataArray, `images-${prefix}${Date.now()}`)
   } catch (err) {
     console.error('PDF generation failed:', err)
     toast.error(t('lightbox.pdfError'))
