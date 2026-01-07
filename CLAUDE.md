@@ -71,6 +71,8 @@ Five modes with mode-specific option components and prompt builders:
 - Tailwind CSS v4 for styling
 - All API calls use SSE streaming when possible
 - Generation results saved to history in background (non-blocking)
+- **UI/Styling**: Always consider both light and dark mode when designing components
+- **Mobile UX**: Design for touch - consider tap targets, gestures, screen sizes, and provide alternatives for hover-only interactions
 
 ## User Preferences
 

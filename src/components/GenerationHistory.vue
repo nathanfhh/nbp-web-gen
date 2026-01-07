@@ -46,8 +46,20 @@ const modeLabels = computed(() => ({
 // Track the current lightbox item's mode
 const lightboxItemMode = ref('')
 
+// Tooltip state for mobile tap support
+const activeTooltipId = ref(null)
+
+const toggleTooltip = (id, event) => {
+  event.stopPropagation()
+  activeTooltipId.value = activeTooltipId.value === id ? null : id
+}
+
 const formatTime = (timestamp) => {
   return dayjs(timestamp).fromNow()
+}
+
+const formatFullTime = (timestamp) => {
+  return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
 }
 
 const truncatePrompt = (prompt, maxLength = 60) => {
@@ -235,8 +247,19 @@ const closeLightbox = () => {
               >
                 {{ modeLabels[item.mode] || item.mode }}
               </span>
-              <span class="text-xs text-gray-500">
-                {{ formatTime(item.timestamp) }}
+              <span class="relative group/time">
+                <span
+                  class="text-xs text-gray-500 cursor-pointer select-none"
+                  @click="toggleTooltip(item.id, $event)"
+                >
+                  {{ formatTime(item.timestamp) }}
+                </span>
+                <span
+                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-gray-800 dark:text-white bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
+                  :class="activeTooltipId === item.id ? 'opacity-100 visible' : 'opacity-0 invisible md:group-hover/time:opacity-100 md:group-hover/time:visible'"
+                >
+                  {{ formatFullTime(item.timestamp) }}
+                </span>
               </span>
             </div>
             <p class="text-sm text-gray-300 truncate">
