@@ -10,6 +10,7 @@ import { useImageStorage } from '@/composables/useImageStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
+import HistoryTransfer from '@/components/HistoryTransfer.vue'
 
 dayjs.extend(relativeTime)
 
@@ -172,6 +173,15 @@ const closeLightbox = () => {
   lightboxHistoryId.value = null
   lightboxItemMode.value = ''
 }
+
+// History transfer (export/import)
+const showTransfer = ref(false)
+
+const handleImported = async () => {
+  // Reload history after import
+  await store.loadHistory()
+  await store.updateStorageUsage()
+}
 </script>
 
 <template>
@@ -184,13 +194,26 @@ const closeLightbox = () => {
         {{ $t('history.title') }}
         <span v-if="store.historyCount > 0" class="badge">{{ store.historyCount }}</span>
       </h3>
-      <button
-        v-if="store.history.length > 0"
-        @click="clearAll"
-        class="text-xs text-gray-500 hover:text-red-400 transition-colors"
-      >
-        {{ $t('common.clearAll') }}
-      </button>
+      <div class="flex items-center gap-2">
+        <!-- Transfer (Export/Import) button -->
+        <button
+          @click="showTransfer = true"
+          class="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-purple-400 transition-all"
+          :title="$t('historyTransfer.title')"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+        </button>
+        <!-- Clear all button -->
+        <button
+          v-if="store.history.length > 0"
+          @click="clearAll"
+          class="text-xs text-gray-500 hover:text-red-400 transition-colors"
+        >
+          {{ $t('common.clearAll') }}
+        </button>
+      </div>
     </div>
 
     <!-- Storage Usage -->
@@ -319,6 +342,12 @@ const closeLightbox = () => {
       :is-historical="true"
       :is-sticker-mode="lightboxItemMode === 'sticker'"
       @close="closeLightbox"
+    />
+
+    <!-- History Transfer (Export/Import) -->
+    <HistoryTransfer
+      v-model="showTransfer"
+      @imported="handleImported"
     />
   </div>
 </template>

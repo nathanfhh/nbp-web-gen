@@ -6,7 +6,7 @@ import { useImageStorage } from '@/composables/useImageStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions } from '@/constants'
 
 export const useGeneratorStore = defineStore('generator', () => {
-  const { saveSetting, addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount } =
+  const { saveSetting, addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount, migrateAddUUIDs } =
     useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
   const imageStorage = useImageStorage()
@@ -127,6 +127,9 @@ export const useGeneratorStore = defineStore('generator', () => {
     if (savedEditOptions) {
       editOptions.value.resolution = savedEditOptions.resolution || '1k'
     }
+
+    // Migrate existing records to add UUID (idempotent)
+    await migrateAddUUIDs()
 
     // Load history from IndexedDB
     await loadHistory()
