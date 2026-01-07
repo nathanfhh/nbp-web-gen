@@ -179,6 +179,9 @@ export function useGeneration() {
         saveImagesToStorage(historyId, result.images)
       }
 
+      // Set current history ID for ImagePreview to use
+      store.setCurrentHistoryId(historyId)
+
       // Save settings
       await store.saveSettings()
 

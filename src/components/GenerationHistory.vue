@@ -16,6 +16,7 @@ const confirmModal = ref(null)
 const showLightbox = ref(false)
 const lightboxImages = ref([])
 const lightboxMetadata = ref([])
+const lightboxHistoryId = ref(null)
 const lightboxInitialIndex = ref(0)
 const isLoadingImages = ref(false)
 
@@ -143,6 +144,7 @@ const openHistoryLightbox = async (item, event) => {
     const loadedImages = await imageStorage.loadHistoryImages(item)
     lightboxImages.value = loadedImages
     lightboxMetadata.value = item.images
+    lightboxHistoryId.value = item.id
     lightboxInitialIndex.value = 0
     lightboxItemMode.value = item.mode || ''
     showLightbox.value = true
@@ -157,6 +159,7 @@ const closeLightbox = () => {
   showLightbox.value = false
   lightboxImages.value = []
   lightboxMetadata.value = []
+  lightboxHistoryId.value = null
   lightboxItemMode.value = ''
 }
 </script>
@@ -199,20 +202,25 @@ const closeLightbox = () => {
           <!-- Thumbnail (if images exist) -->
           <div
             v-if="item.images && item.images.length > 0"
-            @click="openHistoryLightbox(item, $event)"
-            class="relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
+            class="flex-shrink-0 flex flex-col items-center gap-1"
           >
-            <img
-              :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
-              :alt="`History image ${item.id}`"
-              class="w-full h-full object-cover"
-            />
             <div
-              v-if="item.images.length > 1"
-              class="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+              @click="openHistoryLightbox(item, $event)"
+              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
             >
-              +{{ item.images.length - 1 }}
+              <img
+                :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
+                :alt="`History image ${item.id}`"
+                class="w-full h-full object-cover"
+              />
+              <div
+                v-if="item.images.length > 1"
+                class="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+              >
+                +{{ item.images.length - 1 }}
+              </div>
             </div>
+            <span class="text-xs text-gray-600">#{{ item.id }}</span>
           </div>
 
           <div class="flex-1 min-w-0">
@@ -286,6 +294,7 @@ const closeLightbox = () => {
       :images="lightboxImages"
       :image-metadata="lightboxMetadata"
       :initial-index="lightboxInitialIndex"
+      :history-id="lightboxHistoryId"
       :is-historical="true"
       :is-sticker-mode="lightboxItemMode === 'sticker'"
       @close="closeLightbox"

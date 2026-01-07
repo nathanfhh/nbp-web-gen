@@ -313,7 +313,11 @@
     "original": "Original",
     "originalFormat": "Original Format",
     "close": "Close",
-    "historical": "Historical"
+    "historical": "Historical",
+    "downloadAll": "Download All Images",
+    "all": "All",
+    "pdfError": "Failed to generate PDF",
+    "zipError": "Failed to generate ZIP"
   },
   "stickerCropper": {
     "title": "Sticker Cropper Tool",
@@ -343,6 +347,8 @@
       "process": "Start Processing",
       "processing": "Processing...",
       "download": "Download Selected ({count})",
+      "downloadZip": "ZIP ({count})",
+      "downloadPdf": "PDF ({count})",
       "downloading": "Packing..."
     },
     "overlay": {
@@ -357,7 +363,9 @@
       "colorPicked": "Background color selected",
       "cropSuccess": "Successfully cropped {count} stickers",
       "noStickers": "No stickers detected, please adjust tolerance and retry",
-      "processingError": "Processing failed, please try again"
+      "processingError": "Processing failed, please try again",
+      "pdfError": "Failed to generate PDF",
+      "zipError": "Failed to generate ZIP"
     }
   },
   "storyProgress": {

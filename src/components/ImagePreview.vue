@@ -158,6 +158,7 @@ const clearImages = () => {
       :images="store.generatedImages"
       :image-metadata="store.generatedImagesMetadata"
       :initial-index="lightboxIndex"
+      :history-id="store.currentHistoryId"
       :is-historical="false"
       :is-sticker-mode="store.currentMode === 'sticker'"
     />
