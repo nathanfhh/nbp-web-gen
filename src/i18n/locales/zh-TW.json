@@ -461,16 +461,17 @@
       "failed": "匯入失敗"
     },
     "turn": {
-      "title": "TURN 伺服器設定",
-      "description": "若網路環境受限（如 NAT 後），可能需要 TURN 伺服器來中繼連線。可從 Metered.ca 取得免費憑證。",
-      "getCredentials": "取得免費 TURN 憑證",
-      "urlLabel": "TURN 伺服器位址",
-      "usernameLabel": "使用者名稱",
-      "credentialLabel": "密碼",
-      "usernamePlaceholder": "輸入使用者名稱",
-      "credentialPlaceholder": "輸入密碼",
-      "saved": "TURN 設定已儲存",
-      "cleared": "TURN 設定已清除"
+      "title": "Cloudflare TURN 設定",
+      "description": "若網路環境受限（如 NAT 後），需要 TURN 伺服器來中繼連線。請從 Cloudflare Calls 取得 TURN 憑證。",
+      "cloudflareLink": "Cloudflare TURN 文件",
+      "tokenIdLabel": "TURN Token ID",
+      "tokenIdPlaceholder": "輸入 TURN Token ID",
+      "apiTokenLabel": "API Token",
+      "apiTokenPlaceholder": "輸入 Cloudflare API Token",
+      "saved": "TURN 設定已儲存並驗證成功",
+      "cleared": "TURN 設定已清除",
+      "verifying": "驗證中...",
+      "fetchFailed": "無法取得 ICE 憑證，請檢查 Token 是否正確"
     }
   }
 }

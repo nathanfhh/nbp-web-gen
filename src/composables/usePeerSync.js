@@ -14,106 +14,170 @@ const EMOJI_POOL = [
   '🚀', '✈️', '🚗', '🚲', '⛵', '🎈', '🎮', '🎸',
 ]
 
-// Base STUN servers (always included)
-const BASE_ICE_SERVERS = [
-  // Google STUN servers (reliable, free)
+// Fallback STUN servers (used when no custom config)
+const FALLBACK_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
 ]
 
-// TURN credential storage key
-const TURN_STORAGE_KEY = 'nbp-turn-credentials'
+// Storage keys for Cloudflare TURN credentials
+const CF_TURN_CREDENTIALS_KEY = 'nbp-cf-turn-credentials'
+const CF_ICE_CACHE_KEY = 'nbp-cf-ice-cache'
 
-// Default Metered.ca TURN server host
-export const DEFAULT_TURN_HOST = 'global.turn.metered.ca'
+// Cloudflare TURN API TTL (24 hours in seconds)
+const CLOUDFLARE_TURN_TTL = 86400
 
 /**
- * Get stored TURN credentials from localStorage
- * Returns: { url?: string, username: string, credential: string }
+ * Get stored Cloudflare TURN credentials from localStorage
+ * @returns {{ turnTokenId: string, apiToken: string } | null}
  */
-function getTurnCredentials() {
+function getCfTurnCredentials() {
   try {
-    const stored = localStorage.getItem(TURN_STORAGE_KEY)
+    const stored = localStorage.getItem(CF_TURN_CREDENTIALS_KEY)
     if (stored) {
       return JSON.parse(stored)
     }
   } catch (e) {
-    console.error('Failed to read TURN credentials:', e)
+    console.error('Failed to read Cloudflare TURN credentials:', e)
   }
   return null
 }
 
 /**
- * Save TURN credentials to localStorage
- * @param {string} url - Custom TURN server URL (optional, defaults to Metered.ca)
- * @param {string} username - TURN username
- * @param {string} credential - TURN credential/password
+ * Save Cloudflare TURN credentials to localStorage
+ * @param {string} turnTokenId - Cloudflare TURN Token ID
+ * @param {string} apiToken - Cloudflare API Token
+ * @returns {{ success: boolean, error?: string }}
  */
-function saveTurnCredentials(url, username, credential) {
+function saveCfTurnCredentials(turnTokenId, apiToken) {
   try {
-    if (username && credential) {
-      localStorage.setItem(TURN_STORAGE_KEY, JSON.stringify({ url: url || '', username, credential }))
-      return true
-    } else {
-      localStorage.removeItem(TURN_STORAGE_KEY)
-      return true
+    if (!turnTokenId?.trim() || !apiToken?.trim()) {
+      localStorage.removeItem(CF_TURN_CREDENTIALS_KEY)
+      localStorage.removeItem(CF_ICE_CACHE_KEY)
+      return { success: true }
     }
+    localStorage.setItem(CF_TURN_CREDENTIALS_KEY, JSON.stringify({
+      turnTokenId: turnTokenId.trim(),
+      apiToken: apiToken.trim(),
+    }))
+    // Clear cached ICE servers when credentials change
+    localStorage.removeItem(CF_ICE_CACHE_KEY)
+    return { success: true }
   } catch (e) {
-    console.error('Failed to save TURN credentials:', e)
-    return false
+    return { success: false, error: e.message }
   }
 }
 
 /**
- * Build ICE servers list with optional TURN
+ * Check if Cloudflare TURN credentials are configured
  */
-function buildIceServers() {
-  const servers = [...BASE_ICE_SERVERS]
-  const turnCreds = getTurnCredentials()
+function hasCfTurnCredentials() {
+  const creds = getCfTurnCredentials()
+  return !!(creds?.turnTokenId && creds?.apiToken)
+}
 
-  if (turnCreds?.username && turnCreds?.credential) {
-    // Use custom URL if provided, otherwise use Metered.ca
-    const turnHost = turnCreds.url?.trim() || DEFAULT_TURN_HOST
+/**
+ * Clear Cloudflare TURN credentials
+ */
+function clearCfTurnCredentials() {
+  localStorage.removeItem(CF_TURN_CREDENTIALS_KEY)
+  localStorage.removeItem(CF_ICE_CACHE_KEY)
+}
 
-    // Check if custom URL is a full URL (starts with turn: or turns:)
-    if (turnHost.startsWith('turn:') || turnHost.startsWith('turns:')) {
-      // Custom full URL - use as-is
-      servers.push({
-        urls: turnHost,
-        username: turnCreds.username,
-        credential: turnCreds.credential,
-      })
-    } else {
-      // Host only - add standard TURN server configurations
-      servers.push(
-        {
-          urls: `turn:${turnHost}:80`,
-          username: turnCreds.username,
-          credential: turnCreds.credential,
-        },
-        {
-          urls: `turn:${turnHost}:443`,
-          username: turnCreds.username,
-          credential: turnCreds.credential,
-        },
-        {
-          urls: `turn:${turnHost}:443?transport=tcp`,
-          username: turnCreds.username,
-          credential: turnCreds.credential,
-        },
-        {
-          urls: `turns:${turnHost}:443?transport=tcp`,
-          username: turnCreds.username,
-          credential: turnCreds.credential,
-        }
-      )
-    }
+/**
+ * Fetch ICE servers from Cloudflare TURN API
+ * @returns {Promise<{ success: boolean, iceServers?: Array, error?: string }>}
+ */
+async function fetchCfIceServers() {
+  const creds = getCfTurnCredentials()
+  if (!creds?.turnTokenId || !creds?.apiToken) {
+    return { success: false, error: 'Cloudflare TURN credentials not configured' }
   }
 
-  return servers
+  try {
+    const response = await fetch(
+      `https://rtc.live.cloudflare.com/v1/turn/keys/${creds.turnTokenId}/credentials/generate-ice-servers`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${creds.apiToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ttl: CLOUDFLARE_TURN_TTL }),
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: `Cloudflare API error: ${response.status} - ${errorText}` }
+    }
+
+    const data = await response.json()
+    const iceServers = data.iceServers || data
+
+    if (!Array.isArray(iceServers)) {
+      return { success: false, error: 'Invalid response format from Cloudflare' }
+    }
+
+    // Cache the result with expiration (use 90% of TTL to refresh before expiry)
+    const cacheExpiry = Date.now() + (CLOUDFLARE_TURN_TTL * 0.9 * 1000)
+    localStorage.setItem(CF_ICE_CACHE_KEY, JSON.stringify({
+      iceServers,
+      expiry: cacheExpiry,
+    }))
+
+    return { success: true, iceServers }
+  } catch (e) {
+    return { success: false, error: e.message }
+  }
+}
+
+/**
+ * Get cached ICE servers if still valid
+ * @returns {Array|null}
+ */
+function getCachedIceServers() {
+  try {
+    const cached = localStorage.getItem(CF_ICE_CACHE_KEY)
+    if (cached) {
+      const { iceServers, expiry } = JSON.parse(cached)
+      if (Date.now() < expiry) {
+        return iceServers
+      }
+      // Cache expired, remove it
+      localStorage.removeItem(CF_ICE_CACHE_KEY)
+    }
+  } catch (e) {
+    console.error('Failed to read ICE cache:', e)
+  }
+  return null
+}
+
+/**
+ * Build ICE servers list - uses cache or fetches fresh if needed
+ * @returns {Promise<Array>}
+ */
+async function buildIceServers() {
+  // Check if Cloudflare credentials are configured
+  if (!hasCfTurnCredentials()) {
+    return FALLBACK_ICE_SERVERS
+  }
+
+  // Check cache first
+  const cached = getCachedIceServers()
+  if (cached) {
+    return cached
+  }
+
+  // Fetch fresh ICE servers
+  const result = await fetchCfIceServers()
+  if (result.success && result.iceServers) {
+    return result.iceServers
+  }
+
+  // Fallback if fetch fails
+  console.warn('Failed to fetch Cloudflare ICE servers, using fallback:', result.error)
+  return FALLBACK_ICE_SERVERS
 }
 
 // Generate 6-char alphanumeric code (easy to type)
@@ -187,13 +251,16 @@ export function usePeerSync() {
     transferDirection.value = 'send'
 
     try {
+      // Fetch ICE servers (may call Cloudflare API if configured)
+      const iceServers = await buildIceServers()
+
       // Use code as peer ID with prefix
       const peerId = `nbp-sync-${code}`
       peer.value = new Peer(peerId, {
         debug: 2,
         pingInterval: 5000,
         config: {
-          iceServers: buildIceServers(),
+          iceServers,
           iceCandidatePoolSize: 10,
         },
       })
@@ -265,6 +332,9 @@ export function usePeerSync() {
     transferDirection.value = 'receive'
 
     try {
+      // Fetch ICE servers (may call Cloudflare API if configured)
+      const iceServers = await buildIceServers()
+
       // Generate unique receiver ID
       const myId = `nbp-recv-${generateConnectionCode()}-${Date.now().toString(36)}`
       addDebug(`Creating peer: ${myId}`)
@@ -273,7 +343,7 @@ export function usePeerSync() {
         debug: 2,
         pingInterval: 5000,
         config: {
-          iceServers: buildIceServers(),
+          iceServers,
           iceCandidatePoolSize: 10,
         },
       })
@@ -706,8 +776,11 @@ export function usePeerSync() {
     confirmPairing,
     cleanup,
 
-    // TURN credential management
-    getTurnCredentials,
-    saveTurnCredentials,
+    // Cloudflare TURN credentials management
+    getCfTurnCredentials,
+    saveCfTurnCredentials,
+    hasCfTurnCredentials,
+    clearCfTurnCredentials,
+    fetchCfIceServers,
   }
 }

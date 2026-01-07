@@ -461,16 +461,17 @@
       "failed": "Failed"
     },
     "turn": {
-      "title": "TURN Server Settings",
-      "description": "For NAT traversal, you may need TURN server credentials. Get free credentials from Metered.ca.",
-      "getCredentials": "Get Free TURN Credentials",
-      "urlLabel": "TURN Server Host",
-      "usernameLabel": "Username",
-      "credentialLabel": "Credential",
-      "usernamePlaceholder": "Enter username",
-      "credentialPlaceholder": "Enter credential/password",
-      "saved": "TURN settings saved",
-      "cleared": "TURN settings cleared"
+      "title": "Cloudflare TURN Settings",
+      "description": "For NAT traversal, you need TURN server credentials. Get credentials from Cloudflare Calls.",
+      "cloudflareLink": "Cloudflare TURN Docs",
+      "tokenIdLabel": "TURN Token ID",
+      "tokenIdPlaceholder": "Enter TURN Token ID",
+      "apiTokenLabel": "API Token",
+      "apiTokenPlaceholder": "Enter Cloudflare API Token",
+      "saved": "TURN settings saved and verified",
+      "cleared": "TURN settings cleared",
+      "verifying": "Verifying...",
+      "fetchFailed": "Failed to fetch ICE credentials, please check your tokens"
     }
   }
 }

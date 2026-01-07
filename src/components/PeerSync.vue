@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { usePeerSync, DEFAULT_TURN_HOST } from '@/composables/usePeerSync'
+import { usePeerSync } from '@/composables/usePeerSync'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
@@ -17,45 +17,45 @@ const emit = defineEmits(['update:modelValue', 'synced'])
 const mode = ref(null) // null | 'send' | 'receive'
 const inputCode = ref('')
 
-// TURN settings
+// Cloudflare TURN settings
 const showTurnSettings = ref(false)
-const turnUrl = ref('')
-const turnUsername = ref('')
-const turnCredential = ref('')
-const hasTurnCredentials = computed(() => {
-  const creds = sync.getTurnCredentials()
-  return !!(creds?.username && creds?.credential)
-})
+const turnTokenId = ref('')
+const apiToken = ref('')
+const isFetchingIce = ref(false)
+const hasTurnConfig = computed(() => sync.hasCfTurnCredentials())
 
-// Load TURN credentials on mount
+// Load Cloudflare TURN credentials on mount
 onMounted(() => {
-  const creds = sync.getTurnCredentials()
+  const creds = sync.getCfTurnCredentials()
   if (creds) {
-    turnUrl.value = creds.url || DEFAULT_TURN_HOST
-    turnUsername.value = creds.username || ''
-    turnCredential.value = creds.credential || ''
-  } else {
-    turnUrl.value = DEFAULT_TURN_HOST
+    turnTokenId.value = creds.turnTokenId || ''
+    apiToken.value = creds.apiToken || ''
   }
 })
 
-const saveTurnSettings = () => {
-  const success = sync.saveTurnCredentials(
-    turnUrl.value.trim(),
-    turnUsername.value.trim(),
-    turnCredential.value.trim()
-  )
-  if (success) {
-    toast.success(t('peerSync.turn.saved'))
-    showTurnSettings.value = false
+const saveTurnSettings = async () => {
+  const result = sync.saveCfTurnCredentials(turnTokenId.value, apiToken.value)
+  if (result.success) {
+    // Test the credentials by fetching ICE servers
+    isFetchingIce.value = true
+    const fetchResult = await sync.fetchCfIceServers()
+    isFetchingIce.value = false
+
+    if (fetchResult.success) {
+      toast.success(t('peerSync.turn.saved'))
+      showTurnSettings.value = false
+    } else {
+      toast.error(fetchResult.error || t('peerSync.turn.fetchFailed'))
+    }
+  } else {
+    toast.error(result.error)
   }
 }
 
 const clearTurnSettings = () => {
-  turnUrl.value = DEFAULT_TURN_HOST
-  turnUsername.value = ''
-  turnCredential.value = ''
-  sync.saveTurnCredentials('', '', '')
+  turnTokenId.value = ''
+  apiToken.value = ''
+  sync.clearCfTurnCredentials()
   toast.success(t('peerSync.turn.cleared'))
 }
 
@@ -248,7 +248,7 @@ const errorMessage = computed(() => {
               </button>
             </div>
 
-            <!-- TURN Settings (collapsible) -->
+            <!-- Cloudflare TURN Settings (collapsible) -->
             <div class="mt-6 pt-4 border-t border-gray-200 dark:border-white/10">
               <button
                 @click="showTurnSettings = !showTurnSettings"
@@ -260,7 +260,7 @@ const errorMessage = computed(() => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   <span>{{ $t('peerSync.turn.title') }}</span>
-                  <span v-if="hasTurnCredentials" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span v-if="hasTurnConfig" class="w-2 h-2 rounded-full bg-emerald-500"></span>
                 </div>
                 <svg
                   class="w-4 h-4 transition-transform"
@@ -275,56 +275,48 @@ const errorMessage = computed(() => {
 
               <Transition name="slide">
                 <div v-if="showTurnSettings" class="mt-4 space-y-3">
-                  <p class="text-xs text-gray-600">
+                  <p class="text-xs text-gray-600 dark:text-gray-400">
                     {{ $t('peerSync.turn.description') }}
                   </p>
                   <a
-                    href="https://www.metered.ca/tools/openrelay/"
+                    href="https://developers.cloudflare.com/calls/turn/"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-cyan-400 hover:underline"
                   >
-                    {{ $t('peerSync.turn.getCredentials') }}
+                    {{ $t('peerSync.turn.cloudflareLink') }}
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   </a>
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('peerSync.turn.urlLabel') }}</label>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ $t('peerSync.turn.tokenIdLabel') }}</label>
                     <input
-                      v-model="turnUrl"
-                      type="text"
-                      class="w-full bg-white dark:bg-black/30 border border-gray-300 dark:border-white/20 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('peerSync.turn.usernameLabel') }}</label>
-                    <input
-                      v-model="turnUsername"
+                      v-model="turnTokenId"
                       type="text"
                       class="w-full bg-white dark:bg-black/30 border border-gray-300 dark:border-white/20 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 transition-all"
-                      :placeholder="$t('peerSync.turn.usernamePlaceholder')"
+                      :placeholder="$t('peerSync.turn.tokenIdPlaceholder')"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('peerSync.turn.credentialLabel') }}</label>
+                    <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">{{ $t('peerSync.turn.apiTokenLabel') }}</label>
                     <input
-                      v-model="turnCredential"
+                      v-model="apiToken"
                       type="password"
                       class="w-full bg-white dark:bg-black/30 border border-gray-300 dark:border-white/20 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 transition-all"
-                      :placeholder="$t('peerSync.turn.credentialPlaceholder')"
+                      :placeholder="$t('peerSync.turn.apiTokenPlaceholder')"
                     />
                   </div>
                   <div class="flex gap-2">
                     <button
                       @click="saveTurnSettings"
-                      :disabled="!turnUsername.trim() || !turnCredential.trim()"
+                      :disabled="!turnTokenId.trim() || !apiToken.trim() || isFetchingIce"
                       class="flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all bg-blue-600 dark:bg-cyan-600 text-white hover:bg-blue-700 dark:hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {{ $t('common.save') }}
+                      {{ isFetchingIce ? $t('peerSync.turn.verifying') : $t('common.save') }}
                     </button>
                     <button
-                      v-if="hasTurnCredentials"
+                      v-if="hasTurnConfig"
                       @click="clearTurnSettings"
                       class="py-2 px-3 rounded-lg text-xs font-medium transition-all bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-white/20"
                     >
