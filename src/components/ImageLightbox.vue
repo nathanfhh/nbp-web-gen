@@ -979,7 +979,7 @@ const downloadAllAsPdf = async () => {
   background: rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(8px);
   animation: lightbox-fade-in 0.3s ease-out;
-  /* 確保無額外 padding/margin 影響居中 */
+  /* Ensure no extra padding/margin affects centering */
   padding: 0;
   margin: 0;
   box-sizing: border-box;
@@ -1067,7 +1067,7 @@ const downloadAllAsPdf = async () => {
   overflow: visible;
   user-select: none;
   touch-action: none;
-  /* 確保在 flex 容器中完美居中 */
+  /* Ensure perfect centering in flex container */
   margin: auto;
   position: relative;
 }

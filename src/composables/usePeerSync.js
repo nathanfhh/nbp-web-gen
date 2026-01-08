@@ -1134,22 +1134,9 @@ export function usePeerSync() {
     // Stop stats tracking
     stopStatsTracking()
 
-    if (connection.value) {
-      try {
-        connection.value.close()
-      } catch (e) {
-        console.error('Error closing connection:', e)
-      }
-      connection.value = null
-    }
-    if (peer.value) {
-      try {
-        peer.value.destroy()
-      } catch (e) {
-        console.error('Error destroying peer:', e)
-      }
-      peer.value = null
-    }
+    // Close connection (reuse closeConnection to avoid duplication)
+    closeConnection()
+
     status.value = 'idle'
     connectionCode.value = ''
     pairingEmojis.value = []
