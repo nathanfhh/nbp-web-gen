@@ -1089,11 +1089,50 @@ html {
 }
 
 /* ============================================
-   Toast Light Mode - High Priority Override
+   Toast Light Mode - High Contrast Design
    ============================================ */
-html[data-theme="light"] .toast-item,
-html[data-theme="light"] .toast-item * {
-  color: #ffffff !important;
+html[data-theme="light"] .toast-item {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Success toast - light mode */
+html[data-theme="light"] .toast-item.bg-emerald-500\/20 {
+  background-color: rgba(209, 250, 229, 0.95) !important; /* emerald-100 */
+  border-color: rgb(16, 185, 129) !important; /* emerald-500 */
+}
+html[data-theme="light"] .toast-item.bg-emerald-500\/20,
+html[data-theme="light"] .toast-item.bg-emerald-500\/20 * {
+  color: rgb(6, 95, 70) !important; /* emerald-800 */
+}
+
+/* Error toast - light mode */
+html[data-theme="light"] .toast-item.bg-red-500\/20 {
+  background-color: rgba(254, 226, 226, 0.95) !important; /* red-100 */
+  border-color: rgb(239, 68, 68) !important; /* red-500 */
+}
+html[data-theme="light"] .toast-item.bg-red-500\/20,
+html[data-theme="light"] .toast-item.bg-red-500\/20 * {
+  color: rgb(153, 27, 27) !important; /* red-800 */
+}
+
+/* Info toast - light mode */
+html[data-theme="light"] .toast-item.bg-blue-500\/20 {
+  background-color: rgba(219, 234, 254, 0.95) !important; /* blue-100 */
+  border-color: rgb(59, 130, 246) !important; /* blue-500 */
+}
+html[data-theme="light"] .toast-item.bg-blue-500\/20,
+html[data-theme="light"] .toast-item.bg-blue-500\/20 * {
+  color: rgb(30, 64, 175) !important; /* blue-800 */
+}
+
+/* Warning toast - light mode */
+html[data-theme="light"] .toast-item.bg-amber-500\/20 {
+  background-color: rgba(254, 243, 199, 0.95) !important; /* amber-100 */
+  border-color: rgb(245, 158, 11) !important; /* amber-500 */
+}
+html[data-theme="light"] .toast-item.bg-amber-500\/20,
+html[data-theme="light"] .toast-item.bg-amber-500\/20 * {
+  color: rgb(146, 64, 14) !important; /* amber-800 */
 }
 
 /* ============================================
