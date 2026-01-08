@@ -16,6 +16,7 @@ const confirmModal = ref(null)
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  selectedIds: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['update:modelValue', 'synced'])
 
@@ -168,7 +169,7 @@ const close = async () => {
 
 const startSending = async () => {
   mode.value = 'send'
-  await sync.startAsSender()
+  await sync.startAsSender(props.selectedIds.length > 0 ? props.selectedIds : null)
 }
 
 const startReceiving = () => {

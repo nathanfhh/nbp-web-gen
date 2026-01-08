@@ -111,6 +111,16 @@
   color: #047857 !important;
 }
 
+[data-theme="light"] .text-red-400,
+[data-theme="light"] .text-red-300 {
+  color: #dc2626 !important;
+}
+
+[data-theme="light"] .text-blue-400,
+[data-theme="light"] .text-blue-300 {
+  color: #2563eb !important;
+}
+
 [data-theme="light"] .text-rose-400,
 [data-theme="light"] .text-rose-300 {
   color: #be123c !important;
@@ -242,6 +252,11 @@
 [data-theme="light"] .bg-purple-500\/20,
 [data-theme="light"] .bg-purple-500\/30 {
   background-color: rgba(13, 94, 175, 0.12) !important;
+}
+
+/* Light theme solid purple backgrounds (checkboxes, indicators) */
+[data-theme="light"] .bg-purple-500 {
+  background-color: #1976D2 !important;
 }
 
 [data-theme="light"] .bg-cyan-500\/20,
@@ -1071,4 +1086,12 @@ html {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* ============================================
+   Toast Light Mode - High Priority Override
+   ============================================ */
+html[data-theme="light"] .toast-item,
+html[data-theme="light"] .toast-item * {
+  color: #ffffff !important;
 }

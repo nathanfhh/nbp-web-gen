@@ -18,15 +18,21 @@ export function useHistoryTransfer() {
   const importResult = ref(null)
 
   /**
-   * Export all history records to JSON file
+   * Export history records to JSON file
+   * @param {Array<number>|null} selectedIds - Optional array of record IDs to export (null = all)
    * @returns {Promise<{success: boolean, count: number}>}
    */
-  const exportHistory = async () => {
+  const exportHistory = async (selectedIds = null) => {
     isExporting.value = true
     progress.value = { current: 0, total: 0, phase: 'preparing' }
 
     try {
-      const records = await indexedDB.getAllHistory()
+      let records
+      if (selectedIds && selectedIds.length > 0) {
+        records = await indexedDB.getHistoryByIds(selectedIds)
+      } else {
+        records = await indexedDB.getAllHistory()
+      }
       progress.value = { current: 0, total: records.length, phase: 'exporting' }
 
       const exportRecords = []

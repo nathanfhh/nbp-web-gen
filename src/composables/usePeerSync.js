@@ -137,6 +137,7 @@ export function usePeerSync() {
   const transferDirection = ref(null) // 'send' | 'receive'
   const transferProgress = ref({ current: 0, total: 0, phase: '' })
   const transferResult = ref(null)
+  const selectedRecordIds = ref(null) // Optional: specific record IDs to sync
 
   // Receiver-side counters for imported/skipped/failed
   const receiverCounts = ref({ imported: 0, skipped: 0, failed: 0 })
@@ -185,8 +186,9 @@ export function usePeerSync() {
 
   /**
    * Start as sender - create peer and wait for connection
+   * @param {Array<number>|null} selectedIds - Optional array of record IDs to sync (null = all)
    */
-  const startAsSender = async () => {
+  const startAsSender = async (selectedIds = null) => {
     cleanup()
 
     const code = generateConnectionCode()
@@ -194,6 +196,7 @@ export function usePeerSync() {
     status.value = 'waiting'
     error.value = null
     transferDirection.value = 'send'
+    selectedRecordIds.value = selectedIds
 
     try {
       // Fetch ICE servers (may call Cloudflare API if configured)
@@ -227,7 +230,7 @@ export function usePeerSync() {
         if (err.type === 'unavailable-id') {
            addDebug('ID taken, retrying with new code...')
            if (peer.value) peer.value.destroy()
-           startAsSender() // Recursive retry
+           startAsSender(selectedRecordIds.value) // Recursive retry with preserved selection
            return
         }
 
@@ -855,7 +858,7 @@ export function usePeerSync() {
   }
 
   /**
-   * Send history data (sender side) - Binary transfer with gzip compression
+   * Send history data (sender side) - Binary transfer
    */
   const sendHistoryData = async () => {
     if (!connection.value) return
@@ -864,7 +867,12 @@ export function usePeerSync() {
     startStatsTracking()
 
     try {
-      const records = await indexedDB.getAllHistory()
+      let records
+      if (selectedRecordIds.value && selectedRecordIds.value.length > 0) {
+        records = await indexedDB.getHistoryByIds(selectedRecordIds.value)
+      } else {
+        records = await indexedDB.getAllHistory()
+      }
       transferProgress.value = { current: 0, total: records.length, phase: 'sending' }
 
       // Send metadata first
@@ -1148,6 +1156,7 @@ export function usePeerSync() {
     transferStats.value = { bytesSent: 0, bytesReceived: 0, startTime: null, speed: 0, speedFormatted: '', totalFormatted: '' }
     error.value = null
     transferDirection.value = null
+    selectedRecordIds.value = null
     debugLog.value = []
     // Clear pending record state
     pendingRecord.value = null

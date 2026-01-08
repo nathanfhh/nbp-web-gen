@@ -259,9 +259,13 @@
   },
   "historyTransfer": {
     "title": "匯出/匯入",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "selectedCount": "已選 {count} 筆",
+    "noSelection": "請至少選擇一筆記錄",
     "export": {
       "title": "匯出歷史紀錄",
-      "description": "將所有歷史紀錄匯出為 JSON 檔案，包含圖片",
+      "description": "將選擇的紀錄匯出為 JSON 檔案，包含圖片",
       "button": "匯出",
       "progress": "正在處理 {current}/{total}"
     },

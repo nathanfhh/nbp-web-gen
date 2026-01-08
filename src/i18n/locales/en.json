@@ -259,9 +259,13 @@
   },
   "historyTransfer": {
     "title": "Export/Import",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "selectedCount": "{count} selected",
+    "noSelection": "Please select at least one record",
     "export": {
       "title": "Export History",
-      "description": "Export all history records to a JSON file with images",
+      "description": "Export selected records to a JSON file with images",
       "button": "Export",
       "progress": "Processing {current}/{total}"
     },

@@ -220,6 +220,48 @@ export function useIndexedDB() {
   }
 
   /**
+   * Get history records by specific IDs (for selective export/sync)
+   * @param {Array<number>} ids - Array of history record IDs
+   * @returns {Promise<Array>}
+   */
+  const getHistoryByIds = async (ids) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readonly')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const results = []
+      let completed = 0
+
+      if (ids.length === 0) {
+        resolve([])
+        return
+      }
+
+      ids.forEach((id) => {
+        const request = store.get(id)
+        request.onsuccess = () => {
+          if (request.result) {
+            results.push(request.result)
+          }
+          completed++
+          if (completed === ids.length) {
+            // Sort by timestamp descending (newest first)
+            results.sort((a, b) => b.timestamp - a.timestamp)
+            resolve(results)
+          }
+        }
+        request.onerror = () => {
+          completed++
+          if (completed === ids.length) {
+            results.sort((a, b) => b.timestamp - a.timestamp)
+            resolve(results)
+          }
+        }
+      })
+    })
+  }
+
+  /**
    * Check if a history record with given UUID exists
    * @param {string} uuid
    * @returns {Promise<boolean>}
@@ -296,6 +338,7 @@ export function useIndexedDB() {
     addHistory,
     getHistory,
     getHistoryById,
+    getHistoryByIds,
     deleteHistory,
     clearAllHistory,
     getHistoryCount,

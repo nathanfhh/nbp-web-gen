@@ -3,11 +3,15 @@ import { useToast } from '@/composables/useToast'
 
 const { toasts, remove } = useToast()
 
-const typeStyles = {
+const typeClasses = {
   success: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300',
   error: 'bg-red-500/20 border-red-500/50 text-red-300',
   info: 'bg-blue-500/20 border-blue-500/50 text-blue-300',
   warning: 'bg-amber-500/20 border-amber-500/50 text-amber-300',
+}
+
+const getTypeClass = (type) => {
+  return typeClasses[type] || typeClasses.info
 }
 
 const typeIcons = {
@@ -25,8 +29,8 @@ const typeIcons = {
         <div
           v-for="toast in toasts"
           :key="toast.id"
-          class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-lg min-w-[200px] max-w-[400px]"
-          :class="typeStyles[toast.type]"
+          class="toast-item pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-lg min-w-[200px] max-w-[400px]"
+          :class="getTypeClass(toast.type)"
         >
           <svg
             class="w-5 h-5 flex-shrink-0"
@@ -44,7 +48,7 @@ const typeIcons = {
           <span class="text-sm font-medium">{{ toast.message }}</span>
           <button
             @click="remove(toast.id)"
-            class="ml-auto p-1 rounded-lg hover:bg-white/10 transition-colors"
+            class="ml-auto p-1 rounded-lg hover:bg-black/10 transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -56,7 +60,8 @@ const typeIcons = {
   </Teleport>
 </template>
 
-<style scoped>
+<style>
+/* Toast animations (unscoped for Teleport) */
 .toast-enter-active {
   transition: all 0.3s ease-out;
 }

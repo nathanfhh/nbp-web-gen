@@ -72,6 +72,7 @@ Five modes with mode-specific option components and prompt builders:
 - All API calls use SSE streaming when possible
 - Generation results saved to history in background (non-blocking)
 - **UI/Styling**: Always consider both light and dark mode when designing components
+- **Theme Handling**: Use `[data-theme="light"]` selectors in `style.css` for light mode overrides, NOT Tailwind's `dark:` prefix. The project uses CSS variable-based theming with global overrides in `style.css`
 - **Mobile UX**: Design for touch - consider tap targets, gestures, screen sizes, and provide alternatives for hover-only interactions
 
 ## User Preferences
