@@ -4,11 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { usePeerSync } from '@/composables/usePeerSync'
 import { useCloudfareTurn } from '@/composables/useCloudfareTurn'
 import { useToast } from '@/composables/useToast'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const { t } = useI18n()
 const toast = useToast()
 const sync = usePeerSync()
 const turn = useCloudfareTurn()
+
+// Confirm modal for close during transfer
+const confirmModal = ref(null)
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -149,7 +153,16 @@ const resetState = () => {
   sync.cleanup()
 }
 
-const close = () => {
+const close = async () => {
+  // Confirm if transfer is in progress
+  if (sync.status.value === 'transferring' || sync.status.value === 'paired') {
+    const confirmed = await confirmModal.value?.show({
+      title: t('peerSync.closeConfirmTitle'),
+      message: t('peerSync.closeConfirmMessage'),
+      confirmText: t('peerSync.closeConfirmButton'),
+    })
+    if (!confirmed) return
+  }
   emit('update:modelValue', false)
 }
 
@@ -693,6 +706,9 @@ const errorMessage = computed(() => {
       </div>
     </Transition>
   </Teleport>
+
+  <!-- Confirm Modal -->
+  <ConfirmModal ref="confirmModal" />
 </template>
 
 <style scoped>
