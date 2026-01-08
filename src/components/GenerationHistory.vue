@@ -278,7 +278,7 @@ const handleImported = async () => {
                   {{ formatTime(item.timestamp) }}
                 </span>
                 <span
-                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-gray-800 dark:text-white bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
+                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-white bg-gray-800 border border-gray-700 backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
                   :class="activeTooltipId === item.id ? 'opacity-100 visible' : 'opacity-0 invisible md:group-hover/time:opacity-100 md:group-hover/time:visible'"
                 >
                   {{ formatFullTime(item.timestamp) }}

@@ -1,8 +1,5 @@
 @import 'tailwindcss';
 
-/* Enable class-based dark mode for Tailwind v4 */
-@custom-variant dark (&:where(.dark, .dark *));
-
 /* Custom CSS Variables for Premium Theme */
 :root,
 [data-theme="dark"] {
@@ -64,9 +61,22 @@
   color: #ffffff !important;
 }
 
-/* Keep text white inside dark overlays */
-[data-theme="light"] [class*="bg-black/"].text-white {
+/* Keep text white inside dark overlays (but not inputs) */
+[data-theme="light"] [class*="bg-black/"].text-white:not(input):not(textarea) {
   color: #ffffff !important;
+}
+
+/* Keep text white inside colored buttons */
+[data-theme="light"] [class*="bg-cyan-"].text-white,
+[data-theme="light"] [class*="bg-purple-"].text-white,
+[data-theme="light"] [class*="bg-emerald-"].text-white {
+  color: #ffffff !important;
+}
+
+/* Inputs and textareas should have dark text in light mode */
+[data-theme="light"] input.text-white,
+[data-theme="light"] textarea.text-white {
+  color: #1a1a2e !important;
 }
 
 [data-theme="light"] .text-gray-300 {
@@ -263,6 +273,48 @@
 /* Light theme code/debug text color */
 [data-theme="light"] .text-amber-200\/80 {
   color: #1a1a2e !important;
+}
+
+/* Light theme - Tooltip overrides */
+[data-theme="light"] .bg-gray-800 {
+  background-color: #ffffff !important;
+}
+
+[data-theme="light"] .border-gray-700 {
+  border-color: rgba(13, 94, 175, 0.2) !important;
+}
+
+/* Light theme - PeerSync component overrides */
+[data-theme="light"] .text-white\/80 {
+  color: #374151 !important;
+}
+
+[data-theme="light"] .text-white\/70 {
+  color: #4b5563 !important;
+}
+
+[data-theme="light"] .bg-black\/40 {
+  background-color: rgba(13, 94, 175, 0.12) !important;
+}
+
+[data-theme="light"] .bg-black\/20 {
+  background-color: rgba(13, 94, 175, 0.06) !important;
+}
+
+[data-theme="light"] .hover\:bg-white\/20:hover {
+  background-color: rgba(13, 94, 175, 0.15) !important;
+}
+
+[data-theme="light"] .bg-cyan-600 {
+  background-color: #0D5EAF !important;
+}
+
+[data-theme="light"] .hover\:bg-cyan-700:hover {
+  background-color: #0A4C8C !important;
+}
+
+[data-theme="light"] .focus\:ring-cyan-500:focus {
+  --tw-ring-color: rgba(13, 94, 175, 0.5) !important;
 }
 
 * {

@@ -23,9 +23,29 @@ const FALLBACK_ICE_SERVERS = [
 // Storage keys for Cloudflare TURN credentials
 const CF_TURN_CREDENTIALS_KEY = 'nbp-cf-turn-credentials'
 const CF_ICE_CACHE_KEY = 'nbp-cf-ice-cache'
+const CF_TURN_ENABLED_KEY = 'nbp-cf-turn-enabled'
 
 // Cloudflare TURN API TTL (24 hours in seconds)
 const CLOUDFLARE_TURN_TTL = 86400
+
+/**
+ * Check if TURN usage is enabled
+ * @returns {boolean}
+ */
+function isTurnEnabled() {
+  const stored = localStorage.getItem(CF_TURN_ENABLED_KEY)
+  // Default to true if not set and credentials exist
+  if (stored === null) return true
+  return stored === 'true'
+}
+
+/**
+ * Set TURN usage enabled/disabled
+ * @param {boolean} enabled
+ */
+function setTurnEnabled(enabled) {
+  localStorage.setItem(CF_TURN_ENABLED_KEY, String(enabled))
+}
 
 /**
  * Get stored Cloudflare TURN credentials from localStorage
@@ -158,8 +178,8 @@ function getCachedIceServers() {
  * @returns {Promise<Array>}
  */
 async function buildIceServers() {
-  // Check if Cloudflare credentials are configured
-  if (!hasCfTurnCredentials()) {
+  // Check if Cloudflare credentials are configured and TURN is enabled
+  if (!hasCfTurnCredentials() || !isTurnEnabled()) {
     return FALLBACK_ICE_SERVERS
   }
 
@@ -583,6 +603,8 @@ export function usePeerSync() {
             error.value = { key: 'peerSync.iceFailed' }
             status.value = 'error'
             clearTimeout(openTimeout)
+            // Close connection to stop any TURN traffic
+            closeConnection()
           }
         })
 
@@ -655,6 +677,8 @@ export function usePeerSync() {
       console.error('Connection error:', err)
       error.value = err.message || String(err)
       status.value = 'error'
+      // Close connection to stop any TURN traffic
+      closeConnection()
     })
   }
 
@@ -803,6 +827,8 @@ export function usePeerSync() {
         failed: receiverCounts.value.failed,
         total: data.total,
       }
+      // Close connection immediately to stop TURN billing
+      closeConnection()
     } else if (data.type === 'transfer_ack') {
       // Sender receives acknowledgment from receiver
       addDebug(`Received transfer_ack: ${data.receivedCount}/${data.expectedCount} records`)
@@ -1174,12 +1200,16 @@ export function usePeerSync() {
           failed: ack.failed,
           total: records.length,
         }
+        // Close connection immediately to stop TURN billing
+        closeConnection()
       } catch (ackErr) {
         addDebug(`ACK error: ${ackErr.message}`)
         // Still mark as completed but show warning
         stopStatsTracking()
         status.value = 'completed'
         transferResult.value = { sent, failed, total: records.length }
+        // Close connection immediately to stop TURN billing
+        closeConnection()
       }
 
     } catch (err) {
@@ -1187,6 +1217,8 @@ export function usePeerSync() {
       stopStatsTracking()
       error.value = err.message
       status.value = 'error'
+      // Close connection immediately to stop TURN billing
+      closeConnection()
     }
   }
 
@@ -1257,6 +1289,29 @@ export function usePeerSync() {
   }
 
   /**
+   * Close WebRTC connection only (preserve UI state for viewing results)
+   */
+  const closeConnection = () => {
+    addDebug('Closing connection to stop TURN billing')
+    if (connection.value) {
+      try {
+        connection.value.close()
+      } catch (e) {
+        console.error('Error closing connection:', e)
+      }
+      connection.value = null
+    }
+    if (peer.value) {
+      try {
+        peer.value.destroy()
+      } catch (e) {
+        console.error('Error destroying peer:', e)
+      }
+      peer.value = null
+    }
+  }
+
+  /**
    * Cleanup resources
    */
   const cleanup = () => {
@@ -1313,6 +1368,7 @@ export function usePeerSync() {
     error,
     pairingEmojis,
     pairingConfirmed,
+    localConfirmed,
     transferDirection,
     transferProgress,
     transferResult,
@@ -1332,6 +1388,8 @@ export function usePeerSync() {
     hasCfTurnCredentials,
     clearCfTurnCredentials,
     fetchCfIceServers,
+    isTurnEnabled,
+    setTurnEnabled,
 
     // Utilities
     formatBytes,
