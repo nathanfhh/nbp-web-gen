@@ -5,6 +5,7 @@ import { useImageStorage } from './useImageStorage'
 import { useOPFS } from './useOPFS'
 import { generateUUID } from './useUUID'
 import { generateThumbnailFromBlob } from './useImageCompression'
+import { buildIceServers } from './useCloudfareTurn'
 
 // Emoji pool for pairing verification (visually distinct)
 const EMOJI_POOL = [
@@ -14,197 +15,9 @@ const EMOJI_POOL = [
   '🚀', '✈️', '🚗', '🚲', '⛵', '🎈', '🎮', '🎸',
 ]
 
-// Fallback STUN servers (used when no custom config)
-const FALLBACK_ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-]
-
-// Storage keys for Cloudflare TURN credentials
-const CF_TURN_CREDENTIALS_KEY = 'nbp-cf-turn-credentials'
-const CF_ICE_CACHE_KEY = 'nbp-cf-ice-cache'
-
-// Cloudflare TURN API TTL (24 hours in seconds)
-const CLOUDFLARE_TURN_TTL = 86400
-
-/**
- * Get stored Cloudflare TURN credentials from localStorage
- * @returns {{ turnTokenId: string, apiToken: string } | null}
- */
-function getCfTurnCredentials() {
-  try {
-    const stored = localStorage.getItem(CF_TURN_CREDENTIALS_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (e) {
-    console.error('Failed to read Cloudflare TURN credentials:', e)
-  }
-  return null
-}
-
-/**
- * Save Cloudflare TURN credentials to localStorage
- * @param {string} turnTokenId - Cloudflare TURN Token ID
- * @param {string} apiToken - Cloudflare API Token
- * @returns {{ success: boolean, error?: string }}
- */
-function saveCfTurnCredentials(turnTokenId, apiToken) {
-  try {
-    if (!turnTokenId?.trim() || !apiToken?.trim()) {
-      localStorage.removeItem(CF_TURN_CREDENTIALS_KEY)
-      localStorage.removeItem(CF_ICE_CACHE_KEY)
-      return { success: true }
-    }
-    localStorage.setItem(CF_TURN_CREDENTIALS_KEY, JSON.stringify({
-      turnTokenId: turnTokenId.trim(),
-      apiToken: apiToken.trim(),
-    }))
-    // Clear cached ICE servers when credentials change
-    localStorage.removeItem(CF_ICE_CACHE_KEY)
-    return { success: true }
-  } catch (e) {
-    return { success: false, error: e.message }
-  }
-}
-
-/**
- * Check if Cloudflare TURN credentials are configured
- */
-function hasCfTurnCredentials() {
-  const creds = getCfTurnCredentials()
-  return !!(creds?.turnTokenId && creds?.apiToken)
-}
-
-/**
- * Clear Cloudflare TURN credentials
- */
-function clearCfTurnCredentials() {
-  localStorage.removeItem(CF_TURN_CREDENTIALS_KEY)
-  localStorage.removeItem(CF_ICE_CACHE_KEY)
-}
-
-/**
- * Fetch ICE servers from Cloudflare TURN API
- * @returns {Promise<{ success: boolean, iceServers?: Array, error?: string }>}
- */
-async function fetchCfIceServers() {
-  const creds = getCfTurnCredentials()
-  if (!creds?.turnTokenId || !creds?.apiToken) {
-    return { success: false, error: 'Cloudflare TURN credentials not configured' }
-  }
-
-  try {
-    const response = await fetch(
-      `https://rtc.live.cloudflare.com/v1/turn/keys/${creds.turnTokenId}/credentials/generate-ice-servers`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${creds.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ttl: CLOUDFLARE_TURN_TTL }),
-      }
-    )
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      return { success: false, error: `Cloudflare API error: ${response.status} - ${errorText}` }
-    }
-
-    const data = await response.json()
-    const iceServers = data.iceServers || data
-
-    if (!Array.isArray(iceServers)) {
-      return { success: false, error: 'Invalid response format from Cloudflare' }
-    }
-
-    // Cache the result with expiration (use 90% of TTL to refresh before expiry)
-    const cacheExpiry = Date.now() + (CLOUDFLARE_TURN_TTL * 0.9 * 1000)
-    localStorage.setItem(CF_ICE_CACHE_KEY, JSON.stringify({
-      iceServers,
-      expiry: cacheExpiry,
-    }))
-
-    return { success: true, iceServers }
-  } catch (e) {
-    return { success: false, error: e.message }
-  }
-}
-
-/**
- * Get cached ICE servers if still valid
- * @returns {Array|null}
- */
-function getCachedIceServers() {
-  try {
-    const cached = localStorage.getItem(CF_ICE_CACHE_KEY)
-    if (cached) {
-      const { iceServers, expiry } = JSON.parse(cached)
-      if (Date.now() < expiry) {
-        return iceServers
-      }
-      // Cache expired, remove it
-      localStorage.removeItem(CF_ICE_CACHE_KEY)
-    }
-  } catch (e) {
-    console.error('Failed to read ICE cache:', e)
-  }
-  return null
-}
-
-/**
- * Build ICE servers list - uses cache or fetches fresh if needed
- * @returns {Promise<Array>}
- */
-async function buildIceServers() {
-  // Check if Cloudflare credentials are configured
-  if (!hasCfTurnCredentials()) {
-    return FALLBACK_ICE_SERVERS
-  }
-
-  // Check cache first
-  const cached = getCachedIceServers()
-  if (cached) {
-    return cached
-  }
-
-  // Fetch fresh ICE servers
-  const result = await fetchCfIceServers()
-  if (result.success && result.iceServers) {
-    return result.iceServers
-  }
-
-  // Fallback if fetch fails
-  console.warn('Failed to fetch Cloudflare ICE servers, using fallback:', result.error)
-  return FALLBACK_ICE_SERVERS
-}
-
 // ============================================================================
 // Binary Transfer Utilities
 // ============================================================================
-
-/**
- * Compress data using gzip via CompressionStream API
- * @param {Uint8Array} data - Raw binary data
- * @returns {Promise<Uint8Array>} - Compressed data
- */
-async function gzipCompress(data) {
-  const stream = new Blob([data]).stream().pipeThrough(new CompressionStream('gzip'))
-  const compressedBlob = await new Response(stream).blob()
-  return new Uint8Array(await compressedBlob.arrayBuffer())
-}
-
-/**
- * Decompress gzip data via DecompressionStream API
- * @param {Uint8Array} compressed - Gzip compressed data
- * @returns {Promise<Uint8Array>} - Decompressed data
- */
-async function gzipDecompress(compressed) {
-  const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))
-  const decompressedBlob = await new Response(stream).blob()
-  return new Uint8Array(await decompressedBlob.arrayBuffer())
-}
 
 // Message type prefixes for raw binary mode
 const MSG_TYPE_JSON = 0x4A    // 'J' - JSON control message
@@ -583,6 +396,8 @@ export function usePeerSync() {
             error.value = { key: 'peerSync.iceFailed' }
             status.value = 'error'
             clearTimeout(openTimeout)
+            // Close connection to stop any TURN traffic
+            closeConnection()
           }
         })
 
@@ -655,6 +470,8 @@ export function usePeerSync() {
       console.error('Connection error:', err)
       error.value = err.message || String(err)
       status.value = 'error'
+      // Close connection to stop any TURN traffic
+      closeConnection()
     })
   }
 
@@ -803,6 +620,8 @@ export function usePeerSync() {
         failed: receiverCounts.value.failed,
         total: data.total,
       }
+      // Close connection immediately to stop TURN billing
+      closeConnection()
     } else if (data.type === 'transfer_ack') {
       // Sender receives acknowledgment from receiver
       addDebug(`Received transfer_ack: ${data.receivedCount}/${data.expectedCount} records`)
@@ -816,8 +635,8 @@ export function usePeerSync() {
   }
 
   /**
-   * Handle binary packet (compressed image data)
-   * Packet format: [4-byte header length][JSON header][compressed data]
+   * Handle binary packet (image data)
+   * Packet format: [4-byte header length][JSON header][image data]
    */
   const handleBinaryData = async (data) => {
     try {
@@ -839,13 +658,10 @@ export function usePeerSync() {
           return
         }
 
-        // Extract compressed data
-        const compressed = bytes.slice(4 + headerLength)
+        // Extract image data (raw binary, no compression)
+        const imageData = bytes.slice(4 + headerLength)
 
-        // Decompress
-        const imageData = await gzipDecompress(compressed)
-
-        addDebug(`Received image ${header.uuid}:${header.index}: ${formatBytes(header.compressedSize)} → ${formatBytes(imageData.length)}`)
+        addDebug(`Received image ${header.uuid}:${header.index}: ${formatBytes(imageData.length)}`)
 
         // Store for later saving (with uuid for extra safety)
         pendingImages.value.push({
@@ -954,8 +770,14 @@ export function usePeerSync() {
   /**
    * Wait for DataChannel buffer to drain below threshold
    * This implements backpressure to prevent overwhelming the channel
+   * @throws {Error} if connection is closed during drain
    */
   const waitForBufferDrain = async (threshold = 64 * 1024) => {
+    // Check if connection is still valid
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
+
     // PeerJS stores DataChannel in different properties depending on version
     // Common property names: dataChannel, _dc, _channel
     const dc = connection.value?.dataChannel ||
@@ -972,6 +794,11 @@ export function usePeerSync() {
     addDebug(`Waiting for buffer drain, current: ${dc.bufferedAmount}, threshold: ${threshold}`)
     let waitCount = 0
     while (dc.bufferedAmount > threshold) {
+      // Check connection status on each iteration
+      if (!connection.value || !connection.value.open) {
+        addDebug('Connection closed during buffer drain')
+        throw new Error('Connection closed')
+      }
       await new Promise((resolve) => setTimeout(resolve, 50))
       waitCount++
       if (waitCount % 20 === 0) {
@@ -989,8 +816,12 @@ export function usePeerSync() {
   /**
    * Send JSON message with stats tracking
    * @param {object} obj - JSON-serializable object
+   * @throws {Error} if connection is closed
    */
   const sendJson = (obj) => {
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
     const packet = encodeJsonMessage(obj)
     transferStats.value.bytesSent += packet.length
     connection.value.send(packet)
@@ -999,8 +830,12 @@ export function usePeerSync() {
   /**
    * Send binary data with stats tracking, type prefix, and backpressure
    * @param {ArrayBuffer|Uint8Array} data - Binary data to send
+   * @throws {Error} if connection is closed
    */
   const sendBinary = async (data) => {
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
     const raw = data instanceof Uint8Array ? data : new Uint8Array(data)
     // Prepend MSG_TYPE_BINARY prefix
     const packet = new Uint8Array(1 + raw.length)
@@ -1009,6 +844,11 @@ export function usePeerSync() {
 
     // Wait for buffer to drain before sending more (backpressure)
     await waitForBufferDrain()
+
+    // Check again after drain wait
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
 
     transferStats.value.bytesSent += packet.length
     connection.value.send(packet)
@@ -1053,7 +893,7 @@ export function usePeerSync() {
           // Send record start with metadata
           sendJson({ type: 'record_start', meta: recordMeta })
 
-          // Send each image as separate compressed binary
+          // Send each image as separate binary packet
           if (record.images && record.images.length > 0) {
             for (let i = 0; i < record.images.length; i++) {
               const img = record.images[i]
@@ -1063,9 +903,6 @@ export function usePeerSync() {
                 const arrayBuffer = await blob.arrayBuffer()
                 const rawData = new Uint8Array(arrayBuffer)
 
-                // Compress with gzip
-                const compressed = await gzipCompress(rawData)
-
                 // Create a header with image info (as JSON prefix)
                 const header = JSON.stringify({
                   type: 'record_image',
@@ -1073,21 +910,20 @@ export function usePeerSync() {
                   index: img.index,
                   width: img.width,
                   height: img.height,
-                  originalSize: rawData.length,
-                  compressedSize: compressed.length,
+                  size: rawData.length,
                   mimeType: blob.type || 'image/webp',
                 })
                 const headerBytes = new TextEncoder().encode(header)
 
-                // Combine: [4-byte header length][header][compressed data]
-                const packet = new Uint8Array(4 + headerBytes.length + compressed.length)
+                // Combine: [4-byte header length][header][image data]
+                const packet = new Uint8Array(4 + headerBytes.length + rawData.length)
                 const view = new DataView(packet.buffer)
                 view.setUint32(0, headerBytes.length, true) // little-endian
                 packet.set(headerBytes, 4)
-                packet.set(compressed, 4 + headerBytes.length)
+                packet.set(rawData, 4 + headerBytes.length)
 
                 await sendBinary(packet)
-                addDebug(`Sent image ${i + 1}/${record.images.length}: ${formatBytes(rawData.length)} → ${formatBytes(compressed.length)} (${((1 - compressed.length / rawData.length) * 100).toFixed(0)}% saved)`)
+                addDebug(`Sent image ${i + 1}/${record.images.length}: ${formatBytes(rawData.length)}`)
               }
             }
           }
@@ -1174,19 +1010,30 @@ export function usePeerSync() {
           failed: ack.failed,
           total: records.length,
         }
+        // Close connection immediately to stop TURN billing
+        closeConnection()
       } catch (ackErr) {
         addDebug(`ACK error: ${ackErr.message}`)
         // Still mark as completed but show warning
         stopStatsTracking()
         status.value = 'completed'
         transferResult.value = { sent, failed, total: records.length }
+        // Close connection immediately to stop TURN billing
+        closeConnection()
       }
 
     } catch (err) {
       console.error('Send failed:', err)
       stopStatsTracking()
-      error.value = err.message
+      // Use i18n key for connection closed error
+      if (err.message === 'Connection closed') {
+        error.value = { key: 'peerSync.connectionClosed' }
+      } else {
+        error.value = err.message
+      }
       status.value = 'error'
+      // Close connection immediately to stop TURN billing
+      closeConnection()
     }
   }
 
@@ -1257,13 +1104,10 @@ export function usePeerSync() {
   }
 
   /**
-   * Cleanup resources
+   * Close WebRTC connection only (preserve UI state for viewing results)
    */
-  const cleanup = () => {
-    addDebug('Cleanup called')
-    // Stop stats tracking
-    stopStatsTracking()
-
+  const closeConnection = () => {
+    addDebug('Closing connection to stop TURN billing')
     if (connection.value) {
       try {
         connection.value.close()
@@ -1280,6 +1124,19 @@ export function usePeerSync() {
       }
       peer.value = null
     }
+  }
+
+  /**
+   * Cleanup resources
+   */
+  const cleanup = () => {
+    addDebug('Cleanup called')
+    // Stop stats tracking
+    stopStatsTracking()
+
+    // Close connection (reuse closeConnection to avoid duplication)
+    closeConnection()
+
     status.value = 'idle'
     connectionCode.value = ''
     pairingEmojis.value = []
@@ -1313,6 +1170,7 @@ export function usePeerSync() {
     error,
     pairingEmojis,
     pairingConfirmed,
+    localConfirmed,
     transferDirection,
     transferProgress,
     transferResult,
@@ -1325,13 +1183,6 @@ export function usePeerSync() {
     connectToSender,
     confirmPairing,
     cleanup,
-
-    // Cloudflare TURN credentials management
-    getCfTurnCredentials,
-    saveCfTurnCredentials,
-    hasCfTurnCredentials,
-    clearCfTurnCredentials,
-    fetchCfIceServers,
 
     // Utilities
     formatBytes,

@@ -918,40 +918,41 @@ const downloadAllAsPdf = async () => {
           </button>
         </div>
 
-        <!-- Counter -->
-        <div class="lightbox-counter">
-          {{ currentIndex + 1 }} / {{ images.length }}
-        </div>
-
-        <!-- Image Info -->
+        <!-- Image Info (centered, responsive) -->
         <div v-if="currentImageInfo" class="lightbox-info">
-          <!-- Dimensions -->
-          <span v-if="currentImageInfo.width && currentImageInfo.height">
-            {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
-          </span>
+          <!-- Row 1: Basic info -->
+          <div class="lightbox-info-row">
+            <!-- Dimensions -->
+            <span v-if="currentImageInfo.width && currentImageInfo.height">
+              {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
+            </span>
 
-          <!-- Compression info (if available) -->
-          <template v-if="hasCompressionInfo">
+            <!-- Simple size (no compression info) -->
+            <template v-if="!hasCompressionInfo && currentImageInfo.size">
+              <span class="lightbox-info-divider"></span>
+              <span>{{ currentImageInfo.size }}</span>
+            </template>
+
+            <!-- Historical indicator -->
+            <template v-if="isHistorical">
+              <span class="lightbox-info-divider"></span>
+              <span class="text-amber-400">{{ $t('lightbox.historical') }}</span>
+            </template>
+
+            <!-- Counter -->
             <span class="lightbox-info-divider"></span>
+            <span class="lightbox-counter-inline">{{ currentIndex + 1 }} / {{ images.length }}</span>
+          </div>
+
+          <!-- Row 2: Compression info (separate row on mobile) -->
+          <div v-if="hasCompressionInfo" class="lightbox-info-row lightbox-info-compression">
             <span class="text-gray-400">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
             <span class="text-gray-500">{{ currentImageInfo.originalSize }}</span>
             <span class="lightbox-info-arrow">→</span>
             <span class="text-purple-400">WebP</span>
             <span class="text-purple-300">{{ currentImageInfo.compressedSize }}</span>
             <span class="lightbox-info-ratio text-emerald-400">-{{ currentImageInfo.compressionRatio }}%</span>
-          </template>
-
-          <!-- Simple size (no compression info) -->
-          <template v-else-if="currentImageInfo.size">
-            <span class="lightbox-info-divider"></span>
-            <span>{{ currentImageInfo.size }}</span>
-          </template>
-
-          <!-- Historical indicator -->
-          <template v-if="isHistorical">
-            <span class="lightbox-info-divider"></span>
-            <span class="text-amber-400 text-xs">{{ $t('lightbox.historical') }}</span>
-          </template>
+          </div>
         </div>
       </div>
     </Transition>
@@ -978,6 +979,10 @@ const downloadAllAsPdf = async () => {
   background: rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(8px);
   animation: lightbox-fade-in 0.3s ease-out;
+  /* Ensure no extra padding/margin affects centering */
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .lightbox-overlay.is-closing {
@@ -1062,6 +1067,9 @@ const downloadAllAsPdf = async () => {
   overflow: visible;
   user-select: none;
   touch-action: none;
+  /* Ensure perfect centering in flex container */
+  margin: auto;
+  position: relative;
 }
 
 .lightbox-image-wrapper {
@@ -1184,28 +1192,51 @@ const downloadAllAsPdf = async () => {
   transform: scale(1.2);
 }
 
-.lightbox-counter {
-  position: absolute;
-  bottom: 1.5rem;
-  right: 1.5rem;
+.lightbox-counter-inline {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
 }
 
 .lightbox-info {
   position: absolute;
   bottom: 1.5rem;
-  left: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.5);
   border-radius: 0.5rem;
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
+  max-width: calc(100vw - 2rem);
+}
+
+.lightbox-info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.lightbox-info-compression {
+  opacity: 0.85;
+}
+
+/* Desktop: single row layout */
+@media (min-width: 640px) {
+  .lightbox-info {
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+
+  .lightbox-info-compression {
+    padding-left: 0.5rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+  }
 }
 
 .lightbox-info-divider {
