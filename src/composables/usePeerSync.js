@@ -770,8 +770,14 @@ export function usePeerSync() {
   /**
    * Wait for DataChannel buffer to drain below threshold
    * This implements backpressure to prevent overwhelming the channel
+   * @throws {Error} if connection is closed during drain
    */
   const waitForBufferDrain = async (threshold = 64 * 1024) => {
+    // Check if connection is still valid
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
+
     // PeerJS stores DataChannel in different properties depending on version
     // Common property names: dataChannel, _dc, _channel
     const dc = connection.value?.dataChannel ||
@@ -788,6 +794,11 @@ export function usePeerSync() {
     addDebug(`Waiting for buffer drain, current: ${dc.bufferedAmount}, threshold: ${threshold}`)
     let waitCount = 0
     while (dc.bufferedAmount > threshold) {
+      // Check connection status on each iteration
+      if (!connection.value || !connection.value.open) {
+        addDebug('Connection closed during buffer drain')
+        throw new Error('Connection closed')
+      }
       await new Promise((resolve) => setTimeout(resolve, 50))
       waitCount++
       if (waitCount % 20 === 0) {
@@ -805,8 +816,12 @@ export function usePeerSync() {
   /**
    * Send JSON message with stats tracking
    * @param {object} obj - JSON-serializable object
+   * @throws {Error} if connection is closed
    */
   const sendJson = (obj) => {
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
     const packet = encodeJsonMessage(obj)
     transferStats.value.bytesSent += packet.length
     connection.value.send(packet)
@@ -815,8 +830,12 @@ export function usePeerSync() {
   /**
    * Send binary data with stats tracking, type prefix, and backpressure
    * @param {ArrayBuffer|Uint8Array} data - Binary data to send
+   * @throws {Error} if connection is closed
    */
   const sendBinary = async (data) => {
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
     const raw = data instanceof Uint8Array ? data : new Uint8Array(data)
     // Prepend MSG_TYPE_BINARY prefix
     const packet = new Uint8Array(1 + raw.length)
@@ -825,6 +844,11 @@ export function usePeerSync() {
 
     // Wait for buffer to drain before sending more (backpressure)
     await waitForBufferDrain()
+
+    // Check again after drain wait
+    if (!connection.value || !connection.value.open) {
+      throw new Error('Connection closed')
+    }
 
     transferStats.value.bytesSent += packet.length
     connection.value.send(packet)
@@ -1001,7 +1025,12 @@ export function usePeerSync() {
     } catch (err) {
       console.error('Send failed:', err)
       stopStatsTracking()
-      error.value = err.message
+      // Use i18n key for connection closed error
+      if (err.message === 'Connection closed') {
+        error.value = { key: 'peerSync.connectionClosed' }
+      } else {
+        error.value = err.message
+      }
       status.value = 'error'
       // Close connection immediately to stop TURN billing
       closeConnection()

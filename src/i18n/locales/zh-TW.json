@@ -447,6 +447,7 @@
     "closeConfirmTitle": "中斷傳輸？",
     "closeConfirmMessage": "傳輸尚未完成，關閉將會中斷連線。確定要離開嗎？",
     "closeConfirmButton": "中斷並離開",
+    "connectionClosed": "對方已中斷連線",
     "tryAgain": "重試",
     "sendSuccess": "資料發送完成",
     "receiveSuccess": "資料接收完成",

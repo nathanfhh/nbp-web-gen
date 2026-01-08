@@ -447,6 +447,7 @@
     "closeConfirmTitle": "Abort Transfer?",
     "closeConfirmMessage": "Transfer is not complete. Closing will disconnect the connection. Are you sure?",
     "closeConfirmButton": "Abort & Close",
+    "connectionClosed": "The other device disconnected",
     "tryAgain": "Try Again",
     "sendSuccess": "Data sent successfully",
     "receiveSuccess": "Data received successfully",
