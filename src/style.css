@@ -1095,3 +1095,19 @@ html[data-theme="light"] .toast-item,
 html[data-theme="light"] .toast-item * {
   color: #ffffff !important;
 }
+
+/* ============================================
+   HistoryTransfer Checkbox Light Mode
+   ============================================ */
+html[data-theme="light"] .bg-purple-500.border-purple-500 {
+  background-color: rgba(13, 94, 175, 0.15) !important; /* 跟 row 背景統一 */
+  border-color: #0D5EAF !important; /* 跟 row 邊框統一 */
+}
+
+html[data-theme="light"] .bg-purple-500.border-purple-500 svg {
+  color: #0D5EAF !important; /* 勾勾深藍 */
+}
+
+html[data-theme="light"] .border-gray-500 {
+  border-color: rgb(156 163 175) !important; /* gray-400 */
+}
