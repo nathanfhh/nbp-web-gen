@@ -418,7 +418,7 @@
   },
   "peerSync": {
     "title": "跨裝置同步",
-    "description": "透過 P2P 連線即時同步歷史紀錄到另一台裝置",
+    "description": "透過 WebRTC 即時同步歷史紀錄到另一台裝置",
     "sendMode": {
       "title": "發送資料",
       "description": "從這台裝置發送歷史紀錄"
@@ -443,7 +443,7 @@
     "errorTitle": "連線失敗",
     "invalidCode": "連線碼格式錯誤，請輸入 6 位英數字",
     "connectionTimeout": "連線逾時，請確認對方已開啟同步功能",
-    "iceFailed": "P2P 連線失敗，可能處於對稱型 NAT 後。請嘗試設定 TURN 中繼伺服器",
+    "iceFailed": "WebRTC 連線失敗，可能處於對稱型 NAT 後。請嘗試設定 TURN 中繼伺服器",
     "closeConfirmTitle": "中斷傳輸？",
     "closeConfirmMessage": "傳輸尚未完成，關閉將會中斷連線。確定要離開嗎？",
     "closeConfirmButton": "中斷並離開",

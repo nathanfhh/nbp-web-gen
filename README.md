@@ -48,7 +48,7 @@ This project is a testament to the power of AI-assisted development:
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
 *   **Smart History:** Local storage using IndexedDB and OPFS (Origin Private File System) for your generation history.
 *   **History Export/Import:** Export your generation history to a JSON file (with embedded images) and import on another browser.
-*   **P2P Cross-Device Sync:** Real-time peer-to-peer sync between devices using WebRTC. Supports Cloudflare TURN relay for NAT traversal.
+*   **WebRTC Cross-Device Sync:** Real-time sync between devices via WebRTC. Supports Cloudflare TURN relay for NAT traversal.
 *   **Batch Download:** Download all generated images as ZIP archive or PDF document.
 *   **Privacy First:** API keys are stored only in your browser's local storage; no backend server is involved.
 *   **Installable PWA:** Install as a native-like app with offline support and automatic updates.
@@ -136,7 +136,7 @@ npm run build
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
 *   **智慧歷史紀錄：** 使用 IndexedDB 與 OPFS (Origin Private File System) 將您的生成紀錄完整保存在本地端。
 *   **歷史記錄匯出/匯入：** 將生成歷史匯出為 JSON 檔案（含嵌入圖片），可於其他瀏覽器匯入。
-*   **P2P 跨裝置同步：** 透過 WebRTC 實現裝置間的即時點對點同步，支援 Cloudflare TURN 中繼伺服器穿越 NAT。
+*   **WebRTC 跨裝置同步：** 透過 WebRTC 實現裝置間即時同步，支援 Cloudflare TURN 中繼伺服器穿越 NAT。
 *   **批次下載：** 可將所有生成圖片打包為 ZIP 壓縮檔或 PDF 文件下載。
 *   **隱私優先：** API Key 僅儲存於您的瀏覽器 Local Storage，完全不經過任何第三方伺服器。
 *   **可安裝 PWA：** 支援安裝為類原生應用程式，具備離線支援與自動更新功能。
