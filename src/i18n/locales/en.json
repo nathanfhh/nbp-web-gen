@@ -425,7 +425,8 @@
     "description": "Sync history records to another device via WebRTC",
     "sendMode": {
       "title": "Send Data",
-      "description": "Send history from this device"
+      "description": "Send history from this device",
+      "noSelection": "Please select items to send first"
     },
     "receiveMode": {
       "title": "Receive Data",

@@ -425,7 +425,8 @@
     "description": "透過 WebRTC 即時同步歷史紀錄到另一台裝置",
     "sendMode": {
       "title": "發送資料",
-      "description": "從這台裝置發送歷史紀錄"
+      "description": "從這台裝置發送歷史紀錄",
+      "noSelection": "請先選擇要發送的項目"
     },
     "receiveMode": {
       "title": "接收資料",

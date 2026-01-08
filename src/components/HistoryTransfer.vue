@@ -194,10 +194,6 @@ const handleExport = async () => {
 }
 
 const handleSync = () => {
-  if (!hasSelection.value) {
-    toast.error(t('historyTransfer.noSelection'))
-    return
-  }
   peerSyncSelectedIds.value = Array.from(selectedIds.value)
   showPeerSync.value = true
 }
@@ -369,8 +365,7 @@ const close = () => {
             </button>
             <button
               @click="handleSync"
-              :disabled="!hasSelection"
-              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-cyan-500/30 border border-cyan-500 text-cyan-300 hover:bg-cyan-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-cyan-500/30 border border-cyan-500 text-cyan-300 hover:bg-cyan-500/40 flex items-center justify-center gap-2"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
