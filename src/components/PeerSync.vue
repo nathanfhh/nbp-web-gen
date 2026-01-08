@@ -1,12 +1,14 @@
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePeerSync } from '@/composables/usePeerSync'
+import { useCloudfareTurn } from '@/composables/useCloudfareTurn'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 const toast = useToast()
 const sync = usePeerSync()
+const turn = useCloudfareTurn()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -22,30 +24,33 @@ const showTurnSettings = ref(false)
 const turnTokenId = ref('')
 const apiToken = ref('')
 const isFetchingIce = ref(false)
-const hasTurnConfig = computed(() => sync.hasCfTurnCredentials())
+const hasTurnConfig = computed(() => turn.hasCfTurnCredentials())
 const turnEnabled = ref(true)
+
+// Debug log auto-scroll
+const debugLogRef = ref(null)
 
 // Load Cloudflare TURN credentials on mount
 onMounted(() => {
-  const creds = sync.getCfTurnCredentials()
+  const creds = turn.getCfTurnCredentials()
   if (creds) {
     turnTokenId.value = creds.turnTokenId || ''
     apiToken.value = creds.apiToken || ''
   }
-  turnEnabled.value = sync.isTurnEnabled()
+  turnEnabled.value = turn.isTurnEnabled()
 })
 
 const toggleTurnEnabled = () => {
   turnEnabled.value = !turnEnabled.value
-  sync.setTurnEnabled(turnEnabled.value)
+  turn.setTurnEnabled(turnEnabled.value)
 }
 
 const saveTurnSettings = async () => {
-  const result = sync.saveCfTurnCredentials(turnTokenId.value, apiToken.value)
+  const result = turn.saveCfTurnCredentials(turnTokenId.value, apiToken.value)
   if (result.success) {
     // Test the credentials by fetching ICE servers
     isFetchingIce.value = true
-    const fetchResult = await sync.fetchCfIceServers()
+    const fetchResult = await turn.fetchCfIceServers()
     isFetchingIce.value = false
 
     if (fetchResult.success) {
@@ -62,9 +67,20 @@ const saveTurnSettings = async () => {
 const clearTurnSettings = () => {
   turnTokenId.value = ''
   apiToken.value = ''
-  sync.clearCfTurnCredentials()
+  turn.clearCfTurnCredentials()
   toast.success(t('peerSync.turn.cleared'))
 }
+
+// Auto-scroll debug log to bottom when new entries added
+watch(
+  () => sync.debugLog.value.length,
+  async () => {
+    await nextTick()
+    if (debugLogRef.value) {
+      debugLogRef.value.scrollTop = debugLogRef.value.scrollHeight
+    }
+  }
+)
 
 // History API for back gesture
 const historyStatePushed = ref(false)
@@ -386,7 +402,7 @@ const errorMessage = computed(() => {
                 </p>
 
                 <!-- Debug Log -->
-                <div v-if="sync.debugLog.value.length" class="mt-4 p-3 bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
+                <div v-if="sync.debugLog.value.length" ref="debugLogRef" class="mt-4 p-3 bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
                   <p class="text-xs text-gray-400 mb-1">Debug:</p>
                   <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-300 font-mono">
                     {{ log }}
@@ -540,7 +556,7 @@ const errorMessage = computed(() => {
                 <p class="text-white font-medium">{{ $t('peerSync.status.connecting') }}</p>
 
                 <!-- Debug Log -->
-                <div v-if="sync.debugLog.value.length" class="mt-4 p-3 bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
+                <div v-if="sync.debugLog.value.length" ref="debugLogRef" class="mt-4 p-3 bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
                   <p class="text-xs text-gray-400 mb-1">Debug:</p>
                   <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-300 font-mono">
                     {{ log }}
