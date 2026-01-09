@@ -279,10 +279,10 @@ const errorMessage = computed(() => {
               <!-- Receive Button -->
               <button
                 @click="startReceiving"
-                class="w-full p-4 rounded-xl bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30 transition-all flex items-center gap-4"
+                class="w-full p-4 rounded-xl bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30 transition-all flex items-center gap-4"
               >
-                <div class="w-12 h-12 rounded-xl bg-purple-500/30 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/30 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                 </div>
@@ -548,7 +548,7 @@ const errorMessage = computed(() => {
                   v-model="inputCode"
                   type="text"
                   maxlength="6"
-                  class="w-full bg-black/30 border border-white/20 rounded-xl px-4 py-4 text-center text-2xl font-mono font-bold text-white tracking-[0.3em] uppercase focus:outline-none focus:border-purple-500 transition-all"
+                  class="w-full bg-black/30 border border-white/20 rounded-xl px-4 py-4 text-center text-2xl font-mono font-bold text-white tracking-[0.3em] uppercase focus:outline-none focus:border-blue-500 transition-all"
                   :placeholder="$t('peerSync.codePlaceholder')"
                   @keyup.enter="connectWithCode"
                 />
@@ -556,7 +556,7 @@ const errorMessage = computed(() => {
                 <button
                   @click="connectWithCode"
                   :disabled="inputCode.length < 6"
-                  class="w-full mt-4 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-purple-500/30 border border-purple-500 text-purple-300 hover:bg-purple-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full mt-4 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {{ $t('peerSync.connectButton') }}
                 </button>
@@ -567,8 +567,8 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'connecting'">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-500/20 mb-4">
-                    <svg class="w-8 h-8 text-purple-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 mb-4">
+                    <svg class="w-8 h-8 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -622,8 +622,8 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'transferring' || (sync.pairingConfirmed.value && sync.status.value !== 'completed' && sync.status.value !== 'error')">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-500/20 mb-4">
-                    <svg class="w-8 h-8 text-purple-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 mb-4">
+                    <svg class="w-8 h-8 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -638,13 +638,13 @@ const errorMessage = computed(() => {
                 <!-- Transfer stats -->
                 <div v-if="sync.transferStats.value.totalFormatted" class="text-xs text-gray-400 mb-4 flex items-center justify-center gap-3">
                   <span>{{ sync.transferStats.value.totalFormatted }}</span>
-                  <span class="text-purple-400">{{ sync.transferStats.value.speedFormatted }}</span>
+                  <span class="text-blue-400">{{ sync.transferStats.value.speedFormatted }}</span>
                 </div>
 
                 <!-- Progress bar -->
                 <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
                   <div
-                    class="h-full bg-purple-500 transition-all duration-300"
+                    class="h-full bg-blue-500 transition-all duration-300"
                     :style="{ width: sync.transferProgress.value.total > 0 ? `${(sync.transferProgress.value.current / sync.transferProgress.value.total) * 100}%` : '0%' }"
                   ></div>
                 </div>

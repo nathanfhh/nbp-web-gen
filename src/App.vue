@@ -227,7 +227,7 @@ const handleGenerate = async () => {
           class="text-5xl lg:text-7xl font-bold bg-clip-text text-transparent mb-4"
           :class="
             store.theme === 'dark'
-              ? 'bg-gradient-to-r from-purple-400 via-cyan-400 to-purple-400 glow-text-purple'
+              ? 'bg-gradient-to-r from-blue-400 via-blue-300 to-blue-400 glow-text-purple'
               : 'bg-gradient-to-r from-blue-700 via-blue-500 to-blue-700'
           "
         >
@@ -240,7 +240,7 @@ const handleGenerate = async () => {
           {{ $t('hero.subtitle') }}
         </p>
         <div class="flex flex-col items-center gap-2">
-          <span class="text-sm px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 font-mono">
+          <span class="text-sm px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 font-mono">
             v{{ appVersion }}
           </span>
           <div class="flex items-center gap-1">
@@ -253,7 +253,7 @@ const handleGenerate = async () => {
       <!-- Scroll Down Button -->
       <button
         @click="scrollToContent"
-        class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-400 hover:text-purple-400 transition-colors group cursor-pointer"
+        class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors group cursor-pointer"
       >
         <span class="text-sm">{{ $t('hero.startUsing') }}</span>
         <div class="scroll-indicator">
@@ -286,7 +286,7 @@ const handleGenerate = async () => {
           <div data-panel-id="mode-selector" class="panel-animate glass p-6">
             <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
               <svg
-                class="w-5 h-5 text-purple-400"
+                class="w-5 h-5 text-blue-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

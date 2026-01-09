@@ -365,7 +365,7 @@ const handleStyleEnter = (event) => {
           @click="togglers.styles.toggle(style.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="togglers.styles.has(style.value)
-            ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
+            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
           {{ style.label }}

@@ -56,7 +56,7 @@ const addCustomVariation = () => {
           @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="options.resolution === res.value
-            ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
+            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
           {{ res.label }}
@@ -74,7 +74,7 @@ const addCustomVariation = () => {
           @click="options.ratio = ratio.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1.5"
           :class="options.ratio === ratio.value
-            ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
+            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
           <!-- Ratio icons with correct proportions -->
@@ -117,7 +117,7 @@ const addCustomVariation = () => {
           @click="stylesToggle.toggle(style.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="stylesToggle.has(style.value)
-            ? 'bg-purple-500/30 border border-purple-500 text-purple-300'
+            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
             : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
         >
           {{ style.label }}

@@ -10,7 +10,7 @@ let particles = []
 // Theme-based colors
 const getParticleColor = () => {
   return store.theme === 'dark'
-    ? { r: 139, g: 92, b: 246 }  // Purple for dark
+    ? { r: 59, g: 130, b: 246 }  // Blue-500 for dark (Slate Blue Pro)
     : { r: 13, g: 94, b: 175 }   // Greek blue for light
 }
 

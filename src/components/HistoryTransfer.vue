@@ -39,7 +39,7 @@ const hasSelection = computed(() => selectedIds.value.size > 0)
 
 // Mode label colors (light mode handled by style.css [data-theme="light"])
 const modeColors = {
-  generate: 'bg-purple-500/20 text-purple-300',
+  generate: 'bg-blue-500/20 text-blue-300',
   sticker: 'bg-pink-500/20 text-pink-300',
   edit: 'bg-cyan-500/20 text-cyan-300',
   story: 'bg-amber-500/20 text-amber-300',
@@ -219,8 +219,8 @@ const close = () => {
           <!-- Header -->
           <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
@@ -264,7 +264,7 @@ const close = () => {
           <!-- History List -->
           <div class="flex-1 overflow-y-auto mb-4 min-h-0 pr-2">
             <div v-if="isLoadingList" class="flex items-center justify-center py-8">
-              <svg class="w-6 h-6 text-purple-400 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg class="w-6 h-6 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -280,7 +280,7 @@ const close = () => {
                 :class="[
                   'flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all',
                   selectedIds.has(item.id)
-                    ? 'bg-purple-500/20 border border-purple-500/50'
+                    ? 'bg-blue-500/20 border border-blue-500/50'
                     : 'bg-white/5 border border-transparent hover:bg-white/10'
                 ]"
               >
@@ -289,7 +289,7 @@ const close = () => {
                   :class="[
                     'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all',
                     selectedIds.has(item.id)
-                      ? 'bg-purple-500 border-purple-500'
+                      ? 'bg-blue-500 border-blue-500'
                       : 'border-gray-500'
                   ]"
                 >
@@ -347,7 +347,7 @@ const close = () => {
             <button
               @click="handleExport"
               :disabled="!hasSelection || transfer.isExporting.value"
-              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-purple-500/30 border border-purple-500 text-purple-300 hover:bg-purple-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <template v-if="transfer.isExporting.value">
                 <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -392,13 +392,13 @@ const close = () => {
               :class="[
                 'w-full py-6 px-4 rounded-xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center gap-2',
                 isDragOver
-                  ? 'border-purple-400 bg-purple-500/10'
+                  ? 'border-blue-400 bg-blue-500/10'
                   : 'border-white/20 hover:border-white/40 hover:bg-white/5',
                 transfer.isImporting.value && 'pointer-events-none opacity-50'
               ]"
             >
               <template v-if="transfer.isImporting.value">
-                <svg class="w-6 h-6 text-purple-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>

@@ -1124,7 +1124,7 @@ onUnmounted(() => {
         <!-- Header -->
         <div class="cropper-header">
           <h2 class="text-lg font-semibold text-white flex items-center gap-2">
-            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {{ $t('stickerCropper.title') }}
@@ -1160,7 +1160,7 @@ onUnmounted(() => {
                     @click="isPickingColor = !isPickingColor"
                     class="ml-auto px-3 py-1.5 text-xs rounded-lg transition-colors"
                     :class="isPickingColor
-                      ? 'bg-purple-500 text-white'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-white/10 text-gray-300 hover:bg-white/20'"
                   >
                     {{ isPickingColor ? $t('stickerCropper.settings.pickingColor') : $t('stickerCropper.settings.pickColor') }}
@@ -1171,14 +1171,14 @@ onUnmounted(() => {
               <!-- Tolerance -->
               <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-2">
-                  {{ $t('stickerCropper.settings.tolerance') }}: <span class="text-purple-400 font-medium">{{ tolerance }}</span>
+                  {{ $t('stickerCropper.settings.tolerance') }}: <span class="text-blue-400 font-medium">{{ tolerance }}</span>
                 </label>
                 <input
                   v-model="tolerance"
                   type="range"
                   min="0"
                   max="100"
-                  class="w-full accent-purple-500"
+                  class="w-full accent-blue-500"
                 />
                 <p class="text-xs text-gray-500 mt-1">{{ $t('stickerCropper.settings.toleranceHint') }}</p>
               </div>
@@ -1189,7 +1189,7 @@ onUnmounted(() => {
                 <button
                   @click="previewBgWhite = !previewBgWhite"
                   class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-                  :class="previewBgWhite ? 'bg-purple-500' : 'bg-gray-600'"
+                  :class="previewBgWhite ? 'bg-blue-500' : 'bg-gray-600'"
                 >
                   <span
                     class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"
@@ -1204,7 +1204,7 @@ onUnmounted(() => {
                 :disabled="!imageLoaded || isProcessing"
                 class="w-full py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                 :class="imageLoaded && !isProcessing
-                  ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
                   : 'bg-gray-700 text-gray-400 cursor-not-allowed'"
               >
                 <svg v-if="isProcessing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1273,7 +1273,7 @@ onUnmounted(() => {
             <div class="stickers-header">
               <h3 class="text-sm font-medium text-gray-300">
                 {{ $t('stickerCropper.results.title') }}
-                <span v-if="croppedStickers.length" class="text-purple-400">
+                <span v-if="croppedStickers.length" class="text-blue-400">
                   {{ $t('stickerCropper.results.count', { count: croppedStickers.length }) }}
                 </span>
               </h3>
@@ -1335,7 +1335,7 @@ onUnmounted(() => {
                   class="sticker-checkbox"
                   @click.stop="toggleSelectSticker(sticker.id)"
                 >
-                  <svg v-if="selectedStickers.has(sticker.id)" class="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg v-if="selectedStickers.has(sticker.id)" class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
                   <div v-else class="w-5 h-5 rounded-full border-2 border-gray-500"></div>
@@ -1421,7 +1421,7 @@ onUnmounted(() => {
             <div class="edit-panel">
               <div class="edit-header">
                 <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-                  <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                   {{ $t('stickerCropper.edit.title') }}
@@ -1466,14 +1466,14 @@ onUnmounted(() => {
               <div class="edit-controls">
                 <div class="edit-tolerance">
                   <label class="text-xs text-gray-400">
-                    {{ $t('stickerCropper.edit.tolerance') }}: <span class="text-purple-400 font-medium">{{ editTolerance }}</span>
+                    {{ $t('stickerCropper.edit.tolerance') }}: <span class="text-blue-400 font-medium">{{ editTolerance }}</span>
                   </label>
                   <input
                     v-model="editTolerance"
                     type="range"
                     min="0"
                     max="100"
-                    class="w-full accent-purple-500"
+                    class="w-full accent-blue-500"
                   />
                 </div>
                 <p class="edit-hint text-xs text-gray-500">{{ $t('stickerCropper.edit.hint') }}</p>

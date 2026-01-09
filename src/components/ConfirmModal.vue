@@ -75,7 +75,7 @@ defineExpose({ show })
             </button>
             <button
               @click="confirm"
-              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-purple-500/30 border border-purple-500 text-purple-300 hover:bg-purple-500/40"
+              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40"
             >
               {{ confirmText }}
             </button>

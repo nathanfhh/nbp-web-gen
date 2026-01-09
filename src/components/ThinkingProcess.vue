@@ -209,7 +209,7 @@ const getStepStatus = (index) => {
               d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
             />
           </svg>
-          <svg v-else class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-else class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -283,7 +283,7 @@ const getStepStatus = (index) => {
         <!-- Timeline connector -->
         <div
           v-if="index < thinkingSteps.length - 1"
-          class="absolute left-4 top-10 bottom-0 w-0.5 bg-gradient-to-b from-purple-500/50 to-transparent"
+          class="absolute left-4 top-10 bottom-0 w-0.5 bg-gradient-to-b from-blue-500/50 to-transparent"
         ></div>
 
         <!-- Text Step card -->
@@ -294,7 +294,7 @@ const getStepStatus = (index) => {
               class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10"
               :class="{
                 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50': getStepStatus(index) === 'active',
-                'bg-gradient-to-br from-purple-500 to-pink-500 text-white': getStepStatus(index) === 'completed',
+                'bg-gradient-to-br from-blue-500 to-indigo-500 text-white': getStepStatus(index) === 'completed',
               }"
             >
               <template v-if="getStepStatus(index) === 'active'">
@@ -322,7 +322,7 @@ const getStepStatus = (index) => {
                 class="text-sm font-semibold"
                 :class="{
                   'text-cyan-300': getStepStatus(index) === 'active',
-                  'text-purple-300': getStepStatus(index) === 'completed',
+                  'text-blue-300': getStepStatus(index) === 'completed',
                 }"
               >
                 {{ step.title }}
@@ -433,11 +433,11 @@ const getStepStatus = (index) => {
 }
 
 .max-h-80::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(59, 130, 246, 0.3);
   border-radius: 2px;
 }
 
 .max-h-80::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+  background: rgba(59, 130, 246, 0.5);
 }
 </style>

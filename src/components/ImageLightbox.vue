@@ -949,8 +949,8 @@ const downloadAllAsPdf = async () => {
             <span class="text-gray-400">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
             <span class="text-gray-500">{{ currentImageInfo.originalSize }}</span>
             <span class="lightbox-info-arrow">→</span>
-            <span class="text-purple-400">WebP</span>
-            <span class="text-purple-300">{{ currentImageInfo.compressedSize }}</span>
+            <span class="text-blue-400">WebP</span>
+            <span class="text-blue-300">{{ currentImageInfo.compressedSize }}</span>
             <span class="lightbox-info-ratio text-emerald-400">-{{ currentImageInfo.compressionRatio }}%</span>
           </div>
         </div>
@@ -1308,7 +1308,7 @@ const downloadAllAsPdf = async () => {
 }
 
 .download-option.active {
-  color: #c084fc !important; /* purple-400 */
+  color: #60a5fa !important; /* blue-400 */
 }
 
 /* Wide dropdown for unified download menu */

@@ -188,7 +188,7 @@ const handleImported = async () => {
   <div class="glass p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-white flex items-center gap-2">
-        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         {{ $t('history.title') }}
@@ -198,7 +198,7 @@ const handleImported = async () => {
         <!-- Transfer (Export/Import) button -->
         <button
           @click="showTransfer = true"
-          class="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-purple-400 transition-all"
+          class="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-blue-400 transition-all"
           :title="$t('historyTransfer.title')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +239,7 @@ const handleImported = async () => {
           >
             <div
               @click="openHistoryLightbox(item, $event)"
-              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
+              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
             >
               <img
                 :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
@@ -261,7 +261,7 @@ const handleImported = async () => {
               <span
                 class="text-xs px-2 py-0.5 rounded-md font-medium"
                 :class="{
-                  'bg-purple-500/20 text-purple-300': item.mode === 'generate',
+                  'bg-blue-500/20 text-blue-300': item.mode === 'generate',
                   'bg-pink-500/20 text-pink-300': item.mode === 'sticker',
                   'bg-cyan-500/20 text-cyan-300': item.mode === 'edit',
                   'bg-amber-500/20 text-amber-300': item.mode === 'story',
@@ -324,7 +324,7 @@ const handleImported = async () => {
     <!-- Loading Overlay -->
     <div v-if="isLoadingImages" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
       <div class="flex flex-col items-center gap-3">
-        <svg class="w-8 h-8 animate-spin text-purple-400" fill="none" viewBox="0 0 24 24">
+        <svg class="w-8 h-8 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
         </svg>
@@ -362,17 +362,17 @@ const handleImported = async () => {
 }
 
 .history-scroll::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(59, 130, 246, 0.3);
   border-radius: 3px;
 }
 
 .history-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+  background: rgba(59, 130, 246, 0.5);
 }
 
 /* Firefox */
 .history-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
 }
 </style>

@@ -182,7 +182,7 @@ onMounted(() => {
       </div>
       <p class="text-xs text-gray-500">
         {{ $t('apiKey.hint') }}
-        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-purple-400 hover:text-purple-300">
+        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-blue-400 hover:text-blue-300">
           {{ $t('apiKey.getKey') }}
         </a>
       </p>
