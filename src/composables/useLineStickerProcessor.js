@@ -37,10 +37,12 @@ export function useLineStickerProcessor() {
       return size > LINE_SPECS.maxFileSize
     })
 
-    // Dimension check
-    const dimensionFailedItems = imgs.filter(
-      (img) => img.width > LINE_SPECS.maxWidth || img.height > LINE_SPECS.maxHeight,
-    )
+    // Dimension check (use processed dimensions if available)
+    const dimensionFailedItems = imgs.filter((img) => {
+      const w = img.processedBlob ? img.processedWidth : img.width
+      const h = img.processedBlob ? img.processedHeight : img.height
+      return w > LINE_SPECS.maxWidth || h > LINE_SPECS.maxHeight
+    })
 
     // Format check
     const formatFailedItems = imgs.filter((img) => img.file.type !== 'image/png')
@@ -197,9 +199,9 @@ export function useLineStickerProcessor() {
     return Math.min(wRatio, hRatio)
   }
 
-  // Process single image (scale + quantize if needed)
+  // Process single image (scale only, quantize only if absolutely necessary)
   const processSingleImage = async (imageData, worker) => {
-    const { file, width, height } = imageData
+    const { file, width, height, size } = imageData
 
     // Check if processing needed
     const needsScale = width > LINE_SPECS.maxWidth || height > LINE_SPECS.maxHeight
@@ -207,11 +209,24 @@ export function useLineStickerProcessor() {
     const newWidth = Math.round(width * scaleFactor)
     const newHeight = Math.round(height * scaleFactor)
 
+    // If no scaling needed and file is already under 1MB, return original
+    if (!needsScale && size <= LINE_SPECS.maxFileSize) {
+      return {
+        blob: file,
+        size: size,
+        width: width,
+        height: height,
+        scaled: false,
+        quantized: false,
+      }
+    }
+
     // Create canvas and draw scaled image
     const canvas = document.createElement('canvas')
     canvas.width = newWidth
     canvas.height = newHeight
-    const ctx = canvas.getContext('2d')
+    // Use willReadFrequently for better performance if we need to read pixel data later
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
 
     // Load image
     const img = new Image()
@@ -221,23 +236,62 @@ export function useLineStickerProcessor() {
       img.src = URL.createObjectURL(file)
     })
 
-    // Draw with high quality scaling
-    ctx.imageSmoothingEnabled = true
-    ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(img, 0, 0, newWidth, newHeight)
+    // For non-scaling (just need PNG conversion), use nearest-neighbor to preserve pixels
+    // For scaling down, use high quality smoothing
+    if (needsScale) {
+      // Multi-step downscaling for better quality (step down by 50% at a time)
+      let currentWidth = width
+      let currentHeight = height
+      let sourceCanvas = document.createElement('canvas')
+      sourceCanvas.width = width
+      sourceCanvas.height = height
+      const sourceCtx = sourceCanvas.getContext('2d')
+      sourceCtx.drawImage(img, 0, 0)
+
+      // Step down gradually for better quality
+      while (currentWidth > newWidth * 2 || currentHeight > newHeight * 2) {
+        const stepWidth = Math.max(Math.round(currentWidth / 2), newWidth)
+        const stepHeight = Math.max(Math.round(currentHeight / 2), newHeight)
+
+        const stepCanvas = document.createElement('canvas')
+        stepCanvas.width = stepWidth
+        stepCanvas.height = stepHeight
+        const stepCtx = stepCanvas.getContext('2d')
+        stepCtx.imageSmoothingEnabled = true
+        stepCtx.imageSmoothingQuality = 'high'
+        stepCtx.drawImage(sourceCanvas, 0, 0, stepWidth, stepHeight)
+
+        sourceCanvas = stepCanvas
+        currentWidth = stepWidth
+        currentHeight = stepHeight
+      }
+
+      // Final step to target size
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(sourceCanvas, 0, 0, newWidth, newHeight)
+    } else {
+      // No scaling, just draw directly
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(img, 0, 0)
+    }
 
     // Clean up
     URL.revokeObjectURL(img.src)
 
-    // Try to get PNG blob
+    // Try to get PNG blob (no quantization first)
     let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+    let quantized = false
 
-    // If still over 1MB, apply color quantization
+    // Only if still over 1MB AND we have a worker, apply color quantization as last resort
     if (blob.size > LINE_SPECS.maxFileSize && worker) {
-      const imgData = ctx.getImageData(0, 0, newWidth, newHeight)
+      console.warn(`Image ${imageData.name} is ${(blob.size / 1024 / 1024).toFixed(2)}MB after resize, applying quantization...`)
 
       // Try progressive quantization: 256 -> 128 -> 64 colors
       for (const colors of [256, 128, 64]) {
+        // Need to re-read image data since buffer was transferred
+        const freshImgData = ctx.getImageData(0, 0, newWidth, newHeight)
+
         const quantizedData = await new Promise((resolve, reject) => {
           const handler = (e) => {
             worker.removeEventListener('message', handler)
@@ -250,12 +304,12 @@ export function useLineStickerProcessor() {
           worker.addEventListener('message', handler)
           worker.postMessage(
             {
-              imageData: imgData.data,
+              imageData: freshImgData.data,
               width: newWidth,
               height: newHeight,
               targetColors: colors,
             },
-            [imgData.data.buffer],
+            [freshImgData.data.buffer],
           )
         })
 
@@ -265,6 +319,9 @@ export function useLineStickerProcessor() {
 
         // Get new blob
         blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+        quantized = true
+
+        console.log(`Quantized to ${colors} colors: ${(blob.size / 1024 / 1024).toFixed(2)}MB`)
 
         // If under 1MB, we're done
         if (blob.size <= LINE_SPECS.maxFileSize) {
@@ -273,12 +330,22 @@ export function useLineStickerProcessor() {
       }
     }
 
+    console.log(`Processed ${imageData.name}:`, {
+      originalSize: `${(size / 1024).toFixed(1)}KB`,
+      newSize: `${(blob.size / 1024).toFixed(1)}KB`,
+      originalDimensions: `${width}×${height}`,
+      newDimensions: `${newWidth}×${newHeight}`,
+      scaled: needsScale,
+      quantized,
+    })
+
     return {
       blob,
       size: blob.size,
       width: newWidth,
       height: newHeight,
       scaled: needsScale,
+      quantized,
     }
   }
 
@@ -317,6 +384,8 @@ export function useLineStickerProcessor() {
           img.processedSize = result.size
           img.processedWidth = result.width
           img.processedHeight = result.height
+          img.wasScaled = result.scaled
+          img.wasQuantized = result.quantized
           img.processed = true
           img.status = 'processed'
         } catch (err) {

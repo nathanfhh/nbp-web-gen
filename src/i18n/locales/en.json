@@ -7,6 +7,7 @@
     "delete": "Delete",
     "add": "Add",
     "edit": "Edit",
+    "export": "Export",
     "download": "Download",
     "downloadAll": "Download All",
     "copy": "Copy",
@@ -14,7 +15,9 @@
     "loading": "Loading...",
     "remove": "Remove",
     "change": "Change",
-    "characters": "characters"
+    "characters": "characters",
+    "back": "Back",
+    "images": "images"
   },
   "hero": {
     "subtitle": "AI Image Generator",
@@ -260,10 +263,13 @@
   },
   "historyTransfer": {
     "title": "Export/Import",
+    "historyTab": "History",
+    "charactersTab": "Characters",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
     "selectedCount": "{count} selected",
     "noSelection": "Please select at least one record",
+    "noCharacters": "No characters yet",
     "export": {
       "title": "Export History",
       "description": "Export selected records to a JSON file with images",
@@ -286,7 +292,9 @@
     "exportSuccess": "Successfully exported {count} records",
     "exportError": "Export failed, please try again",
     "importSuccess": "Successfully imported {imported} records, skipped {skipped} duplicates",
-    "importError": "Import failed, please check the file format"
+    "importError": "Import failed, please check the file format",
+    "charExportSuccess": "Successfully exported {count} characters",
+    "charImportSuccess": "Successfully imported {imported} characters, skipped {skipped} duplicates"
   },
   "thinking": {
     "title": "Thinking Process",
@@ -481,7 +489,9 @@
     "deleteConfirmTitle": "Delete Character",
     "deleteConfirmMessage": "Are you sure you want to delete this character? This cannot be undone.",
     "manage": "Manage Characters",
-    "extractNew": "Extract New Character"
+    "extractNew": "Extract New Character",
+    "exportSuccess": "Character exported successfully",
+    "exportError": "Export failed, please try again"
   },
   "peerSync": {
     "title": "Cross-Device Sync",
@@ -572,7 +582,11 @@
       "failed": "Failed: {items}",
       "allPassed": "All specs passed, ready to download!",
       "images": "images",
-      "suggestCount": "Consider adjusting to {count} images"
+      "suggestCount": "Consider adjusting to {count} images",
+      "originalStatus": "Original",
+      "afterProcessing": "After processing",
+      "itemsOversized": "oversized",
+      "allCompliant": "All compliant"
     },
     "preview": {
       "title": "Image Preview"
@@ -591,6 +605,11 @@
     "empty": {
       "hint": "Upload PNG images to get started",
       "specs": "LINE Sticker specs: Max 370×320 pixels, < 1MB per file, 8/16/24/32/40 total"
+    },
+    "badge": {
+      "scaled": "Scaled",
+      "quantized": "Quantized",
+      "reencoded": "Re-encoded only"
     }
   }
 }

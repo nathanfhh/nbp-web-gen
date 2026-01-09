@@ -1,15 +1,14 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import JSZip from 'jszip'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
 import { useAnalytics } from '@/composables/useAnalytics'
+import { useHistoryState } from '@/composables/useHistoryState'
 import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 
 const { t } = useI18n()
-const router = useRouter()
 const toast = useToast()
 const { trackCropStickers, trackDownloadStickers } = useAnalytics()
 const pdfGenerator = usePdfGenerator()
@@ -147,16 +146,13 @@ const showColorPickerMagnifier = ref(false)
 const colorPickerMagnifierPos = ref({ x: 0, y: 0 })
 const colorPickerMagnifierCanvasPos = ref({ x: 0, y: 0 })
 
-// Track if we pushed history state (for back gesture handling)
-const historyStatePushed = ref(false)
-
-// Handle browser back button / gesture
-const handlePopState = (e) => {
-  if (props.modelValue && e.state?.stickerCropper !== true) {
+// History state management for back gesture/button support
+const { pushState, popState } = useHistoryState('stickerCropper', {
+  onBackNavigation: () => {
     // User pressed back while cropper is open - close it
     close()
-  }
-}
+  },
+})
 
 // Watch for open/close
 watch(() => props.modelValue, (newVal) => {
@@ -167,21 +163,12 @@ watch(() => props.modelValue, (newVal) => {
     loadImage()
 
     // Push history state to intercept back gesture/button
-    if (!historyStatePushed.value) {
-      history.pushState({ stickerCropper: true }, '')
-      historyStatePushed.value = true
-    }
+    pushState()
   } else {
     isClosing.value = true
 
     // Pop the history state we added (if still there)
-    if (historyStatePushed.value) {
-      historyStatePushed.value = false
-      // Only go back if we're on our pushed state
-      if (history.state?.stickerCropper === true) {
-        history.back()
-      }
-    }
+    popState()
 
     setTimeout(() => {
       isVisible.value = false
@@ -1099,19 +1086,14 @@ const handleKeydown = (e) => {
 onMounted(() => {
   isMounted = true
   window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('popstate', handlePopState)
 })
 
 onUnmounted(() => {
   isMounted = false
   window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('popstate', handlePopState)
   document.body.style.overflow = ''
 
-  // Clean up history state if component unmounts while open
-  if (historyStatePushed.value && history.state?.stickerCropper === true) {
-    history.back()
-  }
+  // Note: useHistoryState handles its own cleanup in onUnmounted
 
   // Reset processing state to avoid stuck state
   isProcessing.value = false

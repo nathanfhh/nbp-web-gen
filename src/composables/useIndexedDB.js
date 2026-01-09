@@ -504,6 +504,24 @@ export function useIndexedDB() {
     })
   }
 
+  /**
+   * Get character by name (for duplicate check during import)
+   * @param {string} name - Character name to search
+   * @returns {Promise<Object|null>}
+   */
+  const getCharacterByName = async (name) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readonly')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const index = store.index('name')
+      const request = index.get(name)
+
+      request.onsuccess = () => resolve(request.result || null)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
   return {
     isReady,
     error,
@@ -527,6 +545,7 @@ export function useIndexedDB() {
     getCharacters,
     getAllCharacters,
     getCharacterById,
+    getCharacterByName,
     updateCharacter,
     deleteCharacter,
     getCharacterCount,

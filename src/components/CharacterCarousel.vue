@@ -4,11 +4,15 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useIndexedDB } from '@/composables/useIndexedDB'
+import { useCharacterTransfer } from '@/composables/useCharacterTransfer'
+import { useToast } from '@/composables/useToast'
 
-useI18n() // Enable $t in template
+const { t } = useI18n()
 const router = useRouter()
 const store = useGeneratorStore()
+const toast = useToast()
 const { getCharacters, deleteCharacter: dbDeleteCharacter, getCharacterCount } = useIndexedDB()
+const { exportSingleCharacter, isExporting } = useCharacterTransfer()
 
 // Characters data
 const characters = ref([])
@@ -103,6 +107,17 @@ const goToExtractor = () => {
 const editCharacter = () => {
   if (!currentCharacter.value) return
   router.push({ name: 'character-extractor', query: { edit: currentCharacter.value.id } })
+}
+
+// Export current character
+const handleExport = async () => {
+  if (!currentCharacter.value || isExporting.value) return
+  const result = await exportSingleCharacter(currentCharacter.value.id)
+  if (result.success) {
+    toast.success(t('characterCarousel.exportSuccess'))
+  } else {
+    toast.error(t('characterCarousel.exportError'))
+  }
 }
 
 // Calculate card position for 3D carousel
@@ -257,6 +272,21 @@ watch(() => store.selectedCharacter, (newVal) => {
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+          <button
+            @click="handleExport"
+            class="info-btn"
+            :class="{ 'opacity-50 cursor-wait': isExporting }"
+            :disabled="isExporting"
+            :title="$t('common.export')"
+          >
+            <svg v-if="isExporting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
           </button>
           <button
@@ -568,27 +598,79 @@ watch(() => store.selectedCharacter, (newVal) => {
 
 /* Light theme */
 [data-theme="light"] .character-carousel {
-  --carousel-bg: rgba(0, 0, 0, 0.02);
-  --carousel-border: rgba(0, 0, 0, 0.08);
+  --carousel-bg: rgba(13, 94, 175, 0.03);
+  --carousel-border: rgba(13, 94, 175, 0.12);
   --text-primary: #1f2937;
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
 }
 
 [data-theme="light"] .carousel-card .card-image {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(13, 94, 175, 0.08);
 }
 
 [data-theme="light"] .character-info {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(13, 94, 175, 0.05);
 }
 
 [data-theme="light"] .carousel-nav {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(13, 94, 175, 0.08);
+  color: #0D5EAF;
 }
 
 [data-theme="light"] .carousel-nav:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(13, 94, 175, 0.15);
+}
+
+/* Light theme buttons and tags */
+[data-theme="light"] .carousel-add-btn {
+  background: rgba(13, 94, 175, 0.12);
+  color: #0D5EAF;
+}
+
+[data-theme="light"] .carousel-add-btn:hover {
+  background: rgba(13, 94, 175, 0.2);
+}
+
+[data-theme="light"] .info-btn {
+  background: rgba(13, 94, 175, 0.1);
+  color: #0D5EAF;
+}
+
+[data-theme="light"] .info-btn:hover {
+  background: rgba(13, 94, 175, 0.18);
+}
+
+[data-theme="light"] .info-btn.is-selected {
+  background: rgba(34, 197, 94, 0.15);
+  color: #047857;
+}
+
+[data-theme="light"] .info-btn.is-selected:hover {
+  background: rgba(34, 197, 94, 0.25);
+}
+
+[data-theme="light"] .info-btn-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+[data-theme="light"] .info-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+[data-theme="light"] .trait-tag {
+  background: rgba(13, 94, 175, 0.1);
+  color: #1f2937;
+}
+
+[data-theme="light"] .empty-btn {
+  background: rgba(13, 94, 175, 0.12);
+  color: #0D5EAF;
+}
+
+[data-theme="light"] .empty-btn:hover {
+  background: rgba(13, 94, 175, 0.2);
 }
 
 /* Reduced motion */

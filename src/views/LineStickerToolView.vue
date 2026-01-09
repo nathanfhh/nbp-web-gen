@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useLineStickerProcessor } from '@/composables/useLineStickerProcessor'
@@ -28,6 +28,29 @@ const {
 // Drag state
 const isDragging = ref(false)
 const fileInput = ref(null)
+
+// Image element refs for scroll into view
+const imageRefs = ref({})
+const setImageRef = (id, el) => {
+  if (el) {
+    imageRefs.value[id] = el
+  } else {
+    delete imageRefs.value[id]
+  }
+}
+
+// Watch for processing status and scroll to current processing image
+watch(
+  () => images.value.find((img) => img.status === 'processing'),
+  (processingImg) => {
+    if (processingImg && imageRefs.value[processingImg.id]) {
+      imageRefs.value[processingImg.id].scrollIntoView({
+        behavior: 'instant',
+        block: 'center',
+      })
+    }
+  },
+)
 
 // Handle drag events
 const handleDragOver = (e) => {
@@ -83,14 +106,6 @@ const getStatusClass = (img) => {
   return 'border-white/20'
 }
 
-// Get display size for image
-const getDisplaySize = (img) => {
-  if (img.processedBlob) {
-    return formatFileSize(img.processedSize)
-  }
-  return formatFileSize(img.size)
-}
-
 // Get display dimensions
 const getDisplayDimensions = (img) => {
   if (img.processedBlob) {
@@ -119,6 +134,41 @@ const formatFailedItems = (items) => {
   return indices.join(', ')
 }
 
+// Get stats for dimensions (original vs processed)
+const dimensionStats = computed(() => {
+  const oversized = images.value.filter(
+    (img) => img.width > LINE_SPECS.maxWidth || img.height > LINE_SPECS.maxHeight,
+  )
+  const processed = oversized.filter((img) => img.processedBlob)
+  const stillOversized = images.value.filter((img) => {
+    const w = img.processedBlob ? img.processedWidth : img.width
+    const h = img.processedBlob ? img.processedHeight : img.height
+    return w > LINE_SPECS.maxWidth || h > LINE_SPECS.maxHeight
+  })
+  return {
+    originalOversized: oversized.length,
+    processedCount: processed.length,
+    stillOversized: stillOversized.length,
+    hasProcessed: processed.length > 0,
+  }
+})
+
+// Get stats for file size (original vs processed)
+const fileSizeStats = computed(() => {
+  const oversized = images.value.filter((img) => img.size > LINE_SPECS.maxFileSize)
+  const processed = oversized.filter((img) => img.processedBlob)
+  const stillOversized = images.value.filter((img) => {
+    const size = img.processedBlob ? img.processedSize : img.size
+    return size > LINE_SPECS.maxFileSize
+  })
+  return {
+    originalOversized: oversized.length,
+    processedCount: processed.length,
+    stillOversized: stillOversized.length,
+    hasProcessed: processed.length > 0,
+  }
+})
+
 // Suggested count hint
 const suggestedCount = computed(() => {
   const current = images.value.length
@@ -134,7 +184,7 @@ const suggestedCount = computed(() => {
 <template>
   <div class="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)]">
     <!-- Header -->
-    <header class="sticky top-0 z-50 backdrop-blur-xl bg-[var(--bg-dark)]/80 border-b border-white/10">
+    <header class="sticky top-0 z-50 backdrop-blur-xl line-tool-header border-b border-white/10">
       <div class="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
         <button
           @click="goBack"
@@ -184,10 +234,10 @@ const suggestedCount = computed(() => {
       <!-- Spec Checks -->
       <section v-if="images.length > 0" class="glass p-6">
         <h2 class="text-lg font-semibold mb-4">{{ t('lineStickerTool.specs.title') }}</h2>
-        <div class="space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <!-- File Size Check -->
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5">
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
+            <span class="mt-0.5 shrink-0">
               <svg v-if="specChecks.fileSize.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
@@ -195,20 +245,26 @@ const suggestedCount = computed(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </span>
-            <div class="flex-1">
-              <p :class="specChecks.fileSize.passed ? 'text-emerald-400' : 'text-red-400'">
+            <div class="flex-1 min-w-0">
+              <p class="font-medium" :class="specChecks.fileSize.passed ? 'text-emerald-400' : 'text-red-400'">
                 {{ t('lineStickerTool.specs.fileSize') }}
               </p>
-              <p class="text-sm text-gray-500">{{ t('lineStickerTool.specs.fileSizeHint') }}</p>
-              <p v-if="specChecks.fileSize.failedItems.length > 0" class="text-sm text-amber-400 mt-1">
-                {{ t('lineStickerTool.specs.failed', { items: formatFailedItems(specChecks.fileSize.failedItems) }) }}
+              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.fileSizeHint') }}</p>
+              <!-- Before/after stats -->
+              <p v-if="fileSizeStats.originalOversized > 0" class="text-xs mt-1">
+                <span class="text-amber-400">{{ fileSizeStats.originalOversized }}</span>
+                <span v-if="fileSizeStats.hasProcessed" class="text-gray-500"> → </span>
+                <span v-if="fileSizeStats.hasProcessed" :class="fileSizeStats.stillOversized === 0 ? 'text-emerald-400' : 'text-amber-400'">
+                  {{ fileSizeStats.stillOversized }}
+                </span>
+                <span class="text-gray-500 ml-1">{{ t('lineStickerTool.specs.itemsOversized') }}</span>
               </p>
             </div>
           </div>
 
           <!-- Dimensions Check -->
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5">
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
+            <span class="mt-0.5 shrink-0">
               <svg v-if="specChecks.dimensions.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
@@ -216,20 +272,26 @@ const suggestedCount = computed(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </span>
-            <div class="flex-1">
-              <p :class="specChecks.dimensions.passed ? 'text-emerald-400' : 'text-red-400'">
+            <div class="flex-1 min-w-0">
+              <p class="font-medium" :class="specChecks.dimensions.passed ? 'text-emerald-400' : 'text-red-400'">
                 {{ t('lineStickerTool.specs.dimensions') }}
               </p>
-              <p class="text-sm text-gray-500">{{ t('lineStickerTool.specs.dimensionsHint') }}</p>
-              <p v-if="specChecks.dimensions.failedItems.length > 0" class="text-sm text-amber-400 mt-1">
-                {{ t('lineStickerTool.specs.failed', { items: formatFailedItems(specChecks.dimensions.failedItems) }) }}
+              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.dimensionsHint') }}</p>
+              <!-- Before/after stats -->
+              <p v-if="dimensionStats.originalOversized > 0" class="text-xs mt-1">
+                <span class="text-amber-400">{{ dimensionStats.originalOversized }}</span>
+                <span v-if="dimensionStats.hasProcessed" class="text-gray-500"> → </span>
+                <span v-if="dimensionStats.hasProcessed" :class="dimensionStats.stillOversized === 0 ? 'text-emerald-400' : 'text-amber-400'">
+                  {{ dimensionStats.stillOversized }}
+                </span>
+                <span class="text-gray-500 ml-1">{{ t('lineStickerTool.specs.itemsOversized') }}</span>
               </p>
             </div>
           </div>
 
           <!-- Count Check -->
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5">
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
+            <span class="mt-0.5 shrink-0">
               <svg v-if="specChecks.count.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
@@ -237,21 +299,21 @@ const suggestedCount = computed(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </span>
-            <div class="flex-1">
-              <p :class="specChecks.count.passed ? 'text-emerald-400' : 'text-red-400'">
+            <div class="flex-1 min-w-0">
+              <p class="font-medium" :class="specChecks.count.passed ? 'text-emerald-400' : 'text-red-400'">
                 {{ t('lineStickerTool.specs.count') }}
-                <span class="text-gray-400 font-normal ml-2">({{ specChecks.count.current }} {{ t('lineStickerTool.specs.images') }})</span>
+                <span class="text-gray-400 font-normal text-sm ml-1">({{ specChecks.count.current }})</span>
               </p>
-              <p class="text-sm text-gray-500">{{ t('lineStickerTool.specs.countHint') }}</p>
-              <p v-if="!specChecks.count.passed && suggestedCount" class="text-sm text-amber-400 mt-1">
-                {{ t('lineStickerTool.specs.suggestCount', { count: suggestedCount }) }}
+              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.countHint') }}</p>
+              <p v-if="!specChecks.count.passed && suggestedCount" class="text-xs text-amber-400 mt-1">
+                → {{ suggestedCount }}
               </p>
             </div>
           </div>
 
           <!-- Format Check -->
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5">
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
+            <span class="mt-0.5 shrink-0">
               <svg v-if="specChecks.format.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
@@ -259,13 +321,13 @@ const suggestedCount = computed(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </span>
-            <div class="flex-1">
-              <p :class="specChecks.format.passed ? 'text-emerald-400' : 'text-red-400'">
+            <div class="flex-1 min-w-0">
+              <p class="font-medium" :class="specChecks.format.passed ? 'text-emerald-400' : 'text-red-400'">
                 {{ t('lineStickerTool.specs.format') }}
               </p>
-              <p class="text-sm text-gray-500">{{ t('lineStickerTool.specs.formatHint') }}</p>
-              <p v-if="specChecks.format.failedItems.length > 0" class="text-sm text-amber-400 mt-1">
-                {{ t('lineStickerTool.specs.failed', { items: formatFailedItems(specChecks.format.failedItems) }) }}
+              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.formatHint') }}</p>
+              <p v-if="specChecks.format.failedItems.length > 0" class="text-xs text-amber-400 mt-1">
+                {{ formatFailedItems(specChecks.format.failedItems) }}
               </p>
             </div>
           </div>
@@ -297,6 +359,7 @@ const suggestedCount = computed(() => {
           <div
             v-for="(img, index) in images"
             :key="img.id"
+            :ref="el => setImageRef(img.id, el)"
             class="relative group"
           >
             <!-- Image card -->
@@ -305,7 +368,7 @@ const suggestedCount = computed(() => {
               :class="getStatusClass(img)"
             >
               <!-- Checkerboard background for transparency -->
-              <div class="absolute inset-0 checkerboard"></div>
+              <div class="absolute inset-0 checkerboard rounded-lg"></div>
               <!-- Image -->
               <img
                 :src="img.preview"
@@ -351,15 +414,45 @@ const suggestedCount = computed(() => {
               </button>
             </div>
             <!-- Info -->
-            <div class="mt-2 text-xs">
-              <p class="text-gray-400 truncate" :title="img.name">#{{ index + 1 }} {{ img.name }}</p>
-              <p class="text-gray-500">{{ getDisplayDimensions(img) }}</p>
-              <p
-                class="font-mono"
-                :class="(img.processedBlob ? img.processedSize : img.size) > LINE_SPECS.maxFileSize ? 'text-red-400' : 'text-gray-500'"
-              >
-                {{ getDisplaySize(img) }}
+            <div class="mt-2 text-xs p-2 rounded-lg bg-black/60 backdrop-blur-sm image-info">
+              <p class="text-gray-300 truncate" :title="img.name">#{{ index + 1 }} {{ img.name }}</p>
+
+              <!-- Dimensions: before → after -->
+              <p v-if="img.status === 'processed' && img.wasScaled" class="text-gray-400">
+                <span class="text-gray-500 line-through">{{ img.width }} × {{ img.height }}</span>
+                <span class="mx-1">→</span>
+                <span class="text-emerald-400">{{ img.processedWidth }} × {{ img.processedHeight }}</span>
               </p>
+              <p v-else class="text-gray-400">{{ getDisplayDimensions(img) }}</p>
+
+              <!-- File size: before → after -->
+              <p v-if="img.status === 'processed'" class="font-mono">
+                <span class="text-gray-500 line-through">{{ formatFileSize(img.size) }}</span>
+                <span class="mx-1">→</span>
+                <span :class="img.processedSize > LINE_SPECS.maxFileSize ? 'text-red-400' : 'text-emerald-400'">
+                  {{ formatFileSize(img.processedSize) }}
+                </span>
+              </p>
+              <p
+                v-else
+                class="font-mono"
+                :class="img.size > LINE_SPECS.maxFileSize ? 'text-red-400' : 'text-gray-400'"
+              >
+                {{ formatFileSize(img.size) }}
+              </p>
+
+              <!-- Processing info badges -->
+              <div v-if="img.status === 'processed'" class="flex flex-wrap gap-1 mt-1">
+                <span v-if="img.wasScaled" class="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300">
+                  {{ t('lineStickerTool.badge.scaled') }}
+                </span>
+                <span v-if="img.wasQuantized" class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300">
+                  {{ t('lineStickerTool.badge.quantized') }}
+                </span>
+                <span v-if="!img.wasScaled && !img.wasQuantized" class="px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-gray-300">
+                  {{ t('lineStickerTool.badge.reencoded') }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -441,6 +534,18 @@ const suggestedCount = computed(() => {
 </template>
 
 <style scoped>
+/* Default header for dark mode */
+.line-tool-header {
+  background: rgba(var(--bg-dark-rgb, 15, 23, 42), 0.8);
+}
+
+/* Light theme header */
+[data-theme="light"] .line-tool-header {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(13, 94, 175, 0.15) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 .checkerboard {
   background-image:
     linear-gradient(45deg, #333 25%, transparent 25%),
@@ -457,5 +562,24 @@ const suggestedCount = computed(() => {
     linear-gradient(-45deg, #ddd 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, #ddd 75%),
     linear-gradient(-45deg, transparent 75%, #ddd 75%);
+}
+
+/* Image info styling for light mode */
+[data-theme="light"] .image-info {
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .image-info p {
+  color: #374151 !important;
+}
+
+[data-theme="light"] .image-info .text-red-400 {
+  color: #dc2626 !important;
+}
+
+/* Spec card styling for light mode */
+[data-theme="light"] .spec-card {
+  background: rgba(13, 94, 175, 0.05) !important;
 }
 </style>

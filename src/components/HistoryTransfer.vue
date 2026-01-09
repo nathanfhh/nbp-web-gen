@@ -1,9 +1,12 @@
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHistoryTransfer } from '@/composables/useHistoryTransfer'
+import { useCharacterTransfer } from '@/composables/useCharacterTransfer'
 import { useIndexedDB } from '@/composables/useIndexedDB'
+import { useImageStorage } from '@/composables/useImageStorage'
 import { useToast } from '@/composables/useToast'
+import { useHistoryState } from '@/composables/useHistoryState'
 import PeerSync from '@/components/PeerSync.vue'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -14,7 +17,12 @@ dayjs.extend(relativeTime)
 const { t, locale } = useI18n()
 const toast = useToast()
 const transfer = useHistoryTransfer()
+const charTransfer = useCharacterTransfer()
 const indexedDB = useIndexedDB()
+const imageStorage = useImageStorage()
+
+// Tab state: 'history' or 'characters'
+const activeTab = ref('history')
 
 // Peer sync modal
 const showPeerSync = ref(false)
@@ -25,17 +33,37 @@ const historyList = ref([])
 const selectedIds = ref(new Set())
 const isLoadingList = ref(false)
 
+// Character list for selection
+const characterList = ref([])
+const selectedCharIds = ref(new Set())
+const isLoadingCharacters = ref(false)
+
+// Preview state for character thumbnail
+const previewCharacter = ref(null)
+
+// Preview state for history thumbnail
+const previewHistoryItem = ref(null)
+const previewHistoryImageUrl = ref(null)
+const isLoadingPreview = ref(false)
+
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue', 'imported'])
 
-// Computed
+// Computed for history tab
 const selectedCount = computed(() => selectedIds.value.size)
 const isAllSelected = computed(() =>
   historyList.value.length > 0 && selectedIds.value.size === historyList.value.length
 )
 const hasSelection = computed(() => selectedIds.value.size > 0)
+
+// Computed for characters tab
+const selectedCharCount = computed(() => selectedCharIds.value.size)
+const isAllCharSelected = computed(() =>
+  characterList.value.length > 0 && selectedCharIds.value.size === characterList.value.length
+)
+const hasCharSelection = computed(() => selectedCharIds.value.size > 0)
 
 // Mode label colors (light mode handled by style.css [data-theme="light"])
 const modeColors = {
@@ -60,7 +88,7 @@ const loadHistoryList = async () => {
   }
 }
 
-// Selection operations
+// Selection operations for history
 const toggleSelect = (id) => {
   const newSet = new Set(selectedIds.value)
   if (newSet.has(id)) {
@@ -79,55 +107,113 @@ const deselectAll = () => {
   selectedIds.value = new Set()
 }
 
+// Load character list
+const loadCharacterList = async () => {
+  isLoadingCharacters.value = true
+  try {
+    characterList.value = await indexedDB.getCharacters(1000)
+    // Sort by createdAt descending
+    characterList.value.sort((a, b) => b.createdAt - a.createdAt)
+  } catch (err) {
+    console.error('Failed to load characters:', err)
+  } finally {
+    isLoadingCharacters.value = false
+  }
+}
+
+// Selection operations for characters
+const toggleCharSelect = (id) => {
+  const newSet = new Set(selectedCharIds.value)
+  if (newSet.has(id)) {
+    newSet.delete(id)
+  } else {
+    newSet.add(id)
+  }
+  selectedCharIds.value = newSet
+}
+
+const selectAllChars = () => {
+  selectedCharIds.value = new Set(characterList.value.map(c => c.id))
+}
+
+const deselectAllChars = () => {
+  selectedCharIds.value = new Set()
+}
+
+// Preview character image
+const openCharPreview = (char, e) => {
+  e.stopPropagation()
+  previewCharacter.value = char
+}
+
+const closeCharPreview = () => {
+  previewCharacter.value = null
+}
+
+// Preview history image - load full image from OPFS
+const openHistoryPreview = async (item, e) => {
+  e.stopPropagation()
+  if (!item.images?.[0]) return
+
+  previewHistoryItem.value = item
+  isLoadingPreview.value = true
+
+  try {
+    // Load full image from OPFS using opfsPath
+    const opfsPath = item.images[0].opfsPath
+    if (opfsPath) {
+      const url = await imageStorage.loadImage(opfsPath)
+      previewHistoryImageUrl.value = url
+    }
+  } catch (err) {
+    console.error('Failed to load preview image:', err)
+  } finally {
+    isLoadingPreview.value = false
+  }
+}
+
+const closeHistoryPreview = () => {
+  previewHistoryItem.value = null
+  previewHistoryImageUrl.value = null
+}
+
 // Format relative time
 const formatRelativeTime = (timestamp) => {
   return dayjs(timestamp).locale(locale.value === 'zh-TW' ? 'zh-tw' : 'en').fromNow()
 }
 
-// History API for back gesture
-const historyStatePushed = ref(false)
-
-const handlePopState = (e) => {
-  if (props.modelValue && e.state?.historyTransfer !== true) {
-    emit('update:modelValue', false)
-  }
-}
+// History state management for back gesture/button support
+const { pushState, popState } = useHistoryState('historyTransfer', {
+  onBackNavigation: () => {
+    if (previewCharacter.value) {
+      closeCharPreview()
+    } else if (previewHistoryItem.value) {
+      closeHistoryPreview()
+    } else {
+      emit('update:modelValue', false)
+    }
+  },
+})
 
 watch(
   () => props.modelValue,
   async (newVal) => {
     if (newVal) {
-      if (!historyStatePushed.value) {
-        history.pushState({ historyTransfer: true }, '')
-        historyStatePushed.value = true
-      }
+      pushState()
       document.body.style.overflow = 'hidden'
-      // Load history list when modal opens
-      await loadHistoryList()
-      // Reset selection
+      // Load both lists when modal opens
+      await Promise.all([loadHistoryList(), loadCharacterList()])
+      // Reset selections
       selectedIds.value = new Set()
+      selectedCharIds.value = new Set()
     } else {
-      if (historyStatePushed.value) {
-        historyStatePushed.value = false
-        if (history.state?.historyTransfer === true) {
-          history.back()
-        }
-      }
+      popState()
       document.body.style.overflow = ''
     }
   }
 )
 
-onMounted(() => {
-  window.addEventListener('popstate', handlePopState)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('popstate', handlePopState)
-  if (historyStatePushed.value && history.state?.historyTransfer === true) {
-    history.back()
-  }
-})
+// Note: useHistoryState handles its own lifecycle in onMounted/onUnmounted
 
 // File input handling
 const fileInputRef = ref(null)
@@ -162,23 +248,44 @@ const processFile = async (file) => {
     return
   }
   try {
-    const result = await transfer.importHistory(file)
-    if (result) {
-      emit('imported')
-      // Reload history list after import
-      await loadHistoryList()
-      toast.success(
-        t('historyTransfer.importSuccess', {
-          imported: result.imported,
-          skipped: result.skipped,
-        })
-      )
+    // Check if it's a character export file
+    const isCharFile = await charTransfer.isCharacterExportFile(file)
+
+    if (isCharFile) {
+      const result = await charTransfer.importCharacters(file)
+      if (result) {
+        emit('imported')
+        // Reload character list after import
+        await loadCharacterList()
+        toast.success(
+          t('historyTransfer.charImportSuccess', {
+            imported: result.imported,
+            skipped: result.skipped,
+          })
+        )
+        // Switch to characters tab to show the result
+        activeTab.value = 'characters'
+      }
+    } else {
+      const result = await transfer.importHistory(file)
+      if (result) {
+        emit('imported')
+        // Reload history list after import
+        await loadHistoryList()
+        toast.success(
+          t('historyTransfer.importSuccess', {
+            imported: result.imported,
+            skipped: result.skipped,
+          })
+        )
+      }
     }
   } catch {
     toast.error(t('historyTransfer.importError'))
   }
 }
 
+// Export history
 const handleExport = async () => {
   if (!hasSelection.value) {
     toast.error(t('historyTransfer.noSelection'))
@@ -188,6 +295,21 @@ const handleExport = async () => {
   const result = await transfer.exportHistory(ids)
   if (result.success) {
     toast.success(t('historyTransfer.exportSuccess', { count: result.count }))
+  } else {
+    toast.error(t('historyTransfer.exportError'))
+  }
+}
+
+// Export characters
+const handleCharExport = async () => {
+  if (!hasCharSelection.value) {
+    toast.error(t('historyTransfer.noSelection'))
+    return
+  }
+  const ids = Array.from(selectedCharIds.value)
+  const result = await charTransfer.exportCharacters(ids)
+  if (result.success) {
+    toast.success(t('historyTransfer.charExportSuccess', { count: result.count }))
   } else {
     toast.error(t('historyTransfer.exportError'))
   }
@@ -238,8 +360,40 @@ const close = () => {
             </button>
           </div>
 
-          <!-- Selection Controls -->
-          <div class="flex items-center justify-between mb-3 flex-shrink-0">
+          <!-- Tab Switcher -->
+          <div class="flex gap-2 mb-3 flex-shrink-0">
+            <button
+              @click="activeTab = 'history'"
+              :class="[
+                'flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2',
+                activeTab === 'history'
+                  ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
+              ]"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {{ $t('historyTransfer.historyTab') }}
+            </button>
+            <button
+              @click="activeTab = 'characters'"
+              :class="[
+                'flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2',
+                activeTab === 'characters'
+                  ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
+                  : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
+              ]"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              {{ $t('historyTransfer.charactersTab') }}
+            </button>
+          </div>
+
+          <!-- Selection Controls (History) -->
+          <div v-if="activeTab === 'history'" class="flex items-center justify-between mb-3 flex-shrink-0">
             <div class="flex items-center gap-2">
               <button
                 v-if="!isAllSelected"
@@ -261,8 +415,31 @@ const close = () => {
             </span>
           </div>
 
+          <!-- Selection Controls (Characters) -->
+          <div v-if="activeTab === 'characters'" class="flex items-center justify-between mb-3 flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <button
+                v-if="!isAllCharSelected"
+                @click="selectAllChars"
+                class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
+              >
+                {{ $t('historyTransfer.selectAll') }}
+              </button>
+              <button
+                v-else
+                @click="deselectAllChars"
+                class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
+              >
+                {{ $t('historyTransfer.deselectAll') }}
+              </button>
+            </div>
+            <span class="text-xs text-gray-500">
+              {{ $t('historyTransfer.selectedCount', { count: selectedCharCount }) }}
+            </span>
+          </div>
+
           <!-- History List -->
-          <div class="flex-1 overflow-y-auto mb-4 min-h-0 pr-2">
+          <div v-if="activeTab === 'history'" class="flex-1 overflow-y-auto mb-4 min-h-0 pr-2">
             <div v-if="isLoadingList" class="flex items-center justify-center py-8">
               <svg class="w-6 h-6 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -304,8 +481,14 @@ const close = () => {
                   </svg>
                 </div>
 
-                <!-- Thumbnail -->
-                <div class="w-10 h-10 rounded-lg bg-black/30 flex-shrink-0 overflow-hidden">
+                <!-- Thumbnail (clickable for preview) -->
+                <div
+                  @click.stop="item.images?.[0]?.thumbnail && openHistoryPreview(item, $event)"
+                  :class="[
+                    'w-10 h-10 rounded-lg bg-black/30 flex-shrink-0 overflow-hidden transition-all',
+                    item.images?.[0]?.thumbnail && 'cursor-zoom-in hover:ring-2 hover:ring-blue-400'
+                  ]"
+                >
                   <img
                     v-if="item.images?.[0]?.thumbnail"
                     :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
@@ -342,8 +525,85 @@ const close = () => {
             </div>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="flex gap-3 mb-4 flex-shrink-0">
+          <!-- Characters List -->
+          <div v-if="activeTab === 'characters'" class="flex-1 overflow-y-auto mb-4 min-h-0 pr-2">
+            <div v-if="isLoadingCharacters" class="flex items-center justify-center py-8">
+              <svg class="w-6 h-6 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <div v-else-if="characterList.length === 0" class="text-center py-8">
+              <p class="text-gray-500 text-sm">{{ $t('historyTransfer.noCharacters') }}</p>
+            </div>
+            <div v-else class="space-y-2">
+              <div
+                v-for="char in characterList"
+                :key="char.id"
+                @click="toggleCharSelect(char.id)"
+                :class="[
+                  'flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all',
+                  selectedCharIds.has(char.id)
+                    ? 'bg-blue-500/20 border border-blue-500/50'
+                    : 'bg-white/5 border border-transparent hover:bg-white/10'
+                ]"
+              >
+                <!-- Checkbox -->
+                <div
+                  :class="[
+                    'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all',
+                    selectedCharIds.has(char.id)
+                      ? 'bg-blue-500 border-blue-500'
+                      : 'border-gray-500'
+                  ]"
+                >
+                  <svg
+                    v-if="selectedCharIds.has(char.id)"
+                    class="w-3 h-3 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+
+                <!-- Thumbnail (clickable for preview) -->
+                <div
+                  @click.stop="openCharPreview(char, $event)"
+                  class="w-12 h-12 rounded-lg bg-black/30 flex-shrink-0 overflow-hidden cursor-zoom-in hover:ring-2 hover:ring-blue-400 transition-all"
+                >
+                  <img
+                    v-if="char.thumbnail"
+                    :src="`data:image/webp;base64,${char.thumbnail}`"
+                    class="w-full h-full object-cover"
+                    :alt="char.name"
+                  />
+                  <div v-else class="w-full h-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-medium text-white truncate">{{ char.name }}</span>
+                    <span class="text-xs text-gray-500">
+                      {{ formatRelativeTime(char.createdAt) }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-gray-400 truncate">
+                    {{ char.description?.slice(0, 60) }}{{ char.description?.length > 60 ? '...' : '' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons (History Tab) -->
+          <div v-if="activeTab === 'history'" class="flex gap-3 mb-4 flex-shrink-0">
             <button
               @click="handleExport"
               :disabled="!hasSelection || transfer.isExporting.value"
@@ -371,6 +631,29 @@ const close = () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
               <span>{{ $t('peerSync.title') }}</span>
+            </button>
+          </div>
+
+          <!-- Action Buttons (Characters Tab) -->
+          <div v-if="activeTab === 'characters'" class="flex gap-3 mb-4 flex-shrink-0">
+            <button
+              @click="handleCharExport"
+              :disabled="!hasCharSelection || charTransfer.isExporting.value"
+              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <template v-if="charTransfer.isExporting.value">
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ charTransfer.progress.value.current }}/{{ charTransfer.progress.value.total }}</span>
+              </template>
+              <template v-else>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>{{ $t('historyTransfer.export.button') }}</span>
+              </template>
             </button>
           </div>
 
@@ -469,6 +752,95 @@ const close = () => {
     :selected-ids="peerSyncSelectedIds"
     @synced="$emit('imported')"
   />
+
+  <!-- Character Preview Lightbox -->
+  <Teleport to="body">
+    <Transition name="lightbox">
+      <div
+        v-if="previewCharacter"
+        class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+        @click="closeCharPreview"
+      >
+        <button
+          @click="closeCharPreview"
+          class="absolute top-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <div class="max-w-[90vw] max-h-[85vh] flex flex-col items-center gap-4" @click.stop>
+          <img
+            v-if="previewCharacter.imageData"
+            :src="`data:image/png;base64,${previewCharacter.imageData}`"
+            :alt="previewCharacter.name"
+            class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+          />
+          <div class="text-center">
+            <h3 class="text-xl font-semibold text-white mb-2">{{ previewCharacter.name }}</h3>
+            <p class="text-sm text-gray-400 max-w-md">{{ previewCharacter.description }}</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- History Preview Lightbox -->
+  <Teleport to="body">
+    <Transition name="lightbox">
+      <div
+        v-if="previewHistoryItem"
+        class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+        @click="closeHistoryPreview"
+      >
+        <button
+          @click="closeHistoryPreview"
+          class="absolute top-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <div class="max-w-[90vw] max-h-[85vh] flex flex-col items-center gap-4" @click.stop>
+          <!-- Loading spinner -->
+          <div v-if="isLoadingPreview" class="flex items-center justify-center py-12">
+            <svg class="w-10 h-10 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <!-- Full image from OPFS -->
+          <img
+            v-else-if="previewHistoryImageUrl"
+            :src="previewHistoryImageUrl"
+            :alt="previewHistoryItem.prompt"
+            class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+          />
+          <!-- Fallback to thumbnail if OPFS load failed -->
+          <img
+            v-else-if="previewHistoryItem.images?.[0]?.thumbnail"
+            :src="`data:image/webp;base64,${previewHistoryItem.images[0].thumbnail}`"
+            :alt="previewHistoryItem.prompt"
+            class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+          />
+          <div class="text-center max-w-lg">
+            <div class="flex items-center justify-center gap-2 mb-2">
+              <span :class="['text-xs px-2 py-1 rounded', modeColors[previewHistoryItem.mode] || 'bg-gray-500/20 text-gray-300']">
+                {{ $t(`modes.${previewHistoryItem.mode}.name`) }}
+              </span>
+              <span class="text-xs text-gray-500">
+                {{ formatRelativeTime(previewHistoryItem.timestamp) }}
+              </span>
+              <span v-if="previewHistoryItem.images?.length > 1" class="text-xs text-gray-500">
+                · {{ previewHistoryItem.images.length }} {{ $t('common.images') || 'images' }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-400">{{ previewHistoryItem.prompt }}</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -494,6 +866,16 @@ const close = () => {
 
 .fade-enter-from,
 .fade-leave-to {
+  opacity: 0;
+}
+
+.lightbox-enter-active,
+.lightbox-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.lightbox-enter-from,
+.lightbox-leave-to {
   opacity: 0;
 }
 </style>

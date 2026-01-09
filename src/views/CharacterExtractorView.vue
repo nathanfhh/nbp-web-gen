@@ -249,7 +249,7 @@ const canSave = computed(() => {
 <template>
   <div class="relative z-10 min-h-screen">
     <!-- Header -->
-    <header class="sticky top-0 z-50 backdrop-blur-xl bg-black/30 border-b border-white/10">
+    <header class="sticky top-0 z-50 backdrop-blur-xl extractor-header border-b border-white/10">
       <div class="container mx-auto px-4 py-4 flex items-center justify-between">
         <button
           @click="goBack"
@@ -519,7 +519,7 @@ const canSave = computed(() => {
                   <span
                     v-for="(accessory, index) in extractedData.accessories"
                     :key="index"
-                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-sm"
+                    class="accessory-tag inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-sm"
                   >
                     {{ accessory }}
                     <button @click="removeAccessory(index)" class="hover:text-white">
@@ -539,7 +539,7 @@ const canSave = computed(() => {
                   />
                   <button
                     @click="addAccessory"
-                    class="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                    class="add-tag-btn px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -555,7 +555,7 @@ const canSave = computed(() => {
                   <span
                     v-for="(feature, index) in extractedData.distinctiveFeatures"
                     :key="index"
-                    class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-sm"
+                    class="feature-tag inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-sm"
                   >
                     {{ feature }}
                     <button @click="removeFeature(index)" class="hover:text-white">
@@ -575,7 +575,7 @@ const canSave = computed(() => {
                   />
                   <button
                     @click="addFeature"
-                    class="px-3 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 transition-colors"
+                    class="add-tag-btn px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -588,9 +588,9 @@ const canSave = computed(() => {
               <button
                 @click="handleSave"
                 :disabled="!canSave"
-                class="w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                class="save-btn w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
                 :class="canSave
-                  ? 'bg-green-500 hover:bg-green-600 text-white'
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
                   : 'bg-white/10 text-gray-500 cursor-not-allowed'"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -605,3 +605,53 @@ const canSave = computed(() => {
     </main>
   </div>
 </template>
+
+<style scoped>
+/* Default header for dark mode */
+.extractor-header {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Light theme overrides */
+[data-theme="light"] .extractor-header {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(13, 94, 175, 0.15) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Tags need dark text in light mode */
+[data-theme="light"] .accessory-tag,
+[data-theme="light"] .feature-tag {
+  background: rgba(13, 94, 175, 0.12) !important;
+  color: #1f2937 !important;
+}
+
+[data-theme="light"] .accessory-tag button,
+[data-theme="light"] .feature-tag button {
+  color: #4b5563 !important;
+}
+
+[data-theme="light"] .accessory-tag button:hover,
+[data-theme="light"] .feature-tag button:hover {
+  color: #1f2937 !important;
+}
+
+/* Add tag buttons in light mode */
+[data-theme="light"] .add-tag-btn {
+  background: rgba(13, 94, 175, 0.12) !important;
+  color: #0D5EAF !important;
+}
+
+[data-theme="light"] .add-tag-btn:hover {
+  background: rgba(13, 94, 175, 0.2) !important;
+}
+
+/* Save button in light mode */
+[data-theme="light"] .save-btn.bg-blue-500 {
+  background: #0D5EAF !important;
+}
+
+[data-theme="light"] .save-btn.bg-blue-500:hover {
+  background: #0A4C8C !important;
+}
+</style>

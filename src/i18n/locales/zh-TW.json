@@ -7,6 +7,7 @@
     "delete": "刪除",
     "add": "新增",
     "edit": "編輯",
+    "export": "匯出",
     "download": "下載",
     "downloadAll": "全部下載",
     "copy": "複製",
@@ -14,7 +15,9 @@
     "loading": "載入中...",
     "remove": "移除",
     "change": "更換",
-    "characters": "字元"
+    "characters": "字元",
+    "back": "返回",
+    "images": "張圖片"
   },
   "hero": {
     "subtitle": "AI 圖像生成工具",
@@ -260,10 +263,13 @@
   },
   "historyTransfer": {
     "title": "匯出/匯入",
+    "historyTab": "歷史紀錄",
+    "charactersTab": "角色",
     "selectAll": "全選",
     "deselectAll": "取消全選",
     "selectedCount": "已選 {count} 筆",
     "noSelection": "請至少選擇一筆記錄",
+    "noCharacters": "尚無角色資料",
     "export": {
       "title": "匯出歷史紀錄",
       "description": "將選擇的紀錄匯出為 JSON 檔案，包含圖片",
@@ -286,7 +292,9 @@
     "exportSuccess": "成功匯出 {count} 筆紀錄",
     "exportError": "匯出失敗，請重試",
     "importSuccess": "成功匯入 {imported} 筆紀錄，跳過 {skipped} 筆重複",
-    "importError": "匯入失敗，請確認檔案格式正確"
+    "importError": "匯入失敗，請確認檔案格式正確",
+    "charExportSuccess": "成功匯出 {count} 筆角色資料",
+    "charImportSuccess": "成功匯入 {imported} 筆角色，跳過 {skipped} 筆重複"
   },
   "thinking": {
     "title": "思考過程",
@@ -481,7 +489,9 @@
     "deleteConfirmTitle": "刪除角色",
     "deleteConfirmMessage": "確定要刪除此角色嗎？此操作無法復原。",
     "manage": "管理角色",
-    "extractNew": "萃取新角色"
+    "extractNew": "萃取新角色",
+    "exportSuccess": "角色已成功匯出",
+    "exportError": "匯出失敗，請重試"
   },
   "peerSync": {
     "title": "跨裝置同步",
@@ -572,7 +582,11 @@
       "failed": "不符合：{items}",
       "allPassed": "全部規格符合，可直接下載！",
       "images": "張",
-      "suggestCount": "建議調整為 {count} 張"
+      "suggestCount": "建議調整為 {count} 張",
+      "originalStatus": "原始",
+      "afterProcessing": "處理後",
+      "itemsOversized": "張超出規格",
+      "allCompliant": "全部符合規格"
     },
     "preview": {
       "title": "圖片預覽"
@@ -591,6 +605,11 @@
     "empty": {
       "hint": "上傳 PNG 圖片開始處理",
       "specs": "LINE 貼圖規格：最大 370×320 像素、單檔 < 1MB、總數為 8/16/24/32/40 張"
+    },
+    "badge": {
+      "scaled": "已縮放",
+      "quantized": "已降色",
+      "reencoded": "僅重編碼"
     }
   }
 }

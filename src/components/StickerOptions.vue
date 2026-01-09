@@ -403,29 +403,5 @@ const handleStyleEnter = (event) => {
       </div>
     </div>
 
-    <!-- Divider -->
-    <div class="border-t border-white/10"></div>
-
-    <!-- LINE Sticker Tool Entry -->
-    <router-link
-      to="/line-sticker-tool"
-      class="flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all group"
-    >
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-          <!-- LINE icon -->
-          <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 5.93 2 10.66c0 2.72 1.33 5.13 3.42 6.72.17.13.28.35.26.59l-.35 2.08c-.06.39.34.68.68.49l2.5-1.4c.17-.1.38-.12.57-.06.93.25 1.92.38 2.92.38 5.52 0 10-3.93 10-8.66S17.52 2 12 2z"/>
-          </svg>
-        </div>
-        <div>
-          <p class="text-sm font-medium text-emerald-300">{{ $t('lineStickerTool.entry.title') }}</p>
-          <p class="text-xs text-gray-500">{{ $t('lineStickerTool.entry.desc') }}</p>
-        </div>
-      </div>
-      <svg class="w-5 h-5 text-gray-500 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-      </svg>
-    </router-link>
   </div>
 </template>

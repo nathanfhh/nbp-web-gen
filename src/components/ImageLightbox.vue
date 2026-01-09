@@ -6,6 +6,7 @@ import { formatFileSize, calculateCompressionRatio } from '@/composables/useImag
 import { useImageStorage } from '@/composables/useImageStorage'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
+import { useHistoryState } from '@/composables/useHistoryState'
 import StickerCropper from '@/components/StickerCropper.vue'
 import JSZip from 'jszip'
 
@@ -96,18 +97,13 @@ const resetTransform = () => {
   translateY.value = 0
 }
 
-// Track if we pushed history state
-const historyStatePushed = ref(false)
-// Flag to skip history.back() when navigating via router
-const skipHistoryBack = ref(false)
-
-// Handle browser back button / gesture
-const handlePopState = (e) => {
-  if (props.modelValue && e.state?.lightbox !== true) {
+// History state management for back gesture/button support
+const { pushState, popState, cleanupBeforeNavigation } = useHistoryState('lightbox', {
+  onBackNavigation: () => {
     // User pressed back while lightbox is open - close it
     emit('update:modelValue', false)
-  }
-}
+  },
+})
 
 // Watch for external open
 watch(() => props.modelValue, (newVal) => {
@@ -119,25 +115,12 @@ watch(() => props.modelValue, (newVal) => {
     document.body.style.overflow = 'hidden'
 
     // Push history state to intercept back gesture/button
-    if (!historyStatePushed.value) {
-      history.pushState({ lightbox: true }, '')
-      historyStatePushed.value = true
-    }
+    pushState()
   } else {
     isClosing.value = true
 
     // Pop the history state we added (if still there)
-    // Skip if we're navigating via router (to avoid conflict)
-    if (historyStatePushed.value && !skipHistoryBack.value) {
-      historyStatePushed.value = false
-      // Only go back if we're on our pushed state
-      if (history.state?.lightbox === true) {
-        history.back()
-      }
-    } else {
-      historyStatePushed.value = false
-    }
-    skipHistoryBack.value = false
+    popState()
 
     setTimeout(() => {
       isVisible.value = false
@@ -469,19 +452,13 @@ const handleGlobalMouseUp = () => {
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('mouseup', handleGlobalMouseUp)
-  window.addEventListener('popstate', handlePopState)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
-  window.removeEventListener('popstate', handlePopState)
   document.body.style.overflow = ''
-
-  // Clean up history state if component unmounts while open
-  if (historyStatePushed.value && history.state?.lightbox === true) {
-    history.back()
-  }
+  // Note: useHistoryState handles its own cleanup in onUnmounted
 })
 
 const getImageSrc = (image) => {
@@ -649,13 +626,8 @@ const handleExtractCharacter = async () => {
   document.body.style.overflow = ''
 
   // CRITICAL: Remove lightbox's history state before vue-router navigation
-  // The lightbox pushed { lightbox: true } to history, which confuses vue-router
-  if (historyStatePushed.value) {
-    window.removeEventListener('popstate', handlePopState)
-    historyStatePushed.value = false
-    history.back()
-    await new Promise(resolve => setTimeout(resolve, 50))
-  }
+  // Uses robust history state cleanup (waits for state change instead of fixed timeout)
+  await cleanupBeforeNavigation()
 
   // Navigate to character extractor
   await router.push({ name: 'character-extractor', query: { image: '1' } })

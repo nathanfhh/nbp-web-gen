@@ -112,9 +112,9 @@ export function useCharacterExtraction() {
           responseMimeType: 'application/json',
           responseSchema: EXTRACTION_SCHEMA,
           temperature: 0.2, // Low temperature for consistent extraction
-        },
-        thinkingConfig: {
-          thinkingLevel: 'HIGH',
+          thinkingConfig: {
+            thinkingLevel: 'HIGH',
+          },
         },
       }
 
