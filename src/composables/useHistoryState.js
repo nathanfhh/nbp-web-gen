@@ -28,7 +28,13 @@ export function useHistoryState(stateKey, { onBackNavigation } = {}) {
   const pushState = () => {
     if (isStatePushed.value) return
 
-    history.pushState({ [stateKey]: true }, '')
+    // Preserve existing state to avoid breaking Vue Router or other libs
+    // Vue Router relies on history.state properties (like 'current', 'replaced', 'position')
+    const newState = { 
+      ...(history.state || {}), 
+      [stateKey]: true 
+    }
+    history.pushState(newState, '')
     isStatePushed.value = true
   }
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { formatFileSize, calculateCompressionRatio } from '@/composables/useImageCompression'
@@ -625,12 +625,39 @@ const handleExtractCharacter = async () => {
   // Clean up body overflow
   document.body.style.overflow = ''
 
+  // Wait for StickerCropper to process the change and pop its history state
+  await nextTick()
+  
+  // Wait for StickerCropper history state to be removed
+  // This prevents race conditions where nested history.back() calls conflict with router.push()
+  const waitForStateCleanup = async (key) => {
+    const startTime = Date.now()
+    while (history.state && history.state[key] && Date.now() - startTime < 500) {
+      await new Promise(r => setTimeout(r, 50))
+    }
+  }
+
+  await waitForStateCleanup('stickerCropper')
+
   // CRITICAL: Remove lightbox's history state before vue-router navigation
   // Uses robust history state cleanup (waits for state change instead of fixed timeout)
   await cleanupBeforeNavigation()
+  
+  // Final safety check: if we are still in a "lightbox" state (e.g. timeout), force another back
+  if (history.state?.lightbox) {
+    history.back()
+    await waitForStateCleanup('lightbox')
+  }
 
   // Navigate to character extractor
-  await router.push({ name: 'character-extractor', query: { image: '1' } })
+  try {
+    await router.push({ name: 'character-extractor', query: { image: '1' } })
+  } catch (err) {
+    console.error('Router push failed, falling back to location assignment:', err)
+    // Fallback for corrupted history state (SecurityError etc)
+    const targetUrl = router.resolve({ name: 'character-extractor', query: { image: '1' } }).href
+    window.location.href = targetUrl
+  }
 }
 
 // Batch download state
