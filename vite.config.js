@@ -7,6 +7,7 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -73,5 +74,25 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vue core
+          'vue-vendor': ['vue', 'pinia', 'vue-i18n'],
+          // Heavy libraries
+          'jszip': ['jszip'],
+          'peerjs': ['peerjs'],
+        },
+      },
+      plugins: [
+        visualizer({
+          filename: 'dist/stats.html',
+          open: false,
+          gzipSize: true,
+        }),
+      ],
+    },
   },
 })

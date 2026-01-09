@@ -1,28 +1,34 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
 import { useToast } from '@/composables/useToast'
 import { saveLocale } from '@/i18n'
+
+// Core components (always loaded)
 import ParticleBackground from '@/components/ParticleBackground.vue'
 import ApiKeyInput from '@/components/ApiKeyInput.vue'
 import ModeSelector from '@/components/ModeSelector.vue'
 import PromptInput from '@/components/PromptInput.vue'
 import CommonSettings from '@/components/CommonSettings.vue'
-import GenerateOptions from '@/components/GenerateOptions.vue'
-import StickerOptions from '@/components/StickerOptions.vue'
-import EditOptions from '@/components/EditOptions.vue'
-import StoryOptions from '@/components/StoryOptions.vue'
-import DiagramOptions from '@/components/DiagramOptions.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
-import GenerationHistory from '@/components/GenerationHistory.vue'
-import ThinkingProcess from '@/components/ThinkingProcess.vue'
-import PromptDebug from '@/components/PromptDebug.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 import GitHubLink from '@/components/GitHubLink.vue'
 import YouTubeLink from '@/components/YouTubeLink.vue'
+
+// Lazy loaded: Mode-specific options (only one shown at a time)
+const GenerateOptions = defineAsyncComponent(() => import('@/components/GenerateOptions.vue'))
+const StickerOptions = defineAsyncComponent(() => import('@/components/StickerOptions.vue'))
+const EditOptions = defineAsyncComponent(() => import('@/components/EditOptions.vue'))
+const StoryOptions = defineAsyncComponent(() => import('@/components/StoryOptions.vue'))
+const DiagramOptions = defineAsyncComponent(() => import('@/components/DiagramOptions.vue'))
+
+// Lazy loaded: Heavy components
+const GenerationHistory = defineAsyncComponent(() => import('@/components/GenerationHistory.vue'))
+const ThinkingProcess = defineAsyncComponent(() => import('@/components/ThinkingProcess.vue'))
+const PromptDebug = defineAsyncComponent(() => import('@/components/PromptDebug.vue'))
 
 const store = useGeneratorStore()
 const { handleGenerate: executeGenerate } = useGeneration()
