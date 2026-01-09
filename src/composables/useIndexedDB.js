@@ -2,8 +2,9 @@ import { ref } from 'vue'
 import { generateUUID } from './useUUID'
 
 const DB_NAME = 'nanobanana-generator'
-const DB_VERSION = 3
+const DB_VERSION = 4
 const STORE_HISTORY = 'history'
+const STORE_CHARACTERS = 'characters'
 
 let db = null
 
@@ -56,6 +57,18 @@ export function useIndexedDB() {
           const historyStore = event.target.transaction.objectStore(STORE_HISTORY)
           if (!historyStore.indexNames.contains('uuid')) {
             historyStore.createIndex('uuid', 'uuid', { unique: true })
+          }
+        }
+
+        // Version 3 -> 4: Add characters store for character extraction feature
+        if (oldVersion < 4) {
+          if (!database.objectStoreNames.contains(STORE_CHARACTERS)) {
+            const characterStore = database.createObjectStore(STORE_CHARACTERS, {
+              keyPath: 'id',
+              autoIncrement: true,
+            })
+            characterStore.createIndex('name', 'name', { unique: false })
+            characterStore.createIndex('createdAt', 'createdAt', { unique: false })
           }
         }
       }
@@ -226,7 +239,7 @@ export function useIndexedDB() {
    */
   const getHistoryByIds = async (ids) => {
     await initDB()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       const transaction = db.transaction([STORE_HISTORY], 'readonly')
       const store = transaction.objectStore(STORE_HISTORY)
       const results = []
@@ -331,10 +344,189 @@ export function useIndexedDB() {
     })
   }
 
+  // ============================================================================
+  // Character operations
+  // ============================================================================
+
+  /**
+   * Add a new character
+   * @param {Object} character - Character data
+   * @returns {Promise<number>} - New character ID
+   */
+  const addCharacter = async (character) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readwrite')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const now = Date.now()
+      const characterRecord = JSON.parse(JSON.stringify({
+        ...character,
+        createdAt: now,
+        updatedAt: now,
+      }))
+      const request = store.add(characterRecord)
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Get characters with pagination
+   * @param {number} limit - Max records to return
+   * @param {number} offset - Records to skip
+   * @returns {Promise<Array>}
+   */
+  const getCharacters = async (limit = 50, offset = 0) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readonly')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const index = store.index('createdAt')
+      const request = index.openCursor(null, 'prev')
+
+      const results = []
+      let skipped = 0
+
+      request.onsuccess = (event) => {
+        const cursor = event.target.result
+        if (cursor && results.length < limit) {
+          if (skipped < offset) {
+            skipped++
+            cursor.continue()
+          } else {
+            results.push({ ...cursor.value })
+            cursor.continue()
+          }
+        } else {
+          resolve(results)
+        }
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Get all characters (no pagination)
+   * @returns {Promise<Array>}
+   */
+  const getAllCharacters = async () => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readonly')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const request = store.getAll()
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Get a character by ID
+   * @param {number} id
+   * @returns {Promise<Object|null>}
+   */
+  const getCharacterById = async (id) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readonly')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const request = store.get(id)
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Update a character
+   * @param {number} id - Character ID
+   * @param {Object} updates - Fields to update
+   * @returns {Promise<boolean>}
+   */
+  const updateCharacter = async (id, updates) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readwrite')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const getRequest = store.get(id)
+
+      getRequest.onsuccess = () => {
+        const record = getRequest.result
+        if (record) {
+          const updatedRecord = JSON.parse(JSON.stringify({
+            ...record,
+            ...updates,
+            updatedAt: Date.now(),
+          }))
+          const putRequest = store.put(updatedRecord)
+          putRequest.onsuccess = () => resolve(true)
+          putRequest.onerror = () => reject(putRequest.error)
+        } else {
+          reject(new Error(`Character with id ${id} not found`))
+        }
+      }
+      getRequest.onerror = () => reject(getRequest.error)
+    })
+  }
+
+  /**
+   * Delete a character
+   * @param {number} id
+   * @returns {Promise<boolean>}
+   */
+  const deleteCharacter = async (id) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readwrite')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const request = store.delete(id)
+
+      request.onsuccess = () => resolve(true)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Get character count
+   * @returns {Promise<number>}
+   */
+  const getCharacterCount = async () => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readonly')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const request = store.count()
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * Get character by name (for duplicate check during import)
+   * @param {string} name - Character name to search
+   * @returns {Promise<Object|null>}
+   */
+  const getCharacterByName = async (name) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CHARACTERS], 'readonly')
+      const store = transaction.objectStore(STORE_CHARACTERS)
+      const index = store.index('name')
+      const request = index.get(name)
+
+      request.onsuccess = () => resolve(request.result || null)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
   return {
     isReady,
     error,
     initDB,
+    // History operations
     addHistory,
     getHistory,
     getHistoryById,
@@ -348,5 +540,14 @@ export function useIndexedDB() {
     hasHistoryByUUID,
     addHistoryWithUUID,
     migrateAddUUIDs,
+    // Character operations
+    addCharacter,
+    getCharacters,
+    getAllCharacters,
+    getCharacterById,
+    getCharacterByName,
+    updateCharacter,
+    deleteCharacter,
+    getCharacterCount,
   }
 }

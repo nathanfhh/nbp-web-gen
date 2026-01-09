@@ -3,15 +3,29 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { buildPrompt } from '@/composables/useApi'
+import { useCharacterExtraction } from '@/composables/useCharacterExtraction'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
 const toast = useToast()
+const { buildCharacterPrompt } = useCharacterExtraction()
 
 const composedPrompt = computed(() => {
   if (!store.prompt) return ''
-  return buildPrompt(store.prompt, store.getCurrentOptions, store.currentMode)
+
+  // Build base prompt with mode-specific enhancements
+  const baseEnhanced = buildPrompt(store.prompt, store.getCurrentOptions, store.currentMode)
+
+  // Prepend character description if a character is selected
+  if (store.selectedCharacter) {
+    const characterDesc = buildCharacterPrompt(store.selectedCharacter)
+    if (characterDesc) {
+      return `[Character: ${characterDesc}]\n\n${baseEnhanced}`
+    }
+  }
+
+  return baseEnhanced
 })
 
 const copyToClipboard = async () => {

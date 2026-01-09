@@ -5,6 +5,7 @@ import JSZip from 'jszip'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
 import { useAnalytics } from '@/composables/useAnalytics'
+import { useHistoryState } from '@/composables/useHistoryState'
 import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 
 const { t } = useI18n()
@@ -92,7 +93,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'close'])
+const emit = defineEmits(['update:modelValue', 'close', 'extractCharacter'])
 
 // State
 const isVisible = ref(false)
@@ -145,16 +146,13 @@ const showColorPickerMagnifier = ref(false)
 const colorPickerMagnifierPos = ref({ x: 0, y: 0 })
 const colorPickerMagnifierCanvasPos = ref({ x: 0, y: 0 })
 
-// Track if we pushed history state (for back gesture handling)
-const historyStatePushed = ref(false)
-
-// Handle browser back button / gesture
-const handlePopState = (e) => {
-  if (props.modelValue && e.state?.stickerCropper !== true) {
+// History state management for back gesture/button support
+const { pushState, popState } = useHistoryState('stickerCropper', {
+  onBackNavigation: () => {
     // User pressed back while cropper is open - close it
     close()
-  }
-}
+  },
+})
 
 // Watch for open/close
 watch(() => props.modelValue, (newVal) => {
@@ -165,21 +163,12 @@ watch(() => props.modelValue, (newVal) => {
     loadImage()
 
     // Push history state to intercept back gesture/button
-    if (!historyStatePushed.value) {
-      history.pushState({ stickerCropper: true }, '')
-      historyStatePushed.value = true
-    }
+    pushState()
   } else {
     isClosing.value = true
 
     // Pop the history state we added (if still there)
-    if (historyStatePushed.value) {
-      historyStatePushed.value = false
-      // Only go back if we're on our pushed state
-      if (history.state?.stickerCropper === true) {
-        history.back()
-      }
-    }
+    popState()
 
     setTimeout(() => {
       isVisible.value = false
@@ -968,6 +957,20 @@ const downloadSingleSticker = (sticker) => {
   trackDownloadStickers({ count: 1, format: 'single' })
 }
 
+// Navigate to character extractor with sticker image
+const extractCharacterFromSticker = (sticker) => {
+  // Store image data in sessionStorage for the character extractor page
+  const imageData = {
+    data: sticker.dataUrl.split(',')[1],
+    mimeType: 'image/png',
+    preview: sticker.dataUrl,
+  }
+  sessionStorage.setItem('characterExtractorImage', JSON.stringify(imageData))
+
+  // Emit event to parent (ImageLightbox) to handle navigation
+  emit('extractCharacter')
+}
+
 const downloadSelectedAsZip = async () => {
   const selected = croppedStickers.value.filter(s => selectedStickers.value.has(s.id))
   if (selected.length === 0) return
@@ -1083,19 +1086,14 @@ const handleKeydown = (e) => {
 onMounted(() => {
   isMounted = true
   window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('popstate', handlePopState)
 })
 
 onUnmounted(() => {
   isMounted = false
   window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('popstate', handlePopState)
   document.body.style.overflow = ''
 
-  // Clean up history state if component unmounts while open
-  if (historyStatePushed.value && history.state?.stickerCropper === true) {
-    history.back()
-  }
+  // Note: useHistoryState handles its own cleanup in onUnmounted
 
   // Reset processing state to avoid stuck state
   isProcessing.value = false
@@ -1328,6 +1326,16 @@ onUnmounted(() => {
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+                <!-- Extract character button - top right -->
+                <button
+                  @click.stop="extractCharacterFromSticker(sticker)"
+                  class="sticker-extract-btn"
+                  :title="$t('characterExtractor.extract')"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </button>
                 <!-- Checkbox area - click to toggle selection -->
@@ -1809,6 +1817,27 @@ onUnmounted(() => {
 
 .sticker-edit-btn:hover {
   background: rgba(139, 92, 246, 0.8);
+  color: white;
+}
+
+.sticker-extract-btn {
+  position: absolute;
+  top: 2.5rem;
+  left: 0.5rem;
+  padding: 0.375rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.sticker-card:hover .sticker-extract-btn {
+  opacity: 1;
+}
+
+.sticker-extract-btn:hover {
+  background: rgba(59, 130, 246, 0.8);
   color: white;
 }
 

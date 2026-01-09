@@ -45,6 +45,9 @@ export const useGeneratorStore = defineStore('generator', () => {
   // Reference images (shared across all modes, max 5)
   const referenceImages = ref([])
 
+  // Selected character for generation
+  const selectedCharacter = ref(null)
+
   // Generation state
   const isGenerating = ref(false)
   const generationError = ref(null)
@@ -387,11 +390,44 @@ export const useGeneratorStore = defineStore('generator', () => {
   }
 
   const removeReferenceImage = (index) => {
+    const image = referenceImages.value[index]
+    // Prevent removing character-locked images directly
+    if (image?.isCharacterLocked) return false
     referenceImages.value.splice(index, 1)
+    return true
   }
 
   const clearReferenceImages = () => {
-    referenceImages.value = []
+    // Keep character-locked images when clearing
+    referenceImages.value = referenceImages.value.filter((img) => img.isCharacterLocked)
+  }
+
+  // ============================================================================
+  // Character Selection
+  // ============================================================================
+
+  const selectCharacter = (character) => {
+    // Deselect current character first if any
+    if (selectedCharacter.value) {
+      deselectCharacter()
+    }
+
+    selectedCharacter.value = character
+
+    // Add character image to reference images (marked as locked)
+    addReferenceImage({
+      data: character.imageData,
+      preview: `data:image/webp;base64,${character.thumbnail}`,
+      mimeType: 'image/png',
+      name: character.name,
+      isCharacterLocked: true,
+    })
+  }
+
+  const deselectCharacter = () => {
+    // Remove character-locked images from reference images
+    referenceImages.value = referenceImages.value.filter((img) => !img.isCharacterLocked)
+    selectedCharacter.value = null
   }
 
   // ============================================================================
@@ -426,6 +462,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     diagramOptions,
     stickerOptions,
     referenceImages,
+    selectedCharacter,
     isGenerating,
     generationError,
     generatedImages,
@@ -467,6 +504,8 @@ export const useGeneratorStore = defineStore('generator', () => {
     addReferenceImage,
     removeReferenceImage,
     clearReferenceImages,
+    selectCharacter,
+    deselectCharacter,
     imageStorage,
   }
 })

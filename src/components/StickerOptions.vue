@@ -402,5 +402,6 @@ const handleStyleEnter = (event) => {
         </button>
       </div>
     </div>
+
   </div>
 </template>
