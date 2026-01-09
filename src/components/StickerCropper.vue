@@ -133,6 +133,7 @@ const originalEditImageData = ref(null)
 const editHistory = ref([])  // Undo stack
 const maxHistorySize = 20
 const editPreviewBgWhite = ref(false)  // White background preview in edit mode
+const hasEditedBefore = ref(false)  // Track if user has entered edit mode before (to preserve settings)
 
 // Edit mode magnifier state
 const magnifierRef = ref(null)
@@ -640,10 +641,17 @@ const closePreview = () => {
 // Edit mode functions
 const openEditMode = (sticker) => {
   editingSticker.value = { ...sticker }
-  editTolerance.value = 30
   editHistory.value = []  // Clear undo history
   showMagnifier.value = false
-  editPreviewBgWhite.value = false  // Reset to transparent preview
+
+  // First time entering edit mode: inherit settings from main panel
+  // Subsequent times: preserve user's previous settings
+  if (!hasEditedBefore.value) {
+    editTolerance.value = tolerance.value
+    editPreviewBgWhite.value = previewBgWhite.value
+    hasEditedBefore.value = true
+  }
+
   nextTick(() => {
     const canvas = editCanvasRef.value
     if (!canvas) return
@@ -661,7 +669,7 @@ const closeEditMode = () => {
   originalEditImageData.value = null
   editHistory.value = []
   showMagnifier.value = false
-  editPreviewBgWhite.value = false
+  // Keep editTolerance and editPreviewBgWhite for next edit session
 }
 
 const resetEdit = () => {
@@ -1051,6 +1059,7 @@ const resetState = () => {
   originalEditImageData.value = null
   editHistory.value = []
   editPreviewBgWhite.value = false
+  hasEditedBefore.value = false  // Reset so next session inherits main settings again
   showMagnifier.value = false
   showColorPickerMagnifier.value = false
 }
