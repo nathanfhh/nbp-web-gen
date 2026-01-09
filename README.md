@@ -46,12 +46,15 @@ This project is a testament to the power of AI-assisted development:
 *   **Visual Storytelling:** Create consistent multi-step storyboards or process visualizations.
 *   **Technical Diagrams:** Generate flowcharts, architecture diagrams, and mind maps from text.
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
+*   **Character Extraction:** AI-powered character trait extraction from images. Save and reuse characters across generation modes for consistent character design.
+*   **LINE Sticker Compliance Tool:** Dedicated tool to prepare stickers for LINE Store submission - auto-resize, even dimension enforcement, cover image generation (main.png/tab.png), and batch ZIP export.
 *   **Smart History:** Local storage using IndexedDB and OPFS (Origin Private File System) for your generation history.
 *   **History Export/Import:** Export your generation history to a JSON file (with embedded images) and import on another browser.
-*   **WebRTC Cross-Device Sync:** Real-time sync between devices via WebRTC. Supports Cloudflare TURN relay for NAT traversal.
+*   **WebRTC Cross-Device Sync:** Real-time sync between devices via WebRTC. Supports Cloudflare TURN relay for NAT traversal. Sync both history records and saved characters.
 *   **Batch Download:** Download all generated images as ZIP archive or PDF document.
 *   **Privacy First:** API keys are stored only in your browser's local storage; no backend server is involved.
 *   **Installable PWA:** Install as a native-like app with offline support and automatic updates.
+*   **Modern Dark Theme:** Redesigned Slate Blue Pro color scheme with full light/dark mode support.
 
 ### 🧩 Spotlight: Intelligent Sticker Segmentation
 
@@ -134,12 +137,15 @@ npm run build
 *   **視覺故事模式：** 可生成連貫的多步驟故事板或流程圖。
 *   **技術圖表生成：** 透過文字描述產生流程圖、系統架構圖與心智圖。
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
+*   **角色萃取工具：** AI 驅動的角色特徵萃取功能，可從圖片中提取角色資訊並儲存，跨模式重複使用以維持角色設計一致性。
+*   **LINE 貼圖合規工具：** 專為 LINE 貼圖上架打造的工具，自動調整尺寸、強制偶數尺寸、生成封面圖 (main.png/tab.png)，並批次匯出 ZIP。
 *   **智慧歷史紀錄：** 使用 IndexedDB 與 OPFS (Origin Private File System) 將您的生成紀錄完整保存在本地端。
 *   **歷史記錄匯出/匯入：** 將生成歷史匯出為 JSON 檔案（含嵌入圖片），可於其他瀏覽器匯入。
-*   **WebRTC 跨裝置同步：** 透過 WebRTC 實現裝置間即時同步，支援 Cloudflare TURN 中繼伺服器穿越 NAT。
+*   **WebRTC 跨裝置同步：** 透過 WebRTC 實現裝置間即時同步，支援 Cloudflare TURN 中繼伺服器穿越 NAT。可同步歷史紀錄與已儲存的角色。
 *   **批次下載：** 可將所有生成圖片打包為 ZIP 壓縮檔或 PDF 文件下載。
 *   **隱私優先：** API Key 僅儲存於您的瀏覽器 Local Storage，完全不經過任何第三方伺服器。
 *   **可安裝 PWA：** 支援安裝為類原生應用程式，具備離線支援與自動更新功能。
+*   **現代深色主題：** 重新設計的 Slate Blue Pro 配色方案，完整支援亮色/深色模式切換。
 
 ### 🧩 技術亮點：智慧貼圖分割 (Sticker Segmentation)
 
