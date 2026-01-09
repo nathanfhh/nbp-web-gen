@@ -33,15 +33,4 @@ const router = createRouter({
   routes,
 })
 
-// Debug: log all navigation attempts
-router.beforeEach((to, from) => {
-  console.log('[Router Guard] beforeEach:', from.fullPath, '->', to.fullPath)
-  console.trace('[Router Guard] Call stack')
-  return true
-})
-
-router.afterEach((to, from) => {
-  console.log('[Router Guard] afterEach completed:', from.fullPath, '->', to.fullPath)
-})
-
 export default router

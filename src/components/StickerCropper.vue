@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import JSZip from 'jszip'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
@@ -8,6 +9,7 @@ import { useAnalytics } from '@/composables/useAnalytics'
 import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 
 const { t } = useI18n()
+const router = useRouter()
 const toast = useToast()
 const { trackCropStickers, trackDownloadStickers } = useAnalytics()
 const pdfGenerator = usePdfGenerator()
@@ -92,7 +94,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'close'])
+const emit = defineEmits(['update:modelValue', 'close', 'extractCharacter'])
 
 // State
 const isVisible = ref(false)
@@ -968,6 +970,20 @@ const downloadSingleSticker = (sticker) => {
   trackDownloadStickers({ count: 1, format: 'single' })
 }
 
+// Navigate to character extractor with sticker image
+const extractCharacterFromSticker = (sticker) => {
+  // Store image data in sessionStorage for the character extractor page
+  const imageData = {
+    data: sticker.dataUrl.split(',')[1],
+    mimeType: 'image/png',
+    preview: sticker.dataUrl,
+  }
+  sessionStorage.setItem('characterExtractorImage', JSON.stringify(imageData))
+
+  // Emit event to parent (ImageLightbox) to handle navigation
+  emit('extractCharacter')
+}
+
 const downloadSelectedAsZip = async () => {
   const selected = croppedStickers.value.filter(s => selectedStickers.value.has(s.id))
   if (selected.length === 0) return
@@ -1328,6 +1344,16 @@ onUnmounted(() => {
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+                <!-- Extract character button - top right -->
+                <button
+                  @click.stop="extractCharacterFromSticker(sticker)"
+                  class="sticker-extract-btn"
+                  :title="$t('characterExtractor.extract')"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </button>
                 <!-- Checkbox area - click to toggle selection -->
@@ -1809,6 +1835,27 @@ onUnmounted(() => {
 
 .sticker-edit-btn:hover {
   background: rgba(139, 92, 246, 0.8);
+  color: white;
+}
+
+.sticker-extract-btn {
+  position: absolute;
+  top: 2.5rem;
+  left: 0.5rem;
+  padding: 0.375rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.sticker-card:hover .sticker-extract-btn {
+  opacity: 1;
+}
+
+.sticker-extract-btn:hover {
+  background: rgba(59, 130, 246, 0.8);
   color: white;
 }
 

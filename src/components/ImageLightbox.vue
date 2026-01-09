@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { formatFileSize, calculateCompressionRatio } from '@/composables/useImageCompression'
 import { useImageStorage } from '@/composables/useImageStorage'
@@ -10,6 +11,7 @@ import JSZip from 'jszip'
 
 const { t } = useI18n()
 const toast = useToast()
+const router = useRouter()
 
 const props = defineProps({
   images: {
@@ -96,6 +98,8 @@ const resetTransform = () => {
 
 // Track if we pushed history state
 const historyStatePushed = ref(false)
+// Flag to skip history.back() when navigating via router
+const skipHistoryBack = ref(false)
 
 // Handle browser back button / gesture
 const handlePopState = (e) => {
@@ -123,13 +127,17 @@ watch(() => props.modelValue, (newVal) => {
     isClosing.value = true
 
     // Pop the history state we added (if still there)
-    if (historyStatePushed.value) {
+    // Skip if we're navigating via router (to avoid conflict)
+    if (historyStatePushed.value && !skipHistoryBack.value) {
       historyStatePushed.value = false
       // Only go back if we're on our pushed state
       if (history.state?.lightbox === true) {
         history.back()
       }
+    } else {
+      historyStatePushed.value = false
     }
+    skipHistoryBack.value = false
 
     setTimeout(() => {
       isVisible.value = false
@@ -631,6 +639,28 @@ const closeCropper = () => {
   cropperImageSrc.value = ''
 }
 
+// Handle extract character from StickerCropper
+const handleExtractCharacter = async () => {
+  // Close the cropper UI only
+  showCropper.value = false
+  cropperImageSrc.value = ''
+
+  // Clean up body overflow
+  document.body.style.overflow = ''
+
+  // CRITICAL: Remove lightbox's history state before vue-router navigation
+  // The lightbox pushed { lightbox: true } to history, which confuses vue-router
+  if (historyStatePushed.value) {
+    window.removeEventListener('popstate', handlePopState)
+    historyStatePushed.value = false
+    history.back()
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+
+  // Navigate to character extractor
+  await router.push({ name: 'character-extractor', query: { image: '1' } })
+}
+
 // Batch download state
 const isBatchDownloading = ref(false)
 
@@ -964,6 +994,7 @@ const downloadAllAsPdf = async () => {
       :image-index="currentIndex"
       :history-id="historyId"
       @close="closeCropper"
+      @extract-character="handleExtractCharacter"
     />
   </Teleport>
 </template>

@@ -107,13 +107,21 @@ const triggerFileInput = () => {
         v-for="(image, index) in store.referenceImages"
         :key="index"
         class="relative aspect-square rounded-lg overflow-hidden group"
+        :class="{ 'ring-2 ring-blue-500/50': image.isCharacterLocked }"
       >
         <img
           :src="image.preview"
           :alt="image.name || `Image ${index + 1}`"
           class="w-full h-full object-cover"
         />
-        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <!-- Locked character indicator -->
+        <div v-if="image.isCharacterLocked" class="absolute top-1 left-1 p-1 rounded bg-blue-500/80 text-white">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <!-- Delete button (only for non-locked images) -->
+        <div v-if="!image.isCharacterLocked" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <button
             @click="removeImage(index)"
             class="p-1.5 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
@@ -123,6 +131,10 @@ const triggerFileInput = () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+        <!-- Hover overlay for locked images (show character name) -->
+        <div v-else class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <span class="text-white text-xs font-medium text-center px-2">{{ image.name }}</span>
         </div>
       </div>
 
