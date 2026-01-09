@@ -975,7 +975,7 @@ const extractCharacterFromSticker = (sticker) => {
   }
   sessionStorage.setItem('characterExtractorImage', JSON.stringify(imageData))
 
-  // Emit event to parent (ImageLightbox) to handle navigation
+  // Emit to parent to handle navigation
   emit('extractCharacter')
 }
 

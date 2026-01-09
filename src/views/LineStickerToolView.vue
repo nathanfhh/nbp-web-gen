@@ -12,6 +12,8 @@ const {
   options,
   isProcessing,
   processProgress,
+  mainImage,
+  tabImage,
   specChecks,
   allPassed,
   needsProcessing,
@@ -23,11 +25,45 @@ const {
   processImages,
   downloadAsZip,
   formatFileSize,
+  setCoverImageFromSticker,
+  setCoverImageFromFile,
+  removeCoverImage,
 } = useLineStickerProcessor()
 
 // Drag state
 const isDragging = ref(false)
 const fileInput = ref(null)
+
+// Cover image picker state
+const showStickerPicker = ref(false)
+const pickerTarget = ref(null) // 'main' | 'tab'
+const mainFileInput = ref(null)
+const tabFileInput = ref(null)
+
+// Open sticker picker modal
+const openStickerPicker = (target) => {
+  pickerTarget.value = target
+  showStickerPicker.value = true
+}
+
+// Select sticker from picker
+const selectStickerForCover = async (stickerId) => {
+  if (pickerTarget.value) {
+    await setCoverImageFromSticker(pickerTarget.value, stickerId)
+  }
+  showStickerPicker.value = false
+  pickerTarget.value = null
+}
+
+// Handle cover image file upload
+const handleCoverFileSelect = async (type, event) => {
+  const file = event.target.files?.[0]
+  if (file) {
+    await setCoverImageFromFile(type, file)
+  }
+  // Reset input
+  event.target.value = ''
+}
 
 // Image element refs for scroll into view
 const imageRefs = ref({})
@@ -119,6 +155,8 @@ const needsWarning = (img) => {
   return (
     img.width > LINE_SPECS.maxWidth ||
     img.height > LINE_SPECS.maxHeight ||
+    img.width % 2 !== 0 ||
+    img.height % 2 !== 0 ||
     img.size > LINE_SPECS.maxFileSize ||
     img.file.type !== 'image/png'
   )
@@ -165,6 +203,25 @@ const fileSizeStats = computed(() => {
     originalOversized: oversized.length,
     processedCount: processed.length,
     stillOversized: stillOversized.length,
+    hasProcessed: processed.length > 0,
+  }
+})
+
+// Get stats for even dimensions (original vs processed)
+const evenDimensionStats = computed(() => {
+  const oddDimension = images.value.filter(
+    (img) => img.width % 2 !== 0 || img.height % 2 !== 0,
+  )
+  const processed = oddDimension.filter((img) => img.processedBlob)
+  const stillOdd = images.value.filter((img) => {
+    const w = img.processedBlob ? img.processedWidth : img.width
+    const h = img.processedBlob ? img.processedHeight : img.height
+    return w % 2 !== 0 || h % 2 !== 0
+  })
+  return {
+    originalOdd: oddDimension.length,
+    processedCount: processed.length,
+    stillOdd: stillOdd.length,
     hasProcessed: processed.length > 0,
   }
 })
@@ -289,6 +346,33 @@ const suggestedCount = computed(() => {
             </div>
           </div>
 
+          <!-- Even Dimensions Check -->
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
+            <span class="mt-0.5 shrink-0">
+              <svg v-if="specChecks.evenDimensions.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </span>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium" :class="specChecks.evenDimensions.passed ? 'text-emerald-400' : 'text-red-400'">
+                {{ t('lineStickerTool.specs.evenDimensions') }}
+              </p>
+              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.evenDimensionsHint') }}</p>
+              <!-- Before/after stats -->
+              <p v-if="evenDimensionStats.originalOdd > 0" class="text-xs mt-1">
+                <span class="text-amber-400">{{ evenDimensionStats.originalOdd }}</span>
+                <span v-if="evenDimensionStats.hasProcessed" class="text-gray-500"> → </span>
+                <span v-if="evenDimensionStats.hasProcessed" :class="evenDimensionStats.stillOdd === 0 ? 'text-emerald-400' : 'text-amber-400'">
+                  {{ evenDimensionStats.stillOdd }}
+                </span>
+                <span class="text-gray-500 ml-1">{{ t('lineStickerTool.specs.itemsOddDimension') }}</span>
+              </p>
+            </div>
+          </div>
+
           <!-- Count Check -->
           <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
             <span class="mt-0.5 shrink-0">
@@ -331,6 +415,30 @@ const suggestedCount = computed(() => {
               </p>
             </div>
           </div>
+
+          <!-- Cover Images Check -->
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
+            <span class="mt-0.5 shrink-0">
+              <svg v-if="specChecks.coverImages.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </span>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium" :class="specChecks.coverImages.passed ? 'text-emerald-400' : 'text-red-400'">
+                {{ t('lineStickerTool.specs.coverImages') }}
+              </p>
+              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.coverImagesHint') }}</p>
+              <p v-if="!specChecks.coverImages.passed" class="text-xs text-amber-400 mt-1">
+                <span v-if="!specChecks.coverImages.hasMain">main.png</span>
+                <span v-if="!specChecks.coverImages.hasMain && !specChecks.coverImages.hasTab">, </span>
+                <span v-if="!specChecks.coverImages.hasTab">tab.png</span>
+                {{ t('lineStickerTool.specs.notSet') }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- All passed indicator -->
@@ -341,6 +449,152 @@ const suggestedCount = computed(() => {
             </svg>
             {{ t('lineStickerTool.specs.allPassed') }}
           </p>
+        </div>
+      </section>
+
+      <!-- Cover Image Settings -->
+      <section v-if="images.length > 0" class="glass p-6">
+        <h2 class="text-lg font-semibold mb-2">{{ t('lineStickerTool.cover.title') }}</h2>
+        <p class="text-sm text-gray-500 mb-4">{{ t('lineStickerTool.cover.description') }}</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Main Image (240x240) -->
+          <div class="p-4 rounded-lg bg-white/5 cover-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="font-medium">main.png</h3>
+                <p class="text-xs text-gray-500">{{ LINE_SPECS.main.width }} × {{ LINE_SPECS.main.height }} px</p>
+              </div>
+              <span
+                v-if="mainImage?.processedBlob"
+                class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400"
+              >
+                {{ t('lineStickerTool.cover.set') }}
+              </span>
+            </div>
+
+            <!-- Preview area -->
+            <div class="flex gap-3 mb-3">
+              <!-- Processed preview (what will be in ZIP) -->
+              <div class="flex-1">
+                <p class="text-xs text-gray-500 mb-1">{{ t('lineStickerTool.cover.result') }}</p>
+                <div class="aspect-square rounded-lg overflow-hidden border border-white/10 checkerboard">
+                  <img
+                    v-if="mainImage?.processedPreview"
+                    :src="mainImage.processedPreview"
+                    alt="main.png preview"
+                    class="w-full h-full object-contain"
+                  />
+                  <div v-else class="w-full h-full flex items-center justify-center text-gray-600">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex gap-2">
+              <button
+                @click="openStickerPicker('main')"
+                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                {{ t('lineStickerTool.cover.fromSticker') }}
+              </button>
+              <button
+                @click="mainFileInput?.click()"
+                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                {{ t('lineStickerTool.cover.upload') }}
+              </button>
+              <button
+                v-if="mainImage"
+                @click="removeCoverImage('main')"
+                class="px-3 py-2 text-sm rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <input
+              ref="mainFileInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleCoverFileSelect('main', $event)"
+            />
+          </div>
+
+          <!-- Tab Image (96x74) -->
+          <div class="p-4 rounded-lg bg-white/5 cover-card">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="font-medium">tab.png</h3>
+                <p class="text-xs text-gray-500">{{ LINE_SPECS.tab.width }} × {{ LINE_SPECS.tab.height }} px</p>
+              </div>
+              <span
+                v-if="tabImage?.processedBlob"
+                class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400"
+              >
+                {{ t('lineStickerTool.cover.set') }}
+              </span>
+            </div>
+
+            <!-- Preview area -->
+            <div class="flex gap-3 mb-3">
+              <!-- Processed preview (what will be in ZIP) -->
+              <div class="flex-1">
+                <p class="text-xs text-gray-500 mb-1">{{ t('lineStickerTool.cover.result') }}</p>
+                <div class="aspect-[96/74] rounded-lg overflow-hidden border border-white/10 checkerboard">
+                  <img
+                    v-if="tabImage?.processedPreview"
+                    :src="tabImage.processedPreview"
+                    alt="tab.png preview"
+                    class="w-full h-full object-contain"
+                  />
+                  <div v-else class="w-full h-full flex items-center justify-center text-gray-600">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex gap-2">
+              <button
+                @click="openStickerPicker('tab')"
+                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                {{ t('lineStickerTool.cover.fromSticker') }}
+              </button>
+              <button
+                @click="tabFileInput?.click()"
+                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                {{ t('lineStickerTool.cover.upload') }}
+              </button>
+              <button
+                v-if="tabImage"
+                @click="removeCoverImage('tab')"
+                class="px-3 py-2 text-sm rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <input
+              ref="tabFileInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleCoverFileSelect('tab', $event)"
+            />
+          </div>
         </div>
       </section>
 
@@ -530,6 +784,63 @@ const suggestedCount = computed(() => {
         <p class="text-sm text-gray-600 mt-2">{{ t('lineStickerTool.empty.specs') }}</p>
       </section>
     </main>
+
+    <!-- Sticker Picker Modal -->
+    <Teleport to="body">
+      <div
+        v-if="showStickerPicker"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        @click.self="showStickerPicker = false"
+      >
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+        <!-- Modal content -->
+        <div class="relative w-full max-w-2xl max-h-[80vh] bg-[var(--bg-dark)] rounded-2xl shadow-2xl overflow-hidden picker-modal">
+          <!-- Header -->
+          <div class="flex items-center justify-between p-4 border-b border-white/10">
+            <h3 class="text-lg font-semibold">
+              {{ t('lineStickerTool.cover.selectSticker') }}
+              <span class="text-sm font-normal text-gray-500 ml-2">
+                ({{ pickerTarget === 'main' ? 'main.png' : 'tab.png' }})
+              </span>
+            </h3>
+            <button
+              @click="showStickerPicker = false"
+              class="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Sticker grid -->
+          <div class="p-4 overflow-y-auto max-h-[calc(80vh-80px)]">
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              <button
+                v-for="img in images"
+                :key="img.id"
+                @click="selectStickerForCover(img.id)"
+                class="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[var(--primary)] transition-all group"
+              >
+                <div class="w-full h-full checkerboard relative">
+                  <img
+                    :src="img.preview"
+                    :alt="img.name"
+                    class="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                  />
+                </div>
+              </button>
+            </div>
+
+            <p v-if="images.length === 0" class="text-center text-gray-500 py-8">
+              {{ t('lineStickerTool.cover.noStickers') }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -581,5 +892,20 @@ const suggestedCount = computed(() => {
 /* Spec card styling for light mode */
 [data-theme="light"] .spec-card {
   background: rgba(13, 94, 175, 0.05) !important;
+}
+
+/* Cover card styling for light mode */
+[data-theme="light"] .cover-card {
+  background: rgba(13, 94, 175, 0.05) !important;
+}
+
+/* Picker modal styling for light mode */
+[data-theme="light"] .picker-modal {
+  background: #fff !important;
+  border: 1px solid rgba(13, 94, 175, 0.15);
+}
+
+[data-theme="light"] .picker-modal h3 {
+  color: #1e293b;
 }
 </style>

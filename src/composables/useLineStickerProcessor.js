@@ -7,11 +7,17 @@ const LINE_SPECS = {
   maxHeight: 320,
   maxFileSize: 1 * 1024 * 1024, // 1MB
   validCounts: [8, 16, 24, 32, 40],
+  // Cover images
+  main: { width: 240, height: 240 },
+  tab: { width: 96, height: 74 },
 }
 
 // Generate unique ID
 let idCounter = 0
 const generateId = () => `img_${Date.now()}_${idCounter++}`
+
+// Round number to nearest even (LINE requires even dimensions)
+const roundToEven = (n) => Math.floor(n / 2) * 2
 
 export function useLineStickerProcessor() {
   // Image list
@@ -20,8 +26,13 @@ export function useLineStickerProcessor() {
 
   // Processing options
   const options = reactive({
-    filenameFormat: 'original', // 'original' | 'sequential'
+    filenameFormat: 'sequential', // 'original' | 'sequential'
   })
+
+  // Cover images state
+  // { source: 'sticker' | 'upload', sourceId?: string, file?: File, preview: string, processedBlob: Blob, processedPreview: string }
+  const mainImage = ref(null)
+  const tabImage = ref(null)
 
   // Processing state
   const isProcessing = ref(false)
@@ -44,6 +55,13 @@ export function useLineStickerProcessor() {
       return w > LINE_SPECS.maxWidth || h > LINE_SPECS.maxHeight
     })
 
+    // Even dimension check (LINE requires width and height to be even)
+    const evenDimensionFailedItems = imgs.filter((img) => {
+      const w = img.processedBlob ? img.processedWidth : img.width
+      const h = img.processedBlob ? img.processedHeight : img.height
+      return w % 2 !== 0 || h % 2 !== 0
+    })
+
     // Format check
     const formatFailedItems = imgs.filter((img) => img.file.type !== 'image/png')
 
@@ -62,6 +80,11 @@ export function useLineStickerProcessor() {
         failedItems: dimensionFailedItems,
         hint: 'lineStickerTool.specs.dimensionsHint',
       },
+      evenDimensions: {
+        passed: evenDimensionFailedItems.length === 0 && imgs.length > 0,
+        failedItems: evenDimensionFailedItems,
+        hint: 'lineStickerTool.specs.evenDimensionsHint',
+      },
       count: {
         passed: countPassed,
         current: currentCount,
@@ -73,6 +96,12 @@ export function useLineStickerProcessor() {
         failedItems: formatFailedItems,
         hint: 'lineStickerTool.specs.formatHint',
       },
+      coverImages: {
+        passed: mainImage.value?.processedBlob && tabImage.value?.processedBlob,
+        hasMain: !!mainImage.value?.processedBlob,
+        hasTab: !!tabImage.value?.processedBlob,
+        hint: 'lineStickerTool.specs.coverImagesHint',
+      },
     }
   })
 
@@ -82,16 +111,20 @@ export function useLineStickerProcessor() {
       images.value.length > 0 &&
       specChecks.value.fileSize.passed &&
       specChecks.value.dimensions.passed &&
+      specChecks.value.evenDimensions.passed &&
       specChecks.value.count.passed &&
-      specChecks.value.format.passed,
+      specChecks.value.format.passed &&
+      specChecks.value.coverImages.passed,
   )
 
-  // Needs processing (dimensions or file size not compliant)
+  // Needs processing (dimensions, even dimensions, or file size not compliant)
   const needsProcessing = computed(() => {
     return images.value.some(
       (img) =>
         img.width > LINE_SPECS.maxWidth ||
         img.height > LINE_SPECS.maxHeight ||
+        img.width % 2 !== 0 ||
+        img.height % 2 !== 0 ||
         img.size > LINE_SPECS.maxFileSize,
     )
   })
@@ -101,11 +134,15 @@ export function useLineStickerProcessor() {
     if (images.value.length === 0) return false
     // Format must be PNG
     if (!specChecks.value.format.passed) return false
+    // Cover images must be set
+    if (!specChecks.value.coverImages.passed) return false
     // All images must either be compliant or processed
     return images.value.every((img) => {
       const isCompliant =
         img.width <= LINE_SPECS.maxWidth &&
         img.height <= LINE_SPECS.maxHeight &&
+        img.width % 2 === 0 &&
+        img.height % 2 === 0 &&
         img.size <= LINE_SPECS.maxFileSize
       return isCompliant || img.status === 'processed'
     })
@@ -187,6 +224,120 @@ export function useLineStickerProcessor() {
       }
     })
     images.value = []
+
+    // Also clear cover images
+    if (mainImage.value?.processedPreview) {
+      URL.revokeObjectURL(mainImage.value.processedPreview)
+    }
+    if (tabImage.value?.processedPreview) {
+      URL.revokeObjectURL(tabImage.value.processedPreview)
+    }
+    mainImage.value = null
+    tabImage.value = null
+  }
+
+  // Process cover image (resize to target dimensions with aspect ratio preserved, center on transparent background)
+  const processCoverImage = async (sourceBlob, targetWidth, targetHeight) => {
+    // Load source image
+    const img = new Image()
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+      img.src = URL.createObjectURL(sourceBlob)
+    })
+
+    // Calculate scaling to fit within target while preserving aspect ratio
+    const scale = Math.min(targetWidth / img.width, targetHeight / img.height)
+    const scaledWidth = Math.round(img.width * scale)
+    const scaledHeight = Math.round(img.height * scale)
+
+    // Create canvas with target dimensions (transparent background)
+    const canvas = document.createElement('canvas')
+    canvas.width = targetWidth
+    canvas.height = targetHeight
+    const ctx = canvas.getContext('2d')
+
+    // Center the scaled image
+    const offsetX = Math.round((targetWidth - scaledWidth) / 2)
+    const offsetY = Math.round((targetHeight - scaledHeight) / 2)
+
+    // Use high quality scaling
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight)
+
+    // Clean up
+    URL.revokeObjectURL(img.src)
+
+    // Get PNG blob
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+    const preview = canvas.toDataURL('image/png')
+
+    return { blob, preview }
+  }
+
+  // Set cover image from existing sticker
+  const setCoverImageFromSticker = async (type, stickerId) => {
+    const sticker = images.value.find((img) => img.id === stickerId)
+    if (!sticker) return
+
+    const targetRef = type === 'main' ? mainImage : tabImage
+    const specs = type === 'main' ? LINE_SPECS.main : LINE_SPECS.tab
+
+    // Get source blob (prefer processed if available)
+    const sourceBlob = sticker.processedBlob || sticker.file
+
+    // Process to target dimensions
+    const { blob, preview } = await processCoverImage(sourceBlob, specs.width, specs.height)
+
+    // Revoke old preview URL if exists
+    if (targetRef.value?.processedPreview) {
+      URL.revokeObjectURL(targetRef.value.processedPreview)
+    }
+
+    targetRef.value = {
+      source: 'sticker',
+      sourceId: stickerId,
+      preview: sticker.preview,
+      processedBlob: blob,
+      processedPreview: preview,
+    }
+  }
+
+  // Set cover image from uploaded file
+  const setCoverImageFromFile = async (type, file) => {
+    if (!file || !file.type.startsWith('image/')) return
+
+    const targetRef = type === 'main' ? mainImage : tabImage
+    const specs = type === 'main' ? LINE_SPECS.main : LINE_SPECS.tab
+
+    // Read file for preview
+    const { preview: originalPreview } = await readImageFile(file)
+
+    // Process to target dimensions
+    const { blob, preview } = await processCoverImage(file, specs.width, specs.height)
+
+    // Revoke old preview URL if exists
+    if (targetRef.value?.processedPreview) {
+      URL.revokeObjectURL(targetRef.value.processedPreview)
+    }
+
+    targetRef.value = {
+      source: 'upload',
+      file,
+      preview: originalPreview,
+      processedBlob: blob,
+      processedPreview: preview,
+    }
+  }
+
+  // Remove cover image
+  const removeCoverImage = (type) => {
+    const targetRef = type === 'main' ? mainImage : tabImage
+    if (targetRef.value?.processedPreview) {
+      URL.revokeObjectURL(targetRef.value.processedPreview)
+    }
+    targetRef.value = null
   }
 
   // Calculate scale factor
@@ -206,11 +357,15 @@ export function useLineStickerProcessor() {
     // Check if processing needed
     const needsScale = width > LINE_SPECS.maxWidth || height > LINE_SPECS.maxHeight
     const scaleFactor = calculateScaleFactor(width, height)
-    const newWidth = Math.round(width * scaleFactor)
-    const newHeight = Math.round(height * scaleFactor)
+    // LINE requires even dimensions, so round to nearest even number
+    const newWidth = roundToEven(Math.round(width * scaleFactor))
+    const newHeight = roundToEven(Math.round(height * scaleFactor))
 
-    // If no scaling needed and file is already under 1MB, return original
-    if (!needsScale && size <= LINE_SPECS.maxFileSize) {
+    // Check if dimensions are odd (need processing even if under size limit)
+    const needsEvenFix = width % 2 !== 0 || height % 2 !== 0
+
+    // If no scaling needed, dimensions are even, and file is already under 1MB, return original
+    if (!needsScale && !needsEvenFix && size <= LINE_SPECS.maxFileSize) {
       return {
         blob: file,
         size: size,
@@ -355,6 +510,8 @@ export function useLineStickerProcessor() {
       (img) =>
         img.width > LINE_SPECS.maxWidth ||
         img.height > LINE_SPECS.maxHeight ||
+        img.width % 2 !== 0 ||
+        img.height % 2 !== 0 ||
         img.size > LINE_SPECS.maxFileSize,
     )
 
@@ -407,6 +564,7 @@ export function useLineStickerProcessor() {
   const downloadAsZip = async () => {
     const zip = new JSZip()
 
+    // Add sticker images
     images.value.forEach((img, index) => {
       // Get blob (processed or original)
       const blob = img.processedBlob || img.file
@@ -423,6 +581,14 @@ export function useLineStickerProcessor() {
 
       zip.file(filename, blob)
     })
+
+    // Add cover images
+    if (mainImage.value?.processedBlob) {
+      zip.file('main.png', mainImage.value.processedBlob)
+    }
+    if (tabImage.value?.processedBlob) {
+      zip.file('tab.png', tabImage.value.processedBlob)
+    }
 
     // Generate and download
     const content = await zip.generateAsync({ type: 'blob' })
@@ -449,6 +615,8 @@ export function useLineStickerProcessor() {
     options,
     isProcessing,
     processProgress,
+    mainImage,
+    tabImage,
 
     // Computed
     specChecks,
@@ -466,5 +634,8 @@ export function useLineStickerProcessor() {
     processImages,
     downloadAsZip,
     formatFileSize,
+    setCoverImageFromSticker,
+    setCoverImageFromFile,
+    removeCoverImage,
   }
 }

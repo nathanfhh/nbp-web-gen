@@ -582,6 +582,8 @@
       "fileSizeHint": "每張需小於 1MB",
       "dimensions": "圖片尺寸",
       "dimensionsHint": "最大 370 × 320 像素",
+      "evenDimensions": "偶數尺寸",
+      "evenDimensionsHint": "寬高皆需為偶數",
       "count": "總張數",
       "countHint": "需為 8/16/24/32/40 張",
       "format": "檔案格式",
@@ -593,7 +595,21 @@
       "originalStatus": "原始",
       "afterProcessing": "處理後",
       "itemsOversized": "張超出規格",
-      "allCompliant": "全部符合規格"
+      "itemsOddDimension": "張奇數尺寸",
+      "allCompliant": "全部符合規格",
+      "coverImages": "封面圖",
+      "coverImagesHint": "需設定 main.png 與 tab.png",
+      "notSet": "尚未設定"
+    },
+    "cover": {
+      "title": "封面圖設定",
+      "description": "LINE 貼圖需要主圖 (main.png) 與聊天室標籤圖 (tab.png)",
+      "set": "已設定",
+      "result": "縮放預覽",
+      "fromSticker": "從貼圖選擇",
+      "upload": "上傳圖片",
+      "selectSticker": "選擇貼圖",
+      "noStickers": "尚無貼圖可選擇"
     },
     "preview": {
       "title": "圖片預覽"

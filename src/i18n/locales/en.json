@@ -582,6 +582,8 @@
       "fileSizeHint": "Each file < 1MB",
       "dimensions": "Dimensions",
       "dimensionsHint": "Max 370 × 320 pixels",
+      "evenDimensions": "Even Dimensions",
+      "evenDimensionsHint": "Width & height must be even",
       "count": "Total Count",
       "countHint": "Must be 8/16/24/32/40 images",
       "format": "File Format",
@@ -593,7 +595,21 @@
       "originalStatus": "Original",
       "afterProcessing": "After processing",
       "itemsOversized": "oversized",
-      "allCompliant": "All compliant"
+      "itemsOddDimension": "odd dimensions",
+      "allCompliant": "All compliant",
+      "coverImages": "Cover Images",
+      "coverImagesHint": "main.png and tab.png required",
+      "notSet": "not set"
+    },
+    "cover": {
+      "title": "Cover Image Settings",
+      "description": "LINE stickers require a main image (main.png) and a chat tab image (tab.png)",
+      "set": "Set",
+      "result": "Preview",
+      "fromSticker": "From Stickers",
+      "upload": "Upload",
+      "selectSticker": "Select Sticker",
+      "noStickers": "No stickers available"
     },
     "preview": {
       "title": "Image Preview"
