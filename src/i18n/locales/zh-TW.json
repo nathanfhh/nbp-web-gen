@@ -6,6 +6,7 @@
     "clearAll": "清除全部",
     "delete": "刪除",
     "add": "新增",
+    "edit": "編輯",
     "download": "下載",
     "downloadAll": "全部下載",
     "copy": "複製",
@@ -432,6 +433,56 @@
     "season": "季節變化",
     "timeOfDay": "時間變化"
   },
+  "characterExtractor": {
+    "title": "角色萃取器",
+    "back": "返回首頁",
+    "uploadImage": "上傳圖片",
+    "dragDrop": "拖放圖片或點擊選擇",
+    "apiSettings": "API 設定",
+    "useNbpKey": "使用 NBP 金鑰",
+    "useAlternateKey": "使用替代金鑰",
+    "enterApiKey": "輸入您的 Gemini API 金鑰",
+    "model": "模型",
+    "extract": "萃取角色",
+    "save": "儲存角色",
+    "name": "角色名稱",
+    "namePlaceholder": "為這個角色取個名字...",
+    "description": "描述",
+    "physicalTraits": "外觀特徵",
+    "hair": "髮型",
+    "eyes": "眼睛",
+    "face": "臉型",
+    "body": "體型",
+    "skin": "膚色",
+    "clothing": "服裝",
+    "accessories": "配件",
+    "distinctiveFeatures": "獨特特徵",
+    "addTag": "新增標籤",
+    "extracting": "正在萃取...",
+    "saveSuccess": "角色已儲存",
+    "updateSuccess": "角色已更新",
+    "extractSuccess": "萃取完成",
+    "extractFailed": "萃取失敗，請重試",
+    "noImage": "請先上傳或選擇圖片",
+    "noName": "請輸入角色名稱",
+    "editResult": "編輯萃取結果",
+    "reExtract": "重新萃取"
+  },
+  "characterCarousel": {
+    "title": "我的角色",
+    "empty": "尚無角色",
+    "emptyHint": "從貼圖中萃取一個角色吧！",
+    "extractFirst": "萃取第一個角色",
+    "addNew": "新增角色",
+    "select": "選取",
+    "selected": "已選中",
+    "deselect": "取消選取",
+    "delete": "刪除角色",
+    "deleteConfirmTitle": "刪除角色",
+    "deleteConfirmMessage": "確定要刪除此角色嗎？此操作無法復原。",
+    "manage": "管理角色",
+    "extractNew": "萃取新角色"
+  },
   "peerSync": {
     "title": "跨裝置同步",
     "description": "透過 WebRTC 即時同步歷史紀錄到另一台裝置",
@@ -495,6 +546,51 @@
       "cleared": "TURN 設定已清除",
       "verifying": "驗證中...",
       "fetchFailed": "無法取得 ICE 憑證，請檢查 Token 是否正確"
+    }
+  },
+  "lineStickerTool": {
+    "title": "LINE 貼圖處理工具",
+    "entry": {
+      "title": "LINE 貼圖處理工具",
+      "desc": "批次調整尺寸、壓縮並打包下載"
+    },
+    "upload": {
+      "title": "上傳貼圖",
+      "dragDrop": "拖放 PNG 圖片或點擊選擇",
+      "hint": "建議上傳 8/16/24/32/40 張"
+    },
+    "specs": {
+      "title": "規格檢查",
+      "fileSize": "檔案大小",
+      "fileSizeHint": "每張需小於 1MB",
+      "dimensions": "圖片尺寸",
+      "dimensionsHint": "最大 370 × 320 像素",
+      "count": "總張數",
+      "countHint": "需為 8/16/24/32/40 張",
+      "format": "檔案格式",
+      "formatHint": "必須為 PNG",
+      "failed": "不符合：{items}",
+      "allPassed": "全部規格符合，可直接下載！",
+      "images": "張",
+      "suggestCount": "建議調整為 {count} 張"
+    },
+    "preview": {
+      "title": "圖片預覽"
+    },
+    "options": {
+      "title": "檔名格式",
+      "original": "保留原檔名",
+      "sequential": "數字序號 (01.png, 02.png...)"
+    },
+    "actions": {
+      "process": "開始處理",
+      "processing": "處理中... ({current}/{total})",
+      "download": "批次下載 ZIP",
+      "clear": "清除全部"
+    },
+    "empty": {
+      "hint": "上傳 PNG 圖片開始處理",
+      "specs": "LINE 貼圖規格：最大 370×320 像素、單檔 < 1MB、總數為 8/16/24/32/40 張"
     }
   }
 }

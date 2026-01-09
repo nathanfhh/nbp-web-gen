@@ -6,6 +6,7 @@
     "clearAll": "Clear All",
     "delete": "Delete",
     "add": "Add",
+    "edit": "Edit",
     "download": "Download",
     "downloadAll": "Download All",
     "copy": "Copy",
@@ -432,6 +433,56 @@
     "season": "Season",
     "timeOfDay": "Time of Day"
   },
+  "characterExtractor": {
+    "title": "Character Extractor",
+    "back": "Back to Home",
+    "uploadImage": "Upload Image",
+    "dragDrop": "Drag & drop or click to select",
+    "apiSettings": "API Settings",
+    "useNbpKey": "Use NBP Key",
+    "useAlternateKey": "Use Alternate Key",
+    "enterApiKey": "Enter your Gemini API Key",
+    "model": "Model",
+    "extract": "Extract Character",
+    "save": "Save Character",
+    "name": "Character Name",
+    "namePlaceholder": "Give this character a name...",
+    "description": "Description",
+    "physicalTraits": "Physical Traits",
+    "hair": "Hair",
+    "eyes": "Eyes",
+    "face": "Face",
+    "body": "Body",
+    "skin": "Skin",
+    "clothing": "Clothing",
+    "accessories": "Accessories",
+    "distinctiveFeatures": "Distinctive Features",
+    "addTag": "Add Tag",
+    "extracting": "Extracting...",
+    "saveSuccess": "Character saved",
+    "updateSuccess": "Character updated",
+    "extractSuccess": "Extraction complete",
+    "extractFailed": "Extraction failed, please try again",
+    "noImage": "Please upload or select an image first",
+    "noName": "Please enter a character name",
+    "editResult": "Edit extraction result",
+    "reExtract": "Re-extract"
+  },
+  "characterCarousel": {
+    "title": "My Characters",
+    "empty": "No characters yet",
+    "emptyHint": "Extract a character from your stickers!",
+    "extractFirst": "Extract Your First Character",
+    "addNew": "Add Character",
+    "select": "Select",
+    "selected": "Selected",
+    "deselect": "Deselect",
+    "delete": "Delete Character",
+    "deleteConfirmTitle": "Delete Character",
+    "deleteConfirmMessage": "Are you sure you want to delete this character? This cannot be undone.",
+    "manage": "Manage Characters",
+    "extractNew": "Extract New Character"
+  },
   "peerSync": {
     "title": "Cross-Device Sync",
     "description": "Sync history records to another device via WebRTC",
@@ -495,6 +546,51 @@
       "cleared": "TURN settings cleared",
       "verifying": "Verifying...",
       "fetchFailed": "Failed to fetch ICE credentials, please check your tokens"
+    }
+  },
+  "lineStickerTool": {
+    "title": "LINE Sticker Tool",
+    "entry": {
+      "title": "LINE Sticker Tool",
+      "desc": "Batch resize, compress and download as ZIP"
+    },
+    "upload": {
+      "title": "Upload Stickers",
+      "dragDrop": "Drag & drop PNG images or click to select",
+      "hint": "Recommended: 8/16/24/32/40 images"
+    },
+    "specs": {
+      "title": "Spec Check",
+      "fileSize": "File Size",
+      "fileSizeHint": "Each file < 1MB",
+      "dimensions": "Dimensions",
+      "dimensionsHint": "Max 370 × 320 pixels",
+      "count": "Total Count",
+      "countHint": "Must be 8/16/24/32/40 images",
+      "format": "File Format",
+      "formatHint": "Must be PNG",
+      "failed": "Failed: {items}",
+      "allPassed": "All specs passed, ready to download!",
+      "images": "images",
+      "suggestCount": "Consider adjusting to {count} images"
+    },
+    "preview": {
+      "title": "Image Preview"
+    },
+    "options": {
+      "title": "Filename Format",
+      "original": "Keep original names",
+      "sequential": "Sequential numbers (01.png, 02.png...)"
+    },
+    "actions": {
+      "process": "Start Processing",
+      "processing": "Processing... ({current}/{total})",
+      "download": "Download ZIP",
+      "clear": "Clear All"
+    },
+    "empty": {
+      "hint": "Upload PNG images to get started",
+      "specs": "LINE Sticker specs: Max 370×320 pixels, < 1MB per file, 8/16/24/32/40 total"
     }
   }
 }
