@@ -17,6 +17,8 @@ const confirmModal = ref(null)
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   selectedIds: { type: Array, default: () => [] },
+  selectedCharacterIds: { type: Array, default: () => [] },
+  syncType: { type: String, default: 'history' }, // 'history' | 'characters'
 })
 const emit = defineEmits(['update:modelValue', 'synced'])
 
@@ -169,7 +171,11 @@ const close = async () => {
 
 const startSending = async () => {
   mode.value = 'send'
-  await sync.startAsSender(props.selectedIds.length > 0 ? props.selectedIds : null)
+  await sync.startAsSender({
+    historyIds: props.syncType === 'history' && props.selectedIds.length > 0 ? props.selectedIds : null,
+    characterIds: props.syncType === 'characters' && props.selectedCharacterIds.length > 0 ? props.selectedCharacterIds : null,
+    type: props.syncType,
+  })
 }
 
 const startReceiving = () => {
@@ -255,23 +261,38 @@ const errorMessage = computed(() => {
               <!-- Send Button -->
               <button
                 @click="startSending"
-                :disabled="props.selectedIds.length === 0"
+                :disabled="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)"
                 :class="[
                   'w-full p-4 rounded-xl border transition-all flex items-center gap-4',
-                  props.selectedIds.length === 0
+                  (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
                     ? 'bg-gray-500/10 border-gray-500/30 opacity-50 cursor-not-allowed'
                     : 'bg-cyan-500/20 border-cyan-500/40 hover:bg-cyan-500/30'
                 ]"
               >
-                <div :class="['w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0', props.selectedIds.length === 0 ? 'bg-gray-500/20' : 'bg-cyan-500/30']">
-                  <svg :class="['w-6 h-6', props.selectedIds.length === 0 ? 'text-gray-500' : 'text-cyan-400']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div :class="[
+                  'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0',
+                  (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
+                    ? 'bg-gray-500/20'
+                    : 'bg-cyan-500/30'
+                ]">
+                  <svg :class="[
+                    'w-6 h-6',
+                    (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
+                      ? 'text-gray-500'
+                      : 'text-cyan-400'
+                  ]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                   </svg>
                 </div>
                 <div class="text-left">
-                  <div :class="props.selectedIds.length === 0 ? 'text-gray-400' : 'text-white'" class="font-medium">{{ $t('peerSync.sendMode.title') }}</div>
-                  <div class="text-xs" :class="props.selectedIds.length === 0 ? 'text-gray-500' : 'text-white/70'">
-                    {{ props.selectedIds.length === 0 ? $t('peerSync.sendMode.noSelection') : $t('peerSync.sendMode.description') }}
+                  <div :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-gray-400' : 'text-white'" class="font-medium">{{ $t('peerSync.sendMode.title') }}</div>
+                  <div class="text-xs" :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-gray-500' : 'text-white/70'">
+                    <template v-if="props.syncType === 'history'">
+                      {{ props.selectedIds.length === 0 ? $t('peerSync.sendMode.noSelection') : $t('peerSync.sendMode.historyDesc', { count: props.selectedIds.length }) }}
+                    </template>
+                    <template v-else>
+                      {{ props.selectedCharacterIds.length === 0 ? $t('peerSync.sendMode.noCharacterSelection') : $t('peerSync.sendMode.charactersDesc', { count: props.selectedCharacterIds.length }) }}
+                    </template>
                   </div>
                 </div>
               </button>

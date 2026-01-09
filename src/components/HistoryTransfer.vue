@@ -27,6 +27,8 @@ const activeTab = ref('history')
 // Peer sync modal
 const showPeerSync = ref(false)
 const peerSyncSelectedIds = ref([])
+const peerSyncSelectedCharIds = ref([])
+const peerSyncType = ref('history')
 
 // History list for selection
 const historyList = ref([])
@@ -317,7 +319,15 @@ const handleCharExport = async () => {
 
 const handleSync = () => {
   peerSyncSelectedIds.value = Array.from(selectedIds.value)
+  peerSyncSelectedCharIds.value = Array.from(selectedCharIds.value)
+  peerSyncType.value = activeTab.value
   showPeerSync.value = true
+}
+
+const handleSynced = async () => {
+  // Reload lists after sync
+  await Promise.all([loadHistoryList(), loadCharacterList()])
+  emit('imported')
 }
 
 const close = () => {
@@ -655,6 +665,15 @@ const close = () => {
                 <span>{{ $t('historyTransfer.export.button') }}</span>
               </template>
             </button>
+            <button
+              @click="handleSync"
+              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-cyan-500/30 border border-cyan-500 text-cyan-300 hover:bg-cyan-500/40 flex items-center justify-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span>{{ $t('peerSync.title') }}</span>
+            </button>
           </div>
 
           <!-- Divider -->
@@ -750,7 +769,9 @@ const close = () => {
   <PeerSync
     v-model="showPeerSync"
     :selected-ids="peerSyncSelectedIds"
-    @synced="$emit('imported')"
+    :selected-character-ids="peerSyncSelectedCharIds"
+    :sync-type="peerSyncType"
+    @synced="handleSynced"
   />
 
   <!-- Character Preview Lightbox -->

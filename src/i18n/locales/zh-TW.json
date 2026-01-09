@@ -495,15 +495,22 @@
   },
   "peerSync": {
     "title": "跨裝置同步",
-    "description": "透過 WebRTC 即時同步歷史紀錄到另一台裝置",
+    "description": "透過 WebRTC 即時同步資料到另一台裝置",
+    "syncType": {
+      "history": "歷史紀錄",
+      "characters": "角色"
+    },
     "sendMode": {
       "title": "發送資料",
       "description": "從這台裝置發送歷史紀錄",
-      "noSelection": "請先選擇要發送的項目"
+      "historyDesc": "發送 {count} 筆歷史紀錄",
+      "charactersDesc": "發送 {count} 個角色",
+      "noSelection": "請先選擇要發送的項目",
+      "noCharacterSelection": "請先選擇要發送的角色"
     },
     "receiveMode": {
       "title": "接收資料",
-      "description": "從另一台裝置接收歷史紀錄"
+      "description": "從另一台裝置接收資料"
     },
     "shareCode": "請在另一台裝置輸入以下連線碼",
     "waitingConnection": "等待對方連線中...",

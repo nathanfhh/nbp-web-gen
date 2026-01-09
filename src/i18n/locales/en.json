@@ -495,15 +495,22 @@
   },
   "peerSync": {
     "title": "Cross-Device Sync",
-    "description": "Sync history records to another device via WebRTC",
+    "description": "Sync data to another device via WebRTC",
+    "syncType": {
+      "history": "History",
+      "characters": "Characters"
+    },
     "sendMode": {
       "title": "Send Data",
       "description": "Send history from this device",
-      "noSelection": "Please select items to send first"
+      "historyDesc": "Send {count} history records",
+      "charactersDesc": "Send {count} characters",
+      "noSelection": "Please select items to send first",
+      "noCharacterSelection": "Please select characters to send first"
     },
     "receiveMode": {
       "title": "Receive Data",
-      "description": "Receive history from another device"
+      "description": "Receive data from another device"
     },
     "shareCode": "Enter this code on the other device",
     "waitingConnection": "Waiting for connection...",
