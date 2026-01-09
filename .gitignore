@@ -38,3 +38,4 @@ __screenshots__/
 # Playwright MCP
 .playwright-mcp/
 .gemini-clipboard/
+__pycache__/
