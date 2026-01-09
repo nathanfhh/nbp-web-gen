@@ -121,6 +121,30 @@ const previewBgWhite = ref(false)
 const croppedStickers = ref([])
 const selectedStickers = ref(new Set())
 
+// Simple preview for sticker (avoid circular import with ImageLightbox)
+const previewSticker = ref(null)
+
+// Edit mode state
+const editingSticker = ref(null)
+const editCanvasRef = ref(null)
+const editTolerance = ref(30)
+const originalEditImageData = ref(null)
+const editHistory = ref([])  // Undo stack
+const maxHistorySize = 20
+const editPreviewBgWhite = ref(false)  // White background preview in edit mode
+
+// Edit mode magnifier state
+const magnifierRef = ref(null)
+const showMagnifier = ref(false)
+const magnifierPos = ref({ x: 0, y: 0 })
+const magnifierCanvasPos = ref({ x: 0, y: 0 })
+
+// Color picker magnifier state
+const colorPickerMagnifierRef = ref(null)
+const showColorPickerMagnifier = ref(false)
+const colorPickerMagnifierPos = ref({ x: 0, y: 0 })
+const colorPickerMagnifierCanvasPos = ref({ x: 0, y: 0 })
+
 // Track if we pushed history state (for back gesture handling)
 const historyStatePushed = ref(false)
 
@@ -258,72 +282,193 @@ const detectBackgroundColor = () => {
   }
 }
 
-const handleCanvasClick = (e) => {
-  if (!isPickingColor.value || !sourceCanvasRef.value || !originalImage.value) return
-
+// Calculate position in preview image coordinates
+const getPreviewImagePosition = (e) => {
   const canvas = sourceCanvasRef.value
   const container = previewContainerRef.value
-  const imgWidth = originalImage.value.width
-  const imgHeight = originalImage.value.height
+  const imgWidth = originalImage.value?.width || 0
+  const imgHeight = originalImage.value?.height || 0
 
-  // Check if canvas has valid dimensions
-  if (canvas.width === 0 || canvas.height === 0) {
-    toast.warning(t('stickerCropper.toast.waitLoading'))
-    return
-  }
-
-  if (!container) {
-    toast.warning(t('stickerCropper.toast.waitLoading'))
-    return
+  if (!canvas || !container || imgWidth === 0 || imgHeight === 0) {
+    return null
   }
 
   const containerRect = container.getBoundingClientRect()
-
   if (containerRect.width === 0 || containerRect.height === 0) {
-    toast.warning(t('stickerCropper.toast.waitLoading'))
-    return
+    return null
   }
 
-  // Calculate how the image is displayed in the container (centered, maintaining aspect ratio)
+  // Calculate how the image is displayed (centered, maintaining aspect ratio)
   const containerAspect = containerRect.width / containerRect.height
   const imageAspect = imgWidth / imgHeight
 
   let displayWidth, displayHeight, offsetX, offsetY
 
   if (imageAspect > containerAspect) {
-    // Image is wider - constrained by width
     displayWidth = containerRect.width
     displayHeight = containerRect.width / imageAspect
     offsetX = 0
     offsetY = (containerRect.height - displayHeight) / 2
   } else {
-    // Image is taller - constrained by height
     displayHeight = containerRect.height
     displayWidth = containerRect.height * imageAspect
     offsetX = (containerRect.width - displayWidth) / 2
     offsetY = 0
   }
 
-  // Get click position relative to the actual image area
-  const clickX = e.clientX - containerRect.left - offsetX
-  const clickY = e.clientY - containerRect.top - offsetY
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY
 
-  // Check if click is within the image bounds
+  const clickX = clientX - containerRect.left - offsetX
+  const clickY = clientY - containerRect.top - offsetY
+
+  // Check if within image bounds
   if (clickX < 0 || clickX > displayWidth || clickY < 0 || clickY > displayHeight) {
+    return null
+  }
+
+  const x = Math.floor((clickX / displayWidth) * imgWidth)
+  const y = Math.floor((clickY / displayHeight) * imgHeight)
+
+  return {
+    x: Math.max(0, Math.min(imgWidth - 1, x)),
+    y: Math.max(0, Math.min(imgHeight - 1, y)),
+    clientX,
+    clientY,
+    imgWidth,
+    imgHeight,
+  }
+}
+
+// Color picker magnifier handlers
+const handleColorPickerPointerDown = (e) => {
+  if (!isPickingColor.value || !sourceCanvasRef.value || !originalImage.value) return
+
+  const pos = getPreviewImagePosition(e)
+  if (!pos) {
+    toast.warning(t('stickerCropper.toast.waitLoading'))
+    return
+  }
+
+  colorPickerMagnifierCanvasPos.value = { x: pos.x, y: pos.y, imgWidth: pos.imgWidth, imgHeight: pos.imgHeight }
+  colorPickerMagnifierPos.value = {
+    x: pos.clientX,
+    y: pos.clientY - 80,
+  }
+  showColorPickerMagnifier.value = true
+
+  nextTick(() => {
+    updateColorPickerMagnifier()
+  })
+
+  e.preventDefault()
+}
+
+const handleColorPickerPointerMove = (e) => {
+  if (!showColorPickerMagnifier.value || !isPickingColor.value) return
+
+  const pos = getPreviewImagePosition(e)
+  if (!pos) return
+
+  colorPickerMagnifierCanvasPos.value = { x: pos.x, y: pos.y, imgWidth: pos.imgWidth, imgHeight: pos.imgHeight }
+  colorPickerMagnifierPos.value = {
+    x: pos.clientX,
+    y: pos.clientY - 80,
+  }
+
+  updateColorPickerMagnifier()
+  e.preventDefault()
+}
+
+const handleColorPickerPointerUp = (e) => {
+  if (!showColorPickerMagnifier.value) return
+
+  showColorPickerMagnifier.value = false
+
+  const eventObj = e.changedTouches ? e.changedTouches[0] : e
+  const pos = getPreviewImagePosition(eventObj)
+  if (!pos) {
     toast.warning(t('stickerCropper.toast.clickImage'))
     return
   }
 
-  // Scale to original image coordinates
-  const x = Math.floor((clickX / displayWidth) * imgWidth)
-  const y = Math.floor((clickY / displayHeight) * imgHeight)
-
-  // Clamp coordinates to valid range
-  const clampedX = Math.max(0, Math.min(imgWidth - 1, x))
-  const clampedY = Math.max(0, Math.min(imgHeight - 1, y))
-
+  // Pick color at position
+  const canvas = sourceCanvasRef.value
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  const imageData = ctx.getImageData(clampedX, clampedY, 1, 1)
+  const imageData = ctx.getImageData(pos.x, pos.y, 1, 1)
+
+  backgroundColor.value = {
+    r: imageData.data[0],
+    g: imageData.data[1],
+    b: imageData.data[2],
+  }
+
+  isPickingColor.value = false
+  toast.success(t('stickerCropper.toast.colorPicked'))
+}
+
+const updateColorPickerMagnifier = () => {
+  if (!colorPickerMagnifierRef.value || !sourceCanvasRef.value) return
+
+  const magCanvas = colorPickerMagnifierRef.value
+  const magCtx = magCanvas.getContext('2d')
+  const srcCanvas = sourceCanvasRef.value
+
+  const size = 100
+  const zoom = 4
+  const srcSize = size / zoom
+
+  magCanvas.width = size
+  magCanvas.height = size
+
+  // Clear with checkerboard
+  magCtx.fillStyle = '#1a1a1f'
+  magCtx.fillRect(0, 0, size, size)
+  for (let i = 0; i < size; i += 10) {
+    for (let j = 0; j < size; j += 10) {
+      if ((i + j) % 20 === 0) {
+        magCtx.fillStyle = '#252530'
+        magCtx.fillRect(i, j, 10, 10)
+      }
+    }
+  }
+
+  // Draw zoomed portion
+  const srcX = colorPickerMagnifierCanvasPos.value.x - srcSize / 2
+  const srcY = colorPickerMagnifierCanvasPos.value.y - srcSize / 2
+
+  magCtx.imageSmoothingEnabled = false
+  magCtx.drawImage(
+    srcCanvas,
+    srcX, srcY, srcSize, srcSize,
+    0, 0, size, size
+  )
+
+  // Draw crosshair
+  magCtx.strokeStyle = 'rgba(139, 92, 246, 0.8)'
+  magCtx.lineWidth = 1
+  magCtx.beginPath()
+  magCtx.moveTo(size / 2, 0)
+  magCtx.lineTo(size / 2, size)
+  magCtx.moveTo(0, size / 2)
+  magCtx.lineTo(size, size / 2)
+  magCtx.stroke()
+}
+
+const handleCanvasClick = (e) => {
+  // Legacy click handler - only used when magnifier isn't active
+  if (!isPickingColor.value || !sourceCanvasRef.value || !originalImage.value) return
+  if (showColorPickerMagnifier.value) return  // Magnifier handles this
+
+  const pos = getPreviewImagePosition(e)
+  if (!pos) {
+    toast.warning(t('stickerCropper.toast.clickImage'))
+    return
+  }
+
+  const canvas = sourceCanvasRef.value
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  const imageData = ctx.getImageData(pos.x, pos.y, 1, 1)
 
   backgroundColor.value = {
     r: imageData.data[0],
@@ -494,6 +639,325 @@ const deselectAllStickers = () => {
   selectedStickers.value = new Set(selectedStickers.value)
 }
 
+// Simple preview (avoid circular import with ImageLightbox)
+const openPreview = (sticker) => {
+  previewSticker.value = sticker
+}
+
+const closePreview = () => {
+  previewSticker.value = null
+}
+
+// Edit mode functions
+const openEditMode = (sticker) => {
+  editingSticker.value = { ...sticker }
+  editTolerance.value = 30
+  editHistory.value = []  // Clear undo history
+  showMagnifier.value = false
+  editPreviewBgWhite.value = false  // Reset to transparent preview
+  nextTick(() => {
+    const canvas = editCanvasRef.value
+    if (!canvas) return
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    canvas.width = sticker.width
+    canvas.height = sticker.height
+    ctx.drawImage(sticker.canvas, 0, 0)
+    // Store original for reset
+    originalEditImageData.value = ctx.getImageData(0, 0, sticker.width, sticker.height)
+  })
+}
+
+const closeEditMode = () => {
+  editingSticker.value = null
+  originalEditImageData.value = null
+  editHistory.value = []
+  showMagnifier.value = false
+  editPreviewBgWhite.value = false
+}
+
+const resetEdit = () => {
+  if (!editCanvasRef.value || !originalEditImageData.value) return
+  const ctx = editCanvasRef.value.getContext('2d')
+  ctx.putImageData(originalEditImageData.value, 0, 0)
+  editHistory.value = []  // Clear history on reset
+}
+
+const undoEdit = () => {
+  if (editHistory.value.length === 0 || !editCanvasRef.value) return
+  const lastState = editHistory.value.pop()
+  const ctx = editCanvasRef.value.getContext('2d')
+  ctx.putImageData(lastState, 0, 0)
+  // Force reactivity
+  editHistory.value = [...editHistory.value]
+}
+
+const saveEditState = () => {
+  if (!editCanvasRef.value || !editingSticker.value) return
+  const ctx = editCanvasRef.value.getContext('2d', { willReadFrequently: true })
+  const imageData = ctx.getImageData(0, 0, editingSticker.value.width, editingSticker.value.height)
+  editHistory.value.push(imageData)
+  // Limit history size
+  if (editHistory.value.length > maxHistorySize) {
+    editHistory.value.shift()
+  }
+}
+
+/**
+ * Flood fill to remove background from clicked point
+ */
+const floodFillRemove = (data, width, height, startX, startY, targetColor, tolerance = 30) => {
+  const tol = tolerance * 3
+  const visited = new Uint8Array(width * height)
+  const queue = []
+
+  const matchesTarget = (idx) => {
+    // Skip already transparent pixels
+    if (data[idx + 3] === 0) return false
+    const diff = Math.abs(data[idx] - targetColor.r) +
+                 Math.abs(data[idx + 1] - targetColor.g) +
+                 Math.abs(data[idx + 2] - targetColor.b)
+    return diff <= tol
+  }
+
+  const startPos = startY * width + startX
+  const startIdx = startPos * 4
+
+  // Check if starting point is valid
+  if (!matchesTarget(startIdx)) return 0
+
+  queue.push(startPos)
+  visited[startPos] = 1
+  let removedCount = 0
+
+  while (queue.length > 0) {
+    const pos = queue.shift()
+    const x = pos % width
+    const y = Math.floor(pos / width)
+
+    // Set to transparent
+    data[pos * 4 + 3] = 0
+    removedCount++
+
+    // 4-connected neighbors
+    const neighbors = [
+      { nx: x - 1, ny: y },
+      { nx: x + 1, ny: y },
+      { nx: x, ny: y - 1 },
+      { nx: x, ny: y + 1 },
+    ]
+
+    for (const { nx, ny } of neighbors) {
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
+      const nPos = ny * width + nx
+      if (visited[nPos]) continue
+      if (!matchesTarget(nPos * 4)) continue
+
+      visited[nPos] = 1
+      queue.push(nPos)
+    }
+  }
+
+  return removedCount
+}
+
+// Calculate canvas position from event
+const getCanvasPosition = (e, canvas) => {
+  const rect = canvas.getBoundingClientRect()
+  const scaleX = editingSticker.value.width / rect.width
+  const scaleY = editingSticker.value.height / rect.height
+
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY
+
+  const x = Math.floor((clientX - rect.left) * scaleX)
+  const y = Math.floor((clientY - rect.top) * scaleY)
+
+  return {
+    x: Math.max(0, Math.min(editingSticker.value.width - 1, x)),
+    y: Math.max(0, Math.min(editingSticker.value.height - 1, y)),
+    clientX,
+    clientY,
+    rect,
+  }
+}
+
+// Magnifier handlers (works on both desktop and mobile)
+const handleEditPointerDown = (e) => {
+  if (!editCanvasRef.value || !editingSticker.value) return
+
+  const pos = getCanvasPosition(e, editCanvasRef.value)
+  magnifierCanvasPos.value = { x: pos.x, y: pos.y }
+
+  // Position magnifier above cursor/finger
+  magnifierPos.value = {
+    x: pos.clientX,
+    y: pos.clientY - 80,
+  }
+  showMagnifier.value = true
+
+  // Update magnifier after it's visible
+  nextTick(() => {
+    updateMagnifier()
+  })
+
+  // Prevent default to avoid text selection
+  e.preventDefault()
+}
+
+const handleEditPointerMove = (e) => {
+  if (!showMagnifier.value || !editCanvasRef.value || !editingSticker.value) return
+
+  const pos = getCanvasPosition(e, editCanvasRef.value)
+  magnifierCanvasPos.value = { x: pos.x, y: pos.y }
+  magnifierPos.value = {
+    x: pos.clientX,
+    y: pos.clientY - 80,
+  }
+
+  // Update magnifier canvas
+  updateMagnifier()
+
+  e.preventDefault()
+}
+
+const handleEditPointerUp = (e) => {
+  if (!showMagnifier.value) return
+  if (!editCanvasRef.value || !editingSticker.value) return
+
+  showMagnifier.value = false
+
+  // Get position from touch or mouse event
+  const eventObj = e.changedTouches ? e.changedTouches[0] : e
+  const pos = getCanvasPosition(eventObj, editCanvasRef.value)
+  performFloodFill(pos.x, pos.y)
+}
+
+const updateMagnifier = () => {
+  if (!magnifierRef.value || !editCanvasRef.value || !editingSticker.value) return
+
+  const magCanvas = magnifierRef.value
+  const magCtx = magCanvas.getContext('2d')
+  const srcCanvas = editCanvasRef.value
+
+  const size = 100
+  const zoom = 4
+  const srcSize = size / zoom
+
+  magCanvas.width = size
+  magCanvas.height = size
+
+  // Clear with checkerboard
+  magCtx.fillStyle = '#1a1a1f'
+  magCtx.fillRect(0, 0, size, size)
+  for (let i = 0; i < size; i += 10) {
+    for (let j = 0; j < size; j += 10) {
+      if ((i + j) % 20 === 0) {
+        magCtx.fillStyle = '#252530'
+        magCtx.fillRect(i, j, 10, 10)
+      }
+    }
+  }
+
+  // Draw zoomed portion
+  const srcX = magnifierCanvasPos.value.x - srcSize / 2
+  const srcY = magnifierCanvasPos.value.y - srcSize / 2
+
+  magCtx.imageSmoothingEnabled = false
+  magCtx.drawImage(
+    srcCanvas,
+    srcX, srcY, srcSize, srcSize,
+    0, 0, size, size
+  )
+
+  // Draw crosshair
+  magCtx.strokeStyle = 'rgba(139, 92, 246, 0.8)'
+  magCtx.lineWidth = 1
+  magCtx.beginPath()
+  magCtx.moveTo(size / 2, 0)
+  magCtx.lineTo(size / 2, size)
+  magCtx.moveTo(0, size / 2)
+  magCtx.lineTo(size, size / 2)
+  magCtx.stroke()
+}
+
+const performFloodFill = (x, y) => {
+  if (!editCanvasRef.value || !editingSticker.value) return
+
+  const canvas = editCanvasRef.value
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  const imageData = ctx.getImageData(0, 0, editingSticker.value.width, editingSticker.value.height)
+
+  // Get clicked pixel color
+  const clickedIdx = (y * editingSticker.value.width + x) * 4
+  const targetColor = {
+    r: imageData.data[clickedIdx],
+    g: imageData.data[clickedIdx + 1],
+    b: imageData.data[clickedIdx + 2],
+  }
+
+  // Check if already transparent
+  if (imageData.data[clickedIdx + 3] === 0) {
+    toast.info(t('stickerCropper.edit.alreadyTransparent'))
+    return
+  }
+
+  // Save state before modification for undo
+  saveEditState()
+
+  // Perform flood fill
+  const removedCount = floodFillRemove(
+    imageData.data,
+    editingSticker.value.width,
+    editingSticker.value.height,
+    x,
+    y,
+    targetColor,
+    editTolerance.value
+  )
+
+  if (removedCount > 0) {
+    ctx.putImageData(imageData, 0, 0)
+    toast.success(t('stickerCropper.edit.removed', { count: removedCount }))
+  }
+}
+
+
+const applyEdit = () => {
+  if (!editCanvasRef.value || !editingSticker.value) return
+
+  const sticker = croppedStickers.value.find(s => s.id === editingSticker.value.id)
+  if (!sticker) return
+
+  const editCanvas = editCanvasRef.value
+
+  // Update transparent background dataUrl
+  sticker.dataUrl = editCanvas.toDataURL('image/png')
+
+  // Create new canvas for sticker.canvas
+  const newCanvas = document.createElement('canvas')
+  newCanvas.width = sticker.width
+  newCanvas.height = sticker.height
+  const newCtx = newCanvas.getContext('2d')
+  newCtx.drawImage(editCanvas, 0, 0)
+  sticker.canvas = newCanvas
+
+  // Update previewDataUrl based on current preview background setting
+  const previewCanvas = document.createElement('canvas')
+  previewCanvas.width = sticker.width
+  previewCanvas.height = sticker.height
+  const previewCtx = previewCanvas.getContext('2d')
+
+  if (previewBgWhite.value) {
+    previewCtx.fillStyle = '#ffffff'
+    previewCtx.fillRect(0, 0, sticker.width, sticker.height)
+  }
+  previewCtx.drawImage(editCanvas, 0, 0)
+  sticker.previewDataUrl = previewCanvas.toDataURL('image/png')
+
+  toast.success(t('stickerCropper.edit.applied'))
+  closeEditMode()
+}
+
 const downloadSingleSticker = (sticker) => {
   const link = document.createElement('a')
   link.href = sticker.dataUrl
@@ -578,6 +1042,14 @@ const resetState = () => {
   selectedStickers.value.clear()
   tolerance.value = 30
   isPickingColor.value = false
+  // Clear preview and edit state
+  previewSticker.value = null
+  editingSticker.value = null
+  originalEditImageData.value = null
+  editHistory.value = []
+  editPreviewBgWhite.value = false
+  showMagnifier.value = false
+  showColorPickerMagnifier.value = false
 }
 
 // Background color display
@@ -597,7 +1069,14 @@ const handleKeydown = (e) => {
   if (!props.modelValue) return
   if (e.key === 'Escape') {
     e.preventDefault()
-    close()
+    // Close in order: preview -> edit mode -> cropper
+    if (previewSticker.value) {
+      closePreview()
+    } else if (editingSticker.value) {
+      closeEditMode()
+    } else {
+      close()
+    }
   }
 }
 
@@ -744,6 +1223,13 @@ onUnmounted(() => {
                 class="preview-container"
                 :class="{ 'cursor-crosshair': isPickingColor, 'bg-white': previewBgWhite }"
                 @click="handleCanvasClick"
+                @mousedown="handleColorPickerPointerDown"
+                @mousemove="handleColorPickerPointerMove"
+                @mouseup="handleColorPickerPointerUp"
+                @mouseleave="showColorPickerMagnifier = false"
+                @touchstart="handleColorPickerPointerDown"
+                @touchmove="handleColorPickerPointerMove"
+                @touchend="handleColorPickerPointerUp"
               >
                 <canvas ref="sourceCanvasRef" class="hidden"></canvas>
                 <!-- Only show preview canvas after processing -->
@@ -765,6 +1251,18 @@ onUnmounted(() => {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <p class="text-gray-500 text-sm mt-2">{{ $t('stickerCropper.preview.loading') }}</p>
+                </div>
+
+                <!-- Color picker magnifier -->
+                <div
+                  v-show="showColorPickerMagnifier"
+                  class="color-picker-magnifier"
+                  :style="{
+                    left: `${colorPickerMagnifierPos.x}px`,
+                    top: `${colorPickerMagnifierPos.y}px`,
+                  }"
+                >
+                  <canvas ref="colorPickerMagnifierRef" width="100" height="100"></canvas>
                 </div>
               </div>
             </div>
@@ -803,9 +1301,9 @@ onUnmounted(() => {
                 :key="sticker.id"
                 class="sticker-card"
                 :class="{ 'selected': selectedStickers.has(sticker.id) }"
-                @click="toggleSelectSticker(sticker.id)"
               >
-                <div class="sticker-preview">
+                <!-- Preview area - click to enlarge -->
+                <div class="sticker-preview" @click="openPreview(sticker)">
                   <img :src="sticker.previewDataUrl" :alt="`Sticker ${sticker.id + 1}`" />
                 </div>
                 <div class="sticker-info">
@@ -822,8 +1320,21 @@ onUnmounted(() => {
                     </svg>
                   </button>
                 </div>
-                <!-- Checkbox overlay -->
-                <div class="sticker-checkbox">
+                <!-- Edit button - top left -->
+                <button
+                  @click.stop="openEditMode(sticker)"
+                  class="sticker-edit-btn"
+                  :title="$t('stickerCropper.edit.button')"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+                <!-- Checkbox area - click to toggle selection -->
+                <div
+                  class="sticker-checkbox"
+                  @click.stop="toggleSelectSticker(sticker.id)"
+                >
                   <svg v-if="selectedStickers.has(sticker.id)" class="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
@@ -903,6 +1414,130 @@ onUnmounted(() => {
             </div>
           </div>
         </Transition>
+
+        <!-- Edit Mode Overlay -->
+        <Transition name="fade">
+          <div v-if="editingSticker" class="edit-overlay">
+            <div class="edit-panel">
+              <div class="edit-header">
+                <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                  <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  {{ $t('stickerCropper.edit.title') }}
+                </h3>
+                <div class="flex items-center gap-2">
+                  <!-- White background toggle -->
+                  <button
+                    @click="editPreviewBgWhite = !editPreviewBgWhite"
+                    class="p-2 rounded-lg transition-colors"
+                    :class="editPreviewBgWhite ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-gray-400'"
+                    :title="$t('stickerCropper.settings.whiteBgPreview')"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  <button
+                    @click="closeEditMode"
+                    class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="edit-canvas-container" :class="{ 'edit-canvas-bg-white': editPreviewBgWhite }">
+                <canvas
+                  ref="editCanvasRef"
+                  class="edit-canvas"
+                  @mousedown="handleEditPointerDown"
+                  @mousemove="handleEditPointerMove"
+                  @mouseup="handleEditPointerUp"
+                  @mouseleave="showMagnifier = false"
+                  @touchstart="handleEditPointerDown"
+                  @touchmove="handleEditPointerMove"
+                  @touchend="handleEditPointerUp"
+                />
+              </div>
+
+              <div class="edit-controls">
+                <div class="edit-tolerance">
+                  <label class="text-xs text-gray-400">
+                    {{ $t('stickerCropper.edit.tolerance') }}: <span class="text-purple-400 font-medium">{{ editTolerance }}</span>
+                  </label>
+                  <input
+                    v-model="editTolerance"
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-full accent-purple-500"
+                  />
+                </div>
+                <p class="edit-hint text-xs text-gray-500">{{ $t('stickerCropper.edit.hint') }}</p>
+              </div>
+
+              <div class="edit-actions">
+                <button
+                  @click="undoEdit"
+                  :disabled="editHistory.length === 0"
+                  class="edit-btn-icon"
+                  :class="editHistory.length > 0 ? 'text-gray-300 hover:bg-white/20' : 'text-gray-600 cursor-not-allowed'"
+                  :title="$t('stickerCropper.edit.undo')"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                </button>
+                <button
+                  @click="resetEdit"
+                  class="edit-btn-secondary"
+                >
+                  {{ $t('stickerCropper.edit.reset') }}
+                </button>
+                <button
+                  @click="applyEdit"
+                  class="edit-btn-primary"
+                >
+                  {{ $t('stickerCropper.edit.done') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Magnifier -->
+            <div
+              v-show="showMagnifier"
+              class="edit-magnifier"
+              :style="{
+                left: `${magnifierPos.x}px`,
+                top: `${magnifierPos.y}px`,
+              }"
+            >
+              <canvas ref="magnifierRef" width="100" height="100"></canvas>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+
+    <!-- Simple sticker preview overlay -->
+    <Transition name="fade">
+      <div v-if="previewSticker" class="sticker-lightbox" @click="closePreview">
+        <div class="sticker-lightbox-content" @click.stop>
+          <button @click="closePreview" class="sticker-lightbox-close">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div class="sticker-lightbox-img-wrap">
+            <img :src="previewSticker.previewDataUrl" :alt="`Sticker ${previewSticker.id + 1}`" class="sticker-lightbox-img" />
+          </div>
+          <div class="sticker-lightbox-info">
+            <span class="text-sm text-gray-400">{{ previewSticker.width }} x {{ previewSticker.height }}</span>
+          </div>
+        </div>
       </div>
     </Transition>
   </Teleport>
@@ -1010,8 +1645,25 @@ onUnmounted(() => {
   justify-content: center;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect fill="%231a1a1f" width="20" height="20"/><rect fill="%23252530" width="10" height="10"/><rect fill="%23252530" x="10" y="10" width="10" height="10"/></svg>');
   border-radius: 0.5rem;
-  overflow: hidden;
+  overflow: visible;  /* Allow magnifier to show outside */
   position: relative;
+}
+
+/* Color picker magnifier */
+.color-picker-magnifier {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 10003;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(139, 92, 246, 0.8);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.color-picker-magnifier canvas {
+  display: block;
+  border-radius: 50%;
 }
 
 .preview-canvas,
@@ -1097,6 +1749,7 @@ onUnmounted(() => {
   justify-content: center;
   padding: 0.5rem;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect fill="%231a1a1f" width="16" height="16"/><rect fill="%23252530" width="8" height="8"/><rect fill="%23252530" x="8" y="8" width="8" height="8"/></svg>');
+  cursor: zoom-in;
 }
 
 .sticker-preview img {
@@ -1129,6 +1782,34 @@ onUnmounted(() => {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  cursor: pointer;
+}
+
+.sticker-edit-btn {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.375rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.sticker-card:hover .sticker-edit-btn {
+  opacity: 1;
+}
+
+.sticker-edit-btn:hover {
+  background: rgba(139, 92, 246, 0.8);
+  color: white;
 }
 
 .stickers-empty {
@@ -1302,5 +1983,230 @@ onUnmounted(() => {
     bottom: 0;
     background: rgba(10, 10, 15, 0.95);
   }
+
+  /* Mobile: always show edit button */
+  .sticker-edit-btn {
+    opacity: 1;
+  }
+}
+
+/* Edit mode overlay */
+.edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 1rem;
+}
+
+.edit-panel {
+  background: rgba(30, 30, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 500px;
+  /* Calculate max height: viewport - overlay padding (2rem) - safe area */
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);  /* Dynamic viewport for mobile */
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.edit-canvas-container {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Transparent checkerboard background */
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect fill="%231a1a1f" width="20" height="20"/><rect fill="%23252530" width="10" height="10"/><rect fill="%23252530" x="10" y="10" width="10" height="10"/></svg>');
+  border-radius: 0.5rem;
+  overflow: hidden;
+  min-height: 120px;
+  padding: 1rem;
+}
+
+.edit-canvas-container.edit-canvas-bg-white {
+  background: #ffffff;
+}
+
+.edit-canvas {
+  max-width: 100%;
+  /* Limit canvas height directly */
+  max-height: calc(100vh - 350px);
+  max-height: calc(100dvh - 350px);
+  object-fit: contain;
+  cursor: crosshair;
+  touch-action: none; /* Prevent scroll during touch */
+}
+
+.edit-controls {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.edit-tolerance {
+  margin-bottom: 0.5rem;
+}
+
+.edit-hint {
+  margin-top: 0.5rem;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-shrink: 0;
+}
+
+.edit-btn-icon {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-btn-secondary {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
+  transition: all 0.2s;
+}
+
+.edit-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.edit-btn-primary {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  background: #8b5cf6;
+  color: white;
+  transition: all 0.2s;
+}
+
+.edit-btn-primary:hover {
+  background: #7c3aed;
+}
+
+/* Magnifier */
+.edit-magnifier {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 10002;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(139, 92, 246, 0.8);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.edit-magnifier canvas {
+  display: block;
+  border-radius: 50%;
+}
+
+@media (max-width: 768px) {
+  .edit-overlay {
+    padding: 0.5rem;
+  }
+
+  .edit-panel {
+    max-width: 100%;
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+    width: 100%;
+  }
+
+  .edit-canvas-container {
+    min-height: 100px;
+  }
+
+  .edit-canvas {
+    max-height: calc(100vh - 300px);
+    max-height: calc(100dvh - 300px);
+  }
+
+  .edit-controls {
+    padding: 0.75rem;
+  }
+}
+
+/* Simple sticker lightbox (avoid class name conflict with main preview) */
+.sticker-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.sticker-lightbox-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.sticker-lightbox-close {
+  position: absolute;
+  top: -3rem;
+  right: 0;
+  padding: 0.5rem;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.sticker-lightbox-close:hover {
+  color: white;
+}
+
+.sticker-lightbox-img-wrap {
+  /* Transparent checkerboard background */
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect fill="%231a1a1f" width="20" height="20"/><rect fill="%23252530" width="10" height="10"/><rect fill="%23252530" x="10" y="10" width="10" height="10"/></svg>');
+  border-radius: 0.5rem;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.sticker-lightbox-img {
+  max-width: 80vw;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.sticker-lightbox-info {
+  margin-top: 1rem;
+  text-align: center;
 }
 </style>

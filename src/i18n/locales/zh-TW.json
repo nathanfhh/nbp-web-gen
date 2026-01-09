@@ -393,6 +393,18 @@
       "processingError": "處理失敗，請重試",
       "pdfError": "PDF 產生失敗",
       "zipError": "ZIP 產生失敗"
+    },
+    "edit": {
+      "button": "編輯",
+      "title": "二次背景清除",
+      "hint": "點擊要移除的區域，按住拖曳可精準瞄準",
+      "tolerance": "容許值",
+      "reset": "重置",
+      "undo": "復原",
+      "done": "完成",
+      "removed": "已移除 {count} 個像素",
+      "alreadyTransparent": "此區域已經透明",
+      "applied": "已套用編輯"
     }
   },
   "storyProgress": {

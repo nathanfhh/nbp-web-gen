@@ -22,6 +22,7 @@ import PromptDebug from '@/components/PromptDebug.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ToastContainer from '@/components/ToastContainer.vue'
 import GitHubLink from '@/components/GitHubLink.vue'
+import YouTubeLink from '@/components/YouTubeLink.vue'
 
 const store = useGeneratorStore()
 const { handleGenerate: executeGenerate } = useGeneration()
@@ -236,7 +237,10 @@ const handleGenerate = async () => {
           <span class="text-sm px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 font-mono">
             v{{ appVersion }}
           </span>
-          <GitHubLink size="md" />
+          <div class="flex items-center gap-1">
+            <GitHubLink size="md" />
+            <YouTubeLink size="md" />
+          </div>
         </div>
       </div>
 
@@ -410,7 +414,10 @@ const handleGenerate = async () => {
         <p class="text-sm" :class="store.theme === 'dark' ? 'text-gray-500' : 'text-gray-400'">
           {{ $t('footer.title') }}
         </p>
-        <GitHubLink size="md" />
+        <div class="flex items-center justify-center gap-1">
+          <GitHubLink size="md" />
+          <YouTubeLink size="md" />
+        </div>
       </footer>
     </section>
   </div>

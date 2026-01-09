@@ -393,6 +393,18 @@
       "processingError": "Processing failed, please try again",
       "pdfError": "Failed to generate PDF",
       "zipError": "Failed to generate ZIP"
+    },
+    "edit": {
+      "button": "Edit",
+      "title": "Remove Background",
+      "hint": "Click on areas to remove. Hold & drag to aim precisely.",
+      "tolerance": "Tolerance",
+      "reset": "Reset",
+      "undo": "Undo",
+      "done": "Done",
+      "removed": "Removed {count} pixels",
+      "alreadyTransparent": "This area is already transparent",
+      "applied": "Edit applied"
     }
   },
   "storyProgress": {
