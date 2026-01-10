@@ -7,8 +7,10 @@ import { useImageStorage } from '@/composables/useImageStorage'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
 import { useHistoryState } from '@/composables/useHistoryState'
+import { useLightboxZoom } from '@/composables/useLightboxZoom'
+import { useLightboxTouch } from '@/composables/useLightboxTouch'
+import { useLightboxDownload } from '@/composables/useLightboxDownload'
 import StickerCropper from '@/components/StickerCropper.vue'
-import JSZip from 'jszip'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -57,45 +59,55 @@ const imageStorage = useImageStorage()
 // PDF generator
 const pdfGenerator = usePdfGenerator()
 
-// Download format preference (original or webp)
-const DOWNLOAD_PREF_KEY = 'nbp-download-format'
-const downloadFormat = ref(localStorage.getItem(DOWNLOAD_PREF_KEY) || 'original')
-const showDownloadMenu = ref(false)
+// Initialize zoom composable
+const {
+  scale,
+  translateX,
+  translateY,
+  isDragging,
+  imageRef,
+  resetTransform,
+  constrainPan,
+  handleWheel: zoomHandleWheel,
+  handleMouseDown,
+  handleMouseMove,
+  handleGlobalMouseUp,
+  handleDoubleClick,
+} = useLightboxZoom()
+
+// Initialize touch composable with zoom dependencies
+const {
+  isTouching,
+  handleTouchStart: touchHandleStart,
+  handleTouchMove: touchHandleMove,
+  handleTouchEnd: touchHandleEnd,
+} = useLightboxTouch({ scale, translateX, translateY, resetTransform, constrainPan })
+
+// Initialize download composable
+const {
+  showDownloadMenu,
+  isAnyDownloading,
+  toggleDownloadMenu,
+  closeDownloadMenu,
+  getImageSrc,
+  downloadWithFormat,
+  downloadCurrentImage: downloadDownloadCurrentImage,
+  downloadAllAsZip: downloadDownloadAllAsZip,
+  downloadAllAsPdf: downloadDownloadAllAsPdf,
+} = useLightboxDownload({ imageStorage, pdfGenerator, toast, t })
+
+// Computed image transform style (needs isTouching from touch composable)
+const imageTransformStyle = computed(() => ({
+  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
+  cursor: isDragging.value ? 'grabbing' : (scale.value > 1 ? 'grab' : 'default'),
+  transition: (isDragging.value || isTouching.value) ? 'none' : 'transform 0.1s ease-out',
+}))
 
 const currentIndex = ref(props.initialIndex)
 const isAnimating = ref(false)
 const slideDirection = ref('') // 'left' or 'right'
 const isVisible = ref(false)
 const isClosing = ref(false)
-
-// Zoom and pan state
-const scale = ref(1)
-const translateX = ref(0)
-const translateY = ref(0)
-const isDragging = ref(false)
-const dragStart = ref({ x: 0, y: 0 })
-const imageRef = ref(null)
-
-const MIN_SCALE = 0.5
-const MAX_SCALE = 5
-const ZOOM_SENSITIVITY = 0.002
-const PINCH_SENSITIVITY = 0.01
-
-// Touch state
-const isTouching = ref(false)
-const touchStartDistance = ref(0)
-const touchStartScale = ref(1)
-const touchStartPos = ref({ x: 0, y: 0 })
-const lastTouchCenter = ref({ x: 0, y: 0 })
-const lastTapTime = ref(0)
-const touchMoved = ref(false)
-
-// Reset zoom and pan
-const resetTransform = () => {
-  scale.value = 1
-  translateX.value = 0
-  translateY.value = 0
-}
 
 // History state management for back gesture/button support
 const { pushState, popState, cleanupBeforeNavigation } = useHistoryState('lightbox', {
@@ -217,236 +229,28 @@ const handleKeydown = (e) => {
   }
 }
 
-// Wheel event for zoom (scroll) and pan (Mac trackpad)
+// Wheel event wrapper
 const handleWheel = (e) => {
-  if (!props.modelValue) return
-  e.preventDefault()
-
-  // Pinch-to-zoom on Mac trackpad (ctrlKey is set for pinch gestures)
-  if (e.ctrlKey) {
-    const delta = -e.deltaY * PINCH_SENSITIVITY
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value + delta))
-    scale.value = newScale
-    return
-  }
-
-  // Detect mouse wheel vs trackpad:
-  // - Mouse wheel: deltaX is 0, deltaY is discrete (typically >=50)
-  // - Trackpad: both deltaX and deltaY can have small continuous values
-  const isMouseWheel = e.deltaX === 0 && Math.abs(e.deltaY) >= 40
-
-  if (isMouseWheel) {
-    // Mouse wheel: always zoom (even when zoomed in)
-    const delta = -e.deltaY * ZOOM_SENSITIVITY
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value + delta))
-    scale.value = newScale
-    return
-  }
-
-  // Trackpad behavior
-  if (scale.value > 1) {
-    // When zoomed in: trackpad swipe to pan
-    translateX.value -= e.deltaX
-    translateY.value -= e.deltaY
-    constrainPan()
-    return
-  }
-
-  // When not zoomed: vertical scroll to zoom
-  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-    const delta = -e.deltaY * ZOOM_SENSITIVITY
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value + delta))
-    scale.value = newScale
-  }
+  zoomHandleWheel(e, props.modelValue)
 }
 
-// Constrain pan to keep image visible
-// Allows panning proportional to zoom level, ensuring image stays partially visible
-const constrainPan = () => {
-  const maxPanX = Math.max(0, (scale.value - 1) * window.innerWidth * 0.4)
-  const maxPanY = Math.max(0, (scale.value - 1) * window.innerHeight * 0.35)
-  translateX.value = Math.max(-maxPanX, Math.min(maxPanX, translateX.value))
-  translateY.value = Math.max(-maxPanY, Math.min(maxPanY, translateY.value))
-}
-
-// Mouse events for drag (left-click or middle-click)
-const handleMouseDown = (e) => {
-  // Left mouse button (0) or middle mouse button (1)
-  if (e.button === 0 || e.button === 1) {
-    e.preventDefault()
-    isDragging.value = true
-    dragStart.value = { x: e.clientX - translateX.value, y: e.clientY - translateY.value }
-  }
-}
-
-const handleMouseMove = (e) => {
-  if (!isDragging.value) return
-  e.preventDefault()
-  translateX.value = e.clientX - dragStart.value.x
-  translateY.value = e.clientY - dragStart.value.y
-  constrainPan()
-}
-
-// Double-click to toggle zoom
-const handleDoubleClick = (e) => {
-  e.preventDefault()
-  if (scale.value > 1) {
-    resetTransform()
-  } else {
-    scale.value = 2
-  }
-}
-
-// ============================================
-// Touch Events for Mobile Devices
-// ============================================
-
-// Calculate distance between two touch points
-const getTouchDistance = (touches) => {
-  const dx = touches[0].clientX - touches[1].clientX
-  const dy = touches[0].clientY - touches[1].clientY
-  return Math.sqrt(dx * dx + dy * dy)
-}
-
-// Calculate center point between two touches
-const getTouchCenter = (touches) => {
-  return {
-    x: (touches[0].clientX + touches[1].clientX) / 2,
-    y: (touches[0].clientY + touches[1].clientY) / 2,
-  }
-}
-
+// Touch event wrappers
 const handleTouchStart = (e) => {
-  if (!props.modelValue) return
-
-  const touches = e.touches
-  touchMoved.value = false
-
-  if (touches.length === 1) {
-    // Single finger - prepare for drag or double-tap
-    isTouching.value = true
-    touchStartPos.value = {
-      x: touches[0].clientX - translateX.value,
-      y: touches[0].clientY - translateY.value,
-    }
-    lastTouchCenter.value = {
-      x: touches[0].clientX,
-      y: touches[0].clientY,
-    }
-  } else if (touches.length === 2) {
-    // Two fingers - prepare for pinch zoom
-    e.preventDefault()
-    isTouching.value = true
-    touchStartDistance.value = getTouchDistance(touches)
-    touchStartScale.value = scale.value
-    lastTouchCenter.value = getTouchCenter(touches)
-    touchStartPos.value = {
-      x: lastTouchCenter.value.x - translateX.value,
-      y: lastTouchCenter.value.y - translateY.value,
-    }
-  }
+  touchHandleStart(e, props.modelValue)
 }
 
 const handleTouchMove = (e) => {
-  if (!props.modelValue || !isTouching.value) return
-
-  const touches = e.touches
-  touchMoved.value = true
-
-  if (touches.length === 1 && scale.value > 1) {
-    // Single finger drag (only when zoomed in)
-    e.preventDefault()
-    translateX.value = touches[0].clientX - touchStartPos.value.x
-    translateY.value = touches[0].clientY - touchStartPos.value.y
-    constrainPan()
-  } else if (touches.length === 2) {
-    // Two finger pinch zoom
-    e.preventDefault()
-
-    // Calculate new scale
-    const currentDistance = getTouchDistance(touches)
-    const scaleChange = currentDistance / touchStartDistance.value
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, touchStartScale.value * scaleChange))
-    scale.value = newScale
-
-    // Move with pinch center
-    const currentCenter = getTouchCenter(touches)
-    translateX.value = currentCenter.x - touchStartPos.value.x
-    translateY.value = currentCenter.y - touchStartPos.value.y
-    constrainPan()
-  }
+  touchHandleMove(e, props.modelValue)
 }
 
 const handleTouchEnd = (e) => {
-  if (!props.modelValue) return
-
-  const touches = e.touches
-  const changedTouch = e.changedTouches[0]
-
-  // All fingers lifted
-  if (touches.length === 0) {
-    // Calculate swipe distance
-    const deltaX = changedTouch.clientX - lastTouchCenter.value.x
-    const deltaY = changedTouch.clientY - lastTouchCenter.value.y
-
-    // Check for double-tap (only if minimal movement)
-    if (!touchMoved.value || (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10)) {
-      const now = Date.now()
-      const timeDiff = now - lastTapTime.value
-
-      if (timeDiff < 300 && timeDiff > 0) {
-        // Double tap detected - toggle zoom
-        e.preventDefault()
-        if (scale.value > 1) {
-          resetTransform()
-        } else {
-          scale.value = 2.5
-        }
-        lastTapTime.value = 0
-        isTouching.value = false
-        return
-      } else {
-        lastTapTime.value = now
-      }
-    }
-
-    // Check for swipe down to close (only when not zoomed)
-    if (scale.value <= 1 && touchMoved.value && deltaY > 80 && Math.abs(deltaX) < 50) {
-      close()
-      isTouching.value = false
-      return
-    }
-
-    // Check for swipe navigation (only when not zoomed)
-    if (scale.value <= 1 && touchMoved.value && Math.abs(deltaX) > 50) {
-      if (deltaX > 0 && hasPrev.value) {
-        goToPrev()
-      } else if (deltaX < 0 && hasNext.value) {
-        goToNext()
-      }
-    }
-
-    isTouching.value = false
-  } else if (touches.length === 1) {
-    // One finger remaining - switch to single finger drag mode
-    touchStartPos.value = {
-      x: touches[0].clientX - translateX.value,
-      y: touches[0].clientY - translateY.value,
-    }
-    touchStartDistance.value = 0
-  }
-}
-
-// Computed transform style
-const imageTransformStyle = computed(() => ({
-  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
-  cursor: isDragging.value ? 'grabbing' : (scale.value > 1 ? 'grab' : 'default'),
-  transition: (isDragging.value || isTouching.value) ? 'none' : 'transform 0.1s ease-out',
-}))
-
-// Global mouseup to handle drag end even when mouse leaves the image
-const handleGlobalMouseUp = () => {
-  isDragging.value = false
+  touchHandleEnd(e, props.modelValue, {
+    close,
+    goToPrev,
+    goToNext,
+    hasPrev: hasPrev.value,
+    hasNext: hasNext.value,
+  })
 }
 
 onMounted(() => {
@@ -460,19 +264,6 @@ onUnmounted(() => {
   document.body.style.overflow = ''
   // Note: useHistoryState handles its own cleanup in onUnmounted
 })
-
-const getImageSrc = (image) => {
-  // Historical images use Object URL from OPFS
-  if (image.url) {
-    return image.url
-  }
-  // Fresh images use base64 data
-  if (image.data) {
-    return `data:${image.mimeType};base64,${image.data}`
-  }
-  // Fallback: return placeholder or empty
-  return ''
-}
 
 // Image dimensions
 const imageDimensions = ref({ width: 0, height: 0 })
@@ -525,80 +316,32 @@ const currentImageInfo = computed(() => {
   return info
 })
 
-// Toggle unified download menu
-const toggleDownloadMenu = () => {
-  showDownloadMenu.value = !showDownloadMenu.value
+// Download wrapper functions
+const downloadWithFormatWrapper = async (format) => {
+  await downloadWithFormat(format, downloadCurrentImage)
 }
-
-// Download current image with specified format
-const downloadWithFormat = async (format) => {
-  downloadFormat.value = format
-  localStorage.setItem(DOWNLOAD_PREF_KEY, format)
-  showDownloadMenu.value = false
-  await downloadCurrentImage()
-}
-
-// Download current image
-const isDownloading = ref(false)
 
 const downloadCurrentImage = async () => {
-  if (!currentImage.value || isDownloading.value) return
-
-  isDownloading.value = true
-  showDownloadMenu.value = false
-
-  const link = document.createElement('a')
-  const timestamp = Date.now()
-  const imageNum = currentIndex.value + 1
-
-  try {
-    if (props.isHistorical) {
-      // Historical images: always download WebP from OPFS
-      const meta = currentMetadata.value
-      if (meta?.opfsPath) {
-        const base64 = await imageStorage.getImageBase64(meta.opfsPath)
-        if (base64) {
-          link.href = `data:image/webp;base64,${base64}`
-          link.download = `generated-image-${timestamp}-${imageNum}.webp`
-        }
-      }
-    } else if (downloadFormat.value === 'webp') {
-      // Fresh image, download WebP
-      if (currentMetadata.value?.opfsPath) {
-        // WebP already saved in OPFS
-        const base64 = await imageStorage.getImageBase64(currentMetadata.value.opfsPath)
-        if (base64) {
-          link.href = `data:image/webp;base64,${base64}`
-          link.download = `generated-image-${timestamp}-${imageNum}.webp`
-        }
-      } else {
-        // WebP not ready yet, compress on-the-fly
-        const { compressToWebP, blobToBase64 } = await import('@/composables/useImageCompression')
-        const compressed = await compressToWebP(currentImage.value, { quality: 0.85 })
-        const base64 = await blobToBase64(compressed.blob)
-        link.href = `data:image/webp;base64,${base64}`
-        link.download = `generated-image-${timestamp}-${imageNum}.webp`
-      }
-    } else {
-      // Fresh image, download original
-      link.href = getImageSrc(currentImage.value)
-      const ext = currentImage.value.mimeType?.split('/')[1] || 'png'
-      link.download = `generated-image-${timestamp}-${imageNum}.${ext}`
-    }
-
-    if (link.href) {
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    }
-  } finally {
-    isDownloading.value = false
-  }
+  await downloadDownloadCurrentImage({
+    currentImage: currentImage.value,
+    currentMetadata: currentMetadata.value,
+    currentIndex: currentIndex.value,
+    isHistorical: props.isHistorical,
+  })
 }
 
-// Close download menu when clicking outside
-const closeDownloadMenu = () => {
-  showDownloadMenu.value = false
+const downloadAllAsZip = async () => {
+  await downloadDownloadAllAsZip({
+    images: props.images,
+    historyId: props.historyId,
+  })
+}
+
+const downloadAllAsPdf = async () => {
+  await downloadDownloadAllAsPdf({
+    images: props.images,
+    historyId: props.historyId,
+  })
 }
 
 // Sticker Cropper state
@@ -627,7 +370,7 @@ const handleExtractCharacter = async () => {
 
   // Wait for StickerCropper to process the change and pop its history state
   await nextTick()
-  
+
   // Wait for StickerCropper history state to be removed
   // This prevents race conditions where nested history.back() calls conflict with router.push()
   const waitForStateCleanup = async (key) => {
@@ -642,7 +385,7 @@ const handleExtractCharacter = async () => {
   // CRITICAL: Remove lightbox's history state before vue-router navigation
   // Uses robust history state cleanup (waits for state change instead of fixed timeout)
   await cleanupBeforeNavigation()
-  
+
   // Final safety check: if we are still in a "lightbox" state (e.g. timeout), force another back
   if (history.state?.lightbox) {
     history.back()
@@ -657,102 +400,6 @@ const handleExtractCharacter = async () => {
     // Fallback for corrupted history state (SecurityError etc)
     const targetUrl = router.resolve({ name: 'character-extractor', query: { image: '1' } }).href
     window.location.href = targetUrl
-  }
-}
-
-// Batch download state
-const isBatchDownloading = ref(false)
-
-// Combined loading state for download button
-const isAnyDownloading = computed(() => isDownloading.value || isBatchDownloading.value)
-
-// Convert image to blob
-const imageToBlob = async (image) => {
-  if (image.url) {
-    // Historical images - fetch from Object URL
-    const response = await fetch(image.url)
-    return await response.blob()
-  }
-  if (image.data) {
-    // Fresh images - convert base64 to blob
-    const byteString = atob(image.data)
-    const arrayBuffer = new ArrayBuffer(byteString.length)
-    const uint8Array = new Uint8Array(arrayBuffer)
-    for (let i = 0; i < byteString.length; i++) {
-      uint8Array[i] = byteString.charCodeAt(i)
-    }
-    return new Blob([arrayBuffer], { type: image.mimeType || 'image/png' })
-  }
-  return null
-}
-
-
-// Download all images as ZIP
-const downloadAllAsZip = async () => {
-  if (props.images.length === 0 || isBatchDownloading.value) return
-
-  isBatchDownloading.value = true
-  showDownloadMenu.value = false
-
-  try {
-    const zip = new JSZip()
-
-    const prefix = props.historyId ? `${props.historyId}-` : ''
-
-    for (let i = 0; i < props.images.length; i++) {
-      const image = props.images[i]
-      const blob = await imageToBlob(image)
-      if (blob) {
-        const ext = image.mimeType?.split('/')[1] || 'png'
-        zip.file(`image-${prefix}${i + 1}.${ext}`, blob)
-      }
-    }
-
-    const content = await zip.generateAsync({ type: 'blob' })
-    const url = URL.createObjectURL(content)
-
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `images-${prefix}${Date.now()}.zip`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    URL.revokeObjectURL(url)
-  } catch (err) {
-    console.error('ZIP generation failed:', err)
-    toast.error(t('lightbox.zipError'))
-  } finally {
-    isBatchDownloading.value = false
-  }
-}
-
-// Download all images as PDF (using Web Worker via composable)
-const downloadAllAsPdf = async () => {
-  if (props.images.length === 0 || isBatchDownloading.value) return
-
-  isBatchDownloading.value = true
-  showDownloadMenu.value = false
-
-  try {
-    // Prepare image data for worker
-    const imageDataArray = []
-    for (const image of props.images) {
-      const blob = await imageToBlob(image)
-      if (!blob) continue
-
-      const arrayBuffer = await blob.arrayBuffer()
-      const mimeType = image.mimeType || blob.type || 'image/png'
-      imageDataArray.push({ data: arrayBuffer, mimeType })
-    }
-
-    const prefix = props.historyId ? `${props.historyId}-` : ''
-    await pdfGenerator.generateAndDownload(imageDataArray, `images-${prefix}${Date.now()}`)
-  } catch (err) {
-    console.error('PDF generation failed:', err)
-    toast.error(t('lightbox.pdfError'))
-  } finally {
-    isBatchDownloading.value = false
   }
 }
 </script>
@@ -821,7 +468,7 @@ const downloadAllAsPdf = async () => {
               <div class="download-section-label">{{ $t('lightbox.currentImage') }}</div>
               <button
                 v-if="!isHistorical"
-                @click="downloadWithFormat('original')"
+                @click="downloadWithFormatWrapper('original')"
                 class="download-option"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -830,7 +477,7 @@ const downloadAllAsPdf = async () => {
                 {{ $t('lightbox.originalFormat') }}
               </button>
               <button
-                @click="downloadWithFormat('webp')"
+                @click="downloadWithFormatWrapper('webp')"
                 class="download-option"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
