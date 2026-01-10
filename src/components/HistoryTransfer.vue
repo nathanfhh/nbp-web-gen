@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHistoryTransfer } from '@/composables/useHistoryTransfer'
 import { useCharacterTransfer } from '@/composables/useCharacterTransfer'
@@ -7,22 +7,65 @@ import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { useToast } from '@/composables/useToast'
 import { useHistoryState } from '@/composables/useHistoryState'
+import { useHistoryTransferUI } from '@/composables/useHistoryTransferUI'
 import PeerSync from '@/components/PeerSync.vue'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import 'dayjs/locale/zh-tw'
+import SelectionControls from '@/components/SelectionControls.vue'
+import TransferListItem from '@/components/TransferListItem.vue'
+import TransferActionButtons from '@/components/TransferActionButtons.vue'
+import PreviewLightbox from '@/components/PreviewLightbox.vue'
 
-dayjs.extend(relativeTime)
-
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const toast = useToast()
 const transfer = useHistoryTransfer()
 const charTransfer = useCharacterTransfer()
 const indexedDB = useIndexedDB()
 const imageStorage = useImageStorage()
 
-// Tab state: 'history' or 'characters'
-const activeTab = ref('history')
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
+})
+const emit = defineEmits(['update:modelValue', 'imported'])
+
+// Use UI composable
+const {
+  activeTab,
+  historyList,
+  selectedIds,
+  isLoadingList,
+  selectedCount,
+  isAllSelected,
+  hasSelection,
+  characterList,
+  selectedCharIds,
+  isLoadingCharacters,
+  selectedCharCount,
+  isAllCharSelected,
+  hasCharSelection,
+  previewCharacter,
+  previewHistoryItem,
+  previewHistoryImageUrl,
+  isLoadingPreview,
+  isDragOver,
+  modeColors,
+  loadHistoryList,
+  loadCharacterList,
+  toggleSelect,
+  selectAll,
+  deselectAll,
+  toggleCharSelect,
+  selectAllChars,
+  deselectAllChars,
+  resetSelections,
+  openCharPreview,
+  closeCharPreview,
+  openHistoryPreview,
+  closeHistoryPreview,
+  closeAnyPreview,
+  formatRelativeTime,
+  handleDragOver,
+  handleDragLeave,
+  handleDropEnd,
+} = useHistoryTransferUI({ indexedDB, imageStorage })
 
 // Peer sync modal
 const showPeerSync = ref(false)
@@ -30,168 +73,13 @@ const peerSyncSelectedIds = ref([])
 const peerSyncSelectedCharIds = ref([])
 const peerSyncType = ref('history')
 
-// History list for selection
-const historyList = ref([])
-const selectedIds = ref(new Set())
-const isLoadingList = ref(false)
-
-// Character list for selection
-const characterList = ref([])
-const selectedCharIds = ref(new Set())
-const isLoadingCharacters = ref(false)
-
-// Preview state for character thumbnail
-const previewCharacter = ref(null)
-
-// Preview state for history thumbnail
-const previewHistoryItem = ref(null)
-const previewHistoryImageUrl = ref(null)
-const isLoadingPreview = ref(false)
-
-const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-})
-const emit = defineEmits(['update:modelValue', 'imported'])
-
-// Computed for history tab
-const selectedCount = computed(() => selectedIds.value.size)
-const isAllSelected = computed(() =>
-  historyList.value.length > 0 && selectedIds.value.size === historyList.value.length
-)
-const hasSelection = computed(() => selectedIds.value.size > 0)
-
-// Computed for characters tab
-const selectedCharCount = computed(() => selectedCharIds.value.size)
-const isAllCharSelected = computed(() =>
-  characterList.value.length > 0 && selectedCharIds.value.size === characterList.value.length
-)
-const hasCharSelection = computed(() => selectedCharIds.value.size > 0)
-
-// Mode label colors (light mode handled by style.css [data-theme="light"])
-const modeColors = {
-  generate: 'bg-blue-500/20 text-blue-300',
-  sticker: 'bg-pink-500/20 text-pink-300',
-  edit: 'bg-cyan-500/20 text-cyan-300',
-  story: 'bg-amber-500/20 text-amber-300',
-  diagram: 'bg-emerald-500/20 text-emerald-300',
-}
-
-// Load history list
-const loadHistoryList = async () => {
-  isLoadingList.value = true
-  try {
-    historyList.value = await indexedDB.getAllHistory()
-    // Sort by timestamp descending
-    historyList.value.sort((a, b) => b.timestamp - a.timestamp)
-  } catch (err) {
-    console.error('Failed to load history:', err)
-  } finally {
-    isLoadingList.value = false
-  }
-}
-
-// Selection operations for history
-const toggleSelect = (id) => {
-  const newSet = new Set(selectedIds.value)
-  if (newSet.has(id)) {
-    newSet.delete(id)
-  } else {
-    newSet.add(id)
-  }
-  selectedIds.value = newSet
-}
-
-const selectAll = () => {
-  selectedIds.value = new Set(historyList.value.map(h => h.id))
-}
-
-const deselectAll = () => {
-  selectedIds.value = new Set()
-}
-
-// Load character list
-const loadCharacterList = async () => {
-  isLoadingCharacters.value = true
-  try {
-    characterList.value = await indexedDB.getCharacters(1000)
-    // Sort by createdAt descending
-    characterList.value.sort((a, b) => b.createdAt - a.createdAt)
-  } catch (err) {
-    console.error('Failed to load characters:', err)
-  } finally {
-    isLoadingCharacters.value = false
-  }
-}
-
-// Selection operations for characters
-const toggleCharSelect = (id) => {
-  const newSet = new Set(selectedCharIds.value)
-  if (newSet.has(id)) {
-    newSet.delete(id)
-  } else {
-    newSet.add(id)
-  }
-  selectedCharIds.value = newSet
-}
-
-const selectAllChars = () => {
-  selectedCharIds.value = new Set(characterList.value.map(c => c.id))
-}
-
-const deselectAllChars = () => {
-  selectedCharIds.value = new Set()
-}
-
-// Preview character image
-const openCharPreview = (char, e) => {
-  e.stopPropagation()
-  previewCharacter.value = char
-}
-
-const closeCharPreview = () => {
-  previewCharacter.value = null
-}
-
-// Preview history image - load full image from OPFS
-const openHistoryPreview = async (item, e) => {
-  e.stopPropagation()
-  if (!item.images?.[0]) return
-
-  previewHistoryItem.value = item
-  isLoadingPreview.value = true
-
-  try {
-    // Load full image from OPFS using opfsPath
-    const opfsPath = item.images[0].opfsPath
-    if (opfsPath) {
-      const url = await imageStorage.loadImage(opfsPath)
-      previewHistoryImageUrl.value = url
-    }
-  } catch (err) {
-    console.error('Failed to load preview image:', err)
-  } finally {
-    isLoadingPreview.value = false
-  }
-}
-
-const closeHistoryPreview = () => {
-  previewHistoryItem.value = null
-  previewHistoryImageUrl.value = null
-}
-
-// Format relative time
-const formatRelativeTime = (timestamp) => {
-  return dayjs(timestamp).locale(locale.value === 'zh-TW' ? 'zh-tw' : 'en').fromNow()
-}
+// File input ref
+const fileInputRef = ref(null)
 
 // History state management for back gesture/button support
 const { pushState, popState } = useHistoryState('historyTransfer', {
   onBackNavigation: () => {
-    if (previewCharacter.value) {
-      closeCharPreview()
-    } else if (previewHistoryItem.value) {
-      closeHistoryPreview()
-    } else {
+    if (!closeAnyPreview()) {
       emit('update:modelValue', false)
     }
   },
@@ -203,11 +91,8 @@ watch(
     if (newVal) {
       pushState()
       document.body.style.overflow = 'hidden'
-      // Load both lists when modal opens
       await Promise.all([loadHistoryList(), loadCharacterList()])
-      // Reset selections
-      selectedIds.value = new Set()
-      selectedCharIds.value = new Set()
+      resetSelections()
     } else {
       popState()
       document.body.style.overflow = ''
@@ -215,31 +100,16 @@ watch(
   }
 )
 
-// Note: useHistoryState handles its own lifecycle in onMounted/onUnmounted
-
-// File input handling
-const fileInputRef = ref(null)
-const isDragOver = ref(false)
-
+// File handling
 const handleFileSelect = async (e) => {
   const file = e.target.files?.[0]
   if (file) await processFile(file)
-  // Reset input for re-selecting same file
   if (fileInputRef.value) fileInputRef.value.value = ''
-}
-
-const handleDragOver = (e) => {
-  e.preventDefault()
-  isDragOver.value = true
-}
-
-const handleDragLeave = () => {
-  isDragOver.value = false
 }
 
 const handleDrop = async (e) => {
   e.preventDefault()
-  isDragOver.value = false
+  handleDropEnd()
   const file = e.dataTransfer?.files?.[0]
   if (file) await processFile(file)
 }
@@ -250,36 +120,22 @@ const processFile = async (file) => {
     return
   }
   try {
-    // Check if it's a character export file
     const isCharFile = await charTransfer.isCharacterExportFile(file)
 
     if (isCharFile) {
       const result = await charTransfer.importCharacters(file)
       if (result) {
         emit('imported')
-        // Reload character list after import
         await loadCharacterList()
-        toast.success(
-          t('historyTransfer.charImportSuccess', {
-            imported: result.imported,
-            skipped: result.skipped,
-          })
-        )
-        // Switch to characters tab to show the result
+        toast.success(t('historyTransfer.charImportSuccess', { imported: result.imported, skipped: result.skipped }))
         activeTab.value = 'characters'
       }
     } else {
       const result = await transfer.importHistory(file)
       if (result) {
         emit('imported')
-        // Reload history list after import
         await loadHistoryList()
-        toast.success(
-          t('historyTransfer.importSuccess', {
-            imported: result.imported,
-            skipped: result.skipped,
-          })
-        )
+        toast.success(t('historyTransfer.importSuccess', { imported: result.imported, skipped: result.skipped }))
       }
     }
   } catch {
@@ -287,7 +143,7 @@ const processFile = async (file) => {
   }
 }
 
-// Export history
+// Export handlers
 const handleExport = async () => {
   if (!hasSelection.value) {
     toast.error(t('historyTransfer.noSelection'))
@@ -302,7 +158,6 @@ const handleExport = async () => {
   }
 }
 
-// Export characters
 const handleCharExport = async () => {
   if (!hasCharSelection.value) {
     toast.error(t('historyTransfer.noSelection'))
@@ -325,15 +180,34 @@ const handleSync = () => {
 }
 
 const handleSynced = async () => {
-  // Reload lists after sync
   await Promise.all([loadHistoryList(), loadCharacterList()])
   emit('imported')
-  // Notify other components (e.g., CharacterCarousel) to refresh
   window.dispatchEvent(new CustomEvent('characters-updated'))
 }
 
 const close = () => {
   emit('update:modelValue', false)
+}
+
+// Helper to get thumbnail src
+const getHistoryThumbnail = (item) => {
+  return item.images?.[0]?.thumbnail ? `data:image/webp;base64,${item.images[0].thumbnail}` : null
+}
+
+const getCharThumbnail = (char) => {
+  return char.thumbnail ? `data:image/webp;base64,${char.thumbnail}` : null
+}
+
+const getCharPreviewSrc = () => {
+  return previewCharacter.value?.imageData ? `data:image/png;base64,${previewCharacter.value.imageData}` : null
+}
+
+const getHistoryPreviewSrc = () => {
+  if (previewHistoryImageUrl.value) return previewHistoryImageUrl.value
+  if (previewHistoryItem.value?.images?.[0]?.thumbnail) {
+    return `data:image/webp;base64,${previewHistoryItem.value.images[0].thumbnail}`
+  }
+  return null
 }
 </script>
 
@@ -345,10 +219,8 @@ const close = () => {
         class="fixed inset-0 z-[9998] flex items-center justify-center p-4"
         @click.self="close"
       >
-        <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
 
-        <!-- Modal -->
         <div class="relative glass-strong rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <!-- Header -->
           <div class="flex items-center justify-between mb-4 flex-shrink-0">
@@ -358,14 +230,9 @@ const close = () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
-              <h3 class="text-lg font-semibold text-white">
-                {{ $t('historyTransfer.title') }}
-              </h3>
+              <h3 class="text-lg font-semibold text-white">{{ t('historyTransfer.title') }}</h3>
             </div>
-            <button
-              @click="close"
-              class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
-            >
+            <button @click="close" class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -386,7 +253,7 @@ const close = () => {
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {{ $t('historyTransfer.historyTab') }}
+              {{ t('historyTransfer.historyTab') }}
             </button>
             <button
               @click="activeTab = 'characters'"
@@ -400,55 +267,25 @@ const close = () => {
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-              {{ $t('historyTransfer.charactersTab') }}
+              {{ t('historyTransfer.charactersTab') }}
             </button>
           </div>
 
-          <!-- Selection Controls (History) -->
-          <div v-if="activeTab === 'history'" class="flex items-center justify-between mb-3 flex-shrink-0">
-            <div class="flex items-center gap-2">
-              <button
-                v-if="!isAllSelected"
-                @click="selectAll"
-                class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
-              >
-                {{ $t('historyTransfer.selectAll') }}
-              </button>
-              <button
-                v-else
-                @click="deselectAll"
-                class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
-              >
-                {{ $t('historyTransfer.deselectAll') }}
-              </button>
-            </div>
-            <span class="text-xs text-gray-500">
-              {{ $t('historyTransfer.selectedCount', { count: selectedCount }) }}
-            </span>
-          </div>
-
-          <!-- Selection Controls (Characters) -->
-          <div v-if="activeTab === 'characters'" class="flex items-center justify-between mb-3 flex-shrink-0">
-            <div class="flex items-center gap-2">
-              <button
-                v-if="!isAllCharSelected"
-                @click="selectAllChars"
-                class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
-              >
-                {{ $t('historyTransfer.selectAll') }}
-              </button>
-              <button
-                v-else
-                @click="deselectAllChars"
-                class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
-              >
-                {{ $t('historyTransfer.deselectAll') }}
-              </button>
-            </div>
-            <span class="text-xs text-gray-500">
-              {{ $t('historyTransfer.selectedCount', { count: selectedCharCount }) }}
-            </span>
-          </div>
+          <!-- Selection Controls -->
+          <SelectionControls
+            v-if="activeTab === 'history'"
+            :is-all-selected="isAllSelected"
+            :selected-count="selectedCount"
+            @select-all="selectAll"
+            @deselect-all="deselectAll"
+          />
+          <SelectionControls
+            v-if="activeTab === 'characters'"
+            :is-all-selected="isAllCharSelected"
+            :selected-count="selectedCharCount"
+            @select-all="selectAllChars"
+            @deselect-all="deselectAllChars"
+          />
 
           <!-- History List -->
           <div v-if="activeTab === 'history'" class="flex-1 overflow-y-auto mb-4 min-h-0 pr-2">
@@ -459,81 +296,35 @@ const close = () => {
               </svg>
             </div>
             <div v-else-if="historyList.length === 0" class="text-center py-8">
-              <p class="text-gray-500 text-sm">{{ $t('history.empty') }}</p>
+              <p class="text-gray-500 text-sm">{{ t('history.empty') }}</p>
             </div>
             <div v-else class="space-y-2">
-              <div
+              <TransferListItem
                 v-for="item in historyList"
                 :key="item.id"
-                @click="toggleSelect(item.id)"
-                :class="[
-                  'flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all',
-                  selectedIds.has(item.id)
-                    ? 'bg-blue-500/20 border border-blue-500/50'
-                    : 'bg-white/5 border border-transparent hover:bg-white/10'
-                ]"
+                :selected="selectedIds.has(item.id)"
+                :thumbnail-src="getHistoryThumbnail(item)"
+                :can-preview="!!item.images?.[0]?.thumbnail"
+                @toggle="toggleSelect(item.id)"
+                @preview="openHistoryPreview(item, $event)"
               >
-                <!-- Checkbox -->
-                <div
-                  :class="[
-                    'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all',
-                    selectedIds.has(item.id)
-                      ? 'bg-blue-500 border-blue-500'
-                      : 'border-gray-500'
-                  ]"
-                >
-                  <svg
-                    v-if="selectedIds.has(item.id)"
-                    class="w-3 h-3 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-
-                <!-- Thumbnail (clickable for preview) -->
-                <div
-                  @click.stop="item.images?.[0]?.thumbnail && openHistoryPreview(item, $event)"
-                  :class="[
-                    'w-10 h-10 rounded-lg bg-black/30 flex-shrink-0 overflow-hidden transition-all',
-                    item.images?.[0]?.thumbnail && 'cursor-zoom-in hover:ring-2 hover:ring-blue-400'
-                  ]"
-                >
-                  <img
-                    v-if="item.images?.[0]?.thumbnail"
-                    :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
-                    class="w-full h-full object-cover"
-                    alt=""
-                  />
-                  <div v-else class="w-full h-full flex items-center justify-center">
-                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <!-- Content -->
-                <div class="flex-1 min-w-0">
+                <template #content>
                   <div class="flex items-center gap-2 mb-1">
                     <span :class="['text-xs px-1.5 py-0.5 rounded', modeColors[item.mode] || 'bg-gray-500/20 text-gray-300']">
-                      {{ $t(`modes.${item.mode}.name`) }}
+                      {{ t(`modes.${item.mode}.name`) }}
                     </span>
-                    <span class="text-xs text-gray-500">
-                      {{ formatRelativeTime(item.timestamp) }}
-                    </span>
+                    <span class="text-xs text-gray-500">{{ formatRelativeTime(item.timestamp) }}</span>
                   </div>
                   <p class="text-sm text-gray-300 truncate">
                     {{ item.prompt?.slice(0, 50) }}{{ item.prompt?.length > 50 ? '...' : '' }}
                   </p>
-                </div>
-
-                <!-- Image count badge -->
-                <div v-if="item.images?.length" class="text-xs text-gray-500 flex-shrink-0">
-                  {{ item.images.length }} {{ item.images.length > 1 ? 'imgs' : 'img' }}
-                </div>
-              </div>
+                </template>
+                <template #extra>
+                  <div v-if="item.images?.length" class="text-xs text-gray-500 flex-shrink-0">
+                    {{ item.images.length }} {{ item.images.length > 1 ? 'imgs' : 'img' }}
+                  </div>
+                </template>
+              </TransferListItem>
             </div>
           </div>
 
@@ -546,148 +337,63 @@ const close = () => {
               </svg>
             </div>
             <div v-else-if="characterList.length === 0" class="text-center py-8">
-              <p class="text-gray-500 text-sm">{{ $t('historyTransfer.noCharacters') }}</p>
+              <p class="text-gray-500 text-sm">{{ t('historyTransfer.noCharacters') }}</p>
             </div>
             <div v-else class="space-y-2">
-              <div
+              <TransferListItem
                 v-for="char in characterList"
                 :key="char.id"
-                @click="toggleCharSelect(char.id)"
-                :class="[
-                  'flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all',
-                  selectedCharIds.has(char.id)
-                    ? 'bg-blue-500/20 border border-blue-500/50'
-                    : 'bg-white/5 border border-transparent hover:bg-white/10'
-                ]"
+                :selected="selectedCharIds.has(char.id)"
+                :thumbnail-src="getCharThumbnail(char)"
+                thumbnail-size="w-12 h-12"
+                can-preview
+                @toggle="toggleCharSelect(char.id)"
+                @preview="openCharPreview(char, $event)"
               >
-                <!-- Checkbox -->
-                <div
-                  :class="[
-                    'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all',
-                    selectedCharIds.has(char.id)
-                      ? 'bg-blue-500 border-blue-500'
-                      : 'border-gray-500'
-                  ]"
-                >
-                  <svg
-                    v-if="selectedCharIds.has(char.id)"
-                    class="w-3 h-3 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                <template #placeholder>
+                  <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
-                </div>
-
-                <!-- Thumbnail (clickable for preview) -->
-                <div
-                  @click.stop="openCharPreview(char, $event)"
-                  class="w-12 h-12 rounded-lg bg-black/30 flex-shrink-0 overflow-hidden cursor-zoom-in hover:ring-2 hover:ring-blue-400 transition-all"
-                >
-                  <img
-                    v-if="char.thumbnail"
-                    :src="`data:image/webp;base64,${char.thumbnail}`"
-                    class="w-full h-full object-cover"
-                    :alt="char.name"
-                  />
-                  <div v-else class="w-full h-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <!-- Content -->
-                <div class="flex-1 min-w-0">
+                </template>
+                <template #content>
                   <div class="flex items-center gap-2 mb-1">
                     <span class="text-sm font-medium text-white truncate">{{ char.name }}</span>
-                    <span class="text-xs text-gray-500">
-                      {{ formatRelativeTime(char.createdAt) }}
-                    </span>
+                    <span class="text-xs text-gray-500">{{ formatRelativeTime(char.createdAt) }}</span>
                   </div>
                   <p class="text-xs text-gray-400 truncate">
                     {{ char.description?.slice(0, 60) }}{{ char.description?.length > 60 ? '...' : '' }}
                   </p>
-                </div>
-              </div>
+                </template>
+              </TransferListItem>
             </div>
           </div>
 
-          <!-- Action Buttons (History Tab) -->
-          <div v-if="activeTab === 'history'" class="flex gap-3 mb-4 flex-shrink-0">
-            <button
-              @click="handleExport"
-              :disabled="!hasSelection || transfer.isExporting.value"
-              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <template v-if="transfer.isExporting.value">
-                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>{{ transfer.progress.value.current }}/{{ transfer.progress.value.total }}</span>
-              </template>
-              <template v-else>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span>{{ $t('historyTransfer.export.button') }}</span>
-              </template>
-            </button>
-            <button
-              @click="handleSync"
-              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-cyan-500/30 border border-cyan-500 text-cyan-300 hover:bg-cyan-500/40 flex items-center justify-center gap-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              <span>{{ $t('peerSync.title') }}</span>
-            </button>
-          </div>
-
-          <!-- Action Buttons (Characters Tab) -->
-          <div v-if="activeTab === 'characters'" class="flex gap-3 mb-4 flex-shrink-0">
-            <button
-              @click="handleCharExport"
-              :disabled="!hasCharSelection || charTransfer.isExporting.value"
-              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <template v-if="charTransfer.isExporting.value">
-                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>{{ charTransfer.progress.value.current }}/{{ charTransfer.progress.value.total }}</span>
-              </template>
-              <template v-else>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span>{{ $t('historyTransfer.export.button') }}</span>
-              </template>
-            </button>
-            <button
-              @click="handleSync"
-              class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-cyan-500/30 border border-cyan-500 text-cyan-300 hover:bg-cyan-500/40 flex items-center justify-center gap-2"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              <span>{{ $t('peerSync.title') }}</span>
-            </button>
-          </div>
+          <!-- Action Buttons -->
+          <TransferActionButtons
+            v-if="activeTab === 'history'"
+            :has-selection="hasSelection"
+            :is-exporting="transfer.isExporting.value"
+            :progress-current="transfer.progress.value.current"
+            :progress-total="transfer.progress.value.total"
+            @export="handleExport"
+            @sync="handleSync"
+          />
+          <TransferActionButtons
+            v-if="activeTab === 'characters'"
+            :has-selection="hasCharSelection"
+            :is-exporting="charTransfer.isExporting.value"
+            :progress-current="charTransfer.progress.value.current"
+            :progress-total="charTransfer.progress.value.total"
+            @export="handleCharExport"
+            @sync="handleSync"
+          />
 
           <!-- Divider -->
           <div class="border-t border-white/10 mb-4 flex-shrink-0"></div>
 
           <!-- Import Section -->
           <div class="flex-shrink-0">
-            <h4 class="text-sm font-medium text-gray-300 mb-2">
-              {{ $t('historyTransfer.import.title') }}
-            </h4>
-
-            <!-- Drop Zone -->
+            <h4 class="text-sm font-medium text-gray-300 mb-2">{{ t('historyTransfer.import.title') }}</h4>
             <div
               @dragover="handleDragOver"
               @dragleave="handleDragLeave"
@@ -707,25 +413,17 @@ const close = () => {
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <span class="text-xs text-gray-400">
-                  {{ $t('historyTransfer.import.progress', { current: transfer.progress.value.current, total: transfer.progress.value.total }) }}
+                  {{ t('historyTransfer.import.progress', { current: transfer.progress.value.current, total: transfer.progress.value.total }) }}
                 </span>
               </template>
               <template v-else>
                 <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span class="text-xs text-gray-400">
-                  {{ $t('historyTransfer.import.dragDrop') }}
-                </span>
+                <span class="text-xs text-gray-400">{{ t('historyTransfer.import.dragDrop') }}</span>
               </template>
             </div>
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept=".json"
-              class="hidden"
-              @change="handleFileSelect"
-            />
+            <input ref="fileInputRef" type="file" accept=".json" class="hidden" @change="handleFileSelect" />
 
             <!-- Import Result -->
             <Transition name="fade">
@@ -735,28 +433,16 @@ const close = () => {
               >
                 <div class="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <div class="text-base font-semibold text-emerald-400">
-                      {{ transfer.importResult.value.imported }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ $t('historyTransfer.result.imported') }}
-                    </div>
+                    <div class="text-base font-semibold text-emerald-400">{{ transfer.importResult.value.imported }}</div>
+                    <div class="text-xs text-gray-500">{{ t('historyTransfer.result.imported') }}</div>
                   </div>
                   <div>
-                    <div class="text-base font-semibold text-amber-400">
-                      {{ transfer.importResult.value.skipped }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ $t('historyTransfer.result.skipped') }}
-                    </div>
+                    <div class="text-base font-semibold text-amber-400">{{ transfer.importResult.value.skipped }}</div>
+                    <div class="text-xs text-gray-500">{{ t('historyTransfer.result.skipped') }}</div>
                   </div>
                   <div>
-                    <div class="text-base font-semibold text-red-400">
-                      {{ transfer.importResult.value.failed }}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                      {{ $t('historyTransfer.result.failed') }}
-                    </div>
+                    <div class="text-base font-semibold text-red-400">{{ transfer.importResult.value.failed }}</div>
+                    <div class="text-xs text-gray-500">{{ t('historyTransfer.result.failed') }}</div>
                   </div>
                 </div>
               </div>
@@ -777,93 +463,37 @@ const close = () => {
   />
 
   <!-- Character Preview Lightbox -->
-  <Teleport to="body">
-    <Transition name="lightbox">
-      <div
-        v-if="previewCharacter"
-        class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
-        @click="closeCharPreview"
-      >
-        <button
-          @click="closeCharPreview"
-          class="absolute top-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        <div class="max-w-[90vw] max-h-[85vh] flex flex-col items-center gap-4" @click.stop>
-          <img
-            v-if="previewCharacter.imageData"
-            :src="`data:image/png;base64,${previewCharacter.imageData}`"
-            :alt="previewCharacter.name"
-            class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
-          />
-          <div class="text-center">
-            <h3 class="text-xl font-semibold text-white mb-2">{{ previewCharacter.name }}</h3>
-            <p class="text-sm text-gray-400 max-w-md">{{ previewCharacter.description }}</p>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  <PreviewLightbox
+    :visible="!!previewCharacter"
+    :image-src="getCharPreviewSrc()"
+    @close="closeCharPreview"
+  >
+    <template #caption>
+      <h3 class="text-xl font-semibold text-white mb-2">{{ previewCharacter?.name }}</h3>
+      <p class="text-sm text-gray-400 max-w-md">{{ previewCharacter?.description }}</p>
+    </template>
+  </PreviewLightbox>
 
   <!-- History Preview Lightbox -->
-  <Teleport to="body">
-    <Transition name="lightbox">
-      <div
-        v-if="previewHistoryItem"
-        class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
-        @click="closeHistoryPreview"
-      >
-        <button
-          @click="closeHistoryPreview"
-          class="absolute top-4 right-4 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        <div class="max-w-[90vw] max-h-[85vh] flex flex-col items-center gap-4" @click.stop>
-          <!-- Loading spinner -->
-          <div v-if="isLoadingPreview" class="flex items-center justify-center py-12">
-            <svg class="w-10 h-10 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          <!-- Full image from OPFS -->
-          <img
-            v-else-if="previewHistoryImageUrl"
-            :src="previewHistoryImageUrl"
-            :alt="previewHistoryItem.prompt"
-            class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
-          />
-          <!-- Fallback to thumbnail if OPFS load failed -->
-          <img
-            v-else-if="previewHistoryItem.images?.[0]?.thumbnail"
-            :src="`data:image/webp;base64,${previewHistoryItem.images[0].thumbnail}`"
-            :alt="previewHistoryItem.prompt"
-            class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
-          />
-          <div class="text-center max-w-lg">
-            <div class="flex items-center justify-center gap-2 mb-2">
-              <span :class="['text-xs px-2 py-1 rounded', modeColors[previewHistoryItem.mode] || 'bg-gray-500/20 text-gray-300']">
-                {{ $t(`modes.${previewHistoryItem.mode}.name`) }}
-              </span>
-              <span class="text-xs text-gray-500">
-                {{ formatRelativeTime(previewHistoryItem.timestamp) }}
-              </span>
-              <span v-if="previewHistoryItem.images?.length > 1" class="text-xs text-gray-500">
-                · {{ previewHistoryItem.images.length }} {{ $t('common.images') || 'images' }}
-              </span>
-            </div>
-            <p class="text-sm text-gray-400">{{ previewHistoryItem.prompt }}</p>
-          </div>
-        </div>
+  <PreviewLightbox
+    :visible="!!previewHistoryItem"
+    :image-src="getHistoryPreviewSrc()"
+    :is-loading="isLoadingPreview"
+    @close="closeHistoryPreview"
+  >
+    <template #caption>
+      <div class="flex items-center justify-center gap-2 mb-2">
+        <span :class="['text-xs px-2 py-1 rounded', modeColors[previewHistoryItem?.mode] || 'bg-gray-500/20 text-gray-300']">
+          {{ previewHistoryItem?.mode ? t(`modes.${previewHistoryItem.mode}.name`) : '' }}
+        </span>
+        <span class="text-xs text-gray-500">{{ previewHistoryItem?.timestamp ? formatRelativeTime(previewHistoryItem.timestamp) : '' }}</span>
+        <span v-if="previewHistoryItem?.images?.length > 1" class="text-xs text-gray-500">
+          · {{ previewHistoryItem.images.length }} {{ t('common.images') || 'images' }}
+        </span>
       </div>
-    </Transition>
-  </Teleport>
+      <p class="text-sm text-gray-400 max-w-lg">{{ previewHistoryItem?.prompt }}</p>
+    </template>
+  </PreviewLightbox>
 </template>
 
 <style scoped>
@@ -889,16 +519,6 @@ const close = () => {
 
 .fade-enter-from,
 .fade-leave-to {
-  opacity: 0;
-}
-
-.lightbox-enter-active,
-.lightbox-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.lightbox-enter-from,
-.lightbox-leave-to {
   opacity: 0;
 }
 </style>
