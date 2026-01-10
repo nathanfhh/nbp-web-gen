@@ -3,128 +3,25 @@ import Peer from 'peerjs'
 import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
 import { useOPFS } from './useOPFS'
-import { generateUUID } from './useUUID'
-import { generateThumbnailFromBlob } from './useImageCompression'
 import { buildIceServers } from './useCloudfareTurn'
-
-// Emoji pool for pairing verification (visually distinct)
-const EMOJI_POOL = [
-  '🐶', '🐱', '🐼', '🦊', '🦁', '🐸', '🐵', '🐰',
-  '🌸', '🌻', '🌺', '🍀', '🌈', '⭐', '🌙', '❄️',
-  '🍎', '🍊', '🍋', '🍇', '🍓', '🍒', '🥝', '🍑',
-  '🚀', '✈️', '🚗', '🚲', '⛵', '🎈', '🎮', '🎸',
-]
-
-// ============================================================================
-// Binary Transfer Utilities
-// ============================================================================
-
-// Message type prefixes for raw binary mode
-const MSG_TYPE_JSON = 0x4A    // 'J' - JSON control message
-const MSG_TYPE_BINARY = 0x42  // 'B' - Binary data packet (images)
-
-/**
- * Encode a JSON object as binary with type prefix
- * @param {object} obj - JSON-serializable object
- * @returns {Uint8Array}
- */
-function encodeJsonMessage(obj) {
-  const jsonStr = JSON.stringify(obj)
-  const jsonBytes = new TextEncoder().encode(jsonStr)
-  const packet = new Uint8Array(1 + jsonBytes.length)
-  packet[0] = MSG_TYPE_JSON
-  packet.set(jsonBytes, 1)
-  return packet
-}
-
-/**
- * Decode a binary packet - returns { type: 'json', data } or { type: 'binary', data }
- * @param {ArrayBuffer|Uint8Array} rawData
- * @returns {{ type: 'json' | 'binary', data: object | Uint8Array }}
- */
-function decodeMessage(rawData) {
-  const data = rawData instanceof Uint8Array ? rawData : new Uint8Array(rawData)
-  const type = data[0]
-
-  if (type === MSG_TYPE_JSON) {
-    try {
-      const jsonStr = new TextDecoder().decode(data.slice(1))
-      return { type: 'json', data: JSON.parse(jsonStr) }
-    } catch (e) {
-      console.error('Failed to decode JSON message:', e)
-      // Return as binary if JSON parse fails
-      return { type: 'binary', data: data.slice(1) }
-    }
-  } else if (type === MSG_TYPE_BINARY) {
-    return { type: 'binary', data: data.slice(1) }
-  } else {
-    // Fallback - try to parse as binary image packet (legacy or unknown)
-    return { type: 'binary', data }
-  }
-}
-
-/**
- * Format bytes to human readable string
- * @param {number} bytes
- * @returns {string}
- */
-function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
-}
-
-/**
- * Format speed to human readable string
- * @param {number} bytesPerSec
- * @returns {string}
- */
-function formatSpeed(bytesPerSec) {
-  if (bytesPerSec < 1024) return `${bytesPerSec.toFixed(0)} B/s`
-  if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`
-  return `${(bytesPerSec / (1024 * 1024)).toFixed(2)} MB/s`
-}
-
-// ============================================================================
-// Connection Code & Pairing
-// ============================================================================
-
-// Generate 6-char alphanumeric code (easy to type)
-function generateConnectionCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Exclude confusing chars: 0OI1
-  let code = ''
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return code
-}
-
-// Generate 3 emoji fingerprint from peer IDs
-function generatePairingEmojis(peerId1, peerId2) {
-  // Sort to ensure both sides get same result
-  const combined = [peerId1, peerId2].sort().join('')
-
-  // Simple hash
-  let hash = 0
-  for (let i = 0; i < combined.length; i++) {
-    hash = ((hash << 5) - hash) + combined.charCodeAt(i)
-    hash = hash & hash
-  }
-
-  const emojis = []
-  for (let i = 0; i < 3; i++) {
-    const index = Math.abs((hash >> (i * 8)) % EMOJI_POOL.length)
-    emojis.push(EMOJI_POOL[index])
-  }
-  return emojis
-}
+import { usePeerDataTransfer } from './usePeerDataTransfer'
+import { usePeerDataReceiver } from './usePeerDataReceiver'
+import {
+  generateConnectionCode,
+  generatePairingEmojis,
+  encodeJsonMessage,
+  formatBytes,
+  formatSpeed,
+} from './peerSyncUtils'
 
 export function usePeerSync() {
   const indexedDB = useIndexedDB()
   const imageStorage = useImageStorage()
   const opfs = useOPFS()
 
-  // Connection state
+  // ============================================================================
+  // Connection State
+  // ============================================================================
   const peer = ref(null)
   const connection = ref(null)
   const connectionCode = ref('')
@@ -133,28 +30,40 @@ export function usePeerSync() {
   const pairingEmojis = ref([])
   const pairingConfirmed = ref(false)
 
-  // Transfer state
+  // ============================================================================
+  // Transfer State
+  // ============================================================================
   const transferDirection = ref(null) // 'send' | 'receive'
   const transferProgress = ref({ current: 0, total: 0, phase: '' })
   const transferResult = ref(null)
-  const selectedRecordIds = ref(null) // Optional: specific record IDs to sync
-  const selectedCharacterIds = ref(null) // Optional: specific character IDs to sync
+  const selectedRecordIds = ref(null)
+  const selectedCharacterIds = ref(null)
   const syncType = ref('history') // 'history' | 'characters' | 'all'
 
-  // Receiver-side counters for imported/skipped/failed
-  const receiverCounts = ref({ imported: 0, skipped: 0, failed: 0 })
+  // ============================================================================
+  // Pairing State
+  // ============================================================================
+  const localConfirmed = ref(false)
+  const remoteConfirmed = ref(false)
 
-  // Transfer stats (bytes, speed)
+  // ============================================================================
+  // ACK Resolvers
+  // ============================================================================
+  const pendingAckResolve = ref(null)
+  const pendingRecordAckResolve = ref(null)
+
+  // ============================================================================
+  // Transfer Statistics
+  // ============================================================================
   const transferStats = ref({
     bytesSent: 0,
     bytesReceived: 0,
     startTime: null,
-    speed: 0,           // current speed in bytes/sec
-    speedFormatted: '', // human readable speed
-    totalFormatted: '', // human readable total bytes
+    speed: 0,
+    speedFormatted: '',
+    totalFormatted: '',
   })
 
-  // Update speed calculation periodically
   let statsInterval = null
   const startStatsTracking = () => {
     transferStats.value.startTime = Date.now()
@@ -170,6 +79,7 @@ export function usePeerSync() {
       }
     }, 500)
   }
+
   const stopStatsTracking = () => {
     if (statsInterval) {
       clearInterval(statsInterval)
@@ -179,180 +89,189 @@ export function usePeerSync() {
 
   const isConnected = computed(() => status.value === 'paired' || status.value === 'transferring')
 
-  // Debug log
+  // ============================================================================
+  // Debug Logging
+  // ============================================================================
   const debugLog = ref([])
   const addDebug = (msg) => {
     console.log('[PeerSync]', msg)
     debugLog.value.push(`${new Date().toLocaleTimeString()}: ${msg}`)
   }
 
-  /**
-   * Start as sender - create peer and wait for connection
-   * @param {Object} options - Sync options
-   * @param {Array<number>|null} options.historyIds - Optional array of history record IDs to sync (null = all)
-   * @param {Array<number>|null} options.characterIds - Optional array of character IDs to sync (null = all)
-   * @param {'history'|'characters'|'all'} options.type - Type of data to sync
-   */
-  const startAsSender = async (options = {}) => {
-    const { historyIds = null, characterIds = null, type = 'history' } = options
-    cleanup()
+  // ============================================================================
+  // Close Connection (reusable)
+  // ============================================================================
+  const closeConnection = () => {
+    addDebug('Closing connection to stop TURN billing')
+    if (connection.value) {
+      try {
+        connection.value.close()
+      } catch (e) {
+        console.error('Error closing connection:', e)
+      }
+      connection.value = null
+    }
+    if (peer.value) {
+      try {
+        peer.value.destroy()
+      } catch (e) {
+        console.error('Error destroying peer:', e)
+      }
+      peer.value = null
+    }
+  }
 
-    const code = generateConnectionCode()
-    connectionCode.value = code
-    status.value = 'waiting'
-    error.value = null
-    transferDirection.value = 'send'
-    selectedRecordIds.value = historyIds
-    selectedCharacterIds.value = characterIds
-    syncType.value = type
+  // ============================================================================
+  // Initialize Transfer Module
+  // ============================================================================
+  const transfer = usePeerDataTransfer({
+    connection,
+    transferStats,
+    transferProgress,
+    pendingRecordAckResolve,
+    addDebug,
+  })
+
+  // ============================================================================
+  // Send Data Orchestration
+  // ============================================================================
+  const sendData = async () => {
+    transfer.sendJson({ type: 'sync_type', syncType: syncType.value })
+
+    if (syncType.value === 'history') {
+      await sendHistoryDataWithCompletion()
+    } else if (syncType.value === 'characters') {
+      await sendCharactersDataWithCompletion()
+    } else if (syncType.value === 'all') {
+      await sendHistoryDataWithCompletion(false) // Don't close on completion
+      receiver.receiverCounts.value = { imported: 0, skipped: 0, failed: 0 }
+      await sendCharactersDataWithCompletion()
+    }
+  }
+
+  const sendHistoryDataWithCompletion = async (shouldClose = true) => {
+    status.value = 'transferring'
+    startStatsTracking()
 
     try {
-      // Fetch ICE servers (may call Cloudflare API if configured)
-      const iceServers = await buildIceServers()
-
-      // Use code as peer ID with prefix
-      const peerId = `nbp-sync-${code}`
-      peer.value = new Peer(peerId, {
-        debug: 2,
-        pingInterval: 5000,
-        config: {
-          iceServers,
-          iceCandidatePoolSize: 10,
-        },
+      const result = await transfer.sendHistoryData({
+        indexedDB,
+        imageStorage,
+        selectedRecordIds: selectedRecordIds.value,
       })
 
-      addDebug(`Creating peer: ${peerId}`)
+      if (syncType.value === 'history' || (syncType.value === 'all' && shouldClose)) {
+        await finishTransfer(result)
+      }
+    } catch (err) {
+      handleTransferError(err)
+    }
+  }
 
-      // Set up all event listeners BEFORE waiting for open
-      peer.value.on('connection', (conn) => {
-        addDebug(`Incoming connection from: ${conn.peer}`)
-        connection.value = conn
-        setupConnection(conn)
+  const sendCharactersDataWithCompletion = async () => {
+    if (syncType.value === 'characters') {
+      status.value = 'transferring'
+      startStatsTracking()
+    }
+
+    try {
+      const result = await transfer.sendCharactersData({
+        indexedDB,
+        selectedCharacterIds: selectedCharacterIds.value,
       })
 
-      peer.value.on('error', (err) => {
-        addDebug(`Peer error: ${err.type} - ${err.message}`)
-        console.error('Peer error:', err)
-        
-        // Retry if ID is taken (ghost session)
-        if (err.type === 'unavailable-id') {
-           addDebug('ID taken, retrying with new code...')
-           if (peer.value) peer.value.destroy()
-           startAsSender({ historyIds: selectedRecordIds.value, characterIds: selectedCharacterIds.value, type: syncType.value }) // Recursive retry with preserved selection
-           return
+      await finishTransfer(result)
+    } catch (err) {
+      handleTransferError(err)
+    }
+  }
+
+  const finishTransfer = async (result) => {
+    transfer.sendJson({
+      type: 'transfer_complete',
+      imported: result.sent,
+      skipped: 0,
+      failed: result.failed,
+      total: result.total,
+    })
+
+    // Wait for ACK from receiver
+    const ackPromise = new Promise((resolve, reject) => {
+      pendingAckResolve.value = resolve
+      setTimeout(() => {
+        if (pendingAckResolve.value) {
+          pendingAckResolve.value = null
+          reject(new Error('ACK timeout'))
         }
-
-        error.value = `${err.type}: ${err.message}`
-        status.value = 'error'
-      })
-
-      await new Promise((resolve, reject) => {
-        peer.value.on('open', (id) => {
-          addDebug(`Peer opened with ID: ${id}`)
-          resolve()
-        })
-        setTimeout(() => reject(new Error('Connection timeout')), 30000)
-      })
-
-      addDebug('Waiting for incoming connection...')
-
-    } catch (err) {
-      addDebug(`Failed to start sender: ${err.message}`)
-      console.error('Failed to start sender:', err)
-      error.value = err.message
-      status.value = 'error'
-      // Cleanup on failure
-      if (peer.value) {
-        peer.value.destroy()
-        peer.value = null
-      }
-    }
-  }
-
-  /**
-   * Start as receiver - connect to sender's peer
-   */
-  const connectToSender = async (code) => {
-    cleanup()
-
-    const normalizedCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '')
-    if (normalizedCode.length !== 6) {
-      error.value = { key: 'peerSync.invalidCode' }
-      status.value = 'error'
-      return
-    }
-
-    connectionCode.value = normalizedCode
-    status.value = 'connecting'
-    error.value = null
-    transferDirection.value = 'receive'
+      }, 30000)
+    })
 
     try {
-      // Fetch ICE servers (may call Cloudflare API if configured)
-      const iceServers = await buildIceServers()
+      const ack = await ackPromise
+      addDebug(`ACK received: imported=${ack.imported}, skipped=${ack.skipped}, failed=${ack.failed}`)
 
-      // Generate unique receiver ID
-      const myId = `nbp-recv-${generateConnectionCode()}-${Date.now().toString(36)}`
-      addDebug(`Creating peer: ${myId}`)
-
-      peer.value = new Peer(myId, {
-        debug: 2,
-        pingInterval: 5000,
-        config: {
-          iceServers,
-          iceCandidatePoolSize: 10,
-        },
-      })
-
-      // Set up error listener before waiting
-      peer.value.on('error', (err) => {
-        addDebug(`Peer error: ${err.type} - ${err.message}`)
-        console.error('Peer error:', err)
-        error.value = `${err.type}: ${err.message}`
-        status.value = 'error'
-      })
-
-      await new Promise((resolve, reject) => {
-        peer.value.on('open', (id) => {
-          addDebug(`Peer opened with ID: ${id}`)
-          resolve()
-        })
-        setTimeout(() => reject(new Error('Connection timeout')), 30000)
-      })
-
-      // Connect to sender
-      const targetPeerId = `nbp-sync-${normalizedCode}`
-      addDebug(`Connecting to: ${targetPeerId}`)
-
-      const conn = peer.value.connect(targetPeerId, {
-        reliable: true,
-        serialization: 'binary', // Binary mode - PeerJS will pass through Uint8Array efficiently
-      })
-      connection.value = conn
-
-      setupConnection(conn)
-
-    } catch (err) {
-      addDebug(`Failed to connect: ${err.message}`)
-      console.error('Failed to connect:', err)
-      error.value = err.message
-      status.value = 'error'
-      // Cleanup on failure
-      if (peer.value) {
-        peer.value.destroy()
-        peer.value = null
+      stopStatsTracking()
+      status.value = 'completed'
+      transferResult.value = {
+        sent: ack.imported,
+        imported: ack.imported,
+        skipped: ack.skipped,
+        failed: ack.failed,
+        total: result.total,
       }
+      closeConnection()
+    } catch (ackErr) {
+      addDebug(`ACK error: ${ackErr.message}`)
+      stopStatsTracking()
+      status.value = 'completed'
+      transferResult.value = { sent: result.sent, failed: result.failed, total: result.total }
+      closeConnection()
     }
   }
 
-  /**
-   * Setup connection event handlers
-   */
+  const handleTransferError = (err) => {
+    console.error('Send failed:', err)
+    stopStatsTracking()
+    if (err.message === 'Connection closed') {
+      error.value = { key: 'peerSync.connectionClosed' }
+    } else {
+      error.value = err.message
+    }
+    status.value = 'error'
+    closeConnection()
+  }
+
+  // ============================================================================
+  // Initialize Receiver Module
+  // ============================================================================
+  const receiver = usePeerDataReceiver({
+    connection,
+    transferStats,
+    transferProgress,
+    transferDirection,
+    syncType,
+    status,
+    transferResult,
+    localConfirmed,
+    remoteConfirmed,
+    pairingConfirmed,
+    pendingAckResolve,
+    pendingRecordAckResolve,
+    addDebug,
+    startStatsTracking,
+    stopStatsTracking,
+    closeConnection,
+    sendData,
+    indexedDB,
+    opfs,
+  })
+
+  // ============================================================================
+  // Connection Setup
+  // ============================================================================
   const setupConnection = (conn) => {
     addDebug(`setupConnection called, conn.peer=${conn.peer}, conn.open=${conn.open}`)
-    addDebug(`conn keys: ${Object.keys(conn).join(', ')}`)
 
-    // Timeout for connection open
     const openTimeout = setTimeout(() => {
       if (status.value === 'waiting' || status.value === 'connecting') {
         addDebug('Connection open timeout')
@@ -362,7 +281,6 @@ export function usePeerSync() {
       }
     }, 30000)
 
-    // Check if already open (can happen for sender)
     if (conn.open) {
       addDebug('Connection already open!')
       clearTimeout(openTimeout)
@@ -376,27 +294,21 @@ export function usePeerSync() {
       addDebug('Connection opened event fired!')
       clearTimeout(openTimeout)
       status.value = 'paired'
-
-      // Generate pairing emojis
       const myId = peer.value.id
       const theirId = conn.peer
       pairingEmojis.value = generatePairingEmojis(myId, theirId)
     })
 
-    // Monitor ICE state from underlying RTCPeerConnection
+    // Monitor ICE state
     const checkIceState = () => {
-      // PeerJS 1.x uses peerConnection
       const pc = conn.peerConnection || conn._peerConnection
       addDebug(`Checking peerConnection: ${pc ? 'found' : 'null'}`)
       if (pc) {
         addDebug(`ICE: ${pc.iceConnectionState}, Gathering: ${pc.iceGatheringState}, Signaling: ${pc.signalingState}`)
-        addDebug(`Connection: ${pc.connectionState || 'N/A'}`)
 
-        // Check ICE servers configuration
         const config = pc.getConfiguration()
         addDebug(`ICE servers count: ${config?.iceServers?.length || 0}`)
 
-        // Use addEventListener to NOT override PeerJS internal handlers!
         pc.addEventListener('iceconnectionstatechange', () => {
           addDebug(`ICE state changed: ${pc.iceConnectionState}`)
           if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
@@ -407,7 +319,6 @@ export function usePeerSync() {
             error.value = { key: 'peerSync.iceFailed' }
             status.value = 'error'
             clearTimeout(openTimeout)
-            // Close connection to stop any TURN traffic
             closeConnection()
           }
         })
@@ -435,11 +346,10 @@ export function usePeerSync() {
 
         // Force ICE restart if no candidates after 5 seconds
         setTimeout(() => {
-          if (conn.open) return;
+          if (conn.open) return
           if (pc.iceGatheringState === 'gathering' || pc.iceGatheringState === 'new') {
             addDebug('Forcing ICE restart due to no candidates...')
             try {
-              // Create a new offer with ICE restart to force re-gathering
               pc.restartIce()
               addDebug('restartIce() called')
             } catch (e) {
@@ -447,7 +357,6 @@ export function usePeerSync() {
             }
           }
         }, 5000)
-
       } else {
         addDebug('peerConnection not ready, retrying...')
         setTimeout(checkIceState, 100)
@@ -459,7 +368,7 @@ export function usePeerSync() {
       const size = data instanceof ArrayBuffer ? data.byteLength : data?.length || 0
       addDebug(`Received data: ${size} bytes`)
       try {
-        await handleIncomingData(data)
+        await receiver.handleIncomingData(data)
       } catch (err) {
         console.error('Error handling incoming data:', err)
         addDebug(`Data handling error: ${err.message}`)
@@ -481,615 +390,166 @@ export function usePeerSync() {
       console.error('Connection error:', err)
       error.value = err.message || String(err)
       status.value = 'error'
-      // Close connection to stop any TURN traffic
       closeConnection()
     })
   }
 
-  // Track if we've confirmed locally
-  const localConfirmed = ref(false)
-  const remoteConfirmed = ref(false)
+  // ============================================================================
+  // Start as Sender
+  // ============================================================================
+  const startAsSender = async (options = {}) => {
+    const { historyIds = null, characterIds = null, type = 'history' } = options
+    cleanup()
 
-  // Receiver-side: pending record being assembled
-  const pendingRecord = ref(null)
-  const pendingImages = ref([])
+    const code = generateConnectionCode()
+    connectionCode.value = code
+    status.value = 'waiting'
+    error.value = null
+    transferDirection.value = 'send'
+    selectedRecordIds.value = historyIds
+    selectedCharacterIds.value = characterIds
+    syncType.value = type
 
-  // Sender-side: promise resolver for waiting ACK from receiver
-  const pendingAckResolve = ref(null)
-
-  // Sender-side: promise resolver for per-record ACK
-  const pendingRecordAckResolve = ref(null)
-
-  /**
-   * Handle incoming data - supports both binary (Uint8Array/ArrayBuffer) and msgpack-decoded data
-   */
-  const handleIncomingData = async (rawData) => {
-    // With serialization: 'binary', PeerJS may pass through Uint8Array or decode via msgpack
-    // We need to handle both cases
-    if (rawData instanceof ArrayBuffer || rawData instanceof Uint8Array) {
-      // Binary data with our type prefix
-      const rawBytes = rawData instanceof ArrayBuffer ? rawData.byteLength : rawData.length
-      transferStats.value.bytesReceived += rawBytes
-
-      const decoded = decodeMessage(rawData)
-
-      if (decoded.type === 'json') {
-        await handleJsonMessage(decoded.data)
-      } else if (decoded.type === 'binary') {
-        await handleBinaryData(decoded.data)
-      }
-    } else if (typeof rawData === 'object' && rawData !== null) {
-      // Msgpack decoded object (fallback for compatibility)
-      // This shouldn't happen with our binary encoding, but handle it for safety
-      await handleJsonMessage(rawData)
-    }
-  }
-
-  /**
-   * Handle decoded JSON control messages
-   */
-  const handleJsonMessage = async (data) => {
-    if (data.type === 'confirm_pairing') {
-      remoteConfirmed.value = true
-      // Only start sending if BOTH sides confirmed
-      if (transferDirection.value === 'send' && localConfirmed.value) {
-        pairingConfirmed.value = true
-        await sendData()
-      } else if (transferDirection.value === 'receive' && localConfirmed.value) {
-        pairingConfirmed.value = true
-        startStatsTracking() // Start tracking on receiver side
-      }
-    } else if (data.type === 'sync_type') {
-      // Receiver gets sync type from sender
-      syncType.value = data.syncType
-      addDebug(`Sync type set to: ${data.syncType}`)
-    } else if (data.type === 'history_meta') {
-      // Receiver gets metadata first
-      transferProgress.value = { current: 0, total: data.count, phase: 'receiving' }
-      status.value = 'transferring'
-    } else if (data.type === 'history_record') {
-      // Legacy: old-style record with embedded base64 images
-      await processIncomingRecord(data.record)
-      transferProgress.value.current++
-    } else if (data.type === 'record_start') {
-      // New binary protocol: start of record
-      pendingRecord.value = data.meta
-      pendingImages.value = []
-      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images`)
-    } else if (data.type === 'record_end') {
-      // New binary protocol: end of record, save to DB
-      if (pendingRecord.value && pendingRecord.value.uuid === data.uuid) {
-        const expectedImages = pendingRecord.value.imageCount || 0
-        const receivedImages = pendingImages.value.length
-
-        // If we haven't received all images yet, wait a bit for them to arrive
-        if (receivedImages < expectedImages) {
-          addDebug(`Waiting for remaining images: ${receivedImages}/${expectedImages}`)
-          // Wait up to 10 seconds for missing images (100ms intervals)
-          for (let i = 0; i < 100; i++) {
-            await new Promise(r => setTimeout(r, 100))
-            if (pendingImages.value.length >= expectedImages) {
-              addDebug(`All images received: ${pendingImages.value.length}/${expectedImages}`)
-              break
-            }
-            if (i % 10 === 0) {
-              addDebug(`Still waiting: ${pendingImages.value.length}/${expectedImages}`)
-            }
-          }
-        }
-
-        const finalImageCount = pendingImages.value.length
-        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value)
-        transferProgress.value.current++
-
-        // Update receiver counts based on result
-        if (result.skipped) {
-          receiverCounts.value.skipped++
-          addDebug(`Record ${data.uuid} skipped (duplicate)`)
-        } else if (result.failed) {
-          receiverCounts.value.failed++
-          addDebug(`Record ${data.uuid} failed to save`)
-        } else {
-          receiverCounts.value.imported++
-        }
-
-        // Send ACK back to sender so they know we received this record
-        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}, skipped: ${!!result.skipped}`)
-        connection.value.send(encodeJsonMessage({
-          type: 'record_ack',
-          uuid: data.uuid,
-          receivedImages: finalImageCount,
-          expectedImages: expectedImages,
-          skipped: !!result.skipped,
-        }))
-
-        pendingRecord.value = null
-        pendingImages.value = []
-      }
-    } else if (data.type === 'record_ack') {
-      // Sender receives per-record ACK from receiver
-      addDebug(`Received record_ack for ${data.uuid}, images: ${data.receivedImages}`)
-      if (pendingRecordAckResolve.value) {
-        pendingRecordAckResolve.value(data)
-        pendingRecordAckResolve.value = null
-      }
-    } else if (data.type === 'characters_meta') {
-      // Receiver gets character metadata
-      transferProgress.value = { current: 0, total: data.count, phase: 'receiving_characters' }
-      status.value = 'transferring'
-    } else if (data.type === 'character_start') {
-      // Character data start
-      pendingRecord.value = { ...data.character, _type: 'character' }
-      pendingImages.value = []
-      addDebug(`Receiving character: ${data.character.name}`)
-    } else if (data.type === 'character_end') {
-      // Character data end, save to DB
-      if (pendingRecord.value && pendingRecord.value._type === 'character') {
-        const result = await saveReceivedCharacter(pendingRecord.value, pendingImages.value[0])
-        transferProgress.value.current++
-
-        if (result.skipped) {
-          receiverCounts.value.skipped++
-          addDebug(`Character ${pendingRecord.value.name} skipped (duplicate)`)
-        } else if (result.failed) {
-          receiverCounts.value.failed++
-          addDebug(`Character ${pendingRecord.value.name} failed to save`)
-        } else {
-          receiverCounts.value.imported++
-        }
-
-        // Send ACK back to sender
-        connection.value.send(encodeJsonMessage({
-          type: 'character_ack',
-          name: data.name,
-          skipped: !!result.skipped,
-        }))
-
-        pendingRecord.value = null
-        pendingImages.value = []
-      }
-    } else if (data.type === 'character_ack') {
-      // Sender receives character ACK
-      addDebug(`Received character_ack for ${data.name}`)
-      if (pendingRecordAckResolve.value) {
-        pendingRecordAckResolve.value(data)
-        pendingRecordAckResolve.value = null
-      }
-    } else if (data.type === 'transfer_complete') {
-      // Sender says they're done - send back acknowledgment with our actual counts
-      addDebug(`Received transfer_complete, sender reports ${data.total}, we processed: imported=${receiverCounts.value.imported}, skipped=${receiverCounts.value.skipped}, failed=${receiverCounts.value.failed}`)
-
-      // Send acknowledgment back to sender with our counts
-      connection.value.send(encodeJsonMessage({
-        type: 'transfer_ack',
-        receivedCount: transferProgress.value.current,
-        expectedCount: data.total,
-        imported: receiverCounts.value.imported,
-        skipped: receiverCounts.value.skipped,
-        failed: receiverCounts.value.failed,
-      }))
-
-      stopStatsTracking()
-      status.value = 'completed'
-      transferResult.value = {
-        imported: receiverCounts.value.imported,
-        skipped: receiverCounts.value.skipped,
-        failed: receiverCounts.value.failed,
-        total: data.total,
-      }
-      // Close connection immediately to stop TURN billing
-      closeConnection()
-    } else if (data.type === 'transfer_ack') {
-      // Sender receives acknowledgment from receiver
-      addDebug(`Received transfer_ack: ${data.receivedCount}/${data.expectedCount} records`)
-
-      // Resolve the pending ACK promise if exists
-      if (pendingAckResolve.value) {
-        pendingAckResolve.value(data)
-        pendingAckResolve.value = null
-      }
-    }
-  }
-
-  /**
-   * Handle binary packet (image data)
-   * Packet format: [4-byte header length][JSON header][image data]
-   */
-  const handleBinaryData = async (data) => {
     try {
-      const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data
-      // Note: bytesReceived already tracked in handleIncomingData
+      const iceServers = await buildIceServers()
 
-      // Parse header length (4 bytes, little-endian)
-      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-      const headerLength = view.getUint32(0, true)
+      const peerId = `nbp-sync-${code}`
+      peer.value = new Peer(peerId, {
+        debug: 2,
+        pingInterval: 5000,
+        config: {
+          iceServers,
+          iceCandidatePoolSize: 10,
+        },
+      })
 
-      // Parse JSON header
-      const headerBytes = bytes.slice(4, 4 + headerLength)
-      const header = JSON.parse(new TextDecoder().decode(headerBytes))
+      addDebug(`Creating peer: ${peerId}`)
 
-      if (header.type === 'record_image') {
-        // Verify uuid matches current pending record
-        if (!pendingRecord.value || pendingRecord.value.uuid !== header.uuid) {
-          addDebug(`Ignoring image for unknown/mismatched record: ${header.uuid}`)
+      peer.value.on('connection', (conn) => {
+        addDebug(`Incoming connection from: ${conn.peer}`)
+        connection.value = conn
+        setupConnection(conn)
+      })
+
+      peer.value.on('error', (err) => {
+        addDebug(`Peer error: ${err.type} - ${err.message}`)
+        console.error('Peer error:', err)
+
+        if (err.type === 'unavailable-id') {
+          addDebug('ID taken, retrying with new code...')
+          if (peer.value) peer.value.destroy()
+          startAsSender({
+            historyIds: selectedRecordIds.value,
+            characterIds: selectedCharacterIds.value,
+            type: syncType.value,
+          })
           return
         }
 
-        // Extract image data (raw binary, no compression)
-        const imageData = bytes.slice(4 + headerLength)
+        error.value = `${err.type}: ${err.message}`
+        status.value = 'error'
+      })
 
-        addDebug(`Received image ${header.uuid}:${header.index}: ${formatBytes(imageData.length)}`)
-
-        // Store for later saving (with uuid for extra safety)
-        pendingImages.value.push({
-          uuid: header.uuid,
-          index: header.index,
-          width: header.width,
-          height: header.height,
-          mimeType: header.mimeType,
-          data: imageData, // raw binary, not base64!
+      await new Promise((resolve, reject) => {
+        peer.value.on('open', (id) => {
+          addDebug(`Peer opened with ID: ${id}`)
+          resolve()
         })
-      } else if (header.type === 'character_image') {
-        // Character image data
-        if (!pendingRecord.value || pendingRecord.value._type !== 'character' || pendingRecord.value.name !== header.name) {
-          addDebug(`Ignoring character image for unknown/mismatched character: ${header.name}`)
-          return
-        }
+        setTimeout(() => reject(new Error('Connection timeout')), 30000)
+      })
 
-        const imageData = bytes.slice(4 + headerLength)
-        addDebug(`Received character image ${header.name}: ${formatBytes(imageData.length)}`)
-
-        pendingImages.value.push({
-          name: header.name,
-          mimeType: header.mimeType,
-          data: imageData,
-        })
-      }
+      addDebug('Waiting for incoming connection...')
     } catch (err) {
-      console.error('Failed to handle binary data:', err)
-      addDebug(`Binary parse error: ${err.message}`)
-    }
-  }
-
-  /**
-   * Save received record to IndexedDB/OPFS (new binary protocol)
-   */
-  const saveReceivedRecord = async (meta, images) => {
-    try {
-      // Check if UUID already exists
-      if (meta.uuid && (await indexedDB.hasHistoryByUUID(meta.uuid))) {
-        addDebug(`Skipped duplicate: ${meta.uuid}`)
-        return { skipped: true }
-      }
-
-      const historyRecord = {
-        uuid: meta.uuid || generateUUID(),
-        timestamp: meta.timestamp,
-        prompt: meta.prompt,
-        mode: meta.mode,
-        options: meta.options,
-        status: meta.status,
-        thinkingText: meta.thinkingText,
-        error: meta.error,
-      }
-
-      const historyId = await indexedDB.addHistoryWithUUID(historyRecord)
-
-      // Save images to OPFS (filter by uuid and sort by index)
-      if (images.length > 0) {
-        const sortedImages = images
-          .filter(img => img.uuid === meta.uuid) // Only images for this record
-          .sort((a, b) => a.index - b.index)
-        const imageMetadata = []
-
-        for (const img of sortedImages) {
-          const ext = img.mimeType === 'image/png' ? 'png' : 'webp'
-          const opfsPath = `/images/${historyId}/${img.index}.${ext}`
-
-          // Create blob from raw binary
-          const blob = new Blob([img.data], { type: img.mimeType })
-          await opfs.writeFile(opfsPath, blob)
-
-          // Generate thumbnail
-          const thumbnail = await generateThumbnailFromBlob(blob)
-
-          imageMetadata.push({
-            index: img.index,
-            width: img.width,
-            height: img.height,
-            opfsPath,
-            thumbnail,
-            originalSize: blob.size,
-            compressedSize: blob.size,
-            originalFormat: img.mimeType,
-            compressedFormat: img.mimeType,
-          })
-        }
-
-        await indexedDB.updateHistoryImages(historyId, imageMetadata)
-      }
-
-      addDebug(`Saved record: ${meta.uuid}`)
-      return { imported: true }
-    } catch (err) {
-      console.error('Failed to save record:', err)
-      addDebug(`Save error: ${err.message}`)
-      return { failed: true }
-    }
-  }
-
-  /**
-   * Save received character to IndexedDB
-   */
-  const saveReceivedCharacter = async (characterData, imageData) => {
-    try {
-      // Check if character with same name already exists
-      const existing = await indexedDB.getCharacterByName(characterData.name)
-      if (existing) {
-        addDebug(`Skipped duplicate character: ${characterData.name}`)
-        return { skipped: true }
-      }
-
-      // Prepare character record
-      const character = {
-        name: characterData.name,
-        description: characterData.description,
-        physicalTraits: characterData.physicalTraits,
-        clothing: characterData.clothing,
-        accessories: characterData.accessories,
-        distinctiveFeatures: characterData.distinctiveFeatures,
-        imageData: characterData.imageData, // base64 string
-        thumbnail: characterData.thumbnail,
-      }
-
-      // If we received binary image data, convert to base64
-      if (imageData && imageData.data) {
-        const blob = new Blob([imageData.data], { type: imageData.mimeType || 'image/png' })
-        character.imageData = await blobToBase64(blob)
-        // Generate thumbnail if not provided
-        if (!character.thumbnail) {
-          character.thumbnail = await generateThumbnailFromBlob(blob)
-        }
-      }
-
-      await indexedDB.addCharacter(character)
-      addDebug(`Saved character: ${characterData.name}`)
-      return { imported: true }
-    } catch (err) {
-      console.error('Failed to save character:', err)
-      addDebug(`Save character error: ${err.message}`)
-      return { failed: true }
-    }
-  }
-
-  /**
-   * Convert blob to base64 string
-   */
-  const blobToBase64 = (blob) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
-  }
-
-  /**
-   * Orchestrate data sending based on syncType
-   */
-  const sendData = async () => {
-    // Notify receiver about sync type
-    sendJson({ type: 'sync_type', syncType: syncType.value })
-
-    if (syncType.value === 'history') {
-      await sendHistoryData()
-    } else if (syncType.value === 'characters') {
-      await sendCharactersData()
-    } else if (syncType.value === 'all') {
-      await sendHistoryData()
-      // Reset receiver counts for characters phase
-      receiverCounts.value = { imported: 0, skipped: 0, failed: 0 }
-      await sendCharactersData()
-    }
-  }
-
-  /**
-   * Send characters data (sender side)
-   */
-  const sendCharactersData = async () => {
-    if (!connection.value) return
-
-    status.value = 'transferring'
-    if (syncType.value === 'characters') {
-      startStatsTracking()
-    }
-
-    try {
-      let characters
-      if (selectedCharacterIds.value && selectedCharacterIds.value.length > 0) {
-        // Get specific characters by ID
-        characters = []
-        for (const id of selectedCharacterIds.value) {
-          const char = await indexedDB.getCharacterById(id)
-          if (char) characters.push(char)
-        }
-      } else {
-        characters = await indexedDB.getAllCharacters()
-      }
-
-      transferProgress.value = { current: 0, total: characters.length, phase: 'sending_characters' }
-
-      // Send character metadata
-      sendJson({ type: 'characters_meta', count: characters.length })
-
-      let sent = 0
-      let failed = 0
-
-      for (const character of characters) {
-        try {
-          // Prepare character metadata (without large image data in JSON)
-          const characterMeta = {
-            name: character.name,
-            description: character.description,
-            physicalTraits: character.physicalTraits,
-            clothing: character.clothing,
-            accessories: character.accessories,
-            distinctiveFeatures: character.distinctiveFeatures,
-            thumbnail: character.thumbnail, // Keep thumbnail in JSON (small)
-          }
-
-          // Send character start
-          sendJson({ type: 'character_start', character: characterMeta })
-
-          // Send character image as binary if present
-          if (character.imageData) {
-            let imageBlob
-            // imageData might be base64 data URL or raw base64
-            if (character.imageData.startsWith('data:')) {
-              const [header, base64] = character.imageData.split(',')
-              const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png'
-              const binaryString = atob(base64)
-              const bytes = new Uint8Array(binaryString.length)
-              for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i)
-              }
-              imageBlob = new Blob([bytes], { type: mimeType })
-            } else {
-              // Raw base64
-              const binaryString = atob(character.imageData)
-              const bytes = new Uint8Array(binaryString.length)
-              for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i)
-              }
-              imageBlob = new Blob([bytes], { type: 'image/png' })
-            }
-
-            const arrayBuffer = await imageBlob.arrayBuffer()
-            const rawData = new Uint8Array(arrayBuffer)
-
-            const header = JSON.stringify({
-              type: 'character_image',
-              name: character.name,
-              size: rawData.length,
-              mimeType: imageBlob.type,
-            })
-            const headerBytes = new TextEncoder().encode(header)
-
-            const packet = new Uint8Array(4 + headerBytes.length + rawData.length)
-            const view = new DataView(packet.buffer)
-            view.setUint32(0, headerBytes.length, true)
-            packet.set(headerBytes, 4)
-            packet.set(rawData, 4 + headerBytes.length)
-
-            await sendBinary(packet)
-            addDebug(`Sent character image: ${character.name}, ${formatBytes(rawData.length)}`)
-          }
-
-          // Wait for buffer to drain
-          await waitForBufferDrain(0)
-          await new Promise(r => setTimeout(r, 100))
-
-          // Send character end
-          sendJson({ type: 'character_end', name: character.name })
-
-          // Wait for ACK
-          addDebug(`Waiting for character_ack: ${character.name}`)
-          const ackPromise = new Promise((resolve, reject) => {
-            pendingRecordAckResolve.value = resolve
-            setTimeout(() => {
-              if (pendingRecordAckResolve.value) {
-                pendingRecordAckResolve.value = null
-                reject(new Error(`Character ACK timeout: ${character.name}`))
-              }
-            }, 60000)
-          })
-
-          try {
-            await ackPromise
-            addDebug(`Character ${character.name} acknowledged`)
-            sent++
-          } catch (ackErr) {
-            addDebug(`Character ${character.name} ACK failed: ${ackErr.message}`)
-            failed++
-          }
-        } catch (err) {
-          console.error('Failed to send character:', err)
-          addDebug(`Failed to send character: ${err.message}`)
-          failed++
-        }
-
-        transferProgress.value.current++
-      }
-
-      // Wait for buffer to drain
-      await waitForBufferDrain(0)
-
-      // If this is characters-only sync, send transfer_complete
-      if (syncType.value === 'characters') {
-        sendJson({
-          type: 'transfer_complete',
-          imported: sent,
-          skipped: 0,
-          failed,
-          total: characters.length,
-        })
-
-        // Wait for ACK
-        const ackPromise = new Promise((resolve, reject) => {
-          pendingAckResolve.value = resolve
-          setTimeout(() => {
-            if (pendingAckResolve.value) {
-              pendingAckResolve.value = null
-              reject(new Error('ACK timeout'))
-            }
-          }, 30000)
-        })
-
-        try {
-          const ack = await ackPromise
-          addDebug(`ACK received: imported=${ack.imported}, skipped=${ack.skipped}, failed=${ack.failed}`)
-
-          stopStatsTracking()
-          status.value = 'completed'
-          transferResult.value = {
-            sent: ack.imported,
-            imported: ack.imported,
-            skipped: ack.skipped,
-            failed: ack.failed,
-            total: characters.length,
-          }
-          closeConnection()
-        } catch (ackErr) {
-          addDebug(`ACK error: ${ackErr.message}`)
-          stopStatsTracking()
-          status.value = 'completed'
-          transferResult.value = { sent, failed, total: characters.length }
-          closeConnection()
-        }
-      }
-    } catch (err) {
-      console.error('Send characters failed:', err)
-      stopStatsTracking()
-      if (err.message === 'Connection closed') {
-        error.value = { key: 'peerSync.connectionClosed' }
-      } else {
-        error.value = err.message
-      }
+      addDebug(`Failed to start sender: ${err.message}`)
+      console.error('Failed to start sender:', err)
+      error.value = err.message
       status.value = 'error'
-      closeConnection()
+      if (peer.value) {
+        peer.value.destroy()
+        peer.value = null
+      }
     }
   }
 
-  /**
-   * Confirm pairing and start transfer
-   */
+  // ============================================================================
+  // Connect to Sender (Receiver)
+  // ============================================================================
+  const connectToSender = async (code) => {
+    cleanup()
+
+    const normalizedCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (normalizedCode.length !== 6) {
+      error.value = { key: 'peerSync.invalidCode' }
+      status.value = 'error'
+      return
+    }
+
+    connectionCode.value = normalizedCode
+    status.value = 'connecting'
+    error.value = null
+    transferDirection.value = 'receive'
+
+    try {
+      const iceServers = await buildIceServers()
+
+      const myId = `nbp-recv-${generateConnectionCode()}-${Date.now().toString(36)}`
+      addDebug(`Creating peer: ${myId}`)
+
+      peer.value = new Peer(myId, {
+        debug: 2,
+        pingInterval: 5000,
+        config: {
+          iceServers,
+          iceCandidatePoolSize: 10,
+        },
+      })
+
+      peer.value.on('error', (err) => {
+        addDebug(`Peer error: ${err.type} - ${err.message}`)
+        console.error('Peer error:', err)
+        error.value = `${err.type}: ${err.message}`
+        status.value = 'error'
+      })
+
+      await new Promise((resolve, reject) => {
+        peer.value.on('open', (id) => {
+          addDebug(`Peer opened with ID: ${id}`)
+          resolve()
+        })
+        setTimeout(() => reject(new Error('Connection timeout')), 30000)
+      })
+
+      const targetPeerId = `nbp-sync-${normalizedCode}`
+      addDebug(`Connecting to: ${targetPeerId}`)
+
+      const conn = peer.value.connect(targetPeerId, {
+        reliable: true,
+        serialization: 'binary',
+      })
+      connection.value = conn
+
+      setupConnection(conn)
+    } catch (err) {
+      addDebug(`Failed to connect: ${err.message}`)
+      console.error('Failed to connect:', err)
+      error.value = err.message
+      status.value = 'error'
+      if (peer.value) {
+        peer.value.destroy()
+        peer.value = null
+      }
+    }
+  }
+
+  // ============================================================================
+  // Confirm Pairing
+  // ============================================================================
   const confirmPairing = async () => {
     if (!connection.value) return
 
     localConfirmed.value = true
     connection.value.send(encodeJsonMessage({ type: 'confirm_pairing' }))
 
-    // Check if remote already confirmed - if so, we can proceed
     if (remoteConfirmed.value) {
       pairingConfirmed.value = true
       if (transferDirection.value === 'send') {
@@ -1098,382 +558,14 @@ export function usePeerSync() {
         startStatsTracking()
       }
     }
-    // Otherwise wait for remote confirmation via handleIncomingData
   }
 
-  /**
-   * Wait for DataChannel buffer to drain below threshold
-   * This implements backpressure to prevent overwhelming the channel
-   * @throws {Error} if connection is closed during drain
-   */
-  const waitForBufferDrain = async (threshold = 64 * 1024) => {
-    // Check if connection is still valid
-    if (!connection.value || !connection.value.open) {
-      throw new Error('Connection closed')
-    }
-
-    // PeerJS stores DataChannel in different properties depending on version
-    // Common property names: dataChannel, _dc, _channel
-    const dc = connection.value?.dataChannel ||
-               connection.value?._dc ||
-               connection.value?._channel
-
-    if (!dc || typeof dc.bufferedAmount === 'undefined') {
-      addDebug(`Warning: Cannot access DataChannel (dc=${!!dc}), skipping buffer drain`)
-      // Fallback: short wait (per-record ACK provides the real flow control)
-      await new Promise(r => setTimeout(r, 50))
-      return
-    }
-
-    addDebug(`Waiting for buffer drain, current: ${dc.bufferedAmount}, threshold: ${threshold}`)
-    let waitCount = 0
-    while (dc.bufferedAmount > threshold) {
-      // Check connection status on each iteration
-      if (!connection.value || !connection.value.open) {
-        addDebug('Connection closed during buffer drain')
-        throw new Error('Connection closed')
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50))
-      waitCount++
-      if (waitCount % 20 === 0) {
-        addDebug(`Still draining... bufferedAmount: ${dc.bufferedAmount}`)
-      }
-      // Safety timeout: max 60 seconds
-      if (waitCount > 1200) {
-        addDebug(`Buffer drain timeout after 60s, bufferedAmount: ${dc.bufferedAmount}`)
-        break
-      }
-    }
-    addDebug(`Buffer drained to ${dc.bufferedAmount}`)
-  }
-
-  /**
-   * Send JSON message with stats tracking
-   * @param {object} obj - JSON-serializable object
-   * @throws {Error} if connection is closed
-   */
-  const sendJson = (obj) => {
-    if (!connection.value || !connection.value.open) {
-      throw new Error('Connection closed')
-    }
-    const packet = encodeJsonMessage(obj)
-    transferStats.value.bytesSent += packet.length
-    connection.value.send(packet)
-  }
-
-  /**
-   * Send binary data with stats tracking, type prefix, and backpressure
-   * @param {ArrayBuffer|Uint8Array} data - Binary data to send
-   * @throws {Error} if connection is closed
-   */
-  const sendBinary = async (data) => {
-    if (!connection.value || !connection.value.open) {
-      throw new Error('Connection closed')
-    }
-    const raw = data instanceof Uint8Array ? data : new Uint8Array(data)
-    // Prepend MSG_TYPE_BINARY prefix
-    const packet = new Uint8Array(1 + raw.length)
-    packet[0] = MSG_TYPE_BINARY
-    packet.set(raw, 1)
-
-    // Wait for buffer to drain before sending more (backpressure)
-    await waitForBufferDrain()
-
-    // Check again after drain wait
-    if (!connection.value || !connection.value.open) {
-      throw new Error('Connection closed')
-    }
-
-    transferStats.value.bytesSent += packet.length
-    connection.value.send(packet)
-  }
-
-  /**
-   * Send history data (sender side) - Binary transfer
-   */
-  const sendHistoryData = async () => {
-    if (!connection.value) return
-
-    status.value = 'transferring'
-    startStatsTracking()
-
-    try {
-      let records
-      if (selectedRecordIds.value && selectedRecordIds.value.length > 0) {
-        records = await indexedDB.getHistoryByIds(selectedRecordIds.value)
-      } else {
-        records = await indexedDB.getAllHistory()
-      }
-      transferProgress.value = { current: 0, total: records.length, phase: 'sending' }
-
-      // Send metadata first
-      sendJson({ type: 'history_meta', count: records.length })
-
-      let sent = 0
-      let failed = 0
-
-      for (const record of records) {
-        try {
-          const uuid = record.uuid || generateUUID()
-
-          // Prepare record metadata (without image data)
-          const recordMeta = {
-            uuid,
-            timestamp: record.timestamp,
-            prompt: record.prompt,
-            mode: record.mode,
-            options: record.options,
-            status: record.status,
-            thinkingText: record.thinkingText,
-            error: record.error,
-            imageCount: record.images?.length || 0,
-          }
-
-          // Send record start with metadata
-          sendJson({ type: 'record_start', meta: recordMeta })
-
-          // Send each image as separate binary packet
-          if (record.images && record.images.length > 0) {
-            for (let i = 0; i < record.images.length; i++) {
-              const img = record.images[i]
-              const blob = await imageStorage.loadImageBlob(img.opfsPath)
-              if (blob) {
-                // Get raw binary from blob
-                const arrayBuffer = await blob.arrayBuffer()
-                const rawData = new Uint8Array(arrayBuffer)
-
-                // Create a header with image info (as JSON prefix)
-                const header = JSON.stringify({
-                  type: 'record_image',
-                  uuid,
-                  index: img.index,
-                  width: img.width,
-                  height: img.height,
-                  size: rawData.length,
-                  mimeType: blob.type || 'image/webp',
-                })
-                const headerBytes = new TextEncoder().encode(header)
-
-                // Combine: [4-byte header length][header][image data]
-                const packet = new Uint8Array(4 + headerBytes.length + rawData.length)
-                const view = new DataView(packet.buffer)
-                view.setUint32(0, headerBytes.length, true) // little-endian
-                packet.set(headerBytes, 4)
-                packet.set(rawData, 4 + headerBytes.length)
-
-                await sendBinary(packet)
-                addDebug(`Sent image ${i + 1}/${record.images.length}: ${formatBytes(rawData.length)}`)
-              }
-            }
-          }
-
-          // Wait for all image data to be sent before record_end
-          await waitForBufferDrain(0)
-          // Small delay to ensure receiver processes images before record_end
-          await new Promise(r => setTimeout(r, 100))
-
-          // Send record end
-          sendJson({ type: 'record_end', uuid })
-
-          // Wait for receiver to acknowledge this record before continuing
-          addDebug(`Waiting for record_ack: ${uuid}`)
-          const recordAckPromise = new Promise((resolve, reject) => {
-            pendingRecordAckResolve.value = resolve
-            // Timeout after 60 seconds per record (large images may take time)
-            setTimeout(() => {
-              if (pendingRecordAckResolve.value) {
-                pendingRecordAckResolve.value = null
-                reject(new Error(`Record ACK timeout: ${uuid}`))
-              }
-            }, 60000)
-          })
-
-          try {
-            const ack = await recordAckPromise
-            const sentImageCount = record.images?.length || 0
-            if (ack.receivedImages !== sentImageCount) {
-              addDebug(`⚠️ Image mismatch for ${uuid}: sent ${sentImageCount}, received ${ack.receivedImages}`)
-            } else {
-              addDebug(`Record ${uuid} acknowledged, ${ack.receivedImages}/${sentImageCount} images OK`)
-            }
-            sent++
-          } catch (ackErr) {
-            addDebug(`Record ${uuid} ACK failed: ${ackErr.message}`)
-            failed++
-          }
-        } catch (err) {
-          console.error('Failed to send record:', err)
-          addDebug(`Failed to send record: ${err.message}`)
-          failed++
-        }
-
-        transferProgress.value.current++
-      }
-
-      // Wait for buffer to drain
-      addDebug('Waiting for buffer to drain...')
-      await waitForBufferDrain(0)
-
-      // Send transfer_complete and wait for ACK from receiver
-      addDebug('Sending transfer_complete, waiting for ACK...')
-      sendJson({
-        type: 'transfer_complete',
-        imported: sent,
-        skipped: 0,
-        failed,
-        total: records.length,
-      })
-
-      // Wait for receiver to acknowledge (with timeout)
-      const ackPromise = new Promise((resolve, reject) => {
-        pendingAckResolve.value = resolve
-        // Timeout after 30 seconds
-        setTimeout(() => {
-          if (pendingAckResolve.value) {
-            pendingAckResolve.value = null
-            reject(new Error('ACK timeout'))
-          }
-        }, 30000)
-      })
-
-      try {
-        const ack = await ackPromise
-        addDebug(`ACK received: imported=${ack.imported}, skipped=${ack.skipped}, failed=${ack.failed}`)
-
-        stopStatsTracking()
-        status.value = 'completed'
-        transferResult.value = {
-          sent: ack.imported, // Actually imported records
-          imported: ack.imported,
-          skipped: ack.skipped,
-          failed: ack.failed,
-          total: records.length,
-        }
-        // Close connection immediately to stop TURN billing
-        closeConnection()
-      } catch (ackErr) {
-        addDebug(`ACK error: ${ackErr.message}`)
-        // Still mark as completed but show warning
-        stopStatsTracking()
-        status.value = 'completed'
-        transferResult.value = { sent, failed, total: records.length }
-        // Close connection immediately to stop TURN billing
-        closeConnection()
-      }
-
-    } catch (err) {
-      console.error('Send failed:', err)
-      stopStatsTracking()
-      // Use i18n key for connection closed error
-      if (err.message === 'Connection closed') {
-        error.value = { key: 'peerSync.connectionClosed' }
-      } else {
-        error.value = err.message
-      }
-      status.value = 'error'
-      // Close connection immediately to stop TURN billing
-      closeConnection()
-    }
-  }
-
-  /**
-   * Process incoming record (receiver side)
-   */
-  const processIncomingRecord = async (record) => {
-    try {
-      // Check if UUID already exists
-      if (record.uuid && (await indexedDB.hasHistoryByUUID(record.uuid))) {
-        return { skipped: true }
-      }
-
-      const historyRecord = {
-        uuid: record.uuid || generateUUID(),
-        timestamp: record.timestamp,
-        prompt: record.prompt,
-        mode: record.mode,
-        options: record.options,
-        status: record.status,
-        thinkingText: record.thinkingText,
-        error: record.error,
-      }
-
-      const historyId = await indexedDB.addHistoryWithUUID(historyRecord)
-
-      // Save images to OPFS
-      if (record.images && record.images.length > 0) {
-        const imageMetadata = []
-
-        for (const img of record.images) {
-          const opfsPath = `/images/${historyId}/${img.index}.webp`
-
-          // base64 to Blob
-          const binaryString = atob(img.data)
-          const bytes = new Uint8Array(binaryString.length)
-          for (let j = 0; j < binaryString.length; j++) {
-            bytes[j] = binaryString.charCodeAt(j)
-          }
-          const blob = new Blob([bytes], { type: 'image/webp' })
-
-          await opfs.writeFile(opfsPath, blob)
-
-          // Generate thumbnail
-          const thumbnail = await generateThumbnailFromBlob(blob)
-
-          imageMetadata.push({
-            index: img.index,
-            width: img.width,
-            height: img.height,
-            opfsPath,
-            thumbnail,
-            originalSize: blob.size,
-            compressedSize: blob.size,
-            originalFormat: 'image/webp',
-            compressedFormat: 'image/webp',
-          })
-        }
-
-        await indexedDB.updateHistoryImages(historyId, imageMetadata)
-      }
-
-      return { imported: true }
-    } catch (err) {
-      console.error('Failed to process record:', err)
-      return { failed: true }
-    }
-  }
-
-  /**
-   * Close WebRTC connection only (preserve UI state for viewing results)
-   */
-  const closeConnection = () => {
-    addDebug('Closing connection to stop TURN billing')
-    if (connection.value) {
-      try {
-        connection.value.close()
-      } catch (e) {
-        console.error('Error closing connection:', e)
-      }
-      connection.value = null
-    }
-    if (peer.value) {
-      try {
-        peer.value.destroy()
-      } catch (e) {
-        console.error('Error destroying peer:', e)
-      }
-      peer.value = null
-    }
-  }
-
-  /**
-   * Cleanup resources
-   */
+  // ============================================================================
+  // Cleanup
+  // ============================================================================
   const cleanup = () => {
     addDebug('Cleanup called')
-    // Stop stats tracking
     stopStatsTracking()
-
-    // Close connection (reuse closeConnection to avoid duplication)
     closeConnection()
 
     status.value = 'idle'
@@ -1484,21 +576,25 @@ export function usePeerSync() {
     remoteConfirmed.value = false
     transferProgress.value = { current: 0, total: 0, phase: '' }
     transferResult.value = null
-    transferStats.value = { bytesSent: 0, bytesReceived: 0, startTime: null, speed: 0, speedFormatted: '', totalFormatted: '' }
+    transferStats.value = {
+      bytesSent: 0,
+      bytesReceived: 0,
+      startTime: null,
+      speed: 0,
+      speedFormatted: '',
+      totalFormatted: '',
+    }
     error.value = null
     transferDirection.value = null
     selectedRecordIds.value = null
     selectedCharacterIds.value = null
     syncType.value = 'history'
     debugLog.value = []
-    // Clear pending record state
-    pendingRecord.value = null
-    pendingImages.value = []
-    // Clear pending ACK resolvers
     pendingAckResolve.value = null
     pendingRecordAckResolve.value = null
-    // Reset receiver counts
-    receiverCounts.value = { imported: 0, skipped: 0, failed: 0 }
+
+    // Reset receiver state
+    receiver.resetReceiverState()
   }
 
   onUnmounted(() => {

@@ -328,6 +328,8 @@ const handleSynced = async () => {
   // Reload lists after sync
   await Promise.all([loadHistoryList(), loadCharacterList()])
   emit('imported')
+  // Notify other components (e.g., CharacterCarousel) to refresh
+  window.dispatchEvent(new CustomEvent('characters-updated'))
 }
 
 const close = () => {

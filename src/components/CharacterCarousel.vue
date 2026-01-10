@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useCharacterTransfer } from '@/composables/useCharacterTransfer'
 import { useToast } from '@/composables/useToast'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -13,6 +14,9 @@ const store = useGeneratorStore()
 const toast = useToast()
 const { getCharacters, deleteCharacter: dbDeleteCharacter, getCharacterCount } = useIndexedDB()
 const { exportSingleCharacter, isExporting } = useCharacterTransfer()
+
+// Confirm modal ref
+const confirmModal = ref(null)
 
 // Characters data
 const characters = ref([])
@@ -40,7 +44,15 @@ const loadCharacters = async () => {
   }
 }
 
-onMounted(loadCharacters)
+onMounted(() => {
+  loadCharacters()
+  // Listen for character updates from other components (e.g., P2P sync)
+  window.addEventListener('characters-updated', loadCharacters)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('characters-updated', loadCharacters)
+})
 
 // Current character
 const currentCharacter = computed(() => {
@@ -85,6 +97,15 @@ const toggleSelect = () => {
 const handleDelete = async () => {
   if (!currentCharacter.value) return
 
+  const confirmed = await confirmModal.value?.show({
+    title: t('characterCarousel.deleteConfirmTitle'),
+    message: t('characterCarousel.deleteConfirmMessage', { name: currentCharacter.value.name }),
+    confirmText: t('common.delete'),
+    cancelText: t('common.cancel'),
+  })
+
+  if (!confirmed) return
+
   // If currently selected, deselect first
   if (isSelected.value) {
     store.deselectCharacter()
@@ -93,8 +114,10 @@ const handleDelete = async () => {
   try {
     await dbDeleteCharacter(currentCharacter.value.id)
     await loadCharacters()
+    toast.success(t('characterCarousel.deleteSuccess'))
   } catch (err) {
     console.error('Failed to delete character:', err)
+    toast.error(t('characterCarousel.deleteError'))
   }
 }
 
@@ -315,6 +338,9 @@ watch(() => store.selectedCharacter, (newVal) => {
       </div>
     </div>
   </div>
+
+  <!-- Confirm Modal -->
+  <ConfirmModal ref="confirmModal" />
 </template>
 
 <style scoped>
