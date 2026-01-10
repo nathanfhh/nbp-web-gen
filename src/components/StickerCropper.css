@@ -1,0 +1,629 @@
+.cropper-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 10, 15, 0.98);
+  backdrop-filter: blur(8px);
+  animation: cropper-fade-in 0.3s ease-out;
+  color: #e5e7eb;
+  overflow: hidden;
+}
+
+/* Force all text to be light in cropper (override theme) */
+.cropper-overlay :deep(.text-gray-300),
+.cropper-overlay .text-gray-300 {
+  color: #d1d5db !important;
+}
+
+.cropper-overlay :deep(.text-gray-400),
+.cropper-overlay .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+.cropper-overlay :deep(.text-gray-500),
+.cropper-overlay .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.cropper-overlay :deep(.text-gray-600),
+.cropper-overlay .text-gray-600 {
+  color: #4b5563 !important;
+}
+
+.cropper-overlay :deep(.text-white),
+.cropper-overlay .text-white {
+  color: #ffffff !important;
+}
+
+.cropper-overlay.is-closing {
+  animation: cropper-fade-out 0.3s ease-out forwards;
+}
+
+@keyframes cropper-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cropper-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.cropper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.cropper-content {
+  display: flex;
+  flex: 1 1 0;
+  overflow: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cropper-left {
+  width: 400px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-panel {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.preview-panel {
+  flex: 1;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.preview-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect fill="%231a1a1f" width="20" height="20"/><rect fill="%23252530" width="10" height="10"/><rect fill="%23252530" x="10" y="10" width="10" height="10"/></svg>');
+  border-radius: 0.5rem;
+  overflow: visible;
+  position: relative;
+}
+
+/* Color picker magnifier */
+.color-picker-magnifier {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 10003;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(139, 92, 246, 0.8);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.color-picker-magnifier canvas {
+  display: block;
+  border-radius: 50%;
+}
+
+.preview-canvas,
+.preview-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.preview-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.cropper-right {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stickers-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.stickers-grid {
+  flex: 1 1 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  align-content: start;
+  min-height: 0;
+}
+
+.sticker-card {
+  width: 140px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sticker-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.sticker-card.selected {
+  border-color: rgba(139, 92, 246, 0.6);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.sticker-preview {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect fill="%231a1a1f" width="16" height="16"/><rect fill="%23252530" width="8" height="8"/><rect fill="%23252530" x="8" y="8" width="8" height="8"/></svg>');
+  cursor: zoom-in;
+}
+
+.sticker-preview img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.sticker-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.sticker-download {
+  padding: 0.25rem;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.sticker-download:hover {
+  color: #22d3ee;
+}
+
+.sticker-checkbox {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  cursor: pointer;
+}
+
+.sticker-edit-btn {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.375rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.sticker-card:hover .sticker-edit-btn {
+  opacity: 1;
+}
+
+.sticker-edit-btn:hover {
+  background: rgba(139, 92, 246, 0.8);
+  color: white;
+}
+
+.sticker-extract-btn {
+  position: absolute;
+  top: 2.5rem;
+  left: 0.5rem;
+  padding: 0.375rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.sticker-card:hover .sticker-extract-btn {
+  opacity: 1;
+}
+
+.sticker-extract-btn:hover {
+  background: rgba(59, 130, 246, 0.8);
+  color: white;
+}
+
+.stickers-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stickers-actions {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.download-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+/* Vue transition */
+.cropper-enter-active,
+.cropper-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.cropper-enter-from,
+.cropper-leave-to {
+  opacity: 0;
+}
+
+/* Fade transition for processing overlay */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Processing overlay */
+.processing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.9);
+  backdrop-filter: blur(4px);
+}
+
+.processing-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.processing-spinner {
+  color: #a855f7;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.processing-circle {
+  stroke-dasharray: 90, 150;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  animation: spin 1.5s linear infinite, dash 1.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Small screens (tablet and below) */
+@media (max-width: 900px) {
+  .cropper-left {
+    width: 320px;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .cropper-content {
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .cropper-left {
+    width: 100%;
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: visible;
+  }
+
+  .settings-panel {
+    padding: 1rem;
+  }
+
+  .preview-panel {
+    padding: 1rem;
+    min-height: 250px;
+    flex: none;
+  }
+
+  .preview-container {
+    min-height: 200px;
+    height: 200px;
+  }
+
+  .cropper-right {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .stickers-grid {
+    flex: none;
+    overflow: visible;
+    min-height: auto;
+  }
+
+  .sticker-card {
+    width: 100px;
+  }
+
+  .stickers-empty {
+    min-height: 150px;
+  }
+
+  .stickers-actions {
+    position: sticky;
+    bottom: 0;
+    background: rgba(10, 10, 15, 0.95);
+  }
+
+  /* Mobile: always show edit button */
+  .sticker-edit-btn {
+    opacity: 1;
+  }
+}
+
+/* Edit mode overlay */
+.edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 1rem;
+}
+
+.edit-panel {
+  background: rgba(30, 30, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 500px;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.edit-canvas-container {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect fill="%231a1a1f" width="20" height="20"/><rect fill="%23252530" width="10" height="10"/><rect fill="%23252530" x="10" y="10" width="10" height="10"/></svg>');
+  border-radius: 0.5rem;
+  overflow: hidden;
+  min-height: 120px;
+  padding: 1rem;
+}
+
+.edit-canvas-container.edit-canvas-bg-white {
+  background: #ffffff;
+}
+
+.edit-canvas {
+  max-width: 100%;
+  max-height: calc(100vh - 350px);
+  max-height: calc(100dvh - 350px);
+  object-fit: contain;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.edit-controls {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.edit-tolerance {
+  margin-bottom: 0.5rem;
+}
+
+.edit-hint {
+  margin-top: 0.5rem;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-shrink: 0;
+}
+
+.edit-btn-icon {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-btn-secondary {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
+  transition: all 0.2s;
+}
+
+.edit-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.edit-btn-primary {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  background: #8b5cf6;
+  color: white;
+  transition: all 0.2s;
+}
+
+.edit-btn-primary:hover {
+  background: #7c3aed;
+}
+
+/* Magnifier */
+.edit-magnifier {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 10002;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(139, 92, 246, 0.8);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.edit-magnifier canvas {
+  display: block;
+  border-radius: 50%;
+}
+
+@media (max-width: 768px) {
+  .edit-overlay {
+    padding: 0.5rem;
+  }
+
+  .edit-panel {
+    max-width: 100%;
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+    width: 100%;
+  }
+
+  .edit-canvas-container {
+    min-height: 100px;
+  }
+
+  .edit-canvas {
+    max-height: calc(100vh - 300px);
+    max-height: calc(100dvh - 300px);
+  }
+
+  .edit-controls {
+    padding: 0.75rem;
+  }
+}
