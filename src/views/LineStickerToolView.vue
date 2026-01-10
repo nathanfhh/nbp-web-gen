@@ -1,8 +1,10 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useLineStickerProcessor } from '@/composables/useLineStickerProcessor'
+import { useLineStickerToolUI } from '@/composables/useLineStickerToolUI'
+import SpecCheckCard from '@/components/SpecCheckCard.vue'
+import CoverImageCard from '@/components/CoverImageCard.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -30,212 +32,55 @@ const {
   removeCoverImage,
 } = useLineStickerProcessor()
 
-// Drag state
-const isDragging = ref(false)
-const fileInput = ref(null)
+const {
+  isDragging,
+  fileInput,
+  showStickerPicker,
+  pickerTarget,
+  mainFileInput,
+  tabFileInput,
+  setImageRef,
+  setupProcessingScroll,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  handleFileSelect,
+  openFilePicker,
+  openStickerPicker,
+  selectStickerForCover,
+  handleCoverFileSelect,
+  getStatusClass,
+  getDisplayDimensions,
+  needsWarning,
+  formatFailedItems,
+  dimensionStats,
+  fileSizeStats,
+  evenDimensionStats,
+  suggestedCount,
+} = useLineStickerToolUI({
+  images,
+  LINE_SPECS,
+  setCoverImageFromSticker,
+  setCoverImageFromFile,
+  addImages,
+})
 
-// Cover image picker state
-const showStickerPicker = ref(false)
-const pickerTarget = ref(null) // 'main' | 'tab'
-const mainFileInput = ref(null)
-const tabFileInput = ref(null)
-
-// Open sticker picker modal
-const openStickerPicker = (target) => {
-  pickerTarget.value = target
-  showStickerPicker.value = true
-}
-
-// Select sticker from picker
-const selectStickerForCover = async (stickerId) => {
-  if (pickerTarget.value) {
-    await setCoverImageFromSticker(pickerTarget.value, stickerId)
-  }
-  showStickerPicker.value = false
-  pickerTarget.value = null
-}
-
-// Handle cover image file upload
-const handleCoverFileSelect = async (type, event) => {
-  const file = event.target.files?.[0]
-  if (file) {
-    await setCoverImageFromFile(type, file)
-  }
-  // Reset input
-  event.target.value = ''
-}
-
-// Image element refs for scroll into view
-const imageRefs = ref({})
-const setImageRef = (id, el) => {
-  if (el) {
-    imageRefs.value[id] = el
-  } else {
-    delete imageRefs.value[id]
-  }
-}
-
-// Watch for processing status and scroll to current processing image
-watch(
-  () => images.value.find((img) => img.status === 'processing'),
-  (processingImg) => {
-    if (processingImg && imageRefs.value[processingImg.id]) {
-      imageRefs.value[processingImg.id].scrollIntoView({
-        behavior: 'instant',
-        block: 'center',
-      })
-    }
-  },
-)
-
-// Handle drag events
-const handleDragOver = (e) => {
-  e.preventDefault()
-  isDragging.value = true
-}
-
-const handleDragLeave = () => {
-  isDragging.value = false
-}
-
-const handleDrop = (e) => {
-  e.preventDefault()
-  isDragging.value = false
-  const files = e.dataTransfer.files
-  if (files.length) {
-    addImages(files)
-  }
-}
-
-// Handle file selection
-const handleFileSelect = (e) => {
-  const files = e.target.files
-  if (files.length) {
-    addImages(files)
-  }
-  // Reset input
-  e.target.value = ''
-}
-
-// Open file picker
-const openFilePicker = () => {
-  fileInput.value?.click()
-}
+// Setup scroll watcher
+setupProcessingScroll()
 
 // Navigate back
 const goBack = () => {
   router.push('/')
 }
 
-// Get status icon class
-const getStatusClass = (img) => {
-  const isCompliant =
-    img.width <= LINE_SPECS.maxWidth &&
-    img.height <= LINE_SPECS.maxHeight &&
-    img.size <= LINE_SPECS.maxFileSize &&
-    img.file.type === 'image/png'
-
-  if (img.status === 'processing') return 'border-blue-500 animate-pulse'
-  if (img.status === 'processed') return 'border-emerald-500'
-  if (img.status === 'error') return 'border-red-500'
-  if (!isCompliant) return 'border-amber-500'
-  return 'border-white/20'
-}
-
-// Get display dimensions
-const getDisplayDimensions = (img) => {
-  if (img.processedBlob) {
-    return `${img.processedWidth} × ${img.processedHeight}`
+// Handle cover upload button click
+const handleCoverUploadClick = (type) => {
+  if (type === 'main') {
+    mainFileInput.value?.click()
+  } else {
+    tabFileInput.value?.click()
   }
-  return `${img.width} × ${img.height}`
 }
-
-// Check if image needs warning
-const needsWarning = (img) => {
-  return (
-    img.width > LINE_SPECS.maxWidth ||
-    img.height > LINE_SPECS.maxHeight ||
-    img.width % 2 !== 0 ||
-    img.height % 2 !== 0 ||
-    img.size > LINE_SPECS.maxFileSize ||
-    img.file.type !== 'image/png'
-  )
-}
-
-// Format failed items for display
-const formatFailedItems = (items) => {
-  if (items.length === 0) return ''
-  const indices = items.map((item) => {
-    const idx = images.value.findIndex((img) => img.id === item.id)
-    return `#${idx + 1}`
-  })
-  return indices.join(', ')
-}
-
-// Get stats for dimensions (original vs processed)
-const dimensionStats = computed(() => {
-  const oversized = images.value.filter(
-    (img) => img.width > LINE_SPECS.maxWidth || img.height > LINE_SPECS.maxHeight,
-  )
-  const processed = oversized.filter((img) => img.processedBlob)
-  const stillOversized = images.value.filter((img) => {
-    const w = img.processedBlob ? img.processedWidth : img.width
-    const h = img.processedBlob ? img.processedHeight : img.height
-    return w > LINE_SPECS.maxWidth || h > LINE_SPECS.maxHeight
-  })
-  return {
-    originalOversized: oversized.length,
-    processedCount: processed.length,
-    stillOversized: stillOversized.length,
-    hasProcessed: processed.length > 0,
-  }
-})
-
-// Get stats for file size (original vs processed)
-const fileSizeStats = computed(() => {
-  const oversized = images.value.filter((img) => img.size > LINE_SPECS.maxFileSize)
-  const processed = oversized.filter((img) => img.processedBlob)
-  const stillOversized = images.value.filter((img) => {
-    const size = img.processedBlob ? img.processedSize : img.size
-    return size > LINE_SPECS.maxFileSize
-  })
-  return {
-    originalOversized: oversized.length,
-    processedCount: processed.length,
-    stillOversized: stillOversized.length,
-    hasProcessed: processed.length > 0,
-  }
-})
-
-// Get stats for even dimensions (original vs processed)
-const evenDimensionStats = computed(() => {
-  const oddDimension = images.value.filter(
-    (img) => img.width % 2 !== 0 || img.height % 2 !== 0,
-  )
-  const processed = oddDimension.filter((img) => img.processedBlob)
-  const stillOdd = images.value.filter((img) => {
-    const w = img.processedBlob ? img.processedWidth : img.width
-    const h = img.processedBlob ? img.processedHeight : img.height
-    return w % 2 !== 0 || h % 2 !== 0
-  })
-  return {
-    originalOdd: oddDimension.length,
-    processedCount: processed.length,
-    stillOdd: stillOdd.length,
-    hasProcessed: processed.length > 0,
-  }
-})
-
-// Suggested count hint
-const suggestedCount = computed(() => {
-  const current = images.value.length
-  if (LINE_SPECS.validCounts.includes(current)) return null
-  // Find closest valid count
-  const closest = LINE_SPECS.validCounts.reduce((prev, curr) =>
-    Math.abs(curr - current) < Math.abs(prev - current) ? curr : prev,
-  )
-  return closest
-})
 </script>
 
 <template>
@@ -292,153 +137,56 @@ const suggestedCount = computed(() => {
       <section v-if="images.length > 0" class="glass p-6">
         <h2 class="text-lg font-semibold mb-4">{{ t('lineStickerTool.specs.title') }}</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- File Size Check -->
-          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
-            <span class="mt-0.5 shrink-0">
-              <svg v-if="specChecks.fileSize.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium" :class="specChecks.fileSize.passed ? 'text-emerald-400' : 'text-red-400'">
-                {{ t('lineStickerTool.specs.fileSize') }}
-              </p>
-              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.fileSizeHint') }}</p>
-              <!-- Before/after stats -->
-              <p v-if="fileSizeStats.originalOversized > 0" class="text-xs mt-1">
-                <span class="text-amber-400">{{ fileSizeStats.originalOversized }}</span>
-                <span v-if="fileSizeStats.hasProcessed" class="text-gray-500"> → </span>
-                <span v-if="fileSizeStats.hasProcessed" :class="fileSizeStats.stillOversized === 0 ? 'text-emerald-400' : 'text-amber-400'">
-                  {{ fileSizeStats.stillOversized }}
-                </span>
-                <span class="text-gray-500 ml-1">{{ t('lineStickerTool.specs.itemsOversized') }}</span>
-              </p>
-            </div>
-          </div>
+          <SpecCheckCard
+            :passed="specChecks.fileSize.passed"
+            :title="t('lineStickerTool.specs.fileSize')"
+            :hint="t('lineStickerTool.specs.fileSizeHint')"
+            :stats="{ original: fileSizeStats.originalOversized, remaining: fileSizeStats.stillOversized, hasProcessed: fileSizeStats.hasProcessed }"
+            :stats-label="t('lineStickerTool.specs.itemsOversized')"
+          />
 
-          <!-- Dimensions Check -->
-          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
-            <span class="mt-0.5 shrink-0">
-              <svg v-if="specChecks.dimensions.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium" :class="specChecks.dimensions.passed ? 'text-emerald-400' : 'text-red-400'">
-                {{ t('lineStickerTool.specs.dimensions') }}
-              </p>
-              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.dimensionsHint') }}</p>
-              <!-- Before/after stats -->
-              <p v-if="dimensionStats.originalOversized > 0" class="text-xs mt-1">
-                <span class="text-amber-400">{{ dimensionStats.originalOversized }}</span>
-                <span v-if="dimensionStats.hasProcessed" class="text-gray-500"> → </span>
-                <span v-if="dimensionStats.hasProcessed" :class="dimensionStats.stillOversized === 0 ? 'text-emerald-400' : 'text-amber-400'">
-                  {{ dimensionStats.stillOversized }}
-                </span>
-                <span class="text-gray-500 ml-1">{{ t('lineStickerTool.specs.itemsOversized') }}</span>
-              </p>
-            </div>
-          </div>
+          <SpecCheckCard
+            :passed="specChecks.dimensions.passed"
+            :title="t('lineStickerTool.specs.dimensions')"
+            :hint="t('lineStickerTool.specs.dimensionsHint')"
+            :stats="{ original: dimensionStats.originalOversized, remaining: dimensionStats.stillOversized, hasProcessed: dimensionStats.hasProcessed }"
+            :stats-label="t('lineStickerTool.specs.itemsOversized')"
+          />
 
-          <!-- Even Dimensions Check -->
-          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
-            <span class="mt-0.5 shrink-0">
-              <svg v-if="specChecks.evenDimensions.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium" :class="specChecks.evenDimensions.passed ? 'text-emerald-400' : 'text-red-400'">
-                {{ t('lineStickerTool.specs.evenDimensions') }}
-              </p>
-              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.evenDimensionsHint') }}</p>
-              <!-- Before/after stats -->
-              <p v-if="evenDimensionStats.originalOdd > 0" class="text-xs mt-1">
-                <span class="text-amber-400">{{ evenDimensionStats.originalOdd }}</span>
-                <span v-if="evenDimensionStats.hasProcessed" class="text-gray-500"> → </span>
-                <span v-if="evenDimensionStats.hasProcessed" :class="evenDimensionStats.stillOdd === 0 ? 'text-emerald-400' : 'text-amber-400'">
-                  {{ evenDimensionStats.stillOdd }}
-                </span>
-                <span class="text-gray-500 ml-1">{{ t('lineStickerTool.specs.itemsOddDimension') }}</span>
-              </p>
-            </div>
-          </div>
+          <SpecCheckCard
+            :passed="specChecks.evenDimensions.passed"
+            :title="t('lineStickerTool.specs.evenDimensions')"
+            :hint="t('lineStickerTool.specs.evenDimensionsHint')"
+            :stats="{ original: evenDimensionStats.originalOdd, remaining: evenDimensionStats.stillOdd, hasProcessed: evenDimensionStats.hasProcessed }"
+            :stats-label="t('lineStickerTool.specs.itemsOddDimension')"
+          />
 
-          <!-- Count Check -->
-          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
-            <span class="mt-0.5 shrink-0">
-              <svg v-if="specChecks.count.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium" :class="specChecks.count.passed ? 'text-emerald-400' : 'text-red-400'">
-                {{ t('lineStickerTool.specs.count') }}
-                <span class="text-gray-400 font-normal text-sm ml-1">({{ specChecks.count.current }})</span>
-              </p>
-              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.countHint') }}</p>
-              <p v-if="!specChecks.count.passed && suggestedCount" class="text-xs text-amber-400 mt-1">
-                → {{ suggestedCount }}
-              </p>
-            </div>
-          </div>
+          <SpecCheckCard
+            :passed="specChecks.count.passed"
+            :title="t('lineStickerTool.specs.count')"
+            :hint="t('lineStickerTool.specs.countHint')"
+            :extra-info="String(specChecks.count.current)"
+            :warning-text="!specChecks.count.passed && suggestedCount ? `→ ${suggestedCount}` : ''"
+          />
 
-          <!-- Format Check -->
-          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
-            <span class="mt-0.5 shrink-0">
-              <svg v-if="specChecks.format.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium" :class="specChecks.format.passed ? 'text-emerald-400' : 'text-red-400'">
-                {{ t('lineStickerTool.specs.format') }}
-              </p>
-              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.formatHint') }}</p>
-              <p v-if="specChecks.format.failedItems.length > 0" class="text-xs text-amber-400 mt-1">
-                {{ formatFailedItems(specChecks.format.failedItems) }}
-              </p>
-            </div>
-          </div>
+          <SpecCheckCard
+            :passed="specChecks.format.passed"
+            :title="t('lineStickerTool.specs.format')"
+            :hint="t('lineStickerTool.specs.formatHint')"
+            :warning-text="specChecks.format.failedItems.length > 0 ? formatFailedItems(specChecks.format.failedItems) : ''"
+          />
 
-          <!-- Cover Images Check -->
-          <div class="flex items-start gap-3 p-3 rounded-lg bg-white/5 spec-card">
-            <span class="mt-0.5 shrink-0">
-              <svg v-if="specChecks.coverImages.passed" class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <svg v-else class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium" :class="specChecks.coverImages.passed ? 'text-emerald-400' : 'text-red-400'">
-                {{ t('lineStickerTool.specs.coverImages') }}
-              </p>
-              <p class="text-xs text-gray-500">{{ t('lineStickerTool.specs.coverImagesHint') }}</p>
-              <p v-if="!specChecks.coverImages.passed" class="text-xs text-amber-400 mt-1">
-                <span v-if="!specChecks.coverImages.hasMain">main.png</span>
-                <span v-if="!specChecks.coverImages.hasMain && !specChecks.coverImages.hasTab">, </span>
-                <span v-if="!specChecks.coverImages.hasTab">tab.png</span>
-                {{ t('lineStickerTool.specs.notSet') }}
-              </p>
-            </div>
-          </div>
+          <SpecCheckCard
+            :passed="specChecks.coverImages.passed"
+            :title="t('lineStickerTool.specs.coverImages')"
+            :hint="t('lineStickerTool.specs.coverImagesHint')"
+            :warning-text="!specChecks.coverImages.passed
+              ? [
+                  !specChecks.coverImages.hasMain ? 'main.png' : '',
+                  !specChecks.coverImages.hasTab ? 'tab.png' : ''
+                ].filter(Boolean).join(', ') + ' ' + t('lineStickerTool.specs.notSet')
+              : ''"
+          />
         </div>
 
         <!-- All passed indicator -->
@@ -458,143 +206,37 @@ const suggestedCount = computed(() => {
         <p class="text-sm text-gray-500 mb-4">{{ t('lineStickerTool.cover.description') }}</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- Main Image (240x240) -->
-          <div class="p-4 rounded-lg bg-white/5 cover-card">
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <h3 class="font-medium">main.png</h3>
-                <p class="text-xs text-gray-500">{{ LINE_SPECS.main.width }} × {{ LINE_SPECS.main.height }} px</p>
-              </div>
-              <span
-                v-if="mainImage?.processedBlob"
-                class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400"
-              >
-                {{ t('lineStickerTool.cover.set') }}
-              </span>
-            </div>
+          <CoverImageCard
+            type="main"
+            :image="mainImage"
+            :specs="LINE_SPECS.main"
+            @open-picker="openStickerPicker"
+            @upload-click="handleCoverUploadClick"
+            @remove="removeCoverImage"
+          />
+          <input
+            ref="mainFileInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleCoverFileSelect('main', $event)"
+          />
 
-            <!-- Preview area -->
-            <div class="flex gap-3 mb-3">
-              <!-- Processed preview (what will be in ZIP) -->
-              <div class="flex-1">
-                <p class="text-xs text-gray-500 mb-1">{{ t('lineStickerTool.cover.result') }}</p>
-                <div class="aspect-square rounded-lg overflow-hidden border border-white/10 checkerboard">
-                  <img
-                    v-if="mainImage?.processedPreview"
-                    :src="mainImage.processedPreview"
-                    alt="main.png preview"
-                    class="w-full h-full object-contain"
-                  />
-                  <div v-else class="w-full h-full flex items-center justify-center text-gray-600">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action buttons -->
-            <div class="flex gap-2">
-              <button
-                @click="openStickerPicker('main')"
-                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                {{ t('lineStickerTool.cover.fromSticker') }}
-              </button>
-              <button
-                @click="mainFileInput?.click()"
-                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                {{ t('lineStickerTool.cover.upload') }}
-              </button>
-              <button
-                v-if="mainImage"
-                @click="removeCoverImage('main')"
-                class="px-3 py-2 text-sm rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <input
-              ref="mainFileInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="handleCoverFileSelect('main', $event)"
-            />
-          </div>
-
-          <!-- Tab Image (96x74) -->
-          <div class="p-4 rounded-lg bg-white/5 cover-card">
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <h3 class="font-medium">tab.png</h3>
-                <p class="text-xs text-gray-500">{{ LINE_SPECS.tab.width }} × {{ LINE_SPECS.tab.height }} px</p>
-              </div>
-              <span
-                v-if="tabImage?.processedBlob"
-                class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400"
-              >
-                {{ t('lineStickerTool.cover.set') }}
-              </span>
-            </div>
-
-            <!-- Preview area -->
-            <div class="flex gap-3 mb-3">
-              <!-- Processed preview (what will be in ZIP) -->
-              <div class="flex-1">
-                <p class="text-xs text-gray-500 mb-1">{{ t('lineStickerTool.cover.result') }}</p>
-                <div class="aspect-[96/74] rounded-lg overflow-hidden border border-white/10 checkerboard">
-                  <img
-                    v-if="tabImage?.processedPreview"
-                    :src="tabImage.processedPreview"
-                    alt="tab.png preview"
-                    class="w-full h-full object-contain"
-                  />
-                  <div v-else class="w-full h-full flex items-center justify-center text-gray-600">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action buttons -->
-            <div class="flex gap-2">
-              <button
-                @click="openStickerPicker('tab')"
-                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                {{ t('lineStickerTool.cover.fromSticker') }}
-              </button>
-              <button
-                @click="tabFileInput?.click()"
-                class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                {{ t('lineStickerTool.cover.upload') }}
-              </button>
-              <button
-                v-if="tabImage"
-                @click="removeCoverImage('tab')"
-                class="px-3 py-2 text-sm rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <input
-              ref="tabFileInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="handleCoverFileSelect('tab', $event)"
-            />
-          </div>
+          <CoverImageCard
+            type="tab"
+            :image="tabImage"
+            :specs="LINE_SPECS.tab"
+            @open-picker="openStickerPicker"
+            @upload-click="handleCoverUploadClick"
+            @remove="removeCoverImage"
+          />
+          <input
+            ref="tabFileInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleCoverFileSelect('tab', $event)"
+          />
         </div>
       </section>
 
@@ -621,9 +263,7 @@ const suggestedCount = computed(() => {
               class="aspect-square rounded-lg overflow-hidden border-2 transition-all"
               :class="getStatusClass(img)"
             >
-              <!-- Checkerboard background for transparency -->
               <div class="absolute inset-0 checkerboard rounded-lg"></div>
-              <!-- Image -->
               <img
                 :src="img.preview"
                 :alt="img.name"
@@ -640,19 +280,13 @@ const suggestedCount = computed(() => {
                 </svg>
               </div>
               <!-- Warning badge -->
-              <div
-                v-if="needsWarning(img) && img.status === 'pending'"
-                class="absolute top-2 right-2"
-              >
+              <div v-if="needsWarning(img) && img.status === 'pending'" class="absolute top-2 right-2">
                 <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                 </svg>
               </div>
               <!-- Processed badge -->
-              <div
-                v-if="img.status === 'processed'"
-                class="absolute top-2 right-2"
-              >
+              <div v-if="img.status === 'processed'" class="absolute top-2 right-2">
                 <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                 </svg>
@@ -670,16 +304,12 @@ const suggestedCount = computed(() => {
             <!-- Info -->
             <div class="mt-2 text-xs p-2 rounded-lg bg-black/60 backdrop-blur-sm image-info">
               <p class="text-gray-300 truncate" :title="img.name">#{{ index + 1 }} {{ img.name }}</p>
-
-              <!-- Dimensions: before → after -->
               <p v-if="img.status === 'processed' && img.wasScaled" class="text-gray-400">
                 <span class="text-gray-500 line-through">{{ img.width }} × {{ img.height }}</span>
                 <span class="mx-1">→</span>
                 <span class="text-emerald-400">{{ img.processedWidth }} × {{ img.processedHeight }}</span>
               </p>
               <p v-else class="text-gray-400">{{ getDisplayDimensions(img) }}</p>
-
-              <!-- File size: before → after -->
               <p v-if="img.status === 'processed'" class="font-mono">
                 <span class="text-gray-500 line-through">{{ formatFileSize(img.size) }}</span>
                 <span class="mx-1">→</span>
@@ -687,15 +317,9 @@ const suggestedCount = computed(() => {
                   {{ formatFileSize(img.processedSize) }}
                 </span>
               </p>
-              <p
-                v-else
-                class="font-mono"
-                :class="img.size > LINE_SPECS.maxFileSize ? 'text-red-400' : 'text-gray-400'"
-              >
+              <p v-else class="font-mono" :class="img.size > LINE_SPECS.maxFileSize ? 'text-red-400' : 'text-gray-400'">
                 {{ formatFileSize(img.size) }}
               </p>
-
-              <!-- Processing info badges -->
               <div v-if="img.status === 'processed'" class="flex flex-wrap gap-1 mt-1">
                 <span v-if="img.wasScaled" class="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300">
                   {{ t('lineStickerTool.badge.scaled') }}
@@ -715,7 +339,6 @@ const suggestedCount = computed(() => {
       <!-- Options & Actions -->
       <section v-if="images.length > 0" class="glass p-6">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <!-- Filename format options -->
           <div class="space-y-3">
             <h3 class="text-sm font-medium text-gray-300">{{ t('lineStickerTool.options.title') }}</h3>
             <div class="flex gap-4">
@@ -740,7 +363,6 @@ const suggestedCount = computed(() => {
             </div>
           </div>
 
-          <!-- Action buttons -->
           <div class="flex gap-3">
             <button
               v-if="needsProcessing"
@@ -792,12 +414,8 @@ const suggestedCount = computed(() => {
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
         @click.self="showStickerPicker = false"
       >
-        <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-
-        <!-- Modal content -->
         <div class="relative w-full max-w-2xl max-h-[80vh] bg-[var(--bg-dark)] rounded-2xl shadow-2xl overflow-hidden picker-modal">
-          <!-- Header -->
           <div class="flex items-center justify-between p-4 border-b border-white/10">
             <h3 class="text-lg font-semibold">
               {{ t('lineStickerTool.cover.selectSticker') }}
@@ -814,8 +432,6 @@ const suggestedCount = computed(() => {
               </svg>
             </button>
           </div>
-
-          <!-- Sticker grid -->
           <div class="p-4 overflow-y-auto max-h-[calc(80vh-80px)]">
             <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               <button
@@ -833,7 +449,6 @@ const suggestedCount = computed(() => {
                 </div>
               </button>
             </div>
-
             <p v-if="images.length === 0" class="text-center text-gray-500 py-8">
               {{ t('lineStickerTool.cover.noStickers') }}
             </p>
@@ -845,12 +460,10 @@ const suggestedCount = computed(() => {
 </template>
 
 <style scoped>
-/* Default header for dark mode */
 .line-tool-header {
   background: rgba(var(--bg-dark-rgb, 15, 23, 42), 0.8);
 }
 
-/* Light theme header */
 [data-theme="light"] .line-tool-header {
   background: rgba(255, 255, 255, 0.95) !important;
   border-color: rgba(13, 94, 175, 0.15) !important;
@@ -875,7 +488,6 @@ const suggestedCount = computed(() => {
     linear-gradient(-45deg, transparent 75%, #ddd 75%);
 }
 
-/* Image info styling for light mode */
 [data-theme="light"] .image-info {
   background: rgba(255, 255, 255, 0.9) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -889,17 +501,6 @@ const suggestedCount = computed(() => {
   color: #dc2626 !important;
 }
 
-/* Spec card styling for light mode */
-[data-theme="light"] .spec-card {
-  background: rgba(13, 94, 175, 0.05) !important;
-}
-
-/* Cover card styling for light mode */
-[data-theme="light"] .cover-card {
-  background: rgba(13, 94, 175, 0.05) !important;
-}
-
-/* Picker modal styling for light mode */
 [data-theme="light"] .picker-modal {
   background: #fff !important;
   border: 1px solid rgba(13, 94, 175, 0.15);
