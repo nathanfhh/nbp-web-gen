@@ -56,7 +56,10 @@ src/theme/
 └── themes/
     ├── dark.js           # Dark theme (Slate Blue Pro) - type: dark
     ├── light.js          # Light theme (Greek Blue) - type: light
-    └── warm.js           # Warm theme (Warm Latte) - type: light, orange brand
+    ├── warm.js           # Warm theme (Warm Latte) - type: light, orange brand
+    ├── espresso.js       # Espresso theme (Coffee & Cream) - type: light, coffee brand
+    ├── mocha.js          # Mocha theme (Dark Coffee) - type: dark, coffee brand
+    └── nord.js           # Nord theme (Arctic Ice Blue) - type: dark, nord palette
 ```
 
 **Key concepts:**
@@ -64,8 +67,17 @@ src/theme/
 - CSS variables are injected at runtime via `initTheme()` in `main.js`
 - Tailwind v4 `@theme` syntax in `style.css` references these CSS variables
 - Semantic class names: `text-text-primary`, `bg-bg-muted`, `border-mode-generate`, etc.
-- To add a new theme: create `themes/newtheme.js` and register in `index.js`
+- Themes auto-register via Vite's `import.meta.glob` - no manual registration needed in `index.js`
 - `data-theme-type` attribute (`light`/`dark`) allows CSS to target theme types without listing each theme name
+
+**Adding a New Theme - Checklist:**
+1. **Create theme file**: `src/theme/themes/{name}.js` - copy from existing theme of same type (light/dark)
+2. **Set required properties**: `name`, `type` ('light' or 'dark'), `colors`, `shadows`, `metaThemeColor`
+3. **Add i18n translations**: Add `"{name}": "Display Name"` to `theme.names` in both:
+   - `src/i18n/locales/zh-TW.json`
+   - `src/i18n/locales/en.json`
+4. **Test contrast**: Especially for light themes, ensure `textMuted` and `textSecondary` are dark enough against the background (WCAG AA: 4.5:1 ratio minimum)
+5. **Verify all UI states**: Check mode tags, buttons, inputs, tooltips, glass effects
 
 **⚠️ CRITICAL - No Hardcoded Colors in Components:**
 - **NEVER** write hex codes (`#FFFFFF`), RGB values (`rgb(255,255,255)`), or Tailwind color classes (`text-white`, `bg-blue-500`) directly in component CSS
@@ -83,6 +95,7 @@ src/theme/
 ### Constants
 - `constants/defaults.js` - Default options per mode (`getDefaultOptions()`)
 - `constants/imageOptions.js` - Available styles, ratios, resolutions
+- `constants/modeStyles.js` - Mode tag CSS classes (Single Source of Truth for mode labels in History, Transfer, etc.)
 
 ### Vite Configuration
 - `@` alias resolves to `./src`
@@ -97,7 +110,7 @@ src/theme/
 - Tailwind CSS v4 for styling
 - All API calls use SSE streaming when possible
 - Generation results saved to history in background (non-blocking)
-- **UI/Styling**: Always consider all themes (dark, light, warm) when designing components
+- **UI/Styling**: Always consider all themes (dark, light, warm, espresso, mocha, nord) when designing components
 - **Theme Handling**: Use semantic color classes (`text-text-primary`, `bg-bg-muted`, `border-mode-generate`) or CSS variables (`var(--color-brand-primary)`) instead of hardcoded colors. **Never use hex/RGB values or Tailwind color utilities in component CSS.** If a token is missing, add it to the theme system first. See `src/theme/tokens.js` for the full mapping.
 - **Mobile UX**: Design for touch - consider tap targets, gestures, screen sizes, and provide alternatives for hover-only interactions
 
