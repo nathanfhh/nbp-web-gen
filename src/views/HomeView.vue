@@ -5,7 +5,7 @@ import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
 import { useToast } from '@/composables/useToast'
 import { saveLocale } from '@/i18n'
-import { getAvailableThemes } from '@/theme'
+import { getAvailableThemes, useTheme } from '@/theme'
 
 // Core components (always loaded)
 import ApiKeyInput from '@/components/ApiKeyInput.vue'
@@ -62,6 +62,8 @@ const toggleLocale = () => {
 // Theme handling
 const isThemeMenuOpen = ref(false)
 const availableThemes = computed(() => getAvailableThemes())
+const currentTheme = useTheme()
+const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
 
 const closeThemeMenu = () => {
   isThemeMenuOpen.value = false
@@ -264,7 +266,7 @@ const handleGenerate = async () => {
             <div
               v-if="isThemeMenuOpen"
               class="absolute right-0 mt-2 w-48 rounded-xl shadow-lg border backdrop-blur-xl z-50 overflow-hidden"
-              :class="store.theme === 'dark' ? 'bg-bg-elevated/90 border-border-muted' : 'bg-white/90 border-border-subtle'"
+              :class="isDarkTheme ? 'bg-bg-elevated/90 border-border-muted' : 'bg-bg-card/95 border-border-subtle'"
             >
               <div class="py-1">
                 <button
@@ -273,9 +275,9 @@ const handleGenerate = async () => {
                   @click="(e) => changeTheme(themeName, e)"
                   class="w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between group"
                   :class="[
-                    store.theme === themeName 
-                      ? (store.theme === 'dark' ? 'bg-bg-interactive text-text-primary' : 'bg-bg-subtle text-brand-primary')
-                      : (store.theme === 'dark' ? 'text-text-secondary hover:bg-bg-interactive' : 'text-text-muted hover:bg-bg-subtle')
+                    store.theme === themeName
+                      ? (isDarkTheme ? 'bg-bg-interactive text-text-primary' : 'bg-bg-subtle text-brand-primary')
+                      : (isDarkTheme ? 'text-text-secondary hover:bg-bg-interactive' : 'text-text-primary hover:bg-bg-subtle')
                   ]"
                 >
                   <span class="font-medium">{{ $t(`theme.names.${themeName}`) }}</span>

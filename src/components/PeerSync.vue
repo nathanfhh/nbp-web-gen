@@ -239,8 +239,8 @@ const errorMessage = computed(() => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <div class="w-10 h-10 rounded-xl bg-status-info-muted flex items-center justify-center">
-                <svg class="w-5 h-5 text-status-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-10 h-10 rounded-xl bg-mode-generate-muted flex items-center justify-center">
+                <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
@@ -379,7 +379,7 @@ const errorMessage = computed(() => {
                     href="https://developers.cloudflare.com/calls/turn/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 text-xs text-status-info hover:underline"
+                    class="inline-flex items-center gap-1 text-xs text-text-link hover:underline"
                   >
                     {{ $t('peerSync.turn.cloudflareLink') }}
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,7 +391,7 @@ const errorMessage = computed(() => {
                     <input
                       v-model="turnTokenId"
                       type="text"
-                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-status-info transition-all"
+                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all"
                       :placeholder="$t('peerSync.turn.tokenIdPlaceholder')"
                     />
                   </div>
@@ -400,7 +400,7 @@ const errorMessage = computed(() => {
                     <input
                       v-model="apiToken"
                       type="password"
-                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-status-info transition-all"
+                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all"
                       :placeholder="$t('peerSync.turn.apiTokenPlaceholder')"
                     />
                   </div>
@@ -408,7 +408,7 @@ const errorMessage = computed(() => {
                     <button
                       @click="saveTurnSettings"
                       :disabled="!turnTokenId.trim() || !apiToken.trim() || isFetchingIce"
-                      class="flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all bg-status-info-solid text-text-primary hover:bg-status-info-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all bg-brand-primary text-text-on-brand hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {{ isFetchingIce ? $t('peerSync.turn.verifying') : $t('common.save') }}
                     </button>
