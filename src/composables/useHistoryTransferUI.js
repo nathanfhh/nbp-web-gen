@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-tw'
+import { MODE_TAG_STYLES } from '@/constants'
 
 dayjs.extend(relativeTime)
 
@@ -43,14 +44,8 @@ export function useHistoryTransferUI(deps) {
   // Drag state
   const isDragOver = ref(false)
 
-  // Mode label colors
-  const modeColors = {
-    generate: 'bg-blue-500/20 text-blue-300',
-    sticker: 'bg-pink-500/20 text-pink-300',
-    edit: 'bg-cyan-500/20 text-cyan-300',
-    story: 'bg-amber-500/20 text-amber-300',
-    diagram: 'bg-emerald-500/20 text-emerald-300',
-  }
+  // Mode label colors (from constants - Single Source of Truth)
+  const modeColors = MODE_TAG_STYLES
 
   // Computed for history tab
   const selectedCount = computed(() => selectedIds.value.size)

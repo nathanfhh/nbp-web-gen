@@ -8,6 +8,7 @@ import 'dayjs/locale/en'
 import { useGeneratorStore } from '@/stores/generator'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
+import { getModeTagStyle } from '@/constants'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import HistoryTransfer from '@/components/HistoryTransfer.vue'
@@ -260,13 +261,7 @@ const handleImported = async () => {
             <div class="flex items-center gap-2 mb-2">
               <span
                 class="text-xs px-2 py-0.5 rounded-md font-medium"
-                :class="{
-                  'bg-mode-generate-muted text-mode-generate': item.mode === 'generate',
-                  'bg-mode-sticker-muted text-mode-sticker': item.mode === 'sticker',
-                  'bg-status-info-muted text-status-info': item.mode === 'edit',
-                  'bg-status-warning-muted text-status-warning': item.mode === 'story',
-                  'bg-status-success-muted text-status-success': item.mode === 'diagram',
-                }"
+                :class="getModeTagStyle(item.mode)"
               >
                 {{ modeLabels[item.mode] || item.mode }}
               </span>
