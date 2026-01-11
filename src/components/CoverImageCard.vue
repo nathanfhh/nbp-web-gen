@@ -26,7 +26,7 @@ const aspectRatio = computed(() => props.type === 'main' ? 'aspect-square' : 'as
 </script>
 
 <template>
-  <div class="p-4 rounded-lg bg-bg-muted cover-card">
+  <div class="p-4 rounded-lg bg-bg-subtle">
     <div class="flex items-center justify-between mb-3">
       <div>
         <h3 class="font-medium">{{ filename }}</h3>
@@ -90,23 +90,11 @@ const aspectRatio = computed(() => props.type === 'main' ? 'aspect-square' : 'as
 <style scoped>
 .checkerboard {
   background-image:
-    linear-gradient(45deg, #333 25%, transparent 25%),
-    linear-gradient(-45deg, #333 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #333 75%),
-    linear-gradient(-45deg, transparent 75%, #333 75%);
+    linear-gradient(45deg, var(--color-accent-checkerboard) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-accent-checkerboard) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-accent-checkerboard) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-accent-checkerboard) 75%);
   background-size: 12px 12px;
   background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
-}
-
-[data-theme="light"] .checkerboard {
-  background-image:
-    linear-gradient(45deg, #ddd 25%, transparent 25%),
-    linear-gradient(-45deg, #ddd 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #ddd 75%),
-    linear-gradient(-45deg, transparent 75%, #ddd 75%);
-}
-
-[data-theme="light"] .cover-card {
-  background: rgba(13, 94, 175, 0.05) !important;
 }
 </style>

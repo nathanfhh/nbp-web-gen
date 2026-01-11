@@ -22,7 +22,7 @@ const emit = defineEmits(['close'])
     <Transition name="lightbox">
       <div
         v-if="visible"
-        class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm"
+        class="fixed inset-0 z-[10000] flex items-center justify-center bg-bg-overlay backdrop-blur-sm"
         @click="emit('close')"
       >
         <button

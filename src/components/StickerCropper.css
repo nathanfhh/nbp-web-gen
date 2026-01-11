@@ -24,6 +24,20 @@
   color: #94a3b8 !important;
 }
 
+/* Ensure buttons can still use theme-dependent text colors (e.g. black text on orange) */
+.cropper-overlay button.text-text-primary {
+  color: var(--color-text-primary) !important;
+}
+
+/* Process button text color: White for blue/dark themes, Black for warm/orange theme */
+.btn-process-text {
+  color: white !important;
+}
+
+[data-theme="warm"] .btn-process-text {
+  color: var(--color-text-primary) !important;
+}
+
 /* Force all text to be light in cropper (override theme) */
 .cropper-overlay :deep(.text-gray-300),
 .cropper-overlay .text-gray-300 {
@@ -123,7 +137,7 @@
   z-index: 10003;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid rgba(139, 92, 246, 0.8);
+  border: 3px solid var(--color-brand-primary);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
@@ -199,13 +213,13 @@
 }
 
 .sticker-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(139, 92, 246, 0.3);
+  background: var(--color-bg-interactive);
+  border-color: color-mix(in srgb, var(--color-brand-primary), transparent 70%);
 }
 
 .sticker-card.selected {
-  border-color: rgba(139, 92, 246, 0.6);
-  background: rgba(139, 92, 246, 0.1);
+  border-color: color-mix(in srgb, var(--color-brand-primary), transparent 40%);
+  background: color-mix(in srgb, var(--color-brand-primary), transparent 90%);
 }
 
 .sticker-preview {
@@ -241,7 +255,7 @@
 }
 
 .sticker-download:hover {
-  color: #22d3ee;
+  color: var(--color-brand-primary);
 }
 
 .sticker-checkbox {
@@ -274,7 +288,7 @@
 }
 
 .sticker-edit-btn:hover {
-  background: rgba(139, 92, 246, 0.8);
+  background: var(--color-brand-primary);
   color: white;
 }
 
@@ -295,10 +309,9 @@
 }
 
 .sticker-extract-btn:hover {
-  background: rgba(59, 130, 246, 0.8);
+  background: var(--color-brand-primary);
   color: white;
 }
-
 .stickers-empty {
   flex: 1;
   display: flex;
@@ -370,7 +383,7 @@
 }
 
 .processing-spinner {
-  color: #a855f7;
+  color: var(--color-brand-primary);
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -574,13 +587,13 @@
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-interactive);
   color: #d1d5db;
   transition: all 0.2s;
 }
 
 .edit-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--color-bg-interactive-hover);
 }
 
 .edit-btn-primary {
@@ -588,13 +601,13 @@
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
   font-weight: 500;
-  background: #8b5cf6;
-  color: white;
+  background: var(--color-brand-primary);
+  color: var(--color-text-on-brand) !important;
   transition: all 0.2s;
 }
 
 .edit-btn-primary:hover {
-  background: #7c3aed;
+  background: var(--color-brand-primary-hover);
 }
 
 /* Magnifier */
@@ -605,7 +618,7 @@
   z-index: 10002;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid rgba(139, 92, 246, 0.8);
+  border: 3px solid var(--color-brand-primary);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 

@@ -219,7 +219,8 @@ const getHistoryPreviewSrc = () => {
         class="fixed inset-0 z-[9998] flex items-center justify-center p-4"
         @click.self="close"
       >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-bg-overlay backdrop-blur-sm"></div>
 
         <div class="relative glass-strong rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <!-- Header -->

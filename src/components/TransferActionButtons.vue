@@ -46,9 +46,10 @@ const emit = defineEmits(['export', 'sync'])
         <span>{{ t('historyTransfer.export.button') }}</span>
       </template>
     </button>
+    <!-- Peer Sync Button -->
     <button
       @click="emit('sync')"
-      class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-status-info-muted border border-status-info text-status-info hover:bg-status-info-muted flex items-center justify-center gap-2"
+      class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-mode-generate-muted border border-mode-generate text-mode-generate hover:bg-mode-generate-hover flex items-center justify-center gap-2"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />

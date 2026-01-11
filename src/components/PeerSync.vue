@@ -223,7 +223,7 @@ const errorMessage = computed(() => {
         @click.self="close"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-bg-overlay backdrop-blur-sm"></div>
 
         <!-- Modal -->
         <div class="relative glass-strong rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -260,7 +260,7 @@ const errorMessage = computed(() => {
 
           <!-- Mode Selection -->
           <template v-if="mode === null">
-            <p class="text-sm text-white/80 mb-6">
+            <p class="text-sm text-text-secondary mb-6">
               {{ $t('peerSync.description') }}
             </p>
 
@@ -293,7 +293,7 @@ const errorMessage = computed(() => {
                 </div>
                 <div class="text-left">
                   <div :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-text-muted' : 'text-text-primary'" class="font-medium">{{ $t('peerSync.sendMode.title') }}</div>
-                  <div class="text-xs" :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-text-muted' : 'text-white/70'">
+                  <div class="text-xs" :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-text-muted' : 'text-text-muted'">
                     <template v-if="props.syncType === 'history'">
                       {{ props.selectedIds.length === 0 ? $t('peerSync.sendMode.noSelection') : $t('peerSync.sendMode.historyDesc', { count: props.selectedIds.length }) }}
                     </template>
@@ -316,7 +316,7 @@ const errorMessage = computed(() => {
                 </div>
                 <div class="text-left">
                   <div class="text-text-primary font-medium">{{ $t('peerSync.receiveMode.title') }}</div>
-                  <div class="text-xs text-white/70">{{ $t('peerSync.receiveMode.description') }}</div>
+                  <div class="text-xs text-text-muted">{{ $t('peerSync.receiveMode.description') }}</div>
                 </div>
               </button>
             </div>
@@ -325,7 +325,7 @@ const errorMessage = computed(() => {
             <div class="mt-6 pt-4 border-t border-border-muted">
               <button
                 @click="showTurnSettings = !showTurnSettings"
-                class="w-full flex items-center justify-between text-sm text-white/80 hover:text-text-primary transition-colors"
+                class="w-full flex items-center justify-between text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 <div class="flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,13 +352,13 @@ const errorMessage = computed(() => {
 
               <Transition name="slide">
                 <div v-if="showTurnSettings" class="mt-4 space-y-3">
-                  <p class="text-xs text-white/70">
+                  <p class="text-xs text-text-muted">
                     {{ $t('peerSync.turn.description') }}
                   </p>
 
                   <!-- TURN Enable Toggle -->
                   <div v-if="hasTurnConfig" class="flex items-center justify-between py-2 px-3 rounded-lg bg-bg-muted">
-                    <span class="text-sm text-white/80">{{ $t('peerSync.turn.enableLabel') }}</span>
+                    <span class="text-sm text-text-secondary">{{ $t('peerSync.turn.enableLabel') }}</span>
                     <button
                       @click="toggleTurnEnabled"
                       :class="[
@@ -387,7 +387,7 @@ const errorMessage = computed(() => {
                     </svg>
                   </a>
                   <div>
-                    <label class="block text-xs text-white/70 mb-1">{{ $t('peerSync.turn.tokenIdLabel') }}</label>
+                    <label class="block text-xs text-text-muted mb-1">{{ $t('peerSync.turn.tokenIdLabel') }}</label>
                     <input
                       v-model="turnTokenId"
                       type="text"
@@ -396,7 +396,7 @@ const errorMessage = computed(() => {
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-white/70 mb-1">{{ $t('peerSync.turn.apiTokenLabel') }}</label>
+                    <label class="block text-xs text-text-muted mb-1">{{ $t('peerSync.turn.apiTokenLabel') }}</label>
                     <input
                       v-model="apiToken"
                       type="password"
@@ -415,7 +415,7 @@ const errorMessage = computed(() => {
                     <button
                       v-if="hasTurnConfig"
                       @click="clearTurnSettings"
-                      class="py-2 px-3 rounded-lg text-xs font-medium transition-all bg-mode-edit-muted text-mode-edit hover:bg-rose-500/30"
+                      class="py-2 px-3 rounded-lg text-xs font-medium transition-all bg-mode-edit-muted text-mode-edit hover:bg-status-error-muted"
                     >
                       {{ $t('common.clear') }}
                     </button>

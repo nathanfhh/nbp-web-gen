@@ -593,7 +593,8 @@ onUnmounted(() => {
                   type="range"
                   min="0"
                   max="100"
-                  class="w-full accent-blue-500"
+                  class="w-full"
+                  :style="{ accentColor: 'var(--color-brand-primary)' }"
                 />
                 <p class="text-xs text-text-muted mt-1">{{ $t('stickerCropper.settings.toleranceHint') }}</p>
               </div>
@@ -619,7 +620,7 @@ onUnmounted(() => {
                 :disabled="!imageLoaded || isProcessing"
                 class="w-full py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                 :class="imageLoaded && !isProcessing
-                  ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-primary'
+                  ? 'bg-brand-primary hover:bg-brand-primary-hover btn-process-text'
                   : 'bg-control-disabled text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isProcessing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -795,7 +796,7 @@ onUnmounted(() => {
                 :disabled="selectedStickers.size === 0 || isDownloading"
                 class="download-btn"
                 :class="selectedStickers.size > 0 && !isDownloading
-                  ? 'bg-rose-500 hover:bg-rose-600 text-text-primary'
+                  ? 'bg-mode-sticker-solid hover:bg-mode-sticker-hover text-white'
                   : 'bg-control-disabled text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -891,7 +892,8 @@ onUnmounted(() => {
                     type="range"
                     min="0"
                     max="100"
-                    class="w-full accent-blue-500"
+                    class="w-full"
+                  :style="{ accentColor: 'var(--color-brand-primary)' }"
                   />
                 </div>
                 <p class="edit-hint text-xs text-text-muted">{{ $t('stickerCropper.edit.hint') }}</p>

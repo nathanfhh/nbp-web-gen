@@ -362,17 +362,17 @@ const handleImported = async () => {
 }
 
 .history-scroll::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.3);
+  background: var(--color-border-default);
   border-radius: 3px;
 }
 
 .history-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5);
+  background: var(--color-border-focus);
 }
 
 /* Firefox */
 .history-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+  scrollbar-color: var(--color-border-default) transparent;
 }
 </style>

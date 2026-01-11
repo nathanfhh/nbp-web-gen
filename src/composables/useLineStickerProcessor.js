@@ -97,7 +97,7 @@ export function useLineStickerProcessor() {
         hint: 'lineStickerTool.specs.formatHint',
       },
       coverImages: {
-        passed: mainImage.value?.processedBlob && tabImage.value?.processedBlob,
+        passed: !!(mainImage.value?.processedBlob && tabImage.value?.processedBlob),
         hasMain: !!mainImage.value?.processedBlob,
         hasTab: !!tabImage.value?.processedBlob,
         hint: 'lineStickerTool.specs.coverImagesHint',

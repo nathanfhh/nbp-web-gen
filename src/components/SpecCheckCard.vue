@@ -36,7 +36,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="flex items-start gap-3 p-3 rounded-lg bg-bg-muted spec-card">
+  <div class="flex items-start gap-3 p-3 rounded-lg bg-bg-subtle">
     <span class="mt-0.5 shrink-0">
       <svg v-if="passed" class="w-5 h-5 text-status-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -70,9 +70,3 @@ defineProps({
   </div>
 </template>
 
-<style scoped>
-/* Light mode styling */
-[data-theme="light"] .spec-card {
-  background: rgba(13, 94, 175, 0.05) !important;
-}
-</style>

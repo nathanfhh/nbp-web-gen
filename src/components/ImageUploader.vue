@@ -189,18 +189,18 @@ const triggerFileInput = () => {
 .upload-zone-compact {
   padding: 1rem;
   border-radius: 0.75rem;
-  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border: 2px dashed var(--color-border-default);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .upload-zone-compact:hover {
-  border-color: rgba(168, 85, 247, 0.5);
-  background: rgba(168, 85, 247, 0.05);
+  border-color: color-mix(in srgb, var(--color-brand-primary), transparent 50%);
+  background: color-mix(in srgb, var(--color-brand-primary), transparent 95%);
 }
 
 .upload-zone-compact.dragover {
-  border-color: rgb(168, 85, 247);
-  background: rgba(168, 85, 247, 0.1);
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary), transparent 90%);
 }
 </style>

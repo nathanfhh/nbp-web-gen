@@ -346,9 +346,9 @@ watch(() => store.selectedCharacter, (newVal) => {
 <style scoped>
 .character-carousel {
   padding: 1rem;
-  background: var(--carousel-bg, rgba(255, 255, 255, 0.03));
+  background: var(--color-bg-subtle);
   border-radius: 1rem;
-  border: 1px solid var(--carousel-border, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--color-border-subtle);
 }
 
 .carousel-header {
@@ -364,24 +364,24 @@ watch(() => store.selectedCharacter, (newVal) => {
   gap: 0.5rem;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--color-text-primary);
 }
 
 .carousel-count {
   font-weight: 400;
-  color: var(--text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 
 .carousel-add-btn {
   padding: 0.5rem;
-  background: rgba(59, 130, 246, 0.2);
+  background: var(--color-bg-interactive);
   border-radius: 0.5rem;
-  color: #60a5fa;
+  color: var(--color-brand-primary);
   transition: all 0.2s;
 }
 
 .carousel-add-btn:hover {
-  background: rgba(59, 130, 246, 0.3);
+  background: var(--color-bg-interactive-hover);
   transform: scale(1.05);
 }
 
@@ -403,28 +403,28 @@ watch(() => store.selectedCharacter, (newVal) => {
 }
 
 .empty-icon {
-  color: var(--text-muted, #4b5563);
+  color: var(--color-text-muted);
   margin-bottom: 0.75rem;
 }
 
 .empty-text {
   font-size: 0.875rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--color-text-muted);
   margin-bottom: 1rem;
 }
 
 .empty-btn {
   padding: 0.5rem 1rem;
-  background: rgba(59, 130, 246, 0.2);
+  background: var(--color-bg-interactive);
   border-radius: 0.5rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #60a5fa;
+  color: var(--color-brand-primary);
   transition: all 0.2s;
 }
 
 .empty-btn:hover {
-  background: rgba(59, 130, 246, 0.3);
+  background: var(--color-bg-interactive-hover);
 }
 
 /* Carousel container */
@@ -473,20 +473,20 @@ watch(() => store.selectedCharacter, (newVal) => {
   height: 100px;
   border-radius: 0.75rem;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-bg-elevated);
   border: 2px solid transparent;
   transition: all 0.3s;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .carousel-card.is-current .card-image {
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.3);
+  border-color: var(--color-brand-primary-light);
+  box-shadow: 0 12px 32px var(--color-bg-interactive-hover);
 }
 
 .carousel-card.is-selected .card-image {
-  border-color: #22c55e;
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  border-color: var(--color-status-success);
+  box-shadow: 0 0 20px var(--color-status-success-muted);
 }
 
 .carousel-card .card-image img {
@@ -499,7 +499,7 @@ watch(() => store.selectedCharacter, (newVal) => {
   margin-top: 0.5rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--color-text-secondary);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -508,7 +508,7 @@ watch(() => store.selectedCharacter, (newVal) => {
 }
 
 .carousel-card.is-current .card-name {
-  color: var(--text-primary, #e5e7eb);
+  color: var(--color-text-primary);
 }
 
 /* Navigation buttons */
@@ -516,15 +516,15 @@ watch(() => store.selectedCharacter, (newVal) => {
   position: absolute;
   z-index: 10;
   padding: 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-interactive);
   border-radius: 9999px;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--color-text-secondary);
   transition: all 0.2s;
 }
 
 .carousel-nav:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--text-primary, #e5e7eb);
+  background: var(--color-bg-interactive-hover);
+  color: var(--color-text-primary);
 }
 
 .carousel-nav:disabled {
@@ -544,7 +544,7 @@ watch(() => store.selectedCharacter, (newVal) => {
 .character-info {
   margin-top: 1rem;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-bg-muted);
   border-radius: 0.75rem;
 }
 
@@ -558,7 +558,7 @@ watch(() => store.selectedCharacter, (newVal) => {
 .info-name {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--color-text-primary);
 }
 
 .info-actions {
@@ -574,36 +574,38 @@ watch(() => store.selectedCharacter, (newVal) => {
   font-size: 0.75rem;
   font-weight: 500;
   border-radius: 0.5rem;
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+  background: var(--color-bg-interactive);
+  color: var(--color-brand-primary);
   transition: all 0.2s;
 }
 
 .info-btn:hover {
-  background: rgba(59, 130, 246, 0.3);
+  background: var(--color-bg-interactive-hover);
 }
 
 .info-btn.is-selected {
-  background: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
+  background: var(--color-status-success-muted);
+  color: var(--color-status-success);
 }
 
 .info-btn.is-selected:hover {
-  background: rgba(34, 197, 94, 0.3);
+  background: var(--color-status-success-muted);
+  opacity: 0.8;
 }
 
 .info-btn-danger {
-  background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
+  background: var(--color-status-error-muted);
+  color: var(--color-status-error);
 }
 
 .info-btn-danger:hover {
-  background: rgba(239, 68, 68, 0.3);
+  background: var(--color-status-error-muted);
+  opacity: 0.8;
 }
 
 .info-description {
   font-size: 0.875rem;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--color-text-secondary);
   line-height: 1.5;
   margin-bottom: 0.75rem;
 }
@@ -617,86 +619,9 @@ watch(() => store.selectedCharacter, (newVal) => {
 .trait-tag {
   padding: 0.25rem 0.5rem;
   font-size: 0.7rem;
-  background: rgba(148, 163, 184, 0.15);
+  background: var(--color-bg-interactive);
   border-radius: 0.375rem;
-  color: var(--text-muted, #94a3b8);
-}
-
-/* Light theme */
-[data-theme="light"] .character-carousel {
-  --carousel-bg: rgba(13, 94, 175, 0.03);
-  --carousel-border: rgba(13, 94, 175, 0.12);
-  --text-primary: #1f2937;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
-}
-
-[data-theme="light"] .carousel-card .card-image {
-  background: rgba(13, 94, 175, 0.08);
-}
-
-[data-theme="light"] .character-info {
-  background: rgba(13, 94, 175, 0.05);
-}
-
-[data-theme="light"] .carousel-nav {
-  background: rgba(13, 94, 175, 0.08);
-  color: #0D5EAF;
-}
-
-[data-theme="light"] .carousel-nav:hover:not(:disabled) {
-  background: rgba(13, 94, 175, 0.15);
-}
-
-/* Light theme buttons and tags */
-[data-theme="light"] .carousel-add-btn {
-  background: rgba(13, 94, 175, 0.12);
-  color: #0D5EAF;
-}
-
-[data-theme="light"] .carousel-add-btn:hover {
-  background: rgba(13, 94, 175, 0.2);
-}
-
-[data-theme="light"] .info-btn {
-  background: rgba(13, 94, 175, 0.1);
-  color: #0D5EAF;
-}
-
-[data-theme="light"] .info-btn:hover {
-  background: rgba(13, 94, 175, 0.18);
-}
-
-[data-theme="light"] .info-btn.is-selected {
-  background: rgba(34, 197, 94, 0.15);
-  color: #047857;
-}
-
-[data-theme="light"] .info-btn.is-selected:hover {
-  background: rgba(34, 197, 94, 0.25);
-}
-
-[data-theme="light"] .info-btn-danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-
-[data-theme="light"] .info-btn-danger:hover {
-  background: rgba(239, 68, 68, 0.18);
-}
-
-[data-theme="light"] .trait-tag {
-  background: rgba(13, 94, 175, 0.1);
-  color: #1f2937;
-}
-
-[data-theme="light"] .empty-btn {
-  background: rgba(13, 94, 175, 0.12);
-  color: #0D5EAF;
-}
-
-[data-theme="light"] .empty-btn:hover {
-  background: rgba(13, 94, 175, 0.2);
+  color: var(--color-text-muted);
 }
 
 /* Reduced motion */

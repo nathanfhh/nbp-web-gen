@@ -249,7 +249,7 @@ const canSave = computed(() => {
 <template>
   <div class="relative z-10 min-h-screen">
     <!-- Header -->
-    <header class="sticky top-0 z-50 backdrop-blur-xl extractor-header border-b border-border-muted">
+    <header class="sticky top-0 z-50 backdrop-blur-xl bg-glass-bg-strong border-b border-border-subtle shadow-card">
       <div class="container mx-auto px-4 py-4 flex items-center justify-between">
         <button
           @click="goBack"
@@ -291,7 +291,7 @@ const canSave = computed(() => {
               />
               <button
                 @click="triggerFileInput"
-                class="absolute bottom-4 right-4 px-4 py-2 rounded-lg bg-black/60 backdrop-blur-sm text-text-primary text-sm hover:bg-black/80 transition-colors flex items-center gap-2"
+                class="absolute bottom-4 right-4 px-4 py-2 rounded-lg bg-black/60 backdrop-blur-sm text-white text-sm hover:bg-black/80 transition-colors flex items-center gap-2"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -306,7 +306,7 @@ const canSave = computed(() => {
               @drop="handleDrop"
               @click="triggerFileInput"
               class="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all"
-              :class="isDragging ? 'border-mode-generate bg-mode-generate-muted' : 'border-border-default hover:border-mode-generate hover:bg-bg-muted'"
+              :class="isDragging ? 'border-mode-generate bg-mode-generate-muted' : 'border-border-default hover:border-mode-generate hover:bg-bg-interactive'"
             >
               <div class="w-16 h-16 rounded-full bg-mode-generate-muted flex items-center justify-center mb-4">
                 <svg class="w-8 h-8 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,7 +344,7 @@ const canSave = computed(() => {
                   v-model="useNbpKey"
                   class="w-4 h-4 text-brand-primary bg-bg-interactive border-white/30 focus:ring-brand-primary"
                 />
-                <span class="text-text-secondary group-hover:text-white transition-colors">
+                <span class="text-text-secondary group-hover:text-text-primary transition-colors">
                   {{ $t('characterExtractor.useNbpKey') }}
                   <span v-if="!hasNbpKey" class="text-status-error text-sm ml-2">({{ $t('errors.noApiKey') }})</span>
                 </span>
@@ -357,7 +357,7 @@ const canSave = computed(() => {
                   v-model="useNbpKey"
                   class="w-4 h-4 text-brand-primary bg-bg-interactive border-white/30 focus:ring-brand-primary"
                 />
-                <span class="text-text-secondary group-hover:text-white transition-colors">
+                <span class="text-text-secondary group-hover:text-text-primary transition-colors">
                   {{ $t('characterExtractor.useAlternateKey') }}
                 </span>
               </label>
@@ -590,7 +590,7 @@ const canSave = computed(() => {
                 :disabled="!canSave"
                 class="save-btn w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
                 :class="canSave
-                  ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-primary'
+                  ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-on-brand'
                   : 'bg-bg-interactive text-text-muted cursor-not-allowed'"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -606,52 +606,3 @@ const canSave = computed(() => {
   </div>
 </template>
 
-<style scoped>
-/* Default header for dark mode */
-.extractor-header {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* Light theme overrides */
-[data-theme="light"] .extractor-header {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: rgba(13, 94, 175, 0.15) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-/* Tags need dark text in light mode */
-[data-theme="light"] .accessory-tag,
-[data-theme="light"] .feature-tag {
-  background: rgba(13, 94, 175, 0.12) !important;
-  color: #1f2937 !important;
-}
-
-[data-theme="light"] .accessory-tag button,
-[data-theme="light"] .feature-tag button {
-  color: #4b5563 !important;
-}
-
-[data-theme="light"] .accessory-tag button:hover,
-[data-theme="light"] .feature-tag button:hover {
-  color: #1f2937 !important;
-}
-
-/* Add tag buttons in light mode */
-[data-theme="light"] .add-tag-btn {
-  background: rgba(13, 94, 175, 0.12) !important;
-  color: #0D5EAF !important;
-}
-
-[data-theme="light"] .add-tag-btn:hover {
-  background: rgba(13, 94, 175, 0.2) !important;
-}
-
-/* Save button in light mode */
-[data-theme="light"] .save-btn.bg-brand-primary {
-  background: #0D5EAF !important;
-}
-
-[data-theme="light"] .save-btn.bg-brand-primary:hover {
-  background: #0A4C8C !important;
-}
-</style>

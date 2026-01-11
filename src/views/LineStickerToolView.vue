@@ -86,7 +86,7 @@ const handleCoverUploadClick = (type) => {
 <template>
   <div class="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)]">
     <!-- Header -->
-    <header class="sticky top-0 z-50 backdrop-blur-xl line-tool-header border-b border-border-muted">
+    <header class="sticky top-0 z-50 backdrop-blur-xl bg-glass-bg-strong border-b border-border-subtle shadow-card">
       <div class="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
         <button
           @click="goBack"
@@ -302,7 +302,7 @@ const handleCoverUploadClick = (type) => {
               </button>
             </div>
             <!-- Info -->
-            <div class="mt-2 text-xs p-2 rounded-lg bg-black/60 backdrop-blur-sm image-info">
+            <div class="mt-2 text-xs p-2 rounded-lg bg-glass-bg-strong backdrop-blur-sm shadow-card">
               <p class="text-text-secondary truncate" :title="img.name">#{{ index + 1 }} {{ img.name }}</p>
               <p v-if="img.status === 'processed' && img.wasScaled" class="text-text-muted">
                 <span class="text-text-muted line-through">{{ img.width }} × {{ img.height }}</span>
@@ -368,7 +368,7 @@ const handleCoverUploadClick = (type) => {
               v-if="needsProcessing"
               @click="processImages"
               :disabled="isProcessing"
-              class="btn-premium px-6 py-2.5"
+              class="btn-premium px-6 py-2.5 text-text-primary"
             >
               <template v-if="isProcessing">
                 <svg class="w-4 h-4 mr-2 animate-spin inline-block" fill="none" viewBox="0 0 24 24">
@@ -415,7 +415,7 @@ const handleCoverUploadClick = (type) => {
         @click.self="showStickerPicker = false"
       >
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
-        <div class="relative w-full max-w-2xl max-h-[80vh] bg-[var(--bg-dark)] rounded-2xl shadow-2xl overflow-hidden picker-modal">
+        <div class="relative w-full max-w-2xl max-h-[80vh] bg-bg-card rounded-2xl shadow-2xl overflow-hidden border border-border-subtle">
           <div class="flex items-center justify-between p-4 border-b border-border-muted">
             <h3 class="text-lg font-semibold">
               {{ t('lineStickerTool.cover.selectSticker') }}
@@ -460,53 +460,13 @@ const handleCoverUploadClick = (type) => {
 </template>
 
 <style scoped>
-.line-tool-header {
-  background: rgba(var(--bg-dark-rgb, 15, 23, 42), 0.8);
-}
-
-[data-theme="light"] .line-tool-header {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-color: rgba(13, 94, 175, 0.15) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
 .checkerboard {
   background-image:
-    linear-gradient(45deg, #333 25%, transparent 25%),
-    linear-gradient(-45deg, #333 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #333 75%),
-    linear-gradient(-45deg, transparent 75%, #333 75%);
+    linear-gradient(45deg, var(--color-accent-checkerboard) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-accent-checkerboard) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-accent-checkerboard) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-accent-checkerboard) 75%);
   background-size: 12px 12px;
   background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
-}
-
-[data-theme="light"] .checkerboard {
-  background-image:
-    linear-gradient(45deg, #ddd 25%, transparent 25%),
-    linear-gradient(-45deg, #ddd 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #ddd 75%),
-    linear-gradient(-45deg, transparent 75%, #ddd 75%);
-}
-
-[data-theme="light"] .image-info {
-  background: rgba(255, 255, 255, 0.9) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="light"] .image-info p {
-  color: #374151 !important;
-}
-
-[data-theme="light"] .image-info .text-status-error {
-  color: #dc2626 !important;
-}
-
-[data-theme="light"] .picker-modal {
-  background: #fff !important;
-  border: 1px solid rgba(13, 94, 175, 0.15);
-}
-
-[data-theme="light"] .picker-modal h3 {
-  color: #1e293b;
 }
 </style>

@@ -44,7 +44,7 @@ defineExpose({ show })
         @click.self="cancel"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-bg-overlay backdrop-blur-sm"></div>
 
         <!-- Modal -->
         <div class="relative glass-strong rounded-2xl p-6 w-full max-w-sm shadow-2xl">

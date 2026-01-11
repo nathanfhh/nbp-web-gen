@@ -985,7 +985,7 @@ const handleExtractCharacter = async () => {
 }
 
 .download-option.active {
-  color: #60a5fa !important; /* blue-400 */
+  color: var(--color-brand-primary-light) !important;
 }
 
 /* Wide dropdown for unified download menu */

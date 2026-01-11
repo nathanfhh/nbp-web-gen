@@ -433,11 +433,11 @@ const getStepStatus = (index) => {
 }
 
 .max-h-80::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.3);
+  background: var(--color-border-default);
   border-radius: 2px;
 }
 
 .max-h-80::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5);
+  background: var(--color-border-focus);
 }
 </style>

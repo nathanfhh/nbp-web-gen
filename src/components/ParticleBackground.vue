@@ -7,11 +7,34 @@ const canvas = ref(null)
 let animationId = null
 let particles = []
 
-// Theme-based colors
+// Helper to hex to rgb
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 59, g: 130, b: 246 } // Fallback blue
+}
+
+// Theme-based colors (Dynamic from CSS variable)
 const getParticleColor = () => {
+  if (typeof window === 'undefined') return { r: 59, g: 130, b: 246 }
+  
+  // Read CSS variable from root
+  const style = getComputedStyle(document.documentElement)
+  const color = style.getPropertyValue('--color-brand-primary').trim()
+  
+  if (color.startsWith('#')) {
+    return hexToRgb(color)
+  }
+  
+  // Handle if variable is missing or rgb() format (simplified fallback)
   return store.theme === 'dark'
-    ? { r: 59, g: 130, b: 246 }  // Blue-500 for dark (Slate Blue Pro)
-    : { r: 13, g: 94, b: 175 }   // Greek blue for light
+    ? { r: 59, g: 130, b: 246 }
+    : { r: 13, g: 94, b: 175 }
 }
 
 const config = {
