@@ -58,7 +58,7 @@ const temperatureLabel = computed(() => {
         <button
           v-if="store.seed"
           @click="store.seed = ''"
-          class="text-xs text-text-muted hover:text-gray-400"
+          class="text-xs text-text-muted hover:text-text-muted"
         >
           {{ $t('common.clear') }}
         </button>

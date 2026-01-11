@@ -55,7 +55,7 @@ const emit = defineEmits(['toggle', 'preview'])
       :class="[
         thumbnailSize,
         'rounded-lg bg-bg-muted flex-shrink-0 overflow-hidden transition-all',
-        canPreview && 'cursor-zoom-in hover:ring-2 hover:ring-blue-400'
+        canPreview && 'cursor-zoom-in hover:ring-2 hover:ring-brand-primary-light'
       ]"
     >
       <img

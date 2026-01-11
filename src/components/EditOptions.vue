@@ -15,7 +15,7 @@ const resolutions = [
 <template>
   <div class="space-y-6">
     <!-- Edit mode warning -->
-    <p v-if="store.referenceImages.length === 0" class="text-xs text-amber-400/80">
+    <p v-if="store.referenceImages.length === 0" class="text-xs text-status-warning">
       {{ $t('edit.warning') }}
     </p>
 

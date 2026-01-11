@@ -198,7 +198,7 @@ const handleImported = async () => {
         <!-- Transfer (Export/Import) button -->
         <button
           @click="showTransfer = true"
-          class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-blue-400 transition-all"
+          class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-mode-generate transition-all"
           :title="$t('historyTransfer.title')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +209,7 @@ const handleImported = async () => {
         <button
           v-if="store.history.length > 0"
           @click="clearAll"
-          class="text-xs text-text-muted hover:text-red-400 transition-colors"
+          class="text-xs text-text-muted hover:text-status-error transition-colors"
         >
           {{ $t('common.clearAll') }}
         </button>
@@ -239,7 +239,7 @@ const handleImported = async () => {
           >
             <div
               @click="openHistoryLightbox(item, $event)"
-              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-primary-light transition-all"
             >
               <img
                 :src="`data:image/webp;base64,${item.images[0].thumbnail}`"
@@ -278,7 +278,7 @@ const handleImported = async () => {
                   {{ formatTime(item.timestamp) }}
                 </span>
                 <span
-                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-text-primary bg-gray-800 border border-border-muted backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
+                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-text-primary bg-bg-tooltip border border-border-muted backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
                   :class="activeTooltipId === item.id ? 'opacity-100 visible' : 'opacity-0 invisible md:group-hover/time:opacity-100 md:group-hover/time:visible'"
                 >
                   {{ formatFullTime(item.timestamp) }}
@@ -299,7 +299,7 @@ const handleImported = async () => {
           </div>
           <button
             @click="deleteItem(item.id, $event)"
-            class="opacity-50 md:opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-all flex-shrink-0"
+            class="opacity-50 md:opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-status-error-muted text-text-muted hover:text-status-error transition-all flex-shrink-0"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

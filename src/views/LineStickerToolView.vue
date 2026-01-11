@@ -190,7 +190,7 @@ const handleCoverUploadClick = (type) => {
         </div>
 
         <!-- All passed indicator -->
-        <div v-if="allPassed" class="mt-4 p-3 rounded-lg bg-status-success-muted border border-emerald-500/30">
+        <div v-if="allPassed" class="mt-4 p-3 rounded-lg bg-status-success-muted border border-status-success">
           <p class="text-status-success text-center font-medium">
             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -246,7 +246,7 @@ const handleCoverUploadClick = (type) => {
           <h2 class="text-lg font-semibold">{{ t('lineStickerTool.preview.title') }}</h2>
           <button
             @click="clearAll"
-            class="text-sm text-status-error hover:text-red-300 transition-colors"
+            class="text-sm text-status-error hover:text-status-error transition-colors"
           >
             {{ t('lineStickerTool.actions.clear') }}
           </button>
@@ -294,7 +294,7 @@ const handleCoverUploadClick = (type) => {
               <!-- Remove button -->
               <button
                 @click.stop="removeImage(img.id)"
-                class="absolute top-2 left-2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                class="absolute top-2 left-2 p-1 rounded-full bg-black/50 text-text-primary opacity-0 group-hover:opacity-100 transition-opacity hover:bg-status-error-solid"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -327,7 +327,7 @@ const handleCoverUploadClick = (type) => {
                 <span v-if="img.wasQuantized" class="px-1.5 py-0.5 rounded text-[10px] bg-status-warning-muted text-status-warning">
                   {{ t('lineStickerTool.badge.quantized') }}
                 </span>
-                <span v-if="!img.wasScaled && !img.wasQuantized" class="px-1.5 py-0.5 rounded text-[10px] bg-gray-500/20 text-text-secondary">
+                <span v-if="!img.wasScaled && !img.wasQuantized" class="px-1.5 py-0.5 rounded text-[10px] bg-control-disabled text-text-secondary">
                   {{ t('lineStickerTool.badge.reencoded') }}
                 </span>
               </div>
@@ -497,7 +497,7 @@ const handleCoverUploadClick = (type) => {
   color: #374151 !important;
 }
 
-[data-theme="light"] .image-info .text-red-400 {
+[data-theme="light"] .image-info .text-status-error {
   color: #dc2626 !important;
 }
 

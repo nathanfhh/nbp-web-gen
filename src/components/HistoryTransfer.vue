@@ -310,7 +310,7 @@ const getHistoryPreviewSrc = () => {
               >
                 <template #content>
                   <div class="flex items-center gap-2 mb-1">
-                    <span :class="['text-xs px-1.5 py-0.5 rounded', modeColors[item.mode] || 'bg-gray-500/20 text-text-secondary']">
+                    <span :class="['text-xs px-1.5 py-0.5 rounded', modeColors[item.mode] || 'bg-control-disabled text-text-secondary']">
                       {{ t(`modes.${item.mode}.name`) }}
                     </span>
                     <span class="text-xs text-text-muted">{{ formatRelativeTime(item.timestamp) }}</span>
@@ -402,7 +402,7 @@ const getHistoryPreviewSrc = () => {
               :class="[
                 'w-full py-6 px-4 rounded-xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center gap-2',
                 isDragOver
-                  ? 'border-blue-400 bg-blue-500/10'
+                  ? 'border-mode-generate bg-mode-generate-muted'
                   : 'border-border-default hover:border-white/40 hover:bg-bg-muted',
                 transfer.isImporting.value && 'pointer-events-none opacity-50'
               ]"
@@ -483,7 +483,7 @@ const getHistoryPreviewSrc = () => {
   >
     <template #caption>
       <div class="flex items-center justify-center gap-2 mb-2">
-        <span :class="['text-xs px-2 py-1 rounded', modeColors[previewHistoryItem?.mode] || 'bg-gray-500/20 text-text-secondary']">
+        <span :class="['text-xs px-2 py-1 rounded', modeColors[previewHistoryItem?.mode] || 'bg-control-disabled text-text-secondary']">
           {{ previewHistoryItem?.mode ? t(`modes.${previewHistoryItem.mode}.name`) : '' }}
         </span>
         <span class="text-xs text-text-muted">{{ previewHistoryItem?.timestamp ? formatRelativeTime(previewHistoryItem.timestamp) : '' }}</span>

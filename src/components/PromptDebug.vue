@@ -50,7 +50,7 @@ const copyToClipboard = async () => {
       </h4>
       <button
         @click="copyToClipboard"
-        class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-gray-300"
+        class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-text-secondary"
         :title="$t('common.copy')"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@ const copyToClipboard = async () => {
         </svg>
       </button>
     </div>
-    <div class="bg-bg-muted rounded-lg p-3 font-mono text-xs text-amber-200/80 leading-relaxed break-all">
+    <div class="bg-bg-muted rounded-lg p-3 font-mono text-xs text-status-warning leading-relaxed break-all">
       {{ composedPrompt }}
     </div>
   </div>

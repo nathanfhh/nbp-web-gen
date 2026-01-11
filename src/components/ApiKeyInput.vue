@@ -65,11 +65,11 @@ onMounted(() => {
       <div class="flex items-center gap-3">
         <div
           class="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all"
-          :class="store.hasApiKey ? 'bg-emerald-500' : 'bg-status-warning-muted'"
+          :class="store.hasApiKey ? 'bg-status-success-solid' : 'bg-status-warning-muted'"
         >
           <svg
             v-if="store.hasApiKey"
-            class="w-5 h-5 text-text-primary"
+            class="w-5 h-5 text-white"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -94,7 +94,7 @@ onMounted(() => {
         <button @click="startEditing" class="btn-secondary text-sm py-2 px-4">
           {{ $t('common.change') }}
         </button>
-        <button @click="clearKey" class="text-status-error hover:text-red-300 text-sm py-2 px-4">
+        <button @click="clearKey" class="text-status-error hover:text-status-error text-sm py-2 px-4">
           {{ $t('common.clear') }}
         </button>
       </div>
@@ -182,7 +182,7 @@ onMounted(() => {
       </div>
       <p class="text-xs text-text-muted">
         {{ $t('apiKey.hint') }}
-        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-mode-generate hover:text-blue-300">
+        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-mode-generate hover:text-mode-generate">
           {{ $t('apiKey.getKey') }}
         </a>
       </p>

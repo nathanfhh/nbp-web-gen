@@ -146,7 +146,7 @@ const handleGenerate = async () => {
           :class="
             store.theme === 'dark'
               ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
-              : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'
+              : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
           "
           :title="$t('language.label')"
         >
@@ -168,14 +168,14 @@ const handleGenerate = async () => {
           :class="
             store.theme === 'dark'
               ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
-              : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'
+              : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
           "
           :title="store.theme === 'dark' ? $t('theme.switchToLight') : $t('theme.switchToDark')"
         >
           <!-- Sun icon (shown in dark mode) -->
           <svg
             v-if="store.theme === 'dark'"
-            class="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform"
+            class="w-5 h-5 text-accent-star group-hover:scale-110 transition-transform"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -190,7 +190,7 @@ const handleGenerate = async () => {
           <!-- Moon icon (shown in light mode) -->
           <svg
             v-else
-            class="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform"
+            class="w-5 h-5 text-brand-primary group-hover:scale-110 transition-transform"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -215,12 +215,8 @@ const handleGenerate = async () => {
           />
         </div>
         <h1
-          class="text-5xl lg:text-7xl font-bold bg-clip-text text-transparent mb-4"
-          :class="
-            store.theme === 'dark'
-              ? 'bg-gradient-to-r from-blue-400 via-blue-300 to-blue-400 glow-text-purple'
-              : 'bg-gradient-to-r from-blue-700 via-blue-500 to-blue-700'
-          "
+          class="text-5xl lg:text-7xl font-bold bg-clip-text text-transparent mb-4 bg-gradient-to-r from-[var(--color-gradient-brand-start)] via-[var(--color-gradient-brand-middle)] to-[var(--color-gradient-brand-end)]"
+          :class="store.theme === 'dark' ? 'glow-text-purple' : ''"
         >
           Nano Banana Pro
         </h1>
@@ -244,7 +240,7 @@ const handleGenerate = async () => {
       <!-- Scroll Down Button -->
       <button
         @click="scrollToContent"
-        class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-text-muted hover:text-blue-400 transition-colors group cursor-pointer"
+        class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-text-muted hover:text-mode-generate transition-colors group cursor-pointer"
       >
         <span class="text-sm">{{ $t('hero.startUsing') }}</span>
         <div class="scroll-indicator">
@@ -320,7 +316,7 @@ const handleGenerate = async () => {
             <router-link
               v-if="store.currentMode === 'sticker'"
               to="/line-sticker-tool"
-              class="mt-6 flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all group"
+              class="mt-6 flex items-center justify-between p-4 rounded-xl bg-status-success-muted border border-status-success hover:bg-status-success-muted transition-all group"
             >
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-status-success-muted flex items-center justify-center">
@@ -333,7 +329,7 @@ const handleGenerate = async () => {
                   <p class="text-xs text-text-muted">{{ $t('lineStickerTool.entry.desc') }}</p>
                 </div>
               </div>
-              <svg class="w-5 h-5 text-text-muted group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-text-muted group-hover:text-status-success transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
               </svg>
             </router-link>
@@ -364,7 +360,7 @@ const handleGenerate = async () => {
             <!-- Error Message -->
             <div
               v-if="store.generationError"
-              class="mt-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30"
+              class="mt-6 p-4 rounded-xl bg-status-error-muted border border-status-error"
             >
               <div class="flex items-start gap-3">
                 <svg

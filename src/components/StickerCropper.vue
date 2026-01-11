@@ -604,7 +604,7 @@ onUnmounted(() => {
                 <button
                   @click="previewBgWhite = !previewBgWhite"
                   class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-                  :class="previewBgWhite ? 'bg-brand-primary' : 'bg-gray-600'"
+                  :class="previewBgWhite ? 'bg-brand-primary' : 'bg-control-inactive'"
                 >
                   <span
                     class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"
@@ -619,8 +619,8 @@ onUnmounted(() => {
                 :disabled="!imageLoaded || isProcessing"
                 class="w-full py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                 :class="imageLoaded && !isProcessing
-                  ? 'bg-brand-primary hover:bg-blue-600 text-white'
-                  : 'bg-gray-700 text-text-muted cursor-not-allowed'"
+                  ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-primary'
+                  : 'bg-control-disabled text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isProcessing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -778,8 +778,8 @@ onUnmounted(() => {
                 :disabled="selectedStickers.size === 0 || isDownloading"
                 class="download-btn"
                 :class="selectedStickers.size > 0 && !isDownloading
-                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                  : 'bg-gray-700 text-text-muted cursor-not-allowed'"
+                  ? 'bg-status-success-solid hover:bg-status-success-hover text-white'
+                  : 'bg-control-disabled text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -796,7 +796,7 @@ onUnmounted(() => {
                 class="download-btn"
                 :class="selectedStickers.size > 0 && !isDownloading
                   ? 'bg-rose-500 hover:bg-rose-600 text-text-primary'
-                  : 'bg-gray-700 text-text-muted cursor-not-allowed'"
+                  : 'bg-control-disabled text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

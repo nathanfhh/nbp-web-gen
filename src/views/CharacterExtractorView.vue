@@ -306,7 +306,7 @@ const canSave = computed(() => {
               @drop="handleDrop"
               @click="triggerFileInput"
               class="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all"
-              :class="isDragging ? 'border-mode-generate bg-blue-500/10' : 'border-border-default hover:border-blue-500/50 hover:bg-bg-muted'"
+              :class="isDragging ? 'border-mode-generate bg-mode-generate-muted' : 'border-border-default hover:border-mode-generate hover:bg-bg-muted'"
             >
               <div class="w-16 h-16 rounded-full bg-mode-generate-muted flex items-center justify-center mb-4">
                 <svg class="w-8 h-8 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,7 +342,7 @@ const canSave = computed(() => {
                   type="radio"
                   :value="true"
                   v-model="useNbpKey"
-                  class="w-4 h-4 text-blue-500 bg-bg-interactive border-white/30 focus:ring-brand-primary"
+                  class="w-4 h-4 text-brand-primary bg-bg-interactive border-white/30 focus:ring-brand-primary"
                 />
                 <span class="text-text-secondary group-hover:text-white transition-colors">
                   {{ $t('characterExtractor.useNbpKey') }}
@@ -355,7 +355,7 @@ const canSave = computed(() => {
                   type="radio"
                   :value="false"
                   v-model="useNbpKey"
-                  class="w-4 h-4 text-blue-500 bg-bg-interactive border-white/30 focus:ring-brand-primary"
+                  class="w-4 h-4 text-brand-primary bg-bg-interactive border-white/30 focus:ring-brand-primary"
                 />
                 <span class="text-text-secondary group-hover:text-white transition-colors">
                   {{ $t('characterExtractor.useAlternateKey') }}
@@ -384,7 +384,7 @@ const canSave = computed(() => {
                   v-for="model in EXTRACTION_MODELS"
                   :key="model.id"
                   :value="model.id"
-                  class="bg-gray-900"
+                  class="bg-bg-elevated"
                 >
                   {{ model.name }}
                 </option>
@@ -397,7 +397,7 @@ const canSave = computed(() => {
               :disabled="!canExtract || isExtracting"
               class="mt-6 w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
               :class="canExtract && !isExtracting
-                ? 'bg-brand-primary hover:bg-blue-600 text-white'
+                ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-primary'
                 : 'bg-bg-interactive text-text-muted cursor-not-allowed'"
             >
               <svg v-if="isExtracting" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -539,7 +539,7 @@ const canSave = computed(() => {
                   />
                   <button
                     @click="addAccessory"
-                    class="add-tag-btn px-3 py-2 rounded-lg bg-mode-generate-muted text-mode-generate hover:bg-blue-500/30 transition-colors"
+                    class="add-tag-btn px-3 py-2 rounded-lg bg-mode-generate-muted text-mode-generate hover:bg-mode-generate-muted transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -575,7 +575,7 @@ const canSave = computed(() => {
                   />
                   <button
                     @click="addFeature"
-                    class="add-tag-btn px-3 py-2 rounded-lg bg-mode-generate-muted text-mode-generate hover:bg-blue-500/30 transition-colors"
+                    class="add-tag-btn px-3 py-2 rounded-lg bg-mode-generate-muted text-mode-generate hover:bg-mode-generate-muted transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -590,7 +590,7 @@ const canSave = computed(() => {
                 :disabled="!canSave"
                 class="save-btn w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
                 :class="canSave
-                  ? 'bg-brand-primary hover:bg-blue-600 text-white'
+                  ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-primary'
                   : 'bg-bg-interactive text-text-muted cursor-not-allowed'"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -647,11 +647,11 @@ const canSave = computed(() => {
 }
 
 /* Save button in light mode */
-[data-theme="light"] .save-btn.bg-blue-500 {
+[data-theme="light"] .save-btn.bg-brand-primary {
   background: #0D5EAF !important;
 }
 
-[data-theme="light"] .save-btn.bg-blue-500:hover {
+[data-theme="light"] .save-btn.bg-brand-primary:hover {
   background: #0A4C8C !important;
 }
 </style>

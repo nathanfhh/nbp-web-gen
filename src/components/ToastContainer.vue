@@ -4,10 +4,10 @@ import { useToast } from '@/composables/useToast'
 const { toasts, remove } = useToast()
 
 const typeClasses = {
-  success: 'bg-status-success-muted border-emerald-500/50 text-status-success',
-  error: 'bg-status-error-muted border-red-500/50 text-status-error',
+  success: 'bg-status-success-muted border-status-success text-status-success',
+  error: 'bg-status-error-muted border-status-error text-status-error',
   info: 'bg-mode-generate-muted border-mode-generate text-mode-generate',
-  warning: 'bg-status-warning-muted border-amber-500/50 text-status-warning',
+  warning: 'bg-status-warning-muted border-status-warning text-status-warning',
 }
 
 const getTypeClass = (type) => {

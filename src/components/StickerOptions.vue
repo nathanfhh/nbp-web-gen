@@ -245,7 +245,7 @@ const handleStyleEnter = (event) => {
         <button
           @click="options.hasText = !options.hasText"
           class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-          :class="options.hasText ? 'bg-pink-500' : 'bg-gray-600'"
+          :class="options.hasText ? 'bg-mode-sticker-solid' : 'bg-control-inactive'"
         >
           <span
             class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
@@ -255,7 +255,7 @@ const handleStyleEnter = (event) => {
       </div>
 
       <!-- Text options (shown when hasText is true) -->
-      <div v-if="options.hasText" class="space-y-4 pl-4 border-l-2 border-pink-500/30">
+      <div v-if="options.hasText" class="space-y-4 pl-4 border-l-2 border-mode-sticker">
         <!-- Tone (multi-select) -->
         <div class="space-y-2">
           <label class="block text-xs font-medium text-text-muted">{{ $t('sticker.text.tone.label') }}</label>

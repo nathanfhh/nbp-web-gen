@@ -230,7 +230,7 @@ const getStepStatus = (index) => {
       <div class="flex items-center gap-2">
         <button
           @click="copyToClipboard"
-          class="p-2 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-gray-300"
+          class="p-2 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-text-secondary"
           :title="$t('thinking.copyContent')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,7 +244,7 @@ const getStepStatus = (index) => {
         </button>
         <button
           @click="toggleExpanded"
-          class="p-2 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-gray-300"
+          class="p-2 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-text-secondary"
         >
           <svg
             class="w-4 h-4 transition-transform duration-300"
@@ -268,8 +268,8 @@ const getStepStatus = (index) => {
       <!-- Loading state -->
       <div v-if="thinkingSteps.length === 0 && store.isStreaming" class="flex items-center gap-3 p-4">
         <div class="w-8 h-8 rounded-full bg-status-info-muted flex items-center justify-center relative">
-          <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
-          <div class="absolute inset-0 rounded-full bg-cyan-400/30 animate-ping"></div>
+          <div class="w-3 h-3 rounded-full bg-accent-pulse animate-pulse"></div>
+          <div class="absolute inset-0 rounded-full bg-accent-pulse-muted animate-ping"></div>
         </div>
         <span class="text-text-muted text-sm">{{ $t('thinking.waiting') }}</span>
       </div>
@@ -283,7 +283,7 @@ const getStepStatus = (index) => {
         <!-- Timeline connector -->
         <div
           v-if="index < thinkingSteps.length - 1"
-          class="absolute left-4 top-10 bottom-0 w-0.5 bg-gradient-to-b from-blue-500/50 to-transparent"
+          class="absolute left-4 top-10 bottom-0 w-0.5 bg-gradient-to-b from-[var(--color-gradient-timeline-start)] to-transparent"
         ></div>
 
         <!-- Text Step card -->
@@ -293,8 +293,8 @@ const getStepStatus = (index) => {
             <div
               class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10"
               :class="{
-                'bg-gradient-to-br from-cyan-500 to-blue-500 text-text-primary shadow-lg shadow-cyan-500/50': getStepStatus(index) === 'active',
-                'bg-gradient-to-br from-blue-500 to-indigo-500 text-text-primary': getStepStatus(index) === 'completed',
+                'bg-gradient-to-br from-[var(--color-gradient-step-active-start)] to-[var(--color-gradient-step-active-end)] text-white shadow-lg shadow-[var(--shadow-step-active)]': getStepStatus(index) === 'active',
+                'bg-gradient-to-br from-[var(--color-gradient-step-completed-start)] to-[var(--color-gradient-step-completed-end)] text-white': getStepStatus(index) === 'completed',
               }"
             >
               <template v-if="getStepStatus(index) === 'active'">
@@ -332,7 +332,7 @@ const getStepStatus = (index) => {
                 class="text-[10px] px-2 py-0.5 rounded-full font-mono"
                 :class="{
                   'bg-status-info-muted text-status-info': getStepStatus(index) === 'active',
-                  'bg-gray-500/20 text-text-muted': getStepStatus(index) === 'completed',
+                  'bg-control-disabled text-text-muted': getStepStatus(index) === 'completed',
                 }"
               >
                 {{ formatElapsed(step.elapsedMs) }}
@@ -360,7 +360,7 @@ const getStepStatus = (index) => {
           <!-- Image indicator -->
           <div class="flex-shrink-0 relative w-8 h-8">
             <div
-              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10 bg-gradient-to-br from-emerald-500 to-teal-500 text-text-primary"
+              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10 bg-gradient-to-br from-[var(--color-gradient-step-success-start)] to-[var(--color-gradient-step-success-end)] text-white"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -373,14 +373,14 @@ const getStepStatus = (index) => {
             <!-- Image header -->
             <div class="flex items-center gap-2 mb-2">
               <h5 class="text-sm font-semibold text-status-success">{{ $t('thinking.thinkingDraft') }}</h5>
-              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-gray-500/20 text-text-muted">
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-control-disabled text-text-muted">
                 {{ formatElapsed(step.elapsedMs) }}
               </span>
             </div>
 
             <!-- Image preview -->
             <div
-              class="relative inline-block cursor-pointer rounded-lg overflow-hidden border border-border-muted hover:border-emerald-500/50 transition-all group/img"
+              class="relative inline-block cursor-pointer rounded-lg overflow-hidden border border-border-muted hover:border-status-success transition-all group/img"
               @click="openLightbox(step.imageIndex)"
             >
               <img
@@ -401,7 +401,7 @@ const getStepStatus = (index) => {
 
       <!-- Streaming cursor -->
       <div v-if="store.isStreaming && thinkingSteps.length > 0" class="flex items-center gap-2 pl-11 pt-2">
-        <span class="inline-block w-2 h-4 bg-cyan-400 animate-pulse rounded-sm"></span>
+        <span class="inline-block w-2 h-4 bg-accent-pulse animate-pulse rounded-sm"></span>
         <span class="text-xs text-text-muted">{{ $t('thinking.continueThinking') }}</span>
       </div>
     </div>

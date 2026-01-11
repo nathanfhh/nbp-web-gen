@@ -247,7 +247,7 @@ const clearImages = () => {
             </button>
           </div>
         </div>
-        <button @click="clearImages" class="text-text-muted hover:text-gray-300 py-2 px-4 text-sm">
+        <button @click="clearImages" class="text-text-muted hover:text-text-secondary py-2 px-4 text-sm">
           {{ $t('common.clear') }}
         </button>
       </div>
