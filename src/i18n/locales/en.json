@@ -30,7 +30,10 @@
     "names": {
       "light": "Light Mode",
       "dark": "Dark Mode",
-      "warm": "Warm Latte"
+      "warm": "Warm Latte",
+      "espresso": "Espresso",
+      "mocha": "Mocha",
+      "nord": "Nord"
     }
   },
   "language": {
