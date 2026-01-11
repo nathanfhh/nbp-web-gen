@@ -29,7 +29,8 @@
     "label": "Theme",
     "names": {
       "light": "Light Mode",
-      "dark": "Dark Mode"
+      "dark": "Dark Mode",
+      "warm": "Warm Latte"
     }
   },
   "language": {

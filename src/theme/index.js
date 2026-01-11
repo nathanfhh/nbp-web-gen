@@ -90,6 +90,8 @@ function applyThemeToDOM(theme) {
 
   // 設定 data-theme 屬性（保持向後相容）
   root.setAttribute('data-theme', theme.name)
+  // 設定通用主題類型 (light/dark)，讓 CSS 可以針對類型做統一處理，無需列舉每個主題名稱
+  root.setAttribute('data-theme-type', theme.type || 'dark')
 
   // 注入 CSS 變數
   const variables = generateCSSVariables(theme)

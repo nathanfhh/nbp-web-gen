@@ -19,10 +19,13 @@ export const TOKEN_SCHEMA = {
     'subtle', // 極淺色 accent 背景
     'overlay', // 覆蓋層（如 modal 背景）
     'tooltip', // 提示框背景
+    'gradient1', // 背景漸層球 1
+    'gradient2', // 背景漸層球 2
+    'gradient3', // 背景漸層球 3
   ],
 
   // 文字色
-  text: ['primary', 'secondary', 'muted', 'inverse', 'link'],
+  text: ['primary', 'secondary', 'muted', 'inverse', 'link', 'onBrand'],
 
   // 邊框色
   border: ['default', 'muted', 'focus', 'subtle'],
@@ -74,13 +77,14 @@ export const TOKEN_SCHEMA = {
     'pulse', // 脈搏動畫
     'pulseMuted', // 脈搏動畫淡色
     'star', // 星星/收藏
+    'checkerboard', // 棋盤格背景（透明預覽）
   ],
 
   // 玻璃效果
   glass: ['bg', 'bgStrong', 'border'],
 
   // 陰影/光暈
-  shadow: ['glowPrimary', 'glowSuccess', 'glowGold', 'stepActive'],
+  shadow: ['glowPrimary', 'glowSuccess', 'glowGold', 'stepActive', 'card'],
 
   // 漸層色（用於步驟指示器、品牌等）
   gradient: [

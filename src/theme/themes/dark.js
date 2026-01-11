@@ -29,6 +29,9 @@ export default {
     bgSubtle: 'rgba(59, 130, 246, 0.1)', // 極淺色 accent 背景
     bgOverlay: 'rgba(0, 0, 0, 0.5)', // 覆蓋層
     bgTooltip: '#1E293B', // 提示框背景
+    bgGradient1: 'rgba(59, 130, 246, 0.12)',
+    bgGradient2: 'rgba(96, 165, 250, 0.08)',
+    bgGradient3: 'rgba(37, 99, 235, 0.05)',
 
     // ========================================
     // 文字色 - WCAG AA compliant hierarchy
@@ -38,6 +41,7 @@ export default {
     textMuted: '#94A3B8',
     textInverse: '#1a1a2e',
     textLink: '#60A5FA',
+    textOnBrand: '#FFFFFF', // 品牌色按鈕上的文字（藍色底配白字）
 
     // ========================================
     // 邊框色
@@ -95,6 +99,7 @@ export default {
     accentPulse: '#22D3EE', // 脈搏動畫
     accentPulseMuted: 'rgba(34, 211, 238, 0.3)',
     accentStar: '#FACC15', // 星星/收藏
+    accentCheckerboard: 'rgba(255, 255, 255, 0.15)', // 棋盤格（暗色背景用淺色方塊）
 
     // ========================================
     // 玻璃效果
@@ -128,6 +133,7 @@ export default {
     glowSuccess: '0 4px 16px rgba(34, 197, 94, 0.25)',
     glowGold: '0 4px 20px rgba(234, 179, 8, 0.15)',
     stepActive: '0 0 20px rgba(6, 182, 212, 0.5)', // 進行中步驟光暈
+    card: 'none', // Dark mode 不需要卡片陰影
   },
 
   // PWA theme-color
