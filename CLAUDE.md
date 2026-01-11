@@ -54,8 +54,9 @@ src/theme/
 ├── index.js              # Theme registry (initTheme, setTheme, toggleTheme)
 ├── tokens.js             # Semantic token definitions + migration map
 └── themes/
-    ├── dark.js           # Dark theme (Slate Blue Pro)
-    └── light.js          # Light theme (Greek Blue)
+    ├── dark.js           # Dark theme (Slate Blue Pro) - type: dark
+    ├── light.js          # Light theme (Greek Blue) - type: light
+    └── warm.js           # Warm theme (Warm Latte) - type: light, orange brand
 ```
 
 **Key concepts:**
@@ -64,6 +65,13 @@ src/theme/
 - Tailwind v4 `@theme` syntax in `style.css` references these CSS variables
 - Semantic class names: `text-text-primary`, `bg-bg-muted`, `border-mode-generate`, etc.
 - To add a new theme: create `themes/newtheme.js` and register in `index.js`
+- `data-theme-type` attribute (`light`/`dark`) allows CSS to target theme types without listing each theme name
+
+**⚠️ CRITICAL - No Hardcoded Colors in Components:**
+- **NEVER** write hex codes (`#FFFFFF`), RGB values (`rgb(255,255,255)`), or Tailwind color classes (`text-white`, `bg-blue-500`) directly in component CSS
+- **ALWAYS** use CSS variables from the theme system: `var(--color-text-primary)`, `var(--color-brand-primary)`, etc.
+- If a needed color token doesn't exist, **add it to the theme files** (`tokens.js` + all `themes/*.js`) first
+- Example tokens: `textOnBrand` (text color for brand-colored buttons - white on blue, black on orange)
 
 ### Key Composables
 - `useApi.js` - API requests, prompt building, SSE streaming
@@ -89,8 +97,8 @@ src/theme/
 - Tailwind CSS v4 for styling
 - All API calls use SSE streaming when possible
 - Generation results saved to history in background (non-blocking)
-- **UI/Styling**: Always consider both light and dark mode when designing components
-- **Theme Handling**: Use semantic color classes (`text-text-primary`, `bg-bg-muted`, `border-mode-generate`) instead of hardcoded Tailwind colors. See `src/theme/tokens.js` for the full mapping. Legacy `[data-theme="light"]` overrides in `style.css` are being phased out.
+- **UI/Styling**: Always consider all themes (dark, light, warm) when designing components
+- **Theme Handling**: Use semantic color classes (`text-text-primary`, `bg-bg-muted`, `border-mode-generate`) or CSS variables (`var(--color-brand-primary)`) instead of hardcoded colors. **Never use hex/RGB values or Tailwind color utilities in component CSS.** If a token is missing, add it to the theme system first. See `src/theme/tokens.js` for the full mapping.
 - **Mobile UX**: Design for touch - consider tap targets, gestures, screen sizes, and provide alternatives for hover-only interactions
 
 ## User Preferences
