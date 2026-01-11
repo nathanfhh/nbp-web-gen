@@ -30,7 +30,7 @@ const emit = defineEmits(['export', 'sync'])
     <button
       @click="emit('export')"
       :disabled="!hasSelection || isExporting"
-      class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-mode-generate-muted border border-mode-generate text-mode-generate hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
     >
       <template v-if="isExporting">
         <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -48,7 +48,7 @@ const emit = defineEmits(['export', 'sync'])
     </button>
     <button
       @click="emit('sync')"
-      class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-cyan-500/30 border border-cyan-500 text-cyan-300 hover:bg-cyan-500/40 flex items-center justify-center gap-2"
+      class="flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-status-info-muted border border-status-info text-status-info hover:bg-cyan-500/40 flex items-center justify-center gap-2"
     >
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />

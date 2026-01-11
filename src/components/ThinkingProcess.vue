@@ -193,11 +193,11 @@ const getStepStatus = (index) => {
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-3">
         <div
-          class="w-10 h-10 rounded-xl flex items-center justify-center bg-black/30"
+          class="w-10 h-10 rounded-xl flex items-center justify-center bg-bg-muted"
         >
           <svg
             v-if="store.isStreaming"
-            class="w-5 h-5 text-cyan-400 animate-pulse"
+            class="w-5 h-5 text-status-info animate-pulse"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -209,7 +209,7 @@ const getStepStatus = (index) => {
               d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
             />
           </svg>
-          <svg v-else class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-else class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -219,10 +219,10 @@ const getStepStatus = (index) => {
           </svg>
         </div>
         <div>
-          <h4 class="text-sm font-semibold text-white">
+          <h4 class="text-sm font-semibold text-text-primary">
             {{ store.isStreaming ? $t('thinking.aiThinking') : $t('thinking.title') }}
           </h4>
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-text-muted">
             {{ store.isStreaming ? $t('thinking.streaming') : $t('thinking.steps', { count: thinkingSteps.length }) }}
           </p>
         </div>
@@ -230,7 +230,7 @@ const getStepStatus = (index) => {
       <div class="flex items-center gap-2">
         <button
           @click="copyToClipboard"
-          class="p-2 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-300"
+          class="p-2 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-gray-300"
           :title="$t('thinking.copyContent')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,7 +244,7 @@ const getStepStatus = (index) => {
         </button>
         <button
           @click="toggleExpanded"
-          class="p-2 rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-gray-300"
+          class="p-2 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-gray-300"
         >
           <svg
             class="w-4 h-4 transition-transform duration-300"
@@ -267,11 +267,11 @@ const getStepStatus = (index) => {
     >
       <!-- Loading state -->
       <div v-if="thinkingSteps.length === 0 && store.isStreaming" class="flex items-center gap-3 p-4">
-        <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center relative">
+        <div class="w-8 h-8 rounded-full bg-status-info-muted flex items-center justify-center relative">
           <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
           <div class="absolute inset-0 rounded-full bg-cyan-400/30 animate-ping"></div>
         </div>
-        <span class="text-gray-400 text-sm">{{ $t('thinking.waiting') }}</span>
+        <span class="text-text-muted text-sm">{{ $t('thinking.waiting') }}</span>
       </div>
 
       <!-- Steps -->
@@ -293,8 +293,8 @@ const getStepStatus = (index) => {
             <div
               class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10"
               :class="{
-                'bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50': getStepStatus(index) === 'active',
-                'bg-gradient-to-br from-blue-500 to-indigo-500 text-white': getStepStatus(index) === 'completed',
+                'bg-gradient-to-br from-cyan-500 to-blue-500 text-text-primary shadow-lg shadow-cyan-500/50': getStepStatus(index) === 'active',
+                'bg-gradient-to-br from-blue-500 to-indigo-500 text-text-primary': getStepStatus(index) === 'completed',
               }"
             >
               <template v-if="getStepStatus(index) === 'active'">
@@ -307,7 +307,7 @@ const getStepStatus = (index) => {
             <!-- Glow ring for active step (contained within bounds) -->
             <div
               v-if="getStepStatus(index) === 'active'"
-              class="absolute inset-0 rounded-full border-2 border-cyan-400/50 animate-pulse"
+              class="absolute inset-0 rounded-full border-2 border-status-info animate-pulse"
             ></div>
           </div>
 
@@ -321,8 +321,8 @@ const getStepStatus = (index) => {
               <h5
                 class="text-sm font-semibold"
                 :class="{
-                  'text-cyan-300': getStepStatus(index) === 'active',
-                  'text-blue-300': getStepStatus(index) === 'completed',
+                  'text-status-info': getStepStatus(index) === 'active',
+                  'text-mode-generate': getStepStatus(index) === 'completed',
                 }"
               >
                 {{ step.title }}
@@ -331,15 +331,15 @@ const getStepStatus = (index) => {
               <span
                 class="text-[10px] px-2 py-0.5 rounded-full font-mono"
                 :class="{
-                  'bg-cyan-500/20 text-cyan-400': getStepStatus(index) === 'active',
-                  'bg-gray-500/20 text-gray-400': getStepStatus(index) === 'completed',
+                  'bg-status-info-muted text-status-info': getStepStatus(index) === 'active',
+                  'bg-gray-500/20 text-text-muted': getStepStatus(index) === 'completed',
                 }"
               >
                 {{ formatElapsed(step.elapsedMs) }}
               </span>
               <span
                 v-if="getStepStatus(index) === 'active'"
-                class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-medium"
+                class="text-[10px] px-2 py-0.5 rounded-full bg-status-info-muted text-status-info font-medium"
               >
                 {{ $t('thinking.processing') }}
               </span>
@@ -348,7 +348,7 @@ const getStepStatus = (index) => {
             <!-- Step description -->
             <p
               v-if="step.content"
-              class="text-xs text-gray-400 leading-relaxed bg-white/5 rounded-lg p-3 border border-white/5"
+              class="text-xs text-text-muted leading-relaxed bg-bg-muted rounded-lg p-3 border border-white/5"
             >
               {{ step.content }}
             </p>
@@ -360,7 +360,7 @@ const getStepStatus = (index) => {
           <!-- Image indicator -->
           <div class="flex-shrink-0 relative w-8 h-8">
             <div
-              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10 bg-gradient-to-br from-emerald-500 to-teal-500 text-white"
+              class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10 bg-gradient-to-br from-emerald-500 to-teal-500 text-text-primary"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -372,15 +372,15 @@ const getStepStatus = (index) => {
           <div class="flex-1 pb-4">
             <!-- Image header -->
             <div class="flex items-center gap-2 mb-2">
-              <h5 class="text-sm font-semibold text-emerald-300">{{ $t('thinking.thinkingDraft') }}</h5>
-              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-gray-500/20 text-gray-400">
+              <h5 class="text-sm font-semibold text-status-success">{{ $t('thinking.thinkingDraft') }}</h5>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-gray-500/20 text-text-muted">
                 {{ formatElapsed(step.elapsedMs) }}
               </span>
             </div>
 
             <!-- Image preview -->
             <div
-              class="relative inline-block cursor-pointer rounded-lg overflow-hidden border border-white/10 hover:border-emerald-500/50 transition-all group/img"
+              class="relative inline-block cursor-pointer rounded-lg overflow-hidden border border-border-muted hover:border-emerald-500/50 transition-all group/img"
               @click="openLightbox(step.imageIndex)"
             >
               <img
@@ -390,7 +390,7 @@ const getStepStatus = (index) => {
               />
               <!-- Hover overlay -->
               <div class="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
                 </svg>
               </div>
@@ -402,7 +402,7 @@ const getStepStatus = (index) => {
       <!-- Streaming cursor -->
       <div v-if="store.isStreaming && thinkingSteps.length > 0" class="flex items-center gap-2 pl-11 pt-2">
         <span class="inline-block w-2 h-4 bg-cyan-400 animate-pulse rounded-sm"></span>
-        <span class="text-xs text-gray-500">{{ $t('thinking.continueThinking') }}</span>
+        <span class="text-xs text-text-muted">{{ $t('thinking.continueThinking') }}</span>
       </div>
     </div>
 

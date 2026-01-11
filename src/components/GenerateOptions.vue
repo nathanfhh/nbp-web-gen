@@ -48,7 +48,7 @@ const addCustomVariation = () => {
   <div class="space-y-6">
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.resolution') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.resolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in RESOLUTION_OPTIONS"
@@ -56,8 +56,8 @@ const addCustomVariation = () => {
           @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="options.resolution === res.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ res.label }}
         </button>
@@ -66,7 +66,7 @@ const addCustomVariation = () => {
 
     <!-- Ratio -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.aspectRatio') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.aspectRatio') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="ratio in RATIO_OPTIONS_FULL"
@@ -74,8 +74,8 @@ const addCustomVariation = () => {
           @click="options.ratio = ratio.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1.5"
           :class="options.ratio === ratio.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           <!-- Ratio icons with correct proportions -->
           <!-- 1:1 -->
@@ -109,7 +109,7 @@ const addCustomVariation = () => {
 
     <!-- Styles -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.styles') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.styles') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="style in PREDEFINED_STYLES"
@@ -117,8 +117,8 @@ const addCustomVariation = () => {
           @click="stylesToggle.toggle(style.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="stylesToggle.has(style.value)
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ style.label }}
         </button>
@@ -157,7 +157,7 @@ const addCustomVariation = () => {
 
     <!-- Variations -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.variation') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.variation') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="variation in PREDEFINED_VARIATIONS"
@@ -165,8 +165,8 @@ const addCustomVariation = () => {
           @click="variationsToggle.toggle(variation.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="variationsToggle.has(variation.value)
-            ? 'bg-cyan-500/30 border border-cyan-500 text-cyan-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-status-info-muted border border-status-info text-status-info'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ variation.label }}
         </button>

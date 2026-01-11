@@ -65,18 +65,18 @@ onMounted(() => {
       <div class="flex items-center gap-3">
         <div
           class="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all"
-          :class="store.hasApiKey ? 'bg-emerald-500' : 'bg-amber-500/20'"
+          :class="store.hasApiKey ? 'bg-emerald-500' : 'bg-status-warning-muted'"
         >
           <svg
             v-if="store.hasApiKey"
-            class="w-5 h-5 text-white"
+            class="w-5 h-5 text-text-primary"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
           </svg>
-          <svg v-else class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-else class="w-5 h-5 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -86,15 +86,15 @@ onMounted(() => {
           </svg>
         </div>
         <div>
-          <h3 class="font-semibold text-white">{{ $t('apiKey.title') }}</h3>
-          <p class="text-sm text-gray-400">{{ $t('apiKey.subtitle') }}</p>
+          <h3 class="font-semibold text-text-primary">{{ $t('apiKey.title') }}</h3>
+          <p class="text-sm text-text-muted">{{ $t('apiKey.subtitle') }}</p>
         </div>
       </div>
       <div v-if="store.hasApiKey && !isEditing" class="flex items-center gap-2">
         <button @click="startEditing" class="btn-secondary text-sm py-2 px-4">
           {{ $t('common.change') }}
         </button>
-        <button @click="clearKey" class="text-red-400 hover:text-red-300 text-sm py-2 px-4">
+        <button @click="clearKey" class="text-status-error hover:text-red-300 text-sm py-2 px-4">
           {{ $t('common.clear') }}
         </button>
       </div>
@@ -107,9 +107,9 @@ onMounted(() => {
       </div>
       <button
         @click="showKey = !showKey"
-        class="flex-shrink-0 w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
+        class="flex-shrink-0 w-10 h-10 rounded-xl bg-bg-muted hover:bg-bg-interactive transition-colors flex items-center justify-center"
       >
-        <svg v-if="showKey" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg v-if="showKey" class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -117,7 +117,7 @@ onMounted(() => {
             d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
           />
         </svg>
-        <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg v-else class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -146,9 +146,9 @@ onMounted(() => {
         />
         <button
           @click="showKey = !showKey"
-          class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/5 transition-colors"
+          class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-bg-muted transition-colors"
         >
-          <svg v-if="showKey" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-if="showKey" class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -156,7 +156,7 @@ onMounted(() => {
               d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
             />
           </svg>
-          <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg v-else class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -180,9 +180,9 @@ onMounted(() => {
           {{ $t('common.cancel') }}
         </button>
       </div>
-      <p class="text-xs text-gray-500">
+      <p class="text-xs text-text-muted">
         {{ $t('apiKey.hint') }}
-        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-blue-400 hover:text-blue-300">
+        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-mode-generate hover:text-blue-300">
           {{ $t('apiKey.getKey') }}
         </a>
       </p>

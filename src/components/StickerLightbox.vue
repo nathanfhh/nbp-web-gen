@@ -26,7 +26,7 @@ const close = () => {
           <img :src="sticker.previewDataUrl" :alt="`Sticker ${sticker.id + 1}`" class="sticker-lightbox-img" />
         </div>
         <div class="sticker-lightbox-info">
-          <span class="text-sm text-gray-400">{{ sticker.width }} x {{ sticker.height }}</span>
+          <span class="text-sm text-text-muted">{{ sticker.width }} x {{ sticker.height }}</span>
         </div>
       </div>
     </div>

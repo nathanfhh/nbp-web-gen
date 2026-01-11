@@ -538,15 +538,15 @@ onUnmounted(() => {
       >
         <!-- Header -->
         <div class="cropper-header">
-          <h2 class="text-lg font-semibold text-white flex items-center gap-2">
-            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <h2 class="text-lg font-semibold text-text-primary flex items-center gap-2">
+            <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {{ $t('stickerCropper.title') }}
           </h2>
           <button
             @click="close"
-            class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+            class="p-2 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-colors"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -560,23 +560,23 @@ onUnmounted(() => {
           <div class="cropper-left">
             <!-- Settings Panel -->
             <div class="settings-panel">
-              <h3 class="text-sm font-medium text-gray-300 mb-3">{{ $t('stickerCropper.settings.title') }}</h3>
+              <h3 class="text-sm font-medium text-text-secondary mb-3">{{ $t('stickerCropper.settings.title') }}</h3>
 
               <!-- Background Color -->
               <div class="mb-4">
-                <label class="block text-xs text-gray-400 mb-2">{{ $t('stickerCropper.settings.bgColor') }}</label>
+                <label class="block text-xs text-text-muted mb-2">{{ $t('stickerCropper.settings.bgColor') }}</label>
                 <div class="flex items-center gap-2">
                   <div
-                    class="w-8 h-8 rounded border border-white/20"
+                    class="w-8 h-8 rounded border border-border-default"
                     :style="{ backgroundColor: bgColorHex }"
                   ></div>
-                  <span class="text-sm text-gray-300 font-mono">{{ bgColorHex }}</span>
+                  <span class="text-sm text-text-secondary font-mono">{{ bgColorHex }}</span>
                   <button
                     @click="isPickingColor = !isPickingColor"
                     class="ml-auto px-3 py-1.5 text-xs rounded-lg transition-colors"
                     :class="isPickingColor
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white/10 text-gray-300 hover:bg-white/20'"
+                      ? 'bg-brand-primary text-text-primary'
+                      : 'bg-bg-interactive text-text-secondary hover:bg-bg-interactive-hover'"
                   >
                     {{ isPickingColor ? $t('stickerCropper.settings.pickingColor') : $t('stickerCropper.settings.pickColor') }}
                   </button>
@@ -585,8 +585,8 @@ onUnmounted(() => {
 
               <!-- Tolerance -->
               <div class="mb-4">
-                <label class="block text-xs text-gray-400 mb-2">
-                  {{ $t('stickerCropper.settings.tolerance') }}: <span class="text-blue-400 font-medium">{{ tolerance }}</span>
+                <label class="block text-xs text-text-muted mb-2">
+                  {{ $t('stickerCropper.settings.tolerance') }}: <span class="text-mode-generate font-medium">{{ tolerance }}</span>
                 </label>
                 <input
                   v-model="tolerance"
@@ -595,16 +595,16 @@ onUnmounted(() => {
                   max="100"
                   class="w-full accent-blue-500"
                 />
-                <p class="text-xs text-gray-500 mt-1">{{ $t('stickerCropper.settings.toleranceHint') }}</p>
+                <p class="text-xs text-text-muted mt-1">{{ $t('stickerCropper.settings.toleranceHint') }}</p>
               </div>
 
               <!-- Preview Background Toggle -->
               <div class="mb-4 flex items-center justify-between">
-                <label class="text-xs text-gray-400">{{ $t('stickerCropper.settings.whiteBgPreview') }}</label>
+                <label class="text-xs text-text-muted">{{ $t('stickerCropper.settings.whiteBgPreview') }}</label>
                 <button
                   @click="previewBgWhite = !previewBgWhite"
                   class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-                  :class="previewBgWhite ? 'bg-blue-500' : 'bg-gray-600'"
+                  :class="previewBgWhite ? 'bg-brand-primary' : 'bg-gray-600'"
                 >
                   <span
                     class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"
@@ -619,8 +619,8 @@ onUnmounted(() => {
                 :disabled="!imageLoaded || isProcessing"
                 class="w-full py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2"
                 :class="imageLoaded && !isProcessing
-                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'"
+                  ? 'bg-brand-primary hover:bg-blue-600 text-white'
+                  : 'bg-gray-700 text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isProcessing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -632,7 +632,7 @@ onUnmounted(() => {
 
             <!-- Preview Canvas -->
             <div class="preview-panel">
-              <h3 class="text-sm font-medium text-gray-300 mb-3">{{ $t('stickerCropper.preview.title') }}</h3>
+              <h3 class="text-sm font-medium text-text-secondary mb-3">{{ $t('stickerCropper.preview.title') }}</h3>
               <div
                 ref="previewContainerRef"
                 class="preview-container"
@@ -660,10 +660,10 @@ onUnmounted(() => {
                   alt="Original"
                 />
                 <div v-if="!imageLoaded" class="preview-placeholder">
-                  <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-12 h-12 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p class="text-gray-500 text-sm mt-2">{{ $t('stickerCropper.preview.loading') }}</p>
+                  <p class="text-text-muted text-sm mt-2">{{ $t('stickerCropper.preview.loading') }}</p>
                 </div>
 
                 <!-- Color picker magnifier -->
@@ -684,23 +684,23 @@ onUnmounted(() => {
           <!-- Right: Cropped Stickers -->
           <div class="cropper-right">
             <div class="stickers-header">
-              <h3 class="text-sm font-medium text-gray-300">
+              <h3 class="text-sm font-medium text-text-secondary">
                 {{ $t('stickerCropper.results.title') }}
-                <span v-if="croppedStickers.length" class="text-blue-400">
+                <span v-if="croppedStickers.length" class="text-mode-generate">
                   {{ $t('stickerCropper.results.count', { count: croppedStickers.length }) }}
                 </span>
               </h3>
               <div v-if="croppedStickers.length" class="flex items-center gap-2">
                 <button
                   @click="selectAllStickers"
-                  class="text-xs text-gray-400 hover:text-white transition-colors"
+                  class="text-xs text-text-muted hover:text-text-primary transition-colors"
                 >
                   {{ $t('stickerCropper.results.selectAll') }}
                 </button>
-                <span class="text-gray-600">|</span>
+                <span class="text-text-muted">|</span>
                 <button
                   @click="deselectAllStickers"
-                  class="text-xs text-gray-400 hover:text-white transition-colors"
+                  class="text-xs text-text-muted hover:text-text-primary transition-colors"
                 >
                   {{ $t('stickerCropper.results.deselectAll') }}
                 </button>
@@ -719,7 +719,7 @@ onUnmounted(() => {
                   <img :src="sticker.previewDataUrl" :alt="`Sticker ${sticker.id + 1}`" />
                 </div>
                 <div class="sticker-info">
-                  <span class="text-xs text-gray-400">
+                  <span class="text-xs text-text-muted">
                     {{ sticker.width }} x {{ sticker.height }}
                   </span>
                   <button
@@ -754,21 +754,21 @@ onUnmounted(() => {
                   class="sticker-checkbox"
                   @click.stop="toggleSelectSticker(sticker.id)"
                 >
-                  <svg v-if="selectedStickers.has(sticker.id)" class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg v-if="selectedStickers.has(sticker.id)" class="w-5 h-5 text-mode-generate" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                   </svg>
-                  <div v-else class="w-5 h-5 rounded-full border-2 border-gray-500"></div>
+                  <div v-else class="w-5 h-5 rounded-full border-2 border-border-muted"></div>
                 </div>
               </div>
             </div>
 
             <!-- Empty state -->
             <div v-else class="stickers-empty">
-              <svg class="w-16 h-16 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-16 h-16 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p class="text-gray-500 text-sm mt-3">{{ $t('stickerCropper.results.hint') }}</p>
-              <p class="text-gray-600 text-xs mt-1">{{ $t('stickerCropper.results.autoDetect') }}</p>
+              <p class="text-text-muted text-sm mt-3">{{ $t('stickerCropper.results.hint') }}</p>
+              <p class="text-text-muted text-xs mt-1">{{ $t('stickerCropper.results.autoDetect') }}</p>
             </div>
 
             <!-- Download Buttons -->
@@ -779,7 +779,7 @@ onUnmounted(() => {
                 class="download-btn"
                 :class="selectedStickers.size > 0 && !isDownloading
                   ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'"
+                  : 'bg-gray-700 text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -795,8 +795,8 @@ onUnmounted(() => {
                 :disabled="selectedStickers.size === 0 || isDownloading"
                 class="download-btn"
                 :class="selectedStickers.size > 0 && !isDownloading
-                  ? 'bg-rose-500 hover:bg-rose-600 text-white'
-                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'"
+                  ? 'bg-rose-500 hover:bg-rose-600 text-text-primary'
+                  : 'bg-gray-700 text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -828,8 +828,8 @@ onUnmounted(() => {
                   />
                 </svg>
               </div>
-              <p class="text-white font-medium mt-4">{{ $t('stickerCropper.overlay.processing') }}</p>
-              <p class="text-gray-400 text-sm mt-1">{{ $t('stickerCropper.overlay.hint') }}</p>
+              <p class="text-text-primary font-medium mt-4">{{ $t('stickerCropper.overlay.processing') }}</p>
+              <p class="text-text-muted text-sm mt-1">{{ $t('stickerCropper.overlay.hint') }}</p>
             </div>
           </div>
         </Transition>
@@ -839,8 +839,8 @@ onUnmounted(() => {
           <div v-if="editingSticker" class="edit-overlay">
             <div class="edit-panel">
               <div class="edit-header">
-                <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-                  <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
+                  <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                   {{ $t('stickerCropper.edit.title') }}
@@ -849,7 +849,7 @@ onUnmounted(() => {
                   <button
                     @click="editPreviewBgWhite = !editPreviewBgWhite"
                     class="p-2 rounded-lg transition-colors"
-                    :class="editPreviewBgWhite ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-gray-400'"
+                    :class="editPreviewBgWhite ? 'bg-bg-interactive-hover text-text-primary' : 'hover:bg-bg-interactive text-text-muted'"
                     :title="$t('stickerCropper.settings.whiteBgPreview')"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -858,7 +858,7 @@ onUnmounted(() => {
                   </button>
                   <button
                     @click="closeEditMode"
-                    class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                    class="p-2 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -883,8 +883,8 @@ onUnmounted(() => {
 
               <div class="edit-controls">
                 <div class="edit-tolerance">
-                  <label class="text-xs text-gray-400">
-                    {{ $t('stickerCropper.edit.tolerance') }}: <span class="text-blue-400 font-medium">{{ editTolerance }}</span>
+                  <label class="text-xs text-text-muted">
+                    {{ $t('stickerCropper.edit.tolerance') }}: <span class="text-mode-generate font-medium">{{ editTolerance }}</span>
                   </label>
                   <input
                     v-model="editTolerance"
@@ -894,7 +894,7 @@ onUnmounted(() => {
                     class="w-full accent-blue-500"
                   />
                 </div>
-                <p class="edit-hint text-xs text-gray-500">{{ $t('stickerCropper.edit.hint') }}</p>
+                <p class="edit-hint text-xs text-text-muted">{{ $t('stickerCropper.edit.hint') }}</p>
               </div>
 
               <div class="edit-actions">
@@ -902,7 +902,7 @@ onUnmounted(() => {
                   @click="undoEdit"
                   :disabled="editHistory.length === 0"
                   class="edit-btn-icon"
-                  :class="editHistory.length > 0 ? 'text-gray-300 hover:bg-white/20' : 'text-gray-600 cursor-not-allowed'"
+                  :class="editHistory.length > 0 ? 'text-text-secondary hover:bg-bg-interactive-hover' : 'text-text-muted cursor-not-allowed'"
                   :title="$t('stickerCropper.edit.undo')"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

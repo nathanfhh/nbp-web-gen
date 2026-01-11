@@ -1,5 +1,78 @@
 @import 'tailwindcss';
 
+/* =====================================================
+   Tailwind v4 @theme - Semantic Design Tokens
+   These reference CSS variables injected by theme/index.js
+   ===================================================== */
+@theme {
+  /* Brand Colors */
+  --color-brand-primary: var(--color-brand-primary);
+  --color-brand-primary-light: var(--color-brand-primary-light);
+  --color-brand-primary-dark: var(--color-brand-primary-dark);
+  --color-brand-accent: var(--color-brand-accent);
+  --color-brand-accent-light: var(--color-brand-accent-light);
+
+  /* Background Colors */
+  --color-bg-base: var(--color-bg-base);
+  --color-bg-card: var(--color-bg-card);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-bg-muted: var(--color-bg-muted);
+  --color-bg-interactive: var(--color-bg-interactive);
+  --color-bg-interactive-hover: var(--color-bg-interactive-hover);
+
+  /* Text Colors */
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-text-link: var(--color-text-link);
+
+  /* Border Colors */
+  --color-border-default: var(--color-border-default);
+  --color-border-muted: var(--color-border-muted);
+  --color-border-focus: var(--color-border-focus);
+
+  /* Status Colors */
+  --color-status-success: var(--color-status-success);
+  --color-status-success-muted: var(--color-status-success-muted);
+  --color-status-error: var(--color-status-error);
+  --color-status-error-muted: var(--color-status-error-muted);
+  --color-status-warning: var(--color-status-warning);
+  --color-status-warning-muted: var(--color-status-warning-muted);
+  --color-status-info: var(--color-status-info);
+  --color-status-info-muted: var(--color-status-info-muted);
+
+  /* Mode Colors (5 generation modes) */
+  --color-mode-generate: var(--color-mode-generate);
+  --color-mode-generate-muted: var(--color-mode-generate-muted);
+  --color-mode-sticker: var(--color-mode-sticker);
+  --color-mode-sticker-muted: var(--color-mode-sticker-muted);
+  --color-mode-edit: var(--color-mode-edit);
+  --color-mode-edit-muted: var(--color-mode-edit-muted);
+  --color-mode-story: var(--color-mode-story);
+  --color-mode-story-muted: var(--color-mode-story-muted);
+  --color-mode-diagram: var(--color-mode-diagram);
+  --color-mode-diagram-muted: var(--color-mode-diagram-muted);
+
+  /* Glass Effects */
+  --color-glass-bg: var(--color-glass-bg);
+  --color-glass-bg-strong: var(--color-glass-bg-strong);
+  --color-glass-border: var(--color-glass-border);
+
+  /* Input */
+  --color-input-bg: var(--color-input-bg);
+
+  /* Shadows */
+  --shadow-glow-primary: var(--shadow-glow-primary);
+  --shadow-glow-success: var(--shadow-glow-success);
+  --shadow-glow-gold: var(--shadow-glow-gold);
+}
+
+/* =====================================================
+   Legacy CSS Variables (for backward compatibility)
+   These will be deprecated after full migration
+   ===================================================== */
+
 /* Custom CSS Variables for Premium Theme */
 /* Slate Blue Pro - Professional Dark Theme */
 :root,

@@ -56,7 +56,7 @@ const annotationsOptions = computed(() => [
   <div class="space-y-6">
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.quality') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.quality') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in resolutions"
@@ -64,8 +64,8 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.resolution === res.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ res.label }}
         </button>
@@ -74,7 +74,7 @@ const annotationsOptions = computed(() => [
 
     <!-- Type -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.type.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('diagram.type.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           v-for="opt in typeOptions"
@@ -82,8 +82,8 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.type = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.type === opt.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>
@@ -92,7 +92,7 @@ const annotationsOptions = computed(() => [
 
     <!-- Style -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.style.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('diagram.style.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           v-for="opt in styleOptions"
@@ -100,8 +100,8 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.style = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.style === opt.value
-            ? 'bg-cyan-500/30 border border-cyan-500 text-cyan-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-status-info-muted border border-status-info text-status-info'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>
@@ -110,7 +110,7 @@ const annotationsOptions = computed(() => [
 
     <!-- Layout -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.layout.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('diagram.layout.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
         <button
           v-for="opt in layoutOptions"
@@ -118,8 +118,8 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.layout = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.layout === opt.value
-            ? 'bg-amber-500/30 border border-amber-500 text-amber-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-status-warning-muted border border-status-warning text-status-warning'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>
@@ -128,7 +128,7 @@ const annotationsOptions = computed(() => [
 
     <!-- Complexity -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.complexity.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('diagram.complexity.label') }}</label>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           v-for="opt in complexityOptions"
@@ -136,8 +136,8 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.complexity = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.complexity === opt.value
-            ? 'bg-emerald-500/30 border border-emerald-500 text-emerald-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-status-success-muted border border-status-success text-status-success'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>
@@ -146,7 +146,7 @@ const annotationsOptions = computed(() => [
 
     <!-- Annotations -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('diagram.annotations.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('diagram.annotations.label') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="opt in annotationsOptions"
@@ -154,8 +154,8 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.annotations = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.annotations === opt.value
-            ? 'bg-rose-500/30 border border-rose-500 text-rose-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-edit-muted border border-mode-edit text-mode-edit'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>

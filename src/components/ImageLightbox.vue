@@ -612,7 +612,7 @@ const handleExtractCharacter = async () => {
             <!-- Historical indicator -->
             <template v-if="isHistorical">
               <span class="lightbox-info-divider"></span>
-              <span class="text-amber-400">{{ $t('lightbox.historical') }}</span>
+              <span class="text-status-warning">{{ $t('lightbox.historical') }}</span>
             </template>
 
             <!-- Counter -->
@@ -622,12 +622,12 @@ const handleExtractCharacter = async () => {
 
           <!-- Row 2: Compression info (separate row on mobile) -->
           <div v-if="hasCompressionInfo" class="lightbox-info-row lightbox-info-compression">
-            <span class="text-gray-400">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
-            <span class="text-gray-500">{{ currentImageInfo.originalSize }}</span>
+            <span class="text-text-muted">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
+            <span class="text-text-muted">{{ currentImageInfo.originalSize }}</span>
             <span class="lightbox-info-arrow">→</span>
-            <span class="text-blue-400">WebP</span>
-            <span class="text-blue-300">{{ currentImageInfo.compressedSize }}</span>
-            <span class="lightbox-info-ratio text-emerald-400">-{{ currentImageInfo.compressionRatio }}%</span>
+            <span class="text-mode-generate">WebP</span>
+            <span class="text-mode-generate">{{ currentImageInfo.compressedSize }}</span>
+            <span class="lightbox-info-ratio text-status-success">-{{ currentImageInfo.compressionRatio }}%</span>
           </div>
         </div>
       </div>

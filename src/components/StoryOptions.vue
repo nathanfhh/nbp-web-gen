@@ -54,7 +54,7 @@ const formatOptions = computed(() => [
   <div class="space-y-6">
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.quality') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.quality') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in resolutions"
@@ -62,8 +62,8 @@ const formatOptions = computed(() => [
           @click="store.storyOptions.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.storyOptions.resolution === res.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ res.label }}
         </button>
@@ -72,7 +72,7 @@ const formatOptions = computed(() => [
 
     <!-- Steps -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('story.steps') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('story.steps') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="step in stepsOptions"
@@ -80,18 +80,18 @@ const formatOptions = computed(() => [
           @click="store.storyOptions.steps = step.value"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="store.storyOptions.steps === step.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ step.label }}
         </button>
       </div>
-      <p class="text-xs text-gray-500">{{ $t('story.stepsHint') }}</p>
+      <p class="text-xs text-text-muted">{{ $t('story.stepsHint') }}</p>
     </div>
 
     <!-- Type -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('story.type.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('story.type.label') }}</label>
       <select v-model="store.storyOptions.type" class="select-premium">
         <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">
           {{ opt.label }}
@@ -101,7 +101,7 @@ const formatOptions = computed(() => [
 
     <!-- Style -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('story.style.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('story.style.label') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="opt in styleOptions"
@@ -109,8 +109,8 @@ const formatOptions = computed(() => [
           @click="store.storyOptions.style = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.storyOptions.style === opt.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>
@@ -119,7 +119,7 @@ const formatOptions = computed(() => [
 
     <!-- Transition -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('story.transition.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('story.transition.label') }}</label>
       <div class="grid grid-cols-2 gap-3">
         <button
           v-for="opt in transitionOptions"
@@ -127,8 +127,8 @@ const formatOptions = computed(() => [
           @click="store.storyOptions.transition = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.storyOptions.transition === opt.value
-            ? 'bg-cyan-500/30 border border-cyan-500 text-cyan-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-status-info-muted border border-status-info text-status-info'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>
@@ -137,7 +137,7 @@ const formatOptions = computed(() => [
 
     <!-- Format -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('story.format.label') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('story.format.label') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="opt in formatOptions"
@@ -145,8 +145,8 @@ const formatOptions = computed(() => [
           @click="store.storyOptions.format = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.storyOptions.format === opt.value
-            ? 'bg-amber-500/30 border border-amber-500 text-amber-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-status-warning-muted border border-status-warning text-status-warning'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
         </button>

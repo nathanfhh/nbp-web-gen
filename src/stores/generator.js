@@ -4,6 +4,7 @@ import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions } from '@/constants'
+import { useThemeName, toggleTheme as themeToggle } from '@/theme'
 
 export const useGeneratorStore = defineStore('generator', () => {
   const { addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount, migrateAddUUIDs } = useIndexedDB()
@@ -21,8 +22,8 @@ export const useGeneratorStore = defineStore('generator', () => {
   const apiKey = ref('')
   const hasApiKey = computed(() => !!apiKey.value)
 
-  // Theme state (dark or light)
-  const theme = ref('dark')
+  // Theme state - delegated to theme module for backward compatibility
+  const theme = useThemeName()
 
   // Current mode
   const currentMode = ref('generate') // generate, edit, story, diagram, sticker
@@ -90,12 +91,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     // Load API key from localStorage
     apiKey.value = getApiKey()
 
-    // Load theme from localStorage
-    const savedTheme = getQuickSetting('theme')
-    if (savedTheme) {
-      theme.value = savedTheme
-      applyTheme(savedTheme)
-    }
+    // Theme is now initialized by theme module in main.js
 
     // Load settings from localStorage (for quick access)
     const savedMode = getQuickSetting('currentMode')
@@ -198,24 +194,11 @@ export const useGeneratorStore = defineStore('generator', () => {
   }
 
   // ============================================================================
-  // Theme
+  // Theme (delegated to theme module)
   // ============================================================================
 
-  const applyTheme = (themeName) => {
-    document.documentElement.setAttribute('data-theme', themeName)
-    // Update PWA theme-color meta tag
-    const themeColor = themeName === 'dark' ? '#111827' : '#ffffff'
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]')
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', themeColor)
-    }
-  }
-
   const toggleTheme = () => {
-    const newTheme = theme.value === 'dark' ? 'light' : 'dark'
-    theme.value = newTheme
-    applyTheme(newTheme)
-    updateQuickSetting('theme', newTheme)
+    themeToggle()
   }
 
   // ============================================================================

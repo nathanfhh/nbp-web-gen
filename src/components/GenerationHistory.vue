@@ -187,8 +187,8 @@ const handleImported = async () => {
 <template>
   <div class="glass p-6">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="font-semibold text-white flex items-center gap-2">
-        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <h3 class="font-semibold text-text-primary flex items-center gap-2">
+        <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         {{ $t('history.title') }}
@@ -198,7 +198,7 @@ const handleImported = async () => {
         <!-- Transfer (Export/Import) button -->
         <button
           @click="showTransfer = true"
-          class="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 hover:text-blue-400 transition-all"
+          class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-blue-400 transition-all"
           :title="$t('historyTransfer.title')"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +209,7 @@ const handleImported = async () => {
         <button
           v-if="store.history.length > 0"
           @click="clearAll"
-          class="text-xs text-gray-500 hover:text-red-400 transition-colors"
+          class="text-xs text-text-muted hover:text-red-400 transition-colors"
         >
           {{ $t('common.clearAll') }}
         </button>
@@ -217,7 +217,7 @@ const handleImported = async () => {
     </div>
 
     <!-- Storage Usage -->
-    <div v-if="store.storageUsage > 0" class="mb-4 flex items-center gap-2 text-xs text-gray-500">
+    <div v-if="store.storageUsage > 0" class="mb-4 flex items-center gap-2 text-xs text-text-muted">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
       </svg>
@@ -248,12 +248,12 @@ const handleImported = async () => {
               />
               <div
                 v-if="item.images.length > 1"
-                class="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+                class="absolute bottom-0 right-0 bg-black/70 text-text-primary text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
               >
                 +{{ item.images.length - 1 }}
               </div>
             </div>
-            <span class="text-xs text-gray-600 font-mono">#{{ item.id }}</span>
+            <span class="text-xs text-text-muted font-mono">#{{ item.id }}</span>
           </div>
 
           <div class="flex-1 min-w-0">
@@ -261,37 +261,37 @@ const handleImported = async () => {
               <span
                 class="text-xs px-2 py-0.5 rounded-md font-medium"
                 :class="{
-                  'bg-blue-500/20 text-blue-300': item.mode === 'generate',
-                  'bg-pink-500/20 text-pink-300': item.mode === 'sticker',
-                  'bg-cyan-500/20 text-cyan-300': item.mode === 'edit',
-                  'bg-amber-500/20 text-amber-300': item.mode === 'story',
-                  'bg-emerald-500/20 text-emerald-300': item.mode === 'diagram',
+                  'bg-mode-generate-muted text-mode-generate': item.mode === 'generate',
+                  'bg-mode-sticker-muted text-mode-sticker': item.mode === 'sticker',
+                  'bg-status-info-muted text-status-info': item.mode === 'edit',
+                  'bg-status-warning-muted text-status-warning': item.mode === 'story',
+                  'bg-status-success-muted text-status-success': item.mode === 'diagram',
                 }"
               >
                 {{ modeLabels[item.mode] || item.mode }}
               </span>
               <span class="relative group/time">
                 <span
-                  class="text-xs text-gray-500 cursor-pointer select-none"
+                  class="text-xs text-text-muted cursor-pointer select-none"
                   @click="toggleTooltip(item.id, $event)"
                 >
                   {{ formatTime(item.timestamp) }}
                 </span>
                 <span
-                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-white bg-gray-800 border border-gray-700 backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
+                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-text-primary bg-gray-800 border border-border-muted backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
                   :class="activeTooltipId === item.id ? 'opacity-100 visible' : 'opacity-0 invisible md:group-hover/time:opacity-100 md:group-hover/time:visible'"
                 >
                   {{ formatFullTime(item.timestamp) }}
                 </span>
               </span>
             </div>
-            <p class="text-sm text-gray-300 truncate">
+            <p class="text-sm text-text-secondary truncate">
               {{ truncatePrompt(item.prompt) }}
             </p>
             <div v-if="item.status" class="mt-2">
               <span
                 class="text-xs px-2 py-0.5 rounded-md"
-                :class="item.status === 'success' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'"
+                :class="item.status === 'success' ? 'bg-status-success-muted text-status-success' : 'bg-status-error-muted text-status-error'"
               >
                 {{ item.status === 'success' ? $t('history.status.success') : $t('history.status.failed') }}
               </span>
@@ -299,7 +299,7 @@ const handleImported = async () => {
           </div>
           <button
             @click="deleteItem(item.id, $event)"
-            class="opacity-50 md:opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-all flex-shrink-0"
+            class="opacity-50 md:opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-all flex-shrink-0"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -310,12 +310,12 @@ const handleImported = async () => {
     </div>
 
     <div v-else class="text-center py-8">
-      <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-4">
-        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="w-12 h-12 rounded-xl bg-bg-muted flex items-center justify-center mx-auto mb-4">
+        <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <p class="text-sm text-gray-500">{{ $t('history.empty') }}</p>
+      <p class="text-sm text-text-muted">{{ $t('history.empty') }}</p>
     </div>
 
     <!-- Confirm Modal -->
@@ -324,11 +324,11 @@ const handleImported = async () => {
     <!-- Loading Overlay -->
     <div v-if="isLoadingImages" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
       <div class="flex flex-col items-center gap-3">
-        <svg class="w-8 h-8 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+        <svg class="w-8 h-8 animate-spin text-mode-generate" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
         </svg>
-        <span class="text-white text-sm">{{ $t('history.loadingImages') }}</span>
+        <span class="text-text-primary text-sm">{{ $t('history.loadingImages') }}</span>
       </div>
     </div>
 

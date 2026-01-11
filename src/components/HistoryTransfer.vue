@@ -225,14 +225,14 @@ const getHistoryPreviewSrc = () => {
           <!-- Header -->
           <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-10 h-10 rounded-xl bg-mode-generate-muted flex items-center justify-center">
+                <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
-              <h3 class="text-lg font-semibold text-white">{{ t('historyTransfer.title') }}</h3>
+              <h3 class="text-lg font-semibold text-text-primary">{{ t('historyTransfer.title') }}</h3>
             </div>
-            <button @click="close" class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
+            <button @click="close" class="p-2 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -246,8 +246,8 @@ const getHistoryPreviewSrc = () => {
               :class="[
                 'flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2',
                 activeTab === 'history'
-                  ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
+                  ? 'bg-mode-generate-muted text-mode-generate border border-mode-generate'
+                  : 'bg-bg-muted text-text-muted hover:bg-bg-interactive border border-transparent'
               ]"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,8 +260,8 @@ const getHistoryPreviewSrc = () => {
               :class="[
                 'flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2',
                 activeTab === 'characters'
-                  ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10 border border-transparent'
+                  ? 'bg-mode-generate-muted text-mode-generate border border-mode-generate'
+                  : 'bg-bg-muted text-text-muted hover:bg-bg-interactive border border-transparent'
               ]"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,13 +290,13 @@ const getHistoryPreviewSrc = () => {
           <!-- History List -->
           <div v-if="activeTab === 'history'" class="flex-1 overflow-y-auto mb-4 min-h-0 pr-2">
             <div v-if="isLoadingList" class="flex items-center justify-center py-8">
-              <svg class="w-6 h-6 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg class="w-6 h-6 text-mode-generate animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </div>
             <div v-else-if="historyList.length === 0" class="text-center py-8">
-              <p class="text-gray-500 text-sm">{{ t('history.empty') }}</p>
+              <p class="text-text-muted text-sm">{{ t('history.empty') }}</p>
             </div>
             <div v-else class="space-y-2">
               <TransferListItem
@@ -310,17 +310,17 @@ const getHistoryPreviewSrc = () => {
               >
                 <template #content>
                   <div class="flex items-center gap-2 mb-1">
-                    <span :class="['text-xs px-1.5 py-0.5 rounded', modeColors[item.mode] || 'bg-gray-500/20 text-gray-300']">
+                    <span :class="['text-xs px-1.5 py-0.5 rounded', modeColors[item.mode] || 'bg-gray-500/20 text-text-secondary']">
                       {{ t(`modes.${item.mode}.name`) }}
                     </span>
-                    <span class="text-xs text-gray-500">{{ formatRelativeTime(item.timestamp) }}</span>
+                    <span class="text-xs text-text-muted">{{ formatRelativeTime(item.timestamp) }}</span>
                   </div>
-                  <p class="text-sm text-gray-300 truncate">
+                  <p class="text-sm text-text-secondary truncate">
                     {{ item.prompt?.slice(0, 50) }}{{ item.prompt?.length > 50 ? '...' : '' }}
                   </p>
                 </template>
                 <template #extra>
-                  <div v-if="item.images?.length" class="text-xs text-gray-500 flex-shrink-0">
+                  <div v-if="item.images?.length" class="text-xs text-text-muted flex-shrink-0">
                     {{ item.images.length }} {{ item.images.length > 1 ? 'imgs' : 'img' }}
                   </div>
                 </template>
@@ -331,13 +331,13 @@ const getHistoryPreviewSrc = () => {
           <!-- Characters List -->
           <div v-if="activeTab === 'characters'" class="flex-1 overflow-y-auto mb-4 min-h-0 pr-2">
             <div v-if="isLoadingCharacters" class="flex items-center justify-center py-8">
-              <svg class="w-6 h-6 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg class="w-6 h-6 text-mode-generate animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </div>
             <div v-else-if="characterList.length === 0" class="text-center py-8">
-              <p class="text-gray-500 text-sm">{{ t('historyTransfer.noCharacters') }}</p>
+              <p class="text-text-muted text-sm">{{ t('historyTransfer.noCharacters') }}</p>
             </div>
             <div v-else class="space-y-2">
               <TransferListItem
@@ -351,16 +351,16 @@ const getHistoryPreviewSrc = () => {
                 @preview="openCharPreview(char, $event)"
               >
                 <template #placeholder>
-                  <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </template>
                 <template #content>
                   <div class="flex items-center gap-2 mb-1">
-                    <span class="text-sm font-medium text-white truncate">{{ char.name }}</span>
-                    <span class="text-xs text-gray-500">{{ formatRelativeTime(char.createdAt) }}</span>
+                    <span class="text-sm font-medium text-text-primary truncate">{{ char.name }}</span>
+                    <span class="text-xs text-text-muted">{{ formatRelativeTime(char.createdAt) }}</span>
                   </div>
-                  <p class="text-xs text-gray-400 truncate">
+                  <p class="text-xs text-text-muted truncate">
                     {{ char.description?.slice(0, 60) }}{{ char.description?.length > 60 ? '...' : '' }}
                   </p>
                 </template>
@@ -389,11 +389,11 @@ const getHistoryPreviewSrc = () => {
           />
 
           <!-- Divider -->
-          <div class="border-t border-white/10 mb-4 flex-shrink-0"></div>
+          <div class="border-t border-border-muted mb-4 flex-shrink-0"></div>
 
           <!-- Import Section -->
           <div class="flex-shrink-0">
-            <h4 class="text-sm font-medium text-gray-300 mb-2">{{ t('historyTransfer.import.title') }}</h4>
+            <h4 class="text-sm font-medium text-text-secondary mb-2">{{ t('historyTransfer.import.title') }}</h4>
             <div
               @dragover="handleDragOver"
               @dragleave="handleDragLeave"
@@ -403,24 +403,24 @@ const getHistoryPreviewSrc = () => {
                 'w-full py-6 px-4 rounded-xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center gap-2',
                 isDragOver
                   ? 'border-blue-400 bg-blue-500/10'
-                  : 'border-white/20 hover:border-white/40 hover:bg-white/5',
+                  : 'border-border-default hover:border-white/40 hover:bg-bg-muted',
                 transfer.isImporting.value && 'pointer-events-none opacity-50'
               ]"
             >
               <template v-if="transfer.isImporting.value">
-                <svg class="w-6 h-6 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-mode-generate animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span class="text-xs text-gray-400">
+                <span class="text-xs text-text-muted">
                   {{ t('historyTransfer.import.progress', { current: transfer.progress.value.current, total: transfer.progress.value.total }) }}
                 </span>
               </template>
               <template v-else>
-                <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span class="text-xs text-gray-400">{{ t('historyTransfer.import.dragDrop') }}</span>
+                <span class="text-xs text-text-muted">{{ t('historyTransfer.import.dragDrop') }}</span>
               </template>
             </div>
             <input ref="fileInputRef" type="file" accept=".json" class="hidden" @change="handleFileSelect" />
@@ -429,20 +429,20 @@ const getHistoryPreviewSrc = () => {
             <Transition name="fade">
               <div
                 v-if="transfer.importResult.value && !transfer.isImporting.value"
-                class="mt-3 p-3 rounded-xl bg-white/5 border border-white/10"
+                class="mt-3 p-3 rounded-xl bg-bg-muted border border-border-muted"
               >
                 <div class="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <div class="text-base font-semibold text-emerald-400">{{ transfer.importResult.value.imported }}</div>
-                    <div class="text-xs text-gray-500">{{ t('historyTransfer.result.imported') }}</div>
+                    <div class="text-base font-semibold text-status-success">{{ transfer.importResult.value.imported }}</div>
+                    <div class="text-xs text-text-muted">{{ t('historyTransfer.result.imported') }}</div>
                   </div>
                   <div>
-                    <div class="text-base font-semibold text-amber-400">{{ transfer.importResult.value.skipped }}</div>
-                    <div class="text-xs text-gray-500">{{ t('historyTransfer.result.skipped') }}</div>
+                    <div class="text-base font-semibold text-status-warning">{{ transfer.importResult.value.skipped }}</div>
+                    <div class="text-xs text-text-muted">{{ t('historyTransfer.result.skipped') }}</div>
                   </div>
                   <div>
-                    <div class="text-base font-semibold text-red-400">{{ transfer.importResult.value.failed }}</div>
-                    <div class="text-xs text-gray-500">{{ t('historyTransfer.result.failed') }}</div>
+                    <div class="text-base font-semibold text-status-error">{{ transfer.importResult.value.failed }}</div>
+                    <div class="text-xs text-text-muted">{{ t('historyTransfer.result.failed') }}</div>
                   </div>
                 </div>
               </div>
@@ -469,8 +469,8 @@ const getHistoryPreviewSrc = () => {
     @close="closeCharPreview"
   >
     <template #caption>
-      <h3 class="text-xl font-semibold text-white mb-2">{{ previewCharacter?.name }}</h3>
-      <p class="text-sm text-gray-400 max-w-md">{{ previewCharacter?.description }}</p>
+      <h3 class="text-xl font-semibold text-text-primary mb-2">{{ previewCharacter?.name }}</h3>
+      <p class="text-sm text-text-muted max-w-md">{{ previewCharacter?.description }}</p>
     </template>
   </PreviewLightbox>
 
@@ -483,15 +483,15 @@ const getHistoryPreviewSrc = () => {
   >
     <template #caption>
       <div class="flex items-center justify-center gap-2 mb-2">
-        <span :class="['text-xs px-2 py-1 rounded', modeColors[previewHistoryItem?.mode] || 'bg-gray-500/20 text-gray-300']">
+        <span :class="['text-xs px-2 py-1 rounded', modeColors[previewHistoryItem?.mode] || 'bg-gray-500/20 text-text-secondary']">
           {{ previewHistoryItem?.mode ? t(`modes.${previewHistoryItem.mode}.name`) : '' }}
         </span>
-        <span class="text-xs text-gray-500">{{ previewHistoryItem?.timestamp ? formatRelativeTime(previewHistoryItem.timestamp) : '' }}</span>
-        <span v-if="previewHistoryItem?.images?.length > 1" class="text-xs text-gray-500">
+        <span class="text-xs text-text-muted">{{ previewHistoryItem?.timestamp ? formatRelativeTime(previewHistoryItem.timestamp) : '' }}</span>
+        <span v-if="previewHistoryItem?.images?.length > 1" class="text-xs text-text-muted">
           · {{ previewHistoryItem.images.length }} {{ t('common.images') || 'images' }}
         </span>
       </div>
-      <p class="text-sm text-gray-400 max-w-lg">{{ previewHistoryItem?.prompt }}</p>
+      <p class="text-sm text-text-muted max-w-lg">{{ previewHistoryItem?.prompt }}</p>
     </template>
   </PreviewLightbox>
 </template>

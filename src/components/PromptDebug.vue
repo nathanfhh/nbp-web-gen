@@ -42,15 +42,15 @@ const copyToClipboard = async () => {
 <template>
   <div v-if="store.prompt" class="glass p-4">
     <div class="flex items-center justify-between mb-3">
-      <h4 class="text-sm font-medium text-gray-400 flex items-center gap-2">
-        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <h4 class="text-sm font-medium text-text-muted flex items-center gap-2">
+        <svg class="w-4 h-4 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
         {{ $t('promptDebug.title') }}
       </h4>
       <button
         @click="copyToClipboard"
-        class="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-gray-500 hover:text-gray-300"
+        class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors text-text-muted hover:text-gray-300"
         :title="$t('common.copy')"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@ const copyToClipboard = async () => {
         </svg>
       </button>
     </div>
-    <div class="bg-black/30 rounded-lg p-3 font-mono text-xs text-amber-200/80 leading-relaxed break-all">
+    <div class="bg-bg-muted rounded-lg p-3 font-mono text-xs text-amber-200/80 leading-relaxed break-all">
       {{ composedPrompt }}
     </div>
   </div>

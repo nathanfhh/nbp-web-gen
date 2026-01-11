@@ -226,24 +226,24 @@ const errorMessage = computed(() => {
               <button
                 v-if="mode !== null && sync.status.value !== 'transferring'"
                 @click="goBack"
-                class="p-2 -ml-2 rounded-lg hover:bg-white/10 text-gray-500 text-gray-400 hover:text-white transition-all"
+                class="p-2 -ml-2 rounded-lg hover:bg-bg-interactive text-text-muted text-text-muted hover:text-text-primary transition-all"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-10 h-10 rounded-xl bg-status-info-muted flex items-center justify-center">
+                <svg class="w-5 h-5 text-status-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
-              <h3 class="text-lg font-semibold text-white">
+              <h3 class="text-lg font-semibold text-text-primary">
                 {{ $t('peerSync.title') }}
               </h3>
             </div>
             <button
               @click="close"
-              class="p-2 rounded-lg hover:bg-white/10 text-gray-500 text-gray-400 hover:text-white transition-all"
+              class="p-2 rounded-lg hover:bg-bg-interactive text-text-muted text-text-muted hover:text-text-primary transition-all"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -266,27 +266,27 @@ const errorMessage = computed(() => {
                   'w-full p-4 rounded-xl border transition-all flex items-center gap-4',
                   (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
                     ? 'bg-gray-500/10 border-gray-500/30 opacity-50 cursor-not-allowed'
-                    : 'bg-cyan-500/20 border-cyan-500/40 hover:bg-cyan-500/30'
+                    : 'bg-status-info-muted border-cyan-500/40 hover:bg-cyan-500/30'
                 ]"
               >
                 <div :class="[
                   'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0',
                   (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
                     ? 'bg-gray-500/20'
-                    : 'bg-cyan-500/30'
+                    : 'bg-status-info-muted'
                 ]">
                   <svg :class="[
                     'w-6 h-6',
                     (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
-                      ? 'text-gray-500'
-                      : 'text-cyan-400'
+                      ? 'text-text-muted'
+                      : 'text-status-info'
                   ]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                   </svg>
                 </div>
                 <div class="text-left">
-                  <div :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-gray-400' : 'text-white'" class="font-medium">{{ $t('peerSync.sendMode.title') }}</div>
-                  <div class="text-xs" :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-gray-500' : 'text-white/70'">
+                  <div :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-text-muted' : 'text-text-primary'" class="font-medium">{{ $t('peerSync.sendMode.title') }}</div>
+                  <div class="text-xs" :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-text-muted' : 'text-white/70'">
                     <template v-if="props.syncType === 'history'">
                       {{ props.selectedIds.length === 0 ? $t('peerSync.sendMode.noSelection') : $t('peerSync.sendMode.historyDesc', { count: props.selectedIds.length }) }}
                     </template>
@@ -300,25 +300,25 @@ const errorMessage = computed(() => {
               <!-- Receive Button -->
               <button
                 @click="startReceiving"
-                class="w-full p-4 rounded-xl bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30 transition-all flex items-center gap-4"
+                class="w-full p-4 rounded-xl bg-mode-generate-muted border border-blue-500/40 hover:bg-blue-500/30 transition-all flex items-center gap-4"
               >
-                <div class="w-12 h-12 rounded-xl bg-blue-500/30 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-12 h-12 rounded-xl bg-mode-generate-muted flex items-center justify-center flex-shrink-0">
+                  <svg class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                 </div>
                 <div class="text-left">
-                  <div class="text-white font-medium">{{ $t('peerSync.receiveMode.title') }}</div>
+                  <div class="text-text-primary font-medium">{{ $t('peerSync.receiveMode.title') }}</div>
                   <div class="text-xs text-white/70">{{ $t('peerSync.receiveMode.description') }}</div>
                 </div>
               </button>
             </div>
 
             <!-- Cloudflare TURN Settings (collapsible) -->
-            <div class="mt-6 pt-4 border-t border-white/10">
+            <div class="mt-6 pt-4 border-t border-border-muted">
               <button
                 @click="showTurnSettings = !showTurnSettings"
-                class="w-full flex items-center justify-between text-sm text-white/80 hover:text-white transition-colors"
+                class="w-full flex items-center justify-between text-sm text-white/80 hover:text-text-primary transition-colors"
               >
                 <div class="flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -350,7 +350,7 @@ const errorMessage = computed(() => {
                   </p>
 
                   <!-- TURN Enable Toggle -->
-                  <div v-if="hasTurnConfig" class="flex items-center justify-between py-2 px-3 rounded-lg bg-white/5">
+                  <div v-if="hasTurnConfig" class="flex items-center justify-between py-2 px-3 rounded-lg bg-bg-muted">
                     <span class="text-sm text-white/80">{{ $t('peerSync.turn.enableLabel') }}</span>
                     <button
                       @click="toggleTurnEnabled"
@@ -372,7 +372,7 @@ const errorMessage = computed(() => {
                     href="https://developers.cloudflare.com/calls/turn/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex items-center gap-1 text-xs text-cyan-400 hover:underline"
+                    class="inline-flex items-center gap-1 text-xs text-status-info hover:underline"
                   >
                     {{ $t('peerSync.turn.cloudflareLink') }}
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -384,7 +384,7 @@ const errorMessage = computed(() => {
                     <input
                       v-model="turnTokenId"
                       type="text"
-                      class="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                       :placeholder="$t('peerSync.turn.tokenIdPlaceholder')"
                     />
                   </div>
@@ -393,7 +393,7 @@ const errorMessage = computed(() => {
                     <input
                       v-model="apiToken"
                       type="password"
-                      class="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
                       :placeholder="$t('peerSync.turn.apiTokenPlaceholder')"
                     />
                   </div>
@@ -408,7 +408,7 @@ const errorMessage = computed(() => {
                     <button
                       v-if="hasTurnConfig"
                       @click="clearTurnSettings"
-                      class="py-2 px-3 rounded-lg text-xs font-medium transition-all bg-rose-500/20 text-rose-400 hover:bg-rose-500/30"
+                      class="py-2 px-3 rounded-lg text-xs font-medium transition-all bg-mode-edit-muted text-mode-edit hover:bg-rose-500/30"
                     >
                       {{ $t('common.clear') }}
                     </button>
@@ -424,30 +424,30 @@ const errorMessage = computed(() => {
             <template v-if="sync.status.value === 'waiting'">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/20 mb-4">
-                    <svg class="w-8 h-8 text-cyan-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-status-info-muted mb-4">
+                    <svg class="w-8 h-8 text-status-info animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-sm text-gray-300 mb-4">{{ $t('peerSync.shareCode') }}</p>
+                <p class="text-sm text-text-secondary mb-4">{{ $t('peerSync.shareCode') }}</p>
 
                 <!-- Connection Code -->
-                <div class="bg-black/30 rounded-xl p-6 mb-4">
-                  <div class="text-4xl font-mono font-bold text-white tracking-[0.3em]">
+                <div class="bg-bg-muted rounded-xl p-6 mb-4">
+                  <div class="text-4xl font-mono font-bold text-text-primary tracking-[0.3em]">
                     {{ formattedCode }}
                   </div>
                 </div>
 
-                <p class="text-xs text-gray-400 mb-4">
+                <p class="text-xs text-text-muted mb-4">
                   {{ $t('peerSync.waitingConnection') }}
                 </p>
 
                 <!-- Debug Log -->
-                <div v-if="sync.debugLog.value.length" ref="debugLogRef" class="mt-4 p-3 bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
-                  <p class="text-xs text-gray-400 mb-1">Debug:</p>
-                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-300 font-mono">
+                <div v-if="sync.debugLog.value.length" ref="debugLogRef" class="mt-4 p-3 bg-bg-interactive rounded-lg text-left max-h-32 overflow-y-auto">
+                  <p class="text-xs text-text-muted mb-1">Debug:</p>
+                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-text-secondary font-mono">
                     {{ log }}
                   </p>
                 </div>
@@ -457,16 +457,16 @@ const errorMessage = computed(() => {
             <!-- Paired - Show emojis -->
             <template v-else-if="sync.status.value === 'paired' && !sync.pairingConfirmed.value">
               <div class="text-center">
-                <p class="text-sm text-gray-300 mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
+                <p class="text-sm text-text-secondary mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
 
                 <!-- Pairing Emojis -->
-                <div class="bg-black/30 rounded-xl p-6 mb-6">
+                <div class="bg-bg-muted rounded-xl p-6 mb-6">
                   <div class="text-5xl flex justify-center gap-4">
                     <span v-for="(emoji, i) in sync.pairingEmojis.value" :key="i">{{ emoji }}</span>
                   </div>
                 </div>
 
-                <p class="text-xs text-gray-400 mb-6">
+                <p class="text-xs text-text-muted mb-6">
                   {{ $t('peerSync.confirmMatch') }}
                 </p>
 
@@ -476,8 +476,8 @@ const errorMessage = computed(() => {
                   :class="[
                     'w-full py-3 px-4 rounded-xl text-sm font-medium transition-all border',
                     sync.localConfirmed.value
-                      ? 'bg-gray-500/20 border-gray-500 text-gray-400 cursor-wait'
-                      : 'bg-emerald-500/30 border-emerald-500 text-emerald-300 hover:bg-emerald-500/40'
+                      ? 'bg-gray-500/20 border-border-muted text-text-muted cursor-wait'
+                      : 'bg-status-success-muted border-status-success text-status-success hover:bg-emerald-500/40'
                   ]"
                 >
                   {{ sync.localConfirmed.value ? $t('peerSync.waitingRemote') : $t('peerSync.confirmButton') }}
@@ -489,27 +489,27 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'transferring' || (sync.pairingConfirmed.value && sync.status.value !== 'completed' && sync.status.value !== 'error')">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/20 mb-4">
-                    <svg class="w-8 h-8 text-cyan-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-status-info-muted mb-4">
+                    <svg class="w-8 h-8 text-status-info animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-white font-medium mb-2">{{ $t('peerSync.sending') }}</p>
-                <p class="text-sm text-gray-300 mb-2">
+                <p class="text-text-primary font-medium mb-2">{{ $t('peerSync.sending') }}</p>
+                <p class="text-sm text-text-secondary mb-2">
                   {{ sync.transferProgress.value.current }} / {{ sync.transferProgress.value.total }}
                 </p>
 
                 <!-- Transfer stats -->
-                <div v-if="sync.transferStats.value.totalFormatted" class="text-xs text-gray-400 mb-4 flex items-center justify-center gap-3">
+                <div v-if="sync.transferStats.value.totalFormatted" class="text-xs text-text-muted mb-4 flex items-center justify-center gap-3">
                   <span>{{ sync.transferStats.value.totalFormatted }}</span>
-                  <span class="text-cyan-400">{{ sync.transferStats.value.speedFormatted }}</span>
+                  <span class="text-status-info">{{ sync.transferStats.value.speedFormatted }}</span>
                 </div>
 
                 <!-- Progress bar -->
-                <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                <div class="w-full h-2 bg-bg-interactive rounded-full overflow-hidden">
                   <div
                     class="h-full bg-cyan-500 transition-all duration-300"
                     :style="{ width: sync.transferProgress.value.total > 0 ? `${(sync.transferProgress.value.current / sync.transferProgress.value.total) * 100}%` : '0%' }"
@@ -522,19 +522,19 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'completed'">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/20 mb-4">
-                    <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-status-success-muted mb-4">
+                    <svg class="w-8 h-8 text-status-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-white font-medium mb-2">{{ $t('peerSync.completed') }}</p>
-                <p class="text-sm text-gray-300">
+                <p class="text-text-primary font-medium mb-2">{{ $t('peerSync.completed') }}</p>
+                <p class="text-sm text-text-secondary">
                   {{ $t('peerSync.sentCount', { count: sync.transferResult.value?.sent || 0 }) }}
                 </p>
                 <!-- Final transfer stats -->
-                <p v-if="sync.transferStats.value.totalFormatted" class="text-xs text-gray-400 mt-1">
+                <p v-if="sync.transferStats.value.totalFormatted" class="text-xs text-text-muted mt-1">
                   {{ sync.transferStats.value.totalFormatted }}
                 </p>
               </div>
@@ -544,15 +544,15 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'error'">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/20 mb-4">
-                    <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-status-error-muted mb-4">
+                    <svg class="w-8 h-8 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-white font-medium mb-2">{{ $t('peerSync.errorTitle') }}</p>
-                <p class="text-sm text-red-400">{{ errorMessage }}</p>
+                <p class="text-text-primary font-medium mb-2">{{ $t('peerSync.errorTitle') }}</p>
+                <p class="text-sm text-status-error">{{ errorMessage }}</p>
               </div>
             </template>
           </template>
@@ -562,14 +562,14 @@ const errorMessage = computed(() => {
             <!-- Enter Code -->
             <template v-if="sync.status.value === 'idle'">
               <div class="text-center">
-                <p class="text-sm text-gray-300 mb-4">{{ $t('peerSync.enterCode') }}</p>
+                <p class="text-sm text-text-secondary mb-4">{{ $t('peerSync.enterCode') }}</p>
 
                 <!-- Code Input -->
                 <input
                   v-model="inputCode"
                   type="text"
                   maxlength="6"
-                  class="w-full bg-black/30 border border-white/20 rounded-xl px-4 py-4 text-center text-2xl font-mono font-bold text-white tracking-[0.3em] uppercase focus:outline-none focus:border-blue-500 transition-all"
+                  class="w-full bg-bg-muted border border-border-default rounded-xl px-4 py-4 text-center text-2xl font-mono font-bold text-text-primary tracking-[0.3em] uppercase focus:outline-none focus:border-brand-primary transition-all"
                   :placeholder="$t('peerSync.codePlaceholder')"
                   @keyup.enter="connectWithCode"
                 />
@@ -577,7 +577,7 @@ const errorMessage = computed(() => {
                 <button
                   @click="connectWithCode"
                   :disabled="inputCode.length < 6"
-                  class="w-full mt-4 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full mt-4 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-mode-generate-muted border border-mode-generate text-mode-generate hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {{ $t('peerSync.connectButton') }}
                 </button>
@@ -588,20 +588,20 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'connecting'">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 mb-4">
-                    <svg class="w-8 h-8 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-mode-generate-muted mb-4">
+                    <svg class="w-8 h-8 text-mode-generate animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-white font-medium">{{ $t('peerSync.status.connecting') }}</p>
+                <p class="text-text-primary font-medium">{{ $t('peerSync.status.connecting') }}</p>
 
                 <!-- Debug Log -->
-                <div v-if="sync.debugLog.value.length" ref="debugLogRef" class="mt-4 p-3 bg-black/40 rounded-lg text-left max-h-32 overflow-y-auto">
-                  <p class="text-xs text-gray-400 mb-1">Debug:</p>
-                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-gray-300 font-mono">
+                <div v-if="sync.debugLog.value.length" ref="debugLogRef" class="mt-4 p-3 bg-bg-interactive rounded-lg text-left max-h-32 overflow-y-auto">
+                  <p class="text-xs text-text-muted mb-1">Debug:</p>
+                  <p v-for="(log, i) in sync.debugLog.value" :key="i" class="text-xs text-text-secondary font-mono">
                     {{ log }}
                   </p>
                 </div>
@@ -611,16 +611,16 @@ const errorMessage = computed(() => {
             <!-- Paired - Show emojis -->
             <template v-else-if="sync.status.value === 'paired' && !sync.pairingConfirmed.value">
               <div class="text-center">
-                <p class="text-sm text-gray-300 mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
+                <p class="text-sm text-text-secondary mb-4">{{ $t('peerSync.verifyEmojis') }}</p>
 
                 <!-- Pairing Emojis -->
-                <div class="bg-black/30 rounded-xl p-6 mb-6">
+                <div class="bg-bg-muted rounded-xl p-6 mb-6">
                   <div class="text-5xl flex justify-center gap-4">
                     <span v-for="(emoji, i) in sync.pairingEmojis.value" :key="i">{{ emoji }}</span>
                   </div>
                 </div>
 
-                <p class="text-xs text-gray-400 mb-6">
+                <p class="text-xs text-text-muted mb-6">
                   {{ $t('peerSync.confirmMatch') }}
                 </p>
 
@@ -630,8 +630,8 @@ const errorMessage = computed(() => {
                   :class="[
                     'w-full py-3 px-4 rounded-xl text-sm font-medium transition-all border',
                     sync.localConfirmed.value
-                      ? 'bg-gray-500/20 border-gray-500 text-gray-400 cursor-wait'
-                      : 'bg-emerald-500/30 border-emerald-500 text-emerald-300 hover:bg-emerald-500/40'
+                      ? 'bg-gray-500/20 border-border-muted text-text-muted cursor-wait'
+                      : 'bg-status-success-muted border-status-success text-status-success hover:bg-emerald-500/40'
                   ]"
                 >
                   {{ sync.localConfirmed.value ? $t('peerSync.waitingRemote') : $t('peerSync.confirmButton') }}
@@ -643,29 +643,29 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'transferring' || (sync.pairingConfirmed.value && sync.status.value !== 'completed' && sync.status.value !== 'error')">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 mb-4">
-                    <svg class="w-8 h-8 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-mode-generate-muted mb-4">
+                    <svg class="w-8 h-8 text-mode-generate animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-white font-medium mb-2">{{ $t('peerSync.receiving') }}</p>
-                <p class="text-sm text-gray-300 mb-2">
+                <p class="text-text-primary font-medium mb-2">{{ $t('peerSync.receiving') }}</p>
+                <p class="text-sm text-text-secondary mb-2">
                   {{ sync.transferProgress.value.current }} / {{ sync.transferProgress.value.total }}
                 </p>
 
                 <!-- Transfer stats -->
-                <div v-if="sync.transferStats.value.totalFormatted" class="text-xs text-gray-400 mb-4 flex items-center justify-center gap-3">
+                <div v-if="sync.transferStats.value.totalFormatted" class="text-xs text-text-muted mb-4 flex items-center justify-center gap-3">
                   <span>{{ sync.transferStats.value.totalFormatted }}</span>
-                  <span class="text-blue-400">{{ sync.transferStats.value.speedFormatted }}</span>
+                  <span class="text-mode-generate">{{ sync.transferStats.value.speedFormatted }}</span>
                 </div>
 
                 <!-- Progress bar -->
-                <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                <div class="w-full h-2 bg-bg-interactive rounded-full overflow-hidden">
                   <div
-                    class="h-full bg-blue-500 transition-all duration-300"
+                    class="h-full bg-brand-primary transition-all duration-300"
                     :style="{ width: sync.transferProgress.value.total > 0 ? `${(sync.transferProgress.value.current / sync.transferProgress.value.total) * 100}%` : '0%' }"
                   ></div>
                 </div>
@@ -676,34 +676,34 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'completed'">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/20 mb-4">
-                    <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-status-success-muted mb-4">
+                    <svg class="w-8 h-8 text-status-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-white font-medium mb-4">{{ $t('peerSync.completed') }}</p>
+                <p class="text-text-primary font-medium mb-4">{{ $t('peerSync.completed') }}</p>
 
                 <!-- Result stats -->
-                <div class="grid grid-cols-3 gap-3 text-center bg-black/20 rounded-xl p-4">
+                <div class="grid grid-cols-3 gap-3 text-center bg-bg-muted rounded-xl p-4">
                   <div>
-                    <div class="text-lg font-semibold text-emerald-400">
+                    <div class="text-lg font-semibold text-status-success">
                       {{ sync.transferResult.value?.imported || 0 }}
                     </div>
-                    <div class="text-xs text-gray-400">{{ $t('peerSync.result.imported') }}</div>
+                    <div class="text-xs text-text-muted">{{ $t('peerSync.result.imported') }}</div>
                   </div>
                   <div>
-                    <div class="text-lg font-semibold text-amber-400">
+                    <div class="text-lg font-semibold text-status-warning">
                       {{ sync.transferResult.value?.skipped || 0 }}
                     </div>
-                    <div class="text-xs text-gray-400">{{ $t('peerSync.result.skipped') }}</div>
+                    <div class="text-xs text-text-muted">{{ $t('peerSync.result.skipped') }}</div>
                   </div>
                   <div>
-                    <div class="text-lg font-semibold text-red-400">
+                    <div class="text-lg font-semibold text-status-error">
                       {{ sync.transferResult.value?.failed || 0 }}
                     </div>
-                    <div class="text-xs text-gray-400">{{ $t('peerSync.result.failed') }}</div>
+                    <div class="text-xs text-text-muted">{{ $t('peerSync.result.failed') }}</div>
                   </div>
                 </div>
               </div>
@@ -713,19 +713,19 @@ const errorMessage = computed(() => {
             <template v-else-if="sync.status.value === 'error'">
               <div class="text-center">
                 <div class="mb-4">
-                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/20 mb-4">
-                    <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-status-error-muted mb-4">
+                    <svg class="w-8 h-8 text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </div>
                 </div>
 
-                <p class="text-white font-medium mb-2">{{ $t('peerSync.errorTitle') }}</p>
-                <p class="text-sm text-red-400 mb-4">{{ errorMessage }}</p>
+                <p class="text-text-primary font-medium mb-2">{{ $t('peerSync.errorTitle') }}</p>
+                <p class="text-sm text-status-error mb-4">{{ errorMessage }}</p>
 
                 <button
                   @click="goBack"
-                  class="w-full py-3 px-4 rounded-xl text-sm font-medium transition-all bg-white/10 border border-white/20 text-white hover:bg-white/20"
+                  class="w-full py-3 px-4 rounded-xl text-sm font-medium transition-all bg-bg-interactive border border-border-default text-text-primary hover:bg-bg-interactive-hover"
                 >
                   {{ $t('peerSync.tryAgain') }}
                 </button>

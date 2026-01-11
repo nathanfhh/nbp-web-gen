@@ -17,7 +17,7 @@ const placeholders = computed(() => ({
 
 <template>
   <div class="space-y-3">
-    <label class="block text-sm font-medium text-gray-300">
+    <label class="block text-sm font-medium text-text-secondary">
       {{ $t('prompt.label') }}
     </label>
     <textarea
@@ -26,7 +26,7 @@ const placeholders = computed(() => ({
       class="textarea-premium min-h-[140px]"
       rows="4"
     ></textarea>
-    <div class="flex justify-between items-center text-xs text-gray-500">
+    <div class="flex justify-between items-center text-xs text-text-muted">
       <span>{{ $t('prompt.hint') }}</span>
       <span>{{ store.prompt.length }} {{ $t('common.characters') }}</span>
     </div>

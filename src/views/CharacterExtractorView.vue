@@ -249,18 +249,18 @@ const canSave = computed(() => {
 <template>
   <div class="relative z-10 min-h-screen">
     <!-- Header -->
-    <header class="sticky top-0 z-50 backdrop-blur-xl extractor-header border-b border-white/10">
+    <header class="sticky top-0 z-50 backdrop-blur-xl extractor-header border-b border-border-muted">
       <div class="container mx-auto px-4 py-4 flex items-center justify-between">
         <button
           @click="goBack"
-          class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+          class="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
           <span>{{ $t('characterExtractor.back') }}</span>
         </button>
-        <h1 class="text-xl font-semibold text-white">{{ $t('characterExtractor.title') }}</h1>
+        <h1 class="text-xl font-semibold text-text-primary">{{ $t('characterExtractor.title') }}</h1>
         <div class="w-24"></div>
       </div>
     </header>
@@ -272,8 +272,8 @@ const canSave = computed(() => {
         <div class="space-y-6">
           <!-- Image Upload/Preview -->
           <div class="glass p-6">
-            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h2 class="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               {{ $t('characterExtractor.uploadImage') }}
@@ -282,7 +282,7 @@ const canSave = computed(() => {
             <!-- Image Preview or Upload Zone -->
             <div
               v-if="imagePreview"
-              class="relative h-[40vh] rounded-xl overflow-hidden bg-black/30 border border-white/10 flex items-center justify-center"
+              class="relative h-[40vh] rounded-xl overflow-hidden bg-bg-muted border border-border-muted flex items-center justify-center"
             >
               <img
                 :src="imagePreview"
@@ -291,7 +291,7 @@ const canSave = computed(() => {
               />
               <button
                 @click="triggerFileInput"
-                class="absolute bottom-4 right-4 px-4 py-2 rounded-lg bg-black/60 backdrop-blur-sm text-white text-sm hover:bg-black/80 transition-colors flex items-center gap-2"
+                class="absolute bottom-4 right-4 px-4 py-2 rounded-lg bg-black/60 backdrop-blur-sm text-text-primary text-sm hover:bg-black/80 transition-colors flex items-center gap-2"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -306,14 +306,14 @@ const canSave = computed(() => {
               @drop="handleDrop"
               @click="triggerFileInput"
               class="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all"
-              :class="isDragging ? 'border-blue-500 bg-blue-500/10' : 'border-white/20 hover:border-blue-500/50 hover:bg-white/5'"
+              :class="isDragging ? 'border-mode-generate bg-blue-500/10' : 'border-border-default hover:border-blue-500/50 hover:bg-bg-muted'"
             >
-              <div class="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mb-4">
-                <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-16 h-16 rounded-full bg-mode-generate-muted flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <p class="text-gray-300 text-center">{{ $t('characterExtractor.dragDrop') }}</p>
+              <p class="text-text-secondary text-center">{{ $t('characterExtractor.dragDrop') }}</p>
             </div>
 
             <input
@@ -327,8 +327,8 @@ const canSave = computed(() => {
 
           <!-- API Settings -->
           <div class="glass p-6">
-            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h2 class="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -342,11 +342,11 @@ const canSave = computed(() => {
                   type="radio"
                   :value="true"
                   v-model="useNbpKey"
-                  class="w-4 h-4 text-blue-500 bg-white/10 border-white/30 focus:ring-blue-500"
+                  class="w-4 h-4 text-blue-500 bg-bg-interactive border-white/30 focus:ring-brand-primary"
                 />
-                <span class="text-gray-300 group-hover:text-white transition-colors">
+                <span class="text-text-secondary group-hover:text-white transition-colors">
                   {{ $t('characterExtractor.useNbpKey') }}
-                  <span v-if="!hasNbpKey" class="text-red-400 text-sm ml-2">({{ $t('errors.noApiKey') }})</span>
+                  <span v-if="!hasNbpKey" class="text-status-error text-sm ml-2">({{ $t('errors.noApiKey') }})</span>
                 </span>
               </label>
 
@@ -355,9 +355,9 @@ const canSave = computed(() => {
                   type="radio"
                   :value="false"
                   v-model="useNbpKey"
-                  class="w-4 h-4 text-blue-500 bg-white/10 border-white/30 focus:ring-blue-500"
+                  class="w-4 h-4 text-blue-500 bg-bg-interactive border-white/30 focus:ring-brand-primary"
                 />
-                <span class="text-gray-300 group-hover:text-white transition-colors">
+                <span class="text-text-secondary group-hover:text-white transition-colors">
                   {{ $t('characterExtractor.useAlternateKey') }}
                 </span>
               </label>
@@ -368,17 +368,17 @@ const canSave = computed(() => {
                   v-model="customApiKey"
                   type="password"
                   :placeholder="$t('characterExtractor.enterApiKey')"
-                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  class="w-full px-4 py-3 rounded-xl bg-bg-muted border border-border-muted text-text-primary placeholder-gray-500 focus:outline-none focus:border-brand-primary transition-colors"
                 />
               </div>
             </div>
 
             <!-- Model Selection -->
             <div class="mt-6">
-              <label class="block text-sm text-gray-400 mb-2">{{ $t('characterExtractor.model') }}</label>
+              <label class="block text-sm text-text-muted mb-2">{{ $t('characterExtractor.model') }}</label>
               <select
                 v-model="selectedModel"
-                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                class="w-full px-4 py-3 rounded-xl bg-bg-muted border border-border-muted text-text-primary focus:outline-none focus:border-brand-primary transition-colors"
               >
                 <option
                   v-for="model in EXTRACTION_MODELS"
@@ -397,8 +397,8 @@ const canSave = computed(() => {
               :disabled="!canExtract || isExtracting"
               class="mt-6 w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
               :class="canExtract && !isExtracting
-                ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                : 'bg-white/10 text-gray-500 cursor-not-allowed'"
+                ? 'bg-brand-primary hover:bg-blue-600 text-white'
+                : 'bg-bg-interactive text-text-muted cursor-not-allowed'"
             >
               <svg v-if="isExtracting" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -415,8 +415,8 @@ const canSave = computed(() => {
         <!-- Right Column - Extraction Results -->
         <div class="space-y-6">
           <div class="glass p-6">
-            <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h2 class="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
               {{ $t('characterExtractor.editResult') }}
@@ -424,79 +424,79 @@ const canSave = computed(() => {
 
             <!-- Empty State -->
             <div v-if="!extractedData" class="py-12 text-center">
-              <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
-                <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-bg-muted flex items-center justify-center">
+                <svg class="w-8 h-8 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <p class="text-gray-500">{{ $t('characterExtractor.noImage') }}</p>
+              <p class="text-text-muted">{{ $t('characterExtractor.noImage') }}</p>
             </div>
 
             <!-- Extraction Result Form -->
             <div v-else class="space-y-5">
               <!-- Character Name -->
               <div>
-                <label class="block text-sm text-gray-400 mb-2">{{ $t('characterExtractor.name') }} *</label>
+                <label class="block text-sm text-text-muted mb-2">{{ $t('characterExtractor.name') }} *</label>
                 <input
                   v-model="characterName"
                   type="text"
                   :placeholder="$t('characterExtractor.namePlaceholder')"
-                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  class="w-full px-4 py-3 rounded-xl bg-bg-muted border border-border-muted text-text-primary placeholder-gray-500 focus:outline-none focus:border-brand-primary transition-colors"
                 />
               </div>
 
               <!-- Description -->
               <div>
-                <label class="block text-sm text-gray-400 mb-2">{{ $t('characterExtractor.description') }}</label>
+                <label class="block text-sm text-text-muted mb-2">{{ $t('characterExtractor.description') }}</label>
                 <textarea
                   v-model="extractedData.description"
                   rows="2"
-                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                  class="w-full px-4 py-3 rounded-xl bg-bg-muted border border-border-muted text-text-primary placeholder-gray-500 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                 ></textarea>
               </div>
 
               <!-- Physical Traits -->
               <div>
-                <label class="block text-sm text-gray-400 mb-3">{{ $t('characterExtractor.physicalTraits') }}</label>
+                <label class="block text-sm text-text-muted mb-3">{{ $t('characterExtractor.physicalTraits') }}</label>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('characterExtractor.hair') }}</label>
+                    <label class="block text-xs text-text-muted mb-1">{{ $t('characterExtractor.hair') }}</label>
                     <input
                       v-model="extractedData.physicalTraits.hair"
                       type="text"
-                      class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                      class="w-full px-3 py-2 rounded-lg bg-bg-muted border border-border-muted text-text-primary text-sm focus:outline-none focus:border-brand-primary transition-colors"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('characterExtractor.eyes') }}</label>
+                    <label class="block text-xs text-text-muted mb-1">{{ $t('characterExtractor.eyes') }}</label>
                     <input
                       v-model="extractedData.physicalTraits.eyes"
                       type="text"
-                      class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                      class="w-full px-3 py-2 rounded-lg bg-bg-muted border border-border-muted text-text-primary text-sm focus:outline-none focus:border-brand-primary transition-colors"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('characterExtractor.face') }}</label>
+                    <label class="block text-xs text-text-muted mb-1">{{ $t('characterExtractor.face') }}</label>
                     <input
                       v-model="extractedData.physicalTraits.face"
                       type="text"
-                      class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                      class="w-full px-3 py-2 rounded-lg bg-bg-muted border border-border-muted text-text-primary text-sm focus:outline-none focus:border-brand-primary transition-colors"
                     />
                   </div>
                   <div>
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('characterExtractor.body') }}</label>
+                    <label class="block text-xs text-text-muted mb-1">{{ $t('characterExtractor.body') }}</label>
                     <input
                       v-model="extractedData.physicalTraits.body"
                       type="text"
-                      class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                      class="w-full px-3 py-2 rounded-lg bg-bg-muted border border-border-muted text-text-primary text-sm focus:outline-none focus:border-brand-primary transition-colors"
                     />
                   </div>
                   <div class="col-span-2">
-                    <label class="block text-xs text-gray-500 mb-1">{{ $t('characterExtractor.skin') }}</label>
+                    <label class="block text-xs text-text-muted mb-1">{{ $t('characterExtractor.skin') }}</label>
                     <input
                       v-model="extractedData.physicalTraits.skin"
                       type="text"
-                      class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                      class="w-full px-3 py-2 rounded-lg bg-bg-muted border border-border-muted text-text-primary text-sm focus:outline-none focus:border-brand-primary transition-colors"
                     />
                   </div>
                 </div>
@@ -504,25 +504,25 @@ const canSave = computed(() => {
 
               <!-- Clothing -->
               <div>
-                <label class="block text-sm text-gray-400 mb-2">{{ $t('characterExtractor.clothing') }}</label>
+                <label class="block text-sm text-text-muted mb-2">{{ $t('characterExtractor.clothing') }}</label>
                 <textarea
                   v-model="extractedData.clothing"
                   rows="2"
-                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                  class="w-full px-4 py-3 rounded-xl bg-bg-muted border border-border-muted text-text-primary placeholder-gray-500 focus:outline-none focus:border-brand-primary transition-colors resize-none"
                 ></textarea>
               </div>
 
               <!-- Accessories -->
               <div>
-                <label class="block text-sm text-gray-400 mb-2">{{ $t('characterExtractor.accessories') }}</label>
+                <label class="block text-sm text-text-muted mb-2">{{ $t('characterExtractor.accessories') }}</label>
                 <div class="flex flex-wrap gap-2 mb-2">
                   <span
                     v-for="(accessory, index) in extractedData.accessories"
                     :key="index"
-                    class="accessory-tag inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-sm"
+                    class="accessory-tag inline-flex items-center gap-1 px-3 py-1 rounded-full bg-mode-generate-muted text-mode-generate text-sm"
                   >
                     {{ accessory }}
-                    <button @click="removeAccessory(index)" class="hover:text-white">
+                    <button @click="removeAccessory(index)" class="hover:text-text-primary">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -534,12 +534,12 @@ const canSave = computed(() => {
                     v-model="newAccessory"
                     type="text"
                     :placeholder="$t('characterExtractor.addTag')"
-                    class="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    class="flex-1 px-3 py-2 rounded-lg bg-bg-muted border border-border-muted text-text-primary text-sm focus:outline-none focus:border-brand-primary transition-colors"
                     @keyup.enter="addAccessory"
                   />
                   <button
                     @click="addAccessory"
-                    class="add-tag-btn px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                    class="add-tag-btn px-3 py-2 rounded-lg bg-mode-generate-muted text-mode-generate hover:bg-blue-500/30 transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -550,15 +550,15 @@ const canSave = computed(() => {
 
               <!-- Distinctive Features -->
               <div>
-                <label class="block text-sm text-gray-400 mb-2">{{ $t('characterExtractor.distinctiveFeatures') }}</label>
+                <label class="block text-sm text-text-muted mb-2">{{ $t('characterExtractor.distinctiveFeatures') }}</label>
                 <div class="flex flex-wrap gap-2 mb-2">
                   <span
                     v-for="(feature, index) in extractedData.distinctiveFeatures"
                     :key="index"
-                    class="feature-tag inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-sm"
+                    class="feature-tag inline-flex items-center gap-1 px-3 py-1 rounded-full bg-mode-generate-muted text-mode-generate text-sm"
                   >
                     {{ feature }}
-                    <button @click="removeFeature(index)" class="hover:text-white">
+                    <button @click="removeFeature(index)" class="hover:text-text-primary">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -570,12 +570,12 @@ const canSave = computed(() => {
                     v-model="newFeature"
                     type="text"
                     :placeholder="$t('characterExtractor.addTag')"
-                    class="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                    class="flex-1 px-3 py-2 rounded-lg bg-bg-muted border border-border-muted text-text-primary text-sm focus:outline-none focus:border-brand-primary transition-colors"
                     @keyup.enter="addFeature"
                   />
                   <button
                     @click="addFeature"
-                    class="add-tag-btn px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                    class="add-tag-btn px-3 py-2 rounded-lg bg-mode-generate-muted text-mode-generate hover:bg-blue-500/30 transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -590,8 +590,8 @@ const canSave = computed(() => {
                 :disabled="!canSave"
                 class="save-btn w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
                 :class="canSave
-                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                  : 'bg-white/10 text-gray-500 cursor-not-allowed'"
+                  ? 'bg-brand-primary hover:bg-blue-600 text-white'
+                  : 'bg-bg-interactive text-text-muted cursor-not-allowed'"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />

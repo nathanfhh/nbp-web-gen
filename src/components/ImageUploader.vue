@@ -88,14 +88,14 @@ const triggerFileInput = () => {
 <template>
   <div class="space-y-3" @paste="handlePaste">
     <div class="flex items-center justify-between">
-      <label class="block text-sm font-medium text-gray-300">
+      <label class="block text-sm font-medium text-text-secondary">
         {{ $t('imageUploader.title') }}
-        <span class="text-gray-500 font-normal ml-1">({{ store.referenceImages.length }}/{{ MAX_IMAGES }})</span>
+        <span class="text-text-muted font-normal ml-1">({{ store.referenceImages.length }}/{{ MAX_IMAGES }})</span>
       </label>
       <button
         v-if="store.referenceImages.length > 0"
         @click="clearAll"
-        class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        class="text-xs text-text-muted hover:text-gray-300 transition-colors"
       >
         {{ $t('common.clearAll') }}
       </button>
@@ -134,7 +134,7 @@ const triggerFileInput = () => {
         </div>
         <!-- Hover overlay for locked images (show character name) -->
         <div v-else class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <span class="text-white text-xs font-medium text-center px-2">{{ image.name }}</span>
+          <span class="text-text-primary text-xs font-medium text-center px-2">{{ image.name }}</span>
         </div>
       </div>
 
@@ -142,9 +142,9 @@ const triggerFileInput = () => {
       <div
         v-if="canAddMore"
         @click="triggerFileInput"
-        class="aspect-square rounded-lg border-2 border-dashed border-white/10 hover:border-blue-500/50 flex items-center justify-center cursor-pointer transition-colors"
+        class="aspect-square rounded-lg border-2 border-dashed border-border-muted hover:border-blue-500/50 flex items-center justify-center cursor-pointer transition-colors"
       >
-        <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
       </div>
@@ -161,14 +161,14 @@ const triggerFileInput = () => {
       :class="{ dragover: isDragging }"
     >
       <div class="flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-          <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="w-12 h-12 rounded-xl bg-mode-generate-muted flex items-center justify-center flex-shrink-0">
+          <svg class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
         <div class="text-left">
-          <p class="text-gray-300 text-sm font-medium">{{ $t('imageUploader.dragDrop') }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">{{ $t('imageUploader.maxImages', { count: MAX_IMAGES }) }}</p>
+          <p class="text-text-secondary text-sm font-medium">{{ $t('imageUploader.dragDrop') }}</p>
+          <p class="text-xs text-text-muted mt-0.5">{{ $t('imageUploader.maxImages', { count: MAX_IMAGES }) }}</p>
         </div>
       </div>
     </div>

@@ -21,7 +21,7 @@ const resolutions = [
 
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.outputResolution') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.outputResolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in resolutions"
@@ -29,8 +29,8 @@ const resolutions = [
           @click="store.editOptions.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.editOptions.resolution === res.value
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ res.label }}
         </button>

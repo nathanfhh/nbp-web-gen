@@ -49,19 +49,19 @@ defineExpose({ show })
         <!-- Modal -->
         <div class="relative glass-strong rounded-2xl p-6 w-full max-w-sm shadow-2xl">
           <!-- Icon -->
-          <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
-            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-12 h-12 rounded-xl bg-status-warning-muted flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
 
           <!-- Title -->
-          <h3 class="text-lg font-semibold text-white text-center mb-2">
+          <h3 class="text-lg font-semibold text-text-primary text-center mb-2">
             {{ title }}
           </h3>
 
           <!-- Message -->
-          <p class="text-sm text-gray-400 text-center mb-6">
+          <p class="text-sm text-text-muted text-center mb-6">
             {{ message }}
           </p>
 
@@ -69,13 +69,13 @@ defineExpose({ show })
           <div class="flex gap-3">
             <button
               @click="cancel"
-              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10"
+              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-bg-muted border border-border-muted text-text-secondary hover:bg-bg-interactive"
             >
               {{ cancelText }}
             </button>
             <button
               @click="confirm"
-              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-blue-500/30 border border-blue-500 text-blue-300 hover:bg-blue-500/40"
+              class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all bg-mode-generate-muted border border-mode-generate text-mode-generate hover:bg-blue-500/40"
             >
               {{ confirmText }}
             </button>

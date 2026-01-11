@@ -47,6 +47,24 @@ Five modes with mode-specific option components and prompt builders:
 - `i18n/index.js` with locale files in `i18n/locales/`
 - Supports `zh-TW` and `en`, auto-detects from browser
 
+### Theme System (Modular)
+Similar to i18n architecture - add a file to add a theme:
+```
+src/theme/
+├── index.js              # Theme registry (initTheme, setTheme, toggleTheme)
+├── tokens.js             # Semantic token definitions + migration map
+└── themes/
+    ├── dark.js           # Dark theme (Slate Blue Pro)
+    └── light.js          # Light theme (Greek Blue)
+```
+
+**Key concepts:**
+- Themes are JavaScript objects with `colors` and `shadows` properties
+- CSS variables are injected at runtime via `initTheme()` in `main.js`
+- Tailwind v4 `@theme` syntax in `style.css` references these CSS variables
+- Semantic class names: `text-text-primary`, `bg-bg-muted`, `border-mode-generate`, etc.
+- To add a new theme: create `themes/newtheme.js` and register in `index.js`
+
 ### Key Composables
 - `useApi.js` - API requests, prompt building, SSE streaming
 - `useGeneration.js` - High-level generation flow with callbacks
@@ -72,7 +90,7 @@ Five modes with mode-specific option components and prompt builders:
 - All API calls use SSE streaming when possible
 - Generation results saved to history in background (non-blocking)
 - **UI/Styling**: Always consider both light and dark mode when designing components
-- **Theme Handling**: Use `[data-theme="light"]` selectors in `style.css` for light mode overrides, NOT Tailwind's `dark:` prefix. The project uses CSS variable-based theming with global overrides in `style.css`
+- **Theme Handling**: Use semantic color classes (`text-text-primary`, `bg-bg-muted`, `border-mode-generate`) instead of hardcoded Tailwind colors. See `src/theme/tokens.js` for the full mapping. Legacy `[data-theme="light"]` overrides in `style.css` are being phased out.
 - **Mobile UX**: Design for touch - consider tap targets, gestures, screen sizes, and provide alternatives for hover-only interactions
 
 ## User Preferences

@@ -23,19 +23,19 @@ const emit = defineEmits(['select-all', 'deselect-all'])
       <button
         v-if="!isAllSelected"
         @click="emit('select-all')"
-        class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
+        class="text-xs px-2 py-1 rounded-lg bg-bg-muted hover:bg-bg-interactive text-text-secondary transition-all"
       >
         {{ t('historyTransfer.selectAll') }}
       </button>
       <button
         v-else
         @click="emit('deselect-all')"
-        class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-all"
+        class="text-xs px-2 py-1 rounded-lg bg-bg-muted hover:bg-bg-interactive text-text-secondary transition-all"
       >
         {{ t('historyTransfer.deselectAll') }}
       </button>
     </div>
-    <span class="text-xs text-gray-500">
+    <span class="text-xs text-text-muted">
       {{ t('historyTransfer.selectedCount', { count: selectedCount }) }}
     </span>
   </div>

@@ -145,14 +145,14 @@ const handleGenerate = async () => {
           class="p-3 rounded-xl transition-all group"
           :class="
             store.theme === 'dark'
-              ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+              ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
               : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'
           "
           :title="$t('language.label')"
         >
           <span
             class="text-sm font-medium group-hover:scale-110 transition-transform inline-block"
-            :class="store.theme === 'dark' ? 'text-gray-300' : 'text-gray-600'"
+            :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
           >
             {{
               locale === 'zh-TW'
@@ -167,7 +167,7 @@ const handleGenerate = async () => {
           class="p-3 rounded-xl transition-all group"
           :class="
             store.theme === 'dark'
-              ? 'bg-white/5 border border-white/10 hover:bg-white/10'
+              ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
               : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'
           "
           :title="store.theme === 'dark' ? $t('theme.switchToLight') : $t('theme.switchToDark')"
@@ -226,12 +226,12 @@ const handleGenerate = async () => {
         </h1>
         <p
           class="text-2xl lg:text-3xl flex items-center justify-center gap-3 mb-2"
-          :class="store.theme === 'dark' ? 'text-gray-300' : 'text-gray-700'"
+          :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
         >
           {{ $t('hero.subtitle') }}
         </p>
         <div class="flex flex-col items-center gap-2">
-          <span class="text-sm px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 font-mono">
+          <span class="text-sm px-3 py-1 rounded-full bg-mode-generate-muted text-mode-generate font-mono">
             v{{ appVersion }}
           </span>
           <div class="flex items-center gap-1">
@@ -244,7 +244,7 @@ const handleGenerate = async () => {
       <!-- Scroll Down Button -->
       <button
         @click="scrollToContent"
-        class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-400 hover:text-blue-400 transition-colors group cursor-pointer"
+        class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-text-muted hover:text-blue-400 transition-colors group cursor-pointer"
       >
         <span class="text-sm">{{ $t('hero.startUsing') }}</span>
         <div class="scroll-indicator">
@@ -275,9 +275,9 @@ const handleGenerate = async () => {
 
           <!-- Mode Selector -->
           <div data-panel-id="mode-selector" class="panel-animate glass p-6">
-            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+            <h3 class="font-semibold text-text-primary mb-4 flex items-center gap-2">
               <svg
-                class="w-5 h-5 text-blue-400"
+                class="w-5 h-5 text-mode-generate"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -323,17 +323,17 @@ const handleGenerate = async () => {
               class="mt-6 flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all group"
             >
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+                <div class="w-10 h-10 rounded-lg bg-status-success-muted flex items-center justify-center">
+                  <svg class="w-5 h-5 text-status-success" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 5.93 2 10.66c0 2.72 1.33 5.13 3.42 6.72.17.13.28.35.26.59l-.35 2.08c-.06.39.34.68.68.49l2.5-1.4c.17-.1.38-.12.57-.06.93.25 1.92.38 2.92.38 5.52 0 10-3.93 10-8.66S17.52 2 12 2z"/>
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-medium text-emerald-300">{{ $t('lineStickerTool.entry.title') }}</p>
-                  <p class="text-xs text-gray-500">{{ $t('lineStickerTool.entry.desc') }}</p>
+                  <p class="text-sm font-medium text-status-success">{{ $t('lineStickerTool.entry.title') }}</p>
+                  <p class="text-xs text-text-muted">{{ $t('lineStickerTool.entry.desc') }}</p>
                 </div>
               </div>
-              <svg class="w-5 h-5 text-gray-500 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-text-muted group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
               </svg>
             </router-link>
@@ -368,7 +368,7 @@ const handleGenerate = async () => {
             >
               <div class="flex items-start gap-3">
                 <svg
-                  class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5"
+                  class="w-5 h-5 text-status-error flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -380,7 +380,7 @@ const handleGenerate = async () => {
                     d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p class="text-red-300 text-sm">{{ store.generationError }}</p>
+                <p class="text-status-error text-sm">{{ store.generationError }}</p>
               </div>
             </div>
 
@@ -435,7 +435,7 @@ const handleGenerate = async () => {
 
       <!-- Footer -->
       <footer class="mt-8 text-center space-y-3">
-        <p class="text-sm" :class="store.theme === 'dark' ? 'text-gray-500' : 'text-gray-400'">
+        <p class="text-sm" :class="store.theme === 'dark' ? 'text-text-muted' : 'text-text-muted'">
           {{ $t('footer.title') }}
         </p>
         <div class="flex items-center justify-center gap-1">

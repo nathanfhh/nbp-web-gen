@@ -77,7 +77,7 @@ const handleStyleEnter = (event) => {
   <div class="space-y-6">
     <!-- Resolution -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.resolution') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.resolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
           v-for="res in RESOLUTION_OPTIONS"
@@ -85,8 +85,8 @@ const handleStyleEnter = (event) => {
           @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="options.resolution === res.value
-            ? 'bg-pink-500/30 border border-pink-500 text-pink-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-sticker-muted border border-mode-sticker text-mode-sticker'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ res.label }}
         </button>
@@ -95,7 +95,7 @@ const handleStyleEnter = (event) => {
 
     <!-- Ratio -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.aspectRatio') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.aspectRatio') }}</label>
       <div class="grid grid-cols-5 gap-2">
         <button
           v-for="ratio in RATIO_OPTIONS_STANDARD"
@@ -103,8 +103,8 @@ const handleStyleEnter = (event) => {
           @click="options.ratio = ratio.value"
           class="py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1"
           :class="options.ratio === ratio.value
-            ? 'bg-pink-500/30 border border-pink-500 text-pink-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-sticker-muted border border-mode-sticker text-mode-sticker'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           <!-- Ratio icons -->
           <svg v-if="ratio.value === '1:1'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -129,25 +129,25 @@ const handleStyleEnter = (event) => {
 
     <!-- Layout -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('sticker.layout') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('sticker.layout') }}</label>
       <div class="flex items-center gap-4">
         <!-- Rows -->
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-400 w-8">{{ $t('sticker.rows') }}</span>
+          <span class="text-xs text-text-muted w-8">{{ $t('sticker.rows') }}</span>
           <div class="flex items-center gap-1">
             <button
               @click="options.layoutRows = Math.max(1, options.layoutRows - 1)"
-              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              class="w-8 h-8 rounded-lg bg-bg-muted text-text-muted hover:bg-bg-interactive transition-colors flex items-center justify-center"
               :class="{ 'opacity-50 cursor-not-allowed': options.layoutRows <= 1 }"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
               </svg>
             </button>
-            <span class="w-8 text-center text-pink-300 font-medium">{{ options.layoutRows }}</span>
+            <span class="w-8 text-center text-mode-sticker font-medium">{{ options.layoutRows }}</span>
             <button
               @click="options.layoutRows = Math.min(5, options.layoutRows + 1)"
-              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              class="w-8 h-8 rounded-lg bg-bg-muted text-text-muted hover:bg-bg-interactive transition-colors flex items-center justify-center"
               :class="{ 'opacity-50 cursor-not-allowed': options.layoutRows >= 5 }"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,24 +157,24 @@ const handleStyleEnter = (event) => {
           </div>
         </div>
         <!-- X separator -->
-        <span class="text-gray-500 font-medium">×</span>
+        <span class="text-text-muted font-medium">×</span>
         <!-- Cols -->
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-400 w-8">{{ $t('sticker.cols') }}</span>
+          <span class="text-xs text-text-muted w-8">{{ $t('sticker.cols') }}</span>
           <div class="flex items-center gap-1">
             <button
               @click="options.layoutCols = Math.max(1, options.layoutCols - 1)"
-              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              class="w-8 h-8 rounded-lg bg-bg-muted text-text-muted hover:bg-bg-interactive transition-colors flex items-center justify-center"
               :class="{ 'opacity-50 cursor-not-allowed': options.layoutCols <= 1 }"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
               </svg>
             </button>
-            <span class="w-8 text-center text-pink-300 font-medium">{{ options.layoutCols }}</span>
+            <span class="w-8 text-center text-mode-sticker font-medium">{{ options.layoutCols }}</span>
             <button
               @click="options.layoutCols = Math.min(5, options.layoutCols + 1)"
-              class="w-8 h-8 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 transition-colors flex items-center justify-center"
+              class="w-8 h-8 rounded-lg bg-bg-muted text-text-muted hover:bg-bg-interactive transition-colors flex items-center justify-center"
               :class="{ 'opacity-50 cursor-not-allowed': options.layoutCols >= 5 }"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,9 +186,9 @@ const handleStyleEnter = (event) => {
       </div>
       <!-- Layout preview -->
       <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-500">{{ $t('sticker.preview') }}</span>
+        <span class="text-xs text-text-muted">{{ $t('sticker.preview') }}</span>
         <div
-          class="grid gap-0.5 p-2 bg-white/5 rounded-lg"
+          class="grid gap-0.5 p-2 bg-bg-muted rounded-lg"
           :style="{
             gridTemplateRows: `repeat(${options.layoutRows}, 1fr)`,
             gridTemplateColumns: `repeat(${options.layoutCols}, 1fr)`
@@ -197,21 +197,21 @@ const handleStyleEnter = (event) => {
           <div
             v-for="i in options.layoutRows * options.layoutCols"
             :key="i"
-            class="w-4 h-4 bg-pink-500/30 rounded-sm"
+            class="w-4 h-4 bg-mode-sticker-muted rounded-sm"
           ></div>
         </div>
-        <span class="text-xs text-gray-400">
+        <span class="text-xs text-text-muted">
           {{ $t('sticker.totalStickers', { count: options.layoutRows * options.layoutCols }) }}
         </span>
       </div>
     </div>
 
     <!-- Divider -->
-    <div class="border-t border-white/10"></div>
+    <div class="border-t border-border-muted"></div>
 
     <!-- Context/Usage -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('sticker.context.title') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('sticker.context.title') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="ctx in contexts"
@@ -219,8 +219,8 @@ const handleStyleEnter = (event) => {
           @click="options.context = ctx.value"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="options.context === ctx.value
-            ? 'bg-pink-500/30 border border-pink-500 text-pink-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-sticker-muted border border-mode-sticker text-mode-sticker'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ ctx.label }}
         </button>
@@ -236,12 +236,12 @@ const handleStyleEnter = (event) => {
     </div>
 
     <!-- Divider -->
-    <div class="border-t border-white/10"></div>
+    <div class="border-t border-border-muted"></div>
 
     <!-- Text Related -->
     <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <label class="text-sm font-medium text-gray-300">{{ $t('sticker.text.title') }}</label>
+        <label class="text-sm font-medium text-text-secondary">{{ $t('sticker.text.title') }}</label>
         <button
           @click="options.hasText = !options.hasText"
           class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
@@ -258,7 +258,7 @@ const handleStyleEnter = (event) => {
       <div v-if="options.hasText" class="space-y-4 pl-4 border-l-2 border-pink-500/30">
         <!-- Tone (multi-select) -->
         <div class="space-y-2">
-          <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.text.tone.label') }}</label>
+          <label class="block text-xs font-medium text-text-muted">{{ $t('sticker.text.tone.label') }}</label>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="tone in tones"
@@ -266,8 +266,8 @@ const handleStyleEnter = (event) => {
               @click="togglers.tones.toggle(tone.value)"
               class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
               :class="togglers.tones.has(tone.value)
-                ? 'bg-amber-500/30 border border-amber-500 text-amber-300'
-                : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+                ? 'bg-status-warning-muted border border-status-warning text-status-warning'
+                : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
             >
               {{ tone.label }}
             </button>
@@ -283,7 +283,7 @@ const handleStyleEnter = (event) => {
 
         <!-- Language (multi-select) -->
         <div class="space-y-2">
-          <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.text.language.label') }}</label>
+          <label class="block text-xs font-medium text-text-muted">{{ $t('sticker.text.language.label') }}</label>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="lang in languages"
@@ -291,8 +291,8 @@ const handleStyleEnter = (event) => {
               @click="togglers.languages.toggle(lang.value)"
               class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
               :class="togglers.languages.has(lang.value)
-                ? 'bg-cyan-500/30 border border-cyan-500 text-cyan-300'
-                : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+                ? 'bg-status-info-muted border border-status-info text-status-info'
+                : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
             >
               {{ lang.label }}
             </button>
@@ -309,15 +309,15 @@ const handleStyleEnter = (event) => {
     </div>
 
     <!-- Divider -->
-    <div class="border-t border-white/10"></div>
+    <div class="border-t border-border-muted"></div>
 
     <!-- Composition -->
     <div class="space-y-4">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('sticker.composition.title') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('sticker.composition.title') }}</label>
 
       <!-- Camera Angles (multi-select) -->
       <div class="space-y-2">
-        <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.composition.cameraAngle.label') }}</label>
+        <label class="block text-xs font-medium text-text-muted">{{ $t('sticker.composition.cameraAngle.label') }}</label>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="angle in cameraAngles"
@@ -325,8 +325,8 @@ const handleStyleEnter = (event) => {
             @click="togglers.cameraAngles.toggle(angle.value)"
             class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
             :class="togglers.cameraAngles.has(angle.value)
-              ? 'bg-emerald-500/30 border border-emerald-500 text-emerald-300'
-              : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+              ? 'bg-status-success-muted border border-status-success text-status-success'
+              : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
           >
             {{ angle.label }}
           </button>
@@ -335,7 +335,7 @@ const handleStyleEnter = (event) => {
 
       <!-- Expression Intensity (multi-select) -->
       <div class="space-y-2">
-        <label class="block text-xs font-medium text-gray-400">{{ $t('sticker.composition.expression.label') }}</label>
+        <label class="block text-xs font-medium text-text-muted">{{ $t('sticker.composition.expression.label') }}</label>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="expr in expressions"
@@ -343,8 +343,8 @@ const handleStyleEnter = (event) => {
             @click="togglers.expressions.toggle(expr.value)"
             class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
             :class="togglers.expressions.has(expr.value)
-              ? 'bg-violet-500/30 border border-violet-500 text-violet-300'
-              : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+              ? 'bg-mode-diagram-muted border border-mode-diagram text-mode-diagram'
+              : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
           >
             {{ expr.label }}
           </button>
@@ -353,11 +353,11 @@ const handleStyleEnter = (event) => {
     </div>
 
     <!-- Divider -->
-    <div class="border-t border-white/10"></div>
+    <div class="border-t border-border-muted"></div>
 
     <!-- Styles -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-gray-300">{{ $t('options.styles') }}</label>
+      <label class="block text-sm font-medium text-text-secondary">{{ $t('options.styles') }}</label>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="style in PREDEFINED_STYLES"
@@ -365,8 +365,8 @@ const handleStyleEnter = (event) => {
           @click="togglers.styles.toggle(style.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="togglers.styles.has(style.value)
-            ? 'bg-blue-500/30 border border-blue-500 text-blue-300'
-            : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'"
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
+            : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ style.label }}
         </button>
