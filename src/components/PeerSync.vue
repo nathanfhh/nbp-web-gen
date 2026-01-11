@@ -53,21 +53,28 @@ const toggleTurnEnabled = () => {
 }
 
 const saveTurnSettings = async () => {
-  const result = turn.saveCfTurnCredentials(turnTokenId.value, apiToken.value)
-  if (result.success) {
-    // Test the credentials by fetching ICE servers
-    isFetchingIce.value = true
-    const fetchResult = await turn.fetchCfIceServers()
-    isFetchingIce.value = false
+  const credentials = {
+    turnTokenId: turnTokenId.value.trim(),
+    apiToken: apiToken.value.trim(),
+  }
 
-    if (fetchResult.success) {
+  // Validate credentials by fetching ICE servers FIRST (before saving)
+  isFetchingIce.value = true
+  const fetchResult = await turn.fetchCfIceServers(credentials)
+  isFetchingIce.value = false
+
+  if (fetchResult.success) {
+    // Credentials verified, now save them
+    const saveResult = turn.saveCfTurnCredentials(credentials.turnTokenId, credentials.apiToken)
+    if (saveResult.success) {
       toast.success(t('peerSync.turn.saved'))
       showTurnSettings.value = false
     } else {
-      toast.error(fetchResult.error || t('peerSync.turn.fetchFailed'))
+      toast.error(saveResult.error)
     }
   } else {
-    toast.error(result.error)
+    // Validation failed, do NOT save credentials
+    toast.error(fetchResult.error || t('peerSync.turn.fetchFailed'))
   }
 }
 
@@ -265,14 +272,14 @@ const errorMessage = computed(() => {
                 :class="[
                   'w-full p-4 rounded-xl border transition-all flex items-center gap-4',
                   (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
-                    ? 'bg-gray-500/10 border-gray-500/30 opacity-50 cursor-not-allowed'
-                    : 'bg-status-info-muted border-cyan-500/40 hover:bg-cyan-500/30'
+                    ? 'bg-control-disabled border-border-muted opacity-50 cursor-not-allowed'
+                    : 'bg-status-info-muted border-status-info hover:bg-status-info-muted'
                 ]"
               >
                 <div :class="[
                   'w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0',
                   (props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0)
-                    ? 'bg-gray-500/20'
+                    ? 'bg-control-disabled'
                     : 'bg-status-info-muted'
                 ]">
                   <svg :class="[
@@ -300,7 +307,7 @@ const errorMessage = computed(() => {
               <!-- Receive Button -->
               <button
                 @click="startReceiving"
-                class="w-full p-4 rounded-xl bg-mode-generate-muted border border-blue-500/40 hover:bg-blue-500/30 transition-all flex items-center gap-4"
+                class="w-full p-4 rounded-xl bg-mode-generate-muted border border-mode-generate hover:bg-mode-generate-muted transition-all flex items-center gap-4"
               >
                 <div class="w-12 h-12 rounded-xl bg-mode-generate-muted flex items-center justify-center flex-shrink-0">
                   <svg class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,7 +336,7 @@ const errorMessage = computed(() => {
                   <span
                     v-if="hasTurnConfig"
                     class="w-2.5 h-2.5 rounded-full"
-                    :class="turnEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-500'"
+                    :class="turnEnabled ? 'bg-control-active animate-pulse' : 'bg-control-inactive'"
                   ></span>
                 </div>
                 <svg
@@ -356,7 +363,7 @@ const errorMessage = computed(() => {
                       @click="toggleTurnEnabled"
                       :class="[
                         'relative w-11 h-6 rounded-full transition-colors',
-                        turnEnabled ? 'bg-emerald-500' : 'bg-gray-600'
+                        turnEnabled ? 'bg-control-active' : 'bg-control-inactive'
                       ]"
                     >
                       <span
@@ -384,7 +391,7 @@ const errorMessage = computed(() => {
                     <input
                       v-model="turnTokenId"
                       type="text"
-                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-status-info transition-all"
                       :placeholder="$t('peerSync.turn.tokenIdPlaceholder')"
                     />
                   </div>
@@ -393,7 +400,7 @@ const errorMessage = computed(() => {
                     <input
                       v-model="apiToken"
                       type="password"
-                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+                      class="w-full bg-bg-muted border border-border-default rounded-lg px-3 py-2 text-sm text-text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-status-info transition-all"
                       :placeholder="$t('peerSync.turn.apiTokenPlaceholder')"
                     />
                   </div>
@@ -401,7 +408,7 @@ const errorMessage = computed(() => {
                     <button
                       @click="saveTurnSettings"
                       :disabled="!turnTokenId.trim() || !apiToken.trim() || isFetchingIce"
-                      class="flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      class="flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all bg-status-info-solid text-text-primary hover:bg-status-info-hover disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {{ isFetchingIce ? $t('peerSync.turn.verifying') : $t('common.save') }}
                     </button>
@@ -476,8 +483,8 @@ const errorMessage = computed(() => {
                   :class="[
                     'w-full py-3 px-4 rounded-xl text-sm font-medium transition-all border',
                     sync.localConfirmed.value
-                      ? 'bg-gray-500/20 border-border-muted text-text-muted cursor-wait'
-                      : 'bg-status-success-muted border-status-success text-status-success hover:bg-emerald-500/40'
+                      ? 'bg-control-disabled border-border-muted text-text-muted cursor-wait'
+                      : 'bg-status-success-muted border-status-success text-status-success hover:bg-status-success-muted'
                   ]"
                 >
                   {{ sync.localConfirmed.value ? $t('peerSync.waitingRemote') : $t('peerSync.confirmButton') }}
@@ -511,7 +518,7 @@ const errorMessage = computed(() => {
                 <!-- Progress bar -->
                 <div class="w-full h-2 bg-bg-interactive rounded-full overflow-hidden">
                   <div
-                    class="h-full bg-cyan-500 transition-all duration-300"
+                    class="h-full bg-status-info-solid transition-all duration-300"
                     :style="{ width: sync.transferProgress.value.total > 0 ? `${(sync.transferProgress.value.current / sync.transferProgress.value.total) * 100}%` : '0%' }"
                   ></div>
                 </div>
@@ -577,7 +584,7 @@ const errorMessage = computed(() => {
                 <button
                   @click="connectWithCode"
                   :disabled="inputCode.length < 6"
-                  class="w-full mt-4 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-mode-generate-muted border border-mode-generate text-mode-generate hover:bg-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full mt-4 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-mode-generate-muted border border-mode-generate text-mode-generate hover:bg-mode-generate-muted disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {{ $t('peerSync.connectButton') }}
                 </button>
@@ -630,8 +637,8 @@ const errorMessage = computed(() => {
                   :class="[
                     'w-full py-3 px-4 rounded-xl text-sm font-medium transition-all border',
                     sync.localConfirmed.value
-                      ? 'bg-gray-500/20 border-border-muted text-text-muted cursor-wait'
-                      : 'bg-status-success-muted border-status-success text-status-success hover:bg-emerald-500/40'
+                      ? 'bg-control-disabled border-border-muted text-text-muted cursor-wait'
+                      : 'bg-status-success-muted border-status-success text-status-success hover:bg-status-success-muted'
                   ]"
                 >
                   {{ sync.localConfirmed.value ? $t('peerSync.waitingRemote') : $t('peerSync.confirmButton') }}

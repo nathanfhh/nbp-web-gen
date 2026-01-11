@@ -98,10 +98,12 @@ export function clearCfTurnCredentials() {
 
 /**
  * Fetch ICE servers from Cloudflare TURN API
+ * @param {{ turnTokenId?: string, apiToken?: string }} [credentials] - Optional credentials to use instead of stored ones
  * @returns {Promise<{ success: boolean, iceServers?: Array, error?: string }>}
  */
-export async function fetchCfIceServers() {
-  const creds = getCfTurnCredentials()
+export async function fetchCfIceServers(credentials = null) {
+  // Use provided credentials or fall back to stored ones
+  const creds = credentials || getCfTurnCredentials()
   if (!creds?.turnTokenId || !creds?.apiToken) {
     return { success: false, error: 'Cloudflare TURN credentials not configured' }
   }
@@ -131,12 +133,14 @@ export async function fetchCfIceServers() {
       return { success: false, error: 'Invalid response format from Cloudflare' }
     }
 
-    // Cache the result with expiration (use 90% of TTL to refresh before expiry)
-    const cacheExpiry = Date.now() + (CLOUDFLARE_TURN_TTL * 0.9 * 1000)
-    localStorage.setItem(CF_ICE_CACHE_KEY, JSON.stringify({
-      iceServers,
-      expiry: cacheExpiry,
-    }))
+    // Only cache if using stored credentials (not during validation)
+    if (!credentials) {
+      const cacheExpiry = Date.now() + (CLOUDFLARE_TURN_TTL * 0.9 * 1000)
+      localStorage.setItem(CF_ICE_CACHE_KEY, JSON.stringify({
+        iceServers,
+        expiry: cacheExpiry,
+      }))
+    }
 
     return { success: true, iceServers }
   } catch (e) {

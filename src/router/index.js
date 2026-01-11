@@ -31,6 +31,14 @@ const getBaseUrl = () => {
 const router = createRouter({
   history: createWebHistory(getBaseUrl()),
   routes,
+  scrollBehavior(to, from, savedPosition) {
+    // If user navigates back/forward, restore saved position
+    if (savedPosition) {
+      return savedPosition
+    }
+    // Otherwise scroll to top
+    return { top: 0 }
+  },
 })
 
 export default router
