@@ -1,32 +1,28 @@
 /**
  * 主題系統註冊中心
- * 類似 i18n/index.js 的架構，管理所有主題
+ * 管理所有主題，自動偵測 themes 資料夾下的所有主題檔案
  */
 import { ref, computed } from 'vue'
 import { generateCSSVariables } from './tokens'
-import darkTheme from './themes/dark'
-import lightTheme from './themes/light'
 
 const STORAGE_KEY = 'nbp-theme'
 
 // ============================================================================
-// 主題註冊表
+// 主題註冊表 (自動載入)
 // ============================================================================
 
-/**
- * 所有可用主題
- * 新增主題只需：
- * 1. 建立 themes/[name].js
- * 2. 在這裡 import 並加入 themes 物件
- */
-const themes = {
-  dark: darkTheme,
-  light: lightTheme,
-  // 未來可擴充：
-  // midnight: midnightTheme,
-  // ocean: oceanTheme,
-  // sepia: sepiaTheme,
-}
+// 使用 Vite 的 glob import 功能讀取 themes 資料夾下所有 .js 檔案
+const themeFiles = import.meta.glob('./themes/*.js', { eager: true })
+
+const themes = {}
+
+// 解析載入的主題
+Object.values(themeFiles).forEach((module) => {
+  const theme = module.default
+  if (theme && theme.name) {
+    themes[theme.name] = theme
+  }
+})
 
 // ============================================================================
 // 響應式狀態
@@ -35,7 +31,7 @@ const themes = {
 const currentThemeName = ref('dark')
 
 // 當前主題物件（計算屬性）
-const currentTheme = computed(() => themes[currentThemeName.value])
+const currentTheme = computed(() => themes[currentThemeName.value] || themes['dark'])
 
 // ============================================================================
 // 工具函數
@@ -88,7 +84,7 @@ function getSavedTheme() {
  * @param {Object} theme - 主題物件
  */
 function applyThemeToDOM(theme) {
-  if (typeof document === 'undefined') return
+  if (typeof document === 'undefined' || !theme) return
 
   const root = document.documentElement
 
@@ -117,7 +113,10 @@ function applyThemeToDOM(theme) {
  * 應在 main.js 中呼叫
  */
 export function initTheme() {
-  currentThemeName.value = getSavedTheme()
+  const savedTheme = getSavedTheme()
+  // 確保主題存在，否則回退到 dark
+  currentThemeName.value = themes[savedTheme] ? savedTheme : 'dark'
+  
   applyThemeToDOM(themes[currentThemeName.value])
 
   // 監聽系統主題變化（只在未手動設定時響應）
@@ -125,7 +124,11 @@ export function initTheme() {
     window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       // 只在沒有手動儲存主題時跟隨系統
       if (!localStorage.getItem(STORAGE_KEY)) {
-        setTheme(e.matches ? 'dark' : 'light')
+        const newTheme = e.matches ? 'dark' : 'light'
+        // 只有當該主題存在時才切換（避免只有單一主題的情況）
+        if (themes[newTheme]) {
+          setTheme(newTheme)
+        }
       }
     })
   }
@@ -143,11 +146,20 @@ export function setTheme(themeName) {
 
   currentThemeName.value = themeName
   localStorage.setItem(STORAGE_KEY, themeName)
-  applyThemeToDOM(themes[themeName])
+  
+  // 如果支援 View Transitions API 且不是初始載入，這部分邏輯交由 UI 層處理動畫
+  // 這裡只負責純數據更新和基本的 DOM 變更（作為 fallback）
+  if (!document.startViewTransition) {
+      applyThemeToDOM(themes[themeName])
+  } else {
+      // 在 View Transition 環境下，UI 元件會呼叫 setTheme
+      // 我們這裡直接 apply，因為 startViewTransition 會包裹這個狀態變更
+      applyThemeToDOM(themes[themeName])
+  }
 }
 
 /**
- * 切換主題（用於雙主題快速切換）
+ * 切換主題（用於雙主題快速切換，循環）
  */
 export function toggleTheme() {
   const themeNames = Object.keys(themes)
@@ -173,14 +185,11 @@ export function useTheme() {
 }
 
 /**
- * 取得所有可用主題
- * @returns {Array<{name: string, displayName: string}>}
+ * 取得所有可用主題的 ID 列表
+ * @returns {Array<string>}
  */
 export function getAvailableThemes() {
-  return Object.values(themes).map((t) => ({
-    name: t.name,
-    displayName: t.displayName,
-  }))
+  return Object.keys(themes)
 }
 
 /**

@@ -4,7 +4,7 @@
  */
 export default {
   name: 'light',
-  displayName: '亮色模式',
+  type: 'light',
 
   colors: {
     // ========================================

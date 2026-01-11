@@ -25,7 +25,12 @@
   },
   "theme": {
     "switchToLight": "Switch to Light Mode",
-    "switchToDark": "Switch to Dark Mode"
+    "switchToDark": "Switch to Dark Mode",
+    "label": "Theme",
+    "names": {
+      "light": "Light Mode",
+      "dark": "Dark Mode"
+    }
   },
   "language": {
     "label": "Language",

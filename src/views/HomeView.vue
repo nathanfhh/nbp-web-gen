@@ -1,10 +1,11 @@
 <script setup>
-import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
 import { useToast } from '@/composables/useToast'
 import { saveLocale } from '@/i18n'
+import { getAvailableThemes } from '@/theme'
 
 // Core components (always loaded)
 import ApiKeyInput from '@/components/ApiKeyInput.vue'
@@ -58,6 +59,55 @@ const toggleLocale = () => {
   saveLocale(newLocale)
 }
 
+// Theme handling
+const isThemeMenuOpen = ref(false)
+const availableThemes = computed(() => getAvailableThemes())
+
+const closeThemeMenu = () => {
+  isThemeMenuOpen.value = false
+}
+
+// Click outside handler for theme menu
+const setupClickOutside = () => {
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('theme-menu-container')
+    if (menu && !menu.contains(e.target)) {
+      closeThemeMenu()
+    }
+  })
+}
+
+const changeTheme = async (themeName, event) => {
+  closeThemeMenu()
+
+  // Fallback for browsers without View Transitions support
+  if (!document.startViewTransition) {
+    store.setTheme(themeName)
+    return
+  }
+
+  // Get click coordinates for ripple effect
+  const x = event?.clientX ?? window.innerWidth / 2
+  const y = event?.clientY ?? window.innerHeight / 2
+
+  // Set CSS variables for the ripple origin
+  document.documentElement.style.setProperty('--ripple-x', `${x}px`)
+  document.documentElement.style.setProperty('--ripple-y', `${y}px`)
+  document.documentElement.setAttribute('data-theme-transition', 'active')
+
+  // Start the transition
+  const transition = document.startViewTransition(() => {
+    store.setTheme(themeName)
+  })
+
+  // Clean up after transition
+  try {
+    await transition.finished
+  } finally {
+    document.documentElement.removeAttribute('data-theme-transition')
+  }
+}
+
 // App version from package.json (injected by Vite)
 const appVersion = __APP_VERSION__
 
@@ -107,6 +157,7 @@ let intersectionObserver = null
 onMounted(() => {
   intersectionObserver = setupIntersectionObserver()
   checkAppUpdate()
+  setupClickOutside()
 })
 
 onUnmounted(() => {
@@ -161,48 +212,81 @@ const handleGenerate = async () => {
             }}
           </span>
         </button>
-        <!-- Theme Toggle Button -->
-        <button
-          @click="store.toggleTheme"
-          class="p-3 rounded-xl transition-all group"
-          :class="
-            store.theme === 'dark'
-              ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
-              : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
-          "
-          :title="store.theme === 'dark' ? $t('theme.switchToLight') : $t('theme.switchToDark')"
-        >
-          <!-- Sun icon (shown in dark mode) -->
-          <svg
-            v-if="store.theme === 'dark'"
-            class="w-5 h-5 text-accent-star group-hover:scale-110 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        
+        <!-- Theme Selector (Dropdown) -->
+        <div id="theme-menu-container" class="relative">
+          <button
+            @click="isThemeMenuOpen = !isThemeMenuOpen"
+            class="p-3 rounded-xl transition-all group flex items-center gap-2"
+            :class="
+              store.theme === 'dark'
+                ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
+                : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
+            "
+            :title="$t('theme.label')"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-            />
-          </svg>
-          <!-- Moon icon (shown in light mode) -->
-          <svg
-            v-else
-            class="w-5 h-5 text-brand-primary group-hover:scale-110 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+            <!-- Current Theme Icon -->
+            <svg
+              v-if="store.theme === 'dark'"
+              class="w-5 h-5 text-accent-star"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <svg
+              v-else
+              class="w-5 h-5 text-brand-primary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+            <span class="text-sm font-medium hidden sm:block" :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'">
+              {{ $t(`theme.names.${store.theme}`) }}
+            </span>
+            <svg class="w-4 h-4 transition-transform duration-200" :class="[store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted', isThemeMenuOpen ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="transform scale-95 opacity-0"
+            enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75 ease-in"
+            leave-from-class="transform scale-100 opacity-100"
+            leave-to-class="transform scale-95 opacity-0"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            />
-          </svg>
-        </button>
+            <div
+              v-if="isThemeMenuOpen"
+              class="absolute right-0 mt-2 w-48 rounded-xl shadow-lg border backdrop-blur-xl z-50 overflow-hidden"
+              :class="store.theme === 'dark' ? 'bg-bg-elevated/90 border-border-muted' : 'bg-white/90 border-border-subtle'"
+            >
+              <div class="py-1">
+                <button
+                  v-for="themeName in availableThemes"
+                  :key="themeName"
+                  @click="(e) => changeTheme(themeName, e)"
+                  class="w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between group"
+                  :class="[
+                    store.theme === themeName 
+                      ? (store.theme === 'dark' ? 'bg-bg-interactive text-text-primary' : 'bg-bg-subtle text-brand-primary')
+                      : (store.theme === 'dark' ? 'text-text-secondary hover:bg-bg-interactive' : 'text-text-muted hover:bg-bg-subtle')
+                  ]"
+                >
+                  <span class="font-medium">{{ $t(`theme.names.${themeName}`) }}</span>
+                  <svg v-if="store.theme === themeName" class="w-4 h-4 text-status-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
       </div>
 
       <!-- Hero Content -->

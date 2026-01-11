@@ -11,6 +11,19 @@
   overflow: hidden;
 }
 
+/* Force semantic text colors to be light in cropper (overlay is always dark) */
+.cropper-overlay .text-text-primary {
+  color: #f1f5f9 !important;
+}
+
+.cropper-overlay .text-text-secondary {
+  color: #cbd5e1 !important;
+}
+
+.cropper-overlay .text-text-muted {
+  color: #94a3b8 !important;
+}
+
 /* Force all text to be light in cropper (override theme) */
 .cropper-overlay :deep(.text-gray-300),
 .cropper-overlay .text-gray-300 {

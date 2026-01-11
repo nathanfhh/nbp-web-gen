@@ -4,7 +4,7 @@ import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions } from '@/constants'
-import { useThemeName, toggleTheme as themeToggle } from '@/theme'
+import { useThemeName, toggleTheme as themeToggle, setTheme as themeSet } from '@/theme'
 
 export const useGeneratorStore = defineStore('generator', () => {
   const { addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount, migrateAddUUIDs } = useIndexedDB()
@@ -199,6 +199,10 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   const toggleTheme = () => {
     themeToggle()
+  }
+
+  const setTheme = (themeName) => {
+    themeSet(themeName)
   }
 
   // ============================================================================
@@ -465,6 +469,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     // Actions
     initialize,
     toggleTheme,
+    setTheme,
     saveApiKey,
     setMode,
     addToHistory,

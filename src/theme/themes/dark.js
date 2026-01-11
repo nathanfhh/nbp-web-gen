@@ -4,7 +4,7 @@
  */
 export default {
   name: 'dark',
-  displayName: '暗色模式',
+  type: 'dark',
 
   colors: {
     // ========================================

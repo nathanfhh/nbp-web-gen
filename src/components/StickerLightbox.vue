@@ -45,6 +45,19 @@ const close = () => {
   backdrop-filter: blur(8px);
 }
 
+/* Force semantic text colors to be light in lightbox (overlay is always dark) */
+.sticker-lightbox .text-text-primary {
+  color: #f1f5f9 !important;
+}
+
+.sticker-lightbox .text-text-secondary {
+  color: #cbd5e1 !important;
+}
+
+.sticker-lightbox .text-text-muted {
+  color: #94a3b8 !important;
+}
+
 .sticker-lightbox-content {
   position: relative;
   display: flex;
