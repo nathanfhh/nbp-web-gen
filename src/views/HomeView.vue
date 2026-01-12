@@ -1,5 +1,5 @@
 <script setup>
-import { defineAsyncComponent, onMounted, onUnmounted, ref, computed } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
@@ -61,6 +61,7 @@ const toggleLocale = () => {
 
 // Theme handling
 const isThemeMenuOpen = ref(false)
+const themeDropdownRef = ref(null)
 const availableThemes = computed(() => getAvailableThemes())
 const currentTheme = useTheme()
 const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
@@ -68,6 +69,18 @@ const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
 const closeThemeMenu = () => {
   isThemeMenuOpen.value = false
 }
+
+// Auto scroll to current theme when dropdown opens
+watch(isThemeMenuOpen, async (isOpen) => {
+  if (isOpen) {
+    await nextTick()
+    const container = themeDropdownRef.value
+    const activeItem = container?.querySelector('[data-active="true"]')
+    if (activeItem && container) {
+      activeItem.scrollIntoView({ block: 'nearest' })
+    }
+  }
+})
 
 // Click outside handler for theme menu
 const setupClickOutside = () => {
@@ -265,6 +278,7 @@ const handleGenerate = async () => {
           >
             <div
               v-if="isThemeMenuOpen"
+              ref="themeDropdownRef"
               class="absolute right-0 mt-2 w-48 max-h-[50vh] rounded-xl shadow-lg border backdrop-blur-xl z-50 overflow-y-auto"
               :class="isDarkTheme ? 'bg-bg-elevated/90 border-border-muted' : 'bg-bg-card/95 border-border-subtle'"
             >
@@ -272,6 +286,7 @@ const handleGenerate = async () => {
                 <button
                   v-for="themeName in availableThemes"
                   :key="themeName"
+                  :data-active="store.theme === themeName"
                   @click="(e) => changeTheme(themeName, e)"
                   class="w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between group"
                   :class="[
