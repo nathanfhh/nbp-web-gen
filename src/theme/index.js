@@ -203,6 +203,15 @@ export function hasTheme(themeName) {
   return !!themes[themeName]
 }
 
+/**
+ * 取得主題類型 (light/dark)
+ * @param {string} themeName
+ * @returns {'light' | 'dark' | null}
+ */
+export function getThemeType(themeName) {
+  return themes[themeName]?.type || null
+}
+
 // 預設匯出
 export default {
   initTheme,
@@ -212,4 +221,5 @@ export default {
   useTheme,
   getAvailableThemes,
   hasTheme,
+  getThemeType,
 }

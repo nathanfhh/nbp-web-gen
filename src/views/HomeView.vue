@@ -5,7 +5,7 @@ import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
 import { useToast } from '@/composables/useToast'
 import { saveLocale } from '@/i18n'
-import { getAvailableThemes, useTheme } from '@/theme'
+import { getAvailableThemes, useTheme, getThemeType } from '@/theme'
 
 // Core components (always loaded)
 import ApiKeyInput from '@/components/ApiKeyInput.vue'
@@ -240,24 +240,24 @@ const handleGenerate = async () => {
             "
             :title="$t('theme.label')"
           >
-            <!-- Current Theme Icon -->
+            <!-- Current Theme Icon: 亮色→太陽, 暗色→月亮 -->
             <svg
-              v-if="store.theme === 'dark'"
-              class="w-5 h-5 text-accent-star"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            <svg
-              v-else
+              v-if="isDarkTheme"
               class="w-5 h-5 text-brand-primary"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+            <svg
+              v-else
+              class="w-5 h-5 text-accent-star"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
             <span class="text-sm font-medium hidden sm:block" :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'">
               {{ $t(`theme.names.${store.theme}`) }}
@@ -295,7 +295,29 @@ const handleGenerate = async () => {
                       : (isDarkTheme ? 'text-text-secondary hover:bg-bg-interactive' : 'text-text-primary hover:bg-bg-subtle')
                   ]"
                 >
-                  <span class="font-medium">{{ $t(`theme.names.${themeName}`) }}</span>
+                  <span class="flex items-center gap-2">
+                    <!-- 淺色主題 → 太陽 -->
+                    <svg
+                      v-if="getThemeType(themeName) === 'light'"
+                      class="w-4 h-4 text-accent-star"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <!-- 深色主題 → 月亮 -->
+                    <svg
+                      v-else
+                      class="w-4 h-4 text-brand-primary"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <span class="font-medium">{{ $t(`theme.names.${themeName}`) }}</span>
+                  </span>
                   <svg v-if="store.theme === themeName" class="w-4 h-4 text-status-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
