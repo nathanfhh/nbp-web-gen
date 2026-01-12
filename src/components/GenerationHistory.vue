@@ -249,7 +249,7 @@ const handleImported = async () => {
               />
               <div
                 v-if="item.images.length > 1"
-                class="absolute bottom-0 right-0 bg-black/70 text-text-primary text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+                class="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
               >
                 +{{ item.images.length - 1 }}
               </div>

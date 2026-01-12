@@ -268,7 +268,7 @@ const clearImages = () => {
         <!-- Always visible zoom button -->
         <button
           @click.stop="openLightbox(index)"
-          class="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white hover:bg-black/70 hover:text-text-primary transition-all"
+          class="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white hover:bg-black/70 transition-all"
           :title="$t('preview.zoom')"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
