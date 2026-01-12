@@ -653,5 +653,35 @@
       "quantized": "已降色",
       "reencoded": "僅重編碼"
     }
+  },
+  "tour": {
+    "help": "使用導覽",
+    "skip": "跳過導覽",
+    "prev": "上一步",
+    "next": "下一步",
+    "finish": "完成",
+    "keyboardHint": "按 ← → 切換步驟，ESC 跳過",
+    "steps": {
+      "apiKey": {
+        "title": "設定 API Key",
+        "description": "首先，請輸入您的 Google Gemini API Key。這是使用本工具的必要條件。API Key 僅儲存在您的瀏覽器中，不會傳送至任何伺服器。"
+      },
+      "modeSelector": {
+        "title": "選擇生成模式",
+        "description": "我們提供 5 種不同的生成模式：基本生成、貼圖製作、圖片編輯、故事序列、圖表繪製。選擇最適合您需求的模式。"
+      },
+      "promptInput": {
+        "title": "輸入 Prompt",
+        "description": "在這裡描述您想要生成的圖片。描述越詳細，生成的結果越好！您可以使用任何語言來描述。下方還有更多進階選項可以調整。"
+      },
+      "generateButton": {
+        "title": "開始生成",
+        "description": "準備好了嗎？點擊這個按鈕開始生成圖片！生成過程中您可以看到 AI 的思考過程。"
+      },
+      "history": {
+        "title": "歷史紀錄",
+        "description": "所有生成過的圖片都會保存在這裡。點擊紀錄可以載入之前的設定，點擊縮圖可以預覽圖片。右上角的傳輸圖示 (⇄) 可以匯出或匯入歷史紀錄。"
+      }
+    }
   }
 }

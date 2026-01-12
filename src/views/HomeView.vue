@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
 import { useToast } from '@/composables/useToast'
+import { useTour } from '@/composables/useTour'
 import { saveLocale } from '@/i18n'
 import { getAvailableThemes, useTheme, getThemeType } from '@/theme'
 
@@ -29,11 +30,13 @@ const GenerationHistory = defineAsyncComponent(() => import('@/components/Genera
 const ThinkingProcess = defineAsyncComponent(() => import('@/components/ThinkingProcess.vue'))
 const PromptDebug = defineAsyncComponent(() => import('@/components/PromptDebug.vue'))
 const CharacterCarousel = defineAsyncComponent(() => import('@/components/CharacterCarousel.vue'))
+const UserTour = defineAsyncComponent(() => import('@/components/UserTour.vue'))
 
 const store = useGeneratorStore()
 const { handleGenerate: executeGenerate } = useGeneration()
 const { t, locale } = useI18n()
 const toast = useToast()
+const tour = useTour()
 
 // Build hash for update detection (injected by Vite)
 const buildHash = __BUILD_HASH__
@@ -173,6 +176,7 @@ onMounted(() => {
   intersectionObserver = setupIntersectionObserver()
   checkAppUpdate()
   setupClickOutside()
+  tour.autoStartIfNeeded()
 })
 
 onUnmounted(() => {
@@ -205,6 +209,33 @@ const handleGenerate = async () => {
     <section class="relative z-10 h-dvh flex flex-col items-center justify-center scroll-section">
       <!-- Top Right Controls -->
       <div class="absolute right-4 top-4 flex items-center gap-2">
+        <!-- Tour Help Button -->
+        <button
+          @click="tour.resetTourCompletion(); tour.start()"
+          class="h-[50px] px-3 rounded-xl transition-all group flex items-center justify-center"
+          :class="
+            store.theme === 'dark'
+              ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
+              : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
+          "
+          :title="$t('tour.help')"
+        >
+          <svg
+            class="w-5 h-5 group-hover:scale-110 transition-transform"
+            :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </button>
+
         <!-- Language Toggle Button -->
         <button
           @click="toggleLocale"
@@ -508,6 +539,7 @@ const handleGenerate = async () => {
               <button
                 @click="handleGenerate"
                 :disabled="store.isGenerating || !store.hasApiKey"
+                data-tour="generate-button"
                 class="btn-premium w-full py-4 text-lg font-semibold flex items-center justify-center gap-3"
               >
                 <svg v-if="store.isGenerating" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -563,6 +595,9 @@ const handleGenerate = async () => {
         </div>
       </footer>
     </section>
+
+    <!-- User Tour (Onboarding) -->
+    <UserTour />
   </div>
 </template>
 

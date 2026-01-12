@@ -653,5 +653,35 @@
       "quantized": "Quantized",
       "reencoded": "Re-encoded only"
     }
+  },
+  "tour": {
+    "help": "Take a Tour",
+    "skip": "Skip Tour",
+    "prev": "Previous",
+    "next": "Next",
+    "finish": "Finish",
+    "keyboardHint": "Press ← → to navigate, ESC to skip",
+    "steps": {
+      "apiKey": {
+        "title": "Set Up API Key",
+        "description": "First, enter your Google Gemini API Key. This is required to use the tool. Your API Key is stored locally in your browser and never sent to any server."
+      },
+      "modeSelector": {
+        "title": "Choose Generation Mode",
+        "description": "We offer 5 different modes: Generate, Sticker, Edit, Story, and Diagram. Choose the mode that best fits your needs."
+      },
+      "promptInput": {
+        "title": "Enter Your Prompt",
+        "description": "Describe the image you want to generate here. The more detailed your description, the better the results! You can use any language. More advanced options are available below."
+      },
+      "generateButton": {
+        "title": "Start Generating",
+        "description": "Ready? Click this button to start generating your image! You can see the AI's thinking process during generation."
+      },
+      "history": {
+        "title": "Generation History",
+        "description": "All generated images are saved here. Click a record to reload its settings, click the thumbnail to preview images. The transfer icon (⇄) in the top right lets you export or import your history."
+      }
+    }
   }
 }
