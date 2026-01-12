@@ -139,13 +139,13 @@ export const COLOR_MIGRATION_MAP = {
   'text-cyan-400': 'text-status-info',
   'text-yellow-400': 'text-accent-star',
 
-  // 模式色
-  'text-pink-300': 'text-mode-sticker',
-  'text-pink-400': 'text-mode-sticker',
-  'text-violet-300': 'text-mode-diagram',
-  'text-violet-400': 'text-mode-diagram',
-  'text-rose-300': 'text-mode-edit',
-  'text-rose-400': 'text-mode-edit',
+  // 模式色 (統一使用 mode-generate)
+  'text-pink-300': 'text-mode-generate',
+  'text-pink-400': 'text-mode-generate',
+  'text-violet-300': 'text-mode-generate',
+  'text-violet-400': 'text-mode-generate',
+  'text-rose-300': 'text-mode-generate',
+  'text-rose-400': 'text-mode-generate',
 
   // ========================================
   // bg-* 類別遷移
@@ -206,14 +206,14 @@ export const COLOR_MIGRATION_MAP = {
   'bg-cyan-600': 'bg-status-info-solid',
   'bg-cyan-700': 'bg-status-info-hover',
 
-  // 模式背景
-  'bg-pink-500': 'bg-mode-sticker-solid',
-  'bg-pink-500/20': 'bg-mode-sticker-muted',
-  'bg-pink-500/30': 'bg-mode-sticker-muted',
-  'bg-violet-500/20': 'bg-mode-diagram-muted',
-  'bg-violet-500/30': 'bg-mode-diagram-muted',
-  'bg-rose-500/20': 'bg-mode-edit-muted',
-  'bg-rose-500/30': 'bg-mode-edit-muted',
+  // 模式背景 (統一使用 mode-generate)
+  'bg-pink-500': 'bg-mode-generate-solid',
+  'bg-pink-500/20': 'bg-mode-generate-muted',
+  'bg-pink-500/30': 'bg-mode-generate-muted',
+  'bg-violet-500/20': 'bg-mode-generate-muted',
+  'bg-violet-500/30': 'bg-mode-generate-muted',
+  'bg-rose-500/20': 'bg-mode-generate-muted',
+  'bg-rose-500/30': 'bg-mode-generate-muted',
 
   // ========================================
   // border-* 類別遷移
@@ -248,11 +248,11 @@ export const COLOR_MIGRATION_MAP = {
   'border-cyan-500/40': 'border-status-info',
   'border-cyan-400/50': 'border-status-info',
 
-  // 模式邊框
-  'border-pink-500': 'border-mode-sticker',
-  'border-pink-500/30': 'border-mode-sticker',
-  'border-violet-500': 'border-mode-diagram',
-  'border-rose-500': 'border-mode-edit',
+  // 模式邊框 (統一使用 mode-generate)
+  'border-pink-500': 'border-mode-generate',
+  'border-pink-500/30': 'border-mode-generate',
+  'border-violet-500': 'border-mode-generate',
+  'border-rose-500': 'border-mode-generate',
 
   // ========================================
   // hover:text-* 類別遷移

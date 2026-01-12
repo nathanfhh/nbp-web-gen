@@ -70,20 +70,12 @@ export default {
     statusInfoHover: '#0E7490',
 
     // ========================================
-    // 模式色（調整對比度）
+    // 模式色（統一品牌色）
     // ========================================
-    modeGenerate: '#2563EB', // Blue
-    modeGenerateMuted: 'rgba(37, 99, 235, 0.12)',
-    modeGenerateHover: 'rgba(37, 99, 235, 0.2)',
-    modeSticker: '#BE185D', // Pink
-    modeStickerMuted: 'rgba(190, 24, 93, 0.12)',
-    modeStickerSolid: '#EC4899', // Toggle ON 狀態
-    modeEdit: '#6D28D9', // Violet
-    modeEditMuted: 'rgba(109, 40, 217, 0.12)',
-    modeStory: '#C2410C', // Orange
-    modeStoryMuted: 'rgba(194, 65, 12, 0.12)',
-    modeDiagram: '#047857', // Emerald
-    modeDiagramMuted: 'rgba(4, 120, 87, 0.12)',
+    modeGenerate: '#0D5EAF', // = brandPrimary
+    modeGenerateMuted: 'rgba(13, 94, 175, 0.12)',
+    modeGenerateSolid: '#0D5EAF', // = brandPrimary
+    modeGenerateHover: 'rgba(13, 94, 175, 0.2)',
 
     // ========================================
     // 控制元件狀態

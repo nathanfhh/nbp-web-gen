@@ -127,7 +127,7 @@ const formatOptions = computed(() => [
           @click="store.storyOptions.transition = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.storyOptions.transition === opt.value
-            ? 'bg-status-info-muted border border-status-info text-status-info'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
@@ -145,7 +145,7 @@ const formatOptions = computed(() => [
           @click="store.storyOptions.format = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.storyOptions.format === opt.value
-            ? 'bg-status-warning-muted border border-status-warning text-status-warning'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}

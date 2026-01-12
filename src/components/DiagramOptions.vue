@@ -100,7 +100,7 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.style = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.style === opt.value
-            ? 'bg-status-info-muted border border-status-info text-status-info'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
@@ -118,7 +118,7 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.layout = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.layout === opt.value
-            ? 'bg-status-warning-muted border border-status-warning text-status-warning'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
@@ -136,7 +136,7 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.complexity = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.complexity === opt.value
-            ? 'bg-status-success-muted border border-status-success text-status-success'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}
@@ -154,7 +154,7 @@ const annotationsOptions = computed(() => [
           @click="store.diagramOptions.annotations = opt.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="store.diagramOptions.annotations === opt.value
-            ? 'bg-mode-edit-muted border border-mode-edit text-mode-edit'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ opt.label }}

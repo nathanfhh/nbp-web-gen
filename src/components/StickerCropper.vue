@@ -796,7 +796,7 @@ onUnmounted(() => {
                 :disabled="selectedStickers.size === 0 || isDownloading"
                 class="download-btn"
                 :class="selectedStickers.size > 0 && !isDownloading
-                  ? 'bg-mode-sticker-solid hover:bg-mode-sticker-hover text-white'
+                  ? 'bg-mode-generate-solid hover:bg-mode-generate-hover text-white'
                   : 'bg-control-disabled text-text-muted cursor-not-allowed'"
               >
                 <svg v-if="isDownloading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

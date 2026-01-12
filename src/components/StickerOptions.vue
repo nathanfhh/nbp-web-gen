@@ -85,7 +85,7 @@ const handleStyleEnter = (event) => {
           @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
           :class="options.resolution === res.value
-            ? 'bg-mode-sticker-muted border border-mode-sticker text-mode-sticker'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ res.label }}
@@ -103,7 +103,7 @@ const handleStyleEnter = (event) => {
           @click="options.ratio = ratio.value"
           class="py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex flex-col items-center justify-center gap-1"
           :class="options.ratio === ratio.value
-            ? 'bg-mode-sticker-muted border border-mode-sticker text-mode-sticker'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           <!-- Ratio icons -->
@@ -144,7 +144,7 @@ const handleStyleEnter = (event) => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
               </svg>
             </button>
-            <span class="w-8 text-center text-mode-sticker font-medium">{{ options.layoutRows }}</span>
+            <span class="w-8 text-center text-mode-generate font-medium">{{ options.layoutRows }}</span>
             <button
               @click="options.layoutRows = Math.min(5, options.layoutRows + 1)"
               class="w-8 h-8 rounded-lg bg-bg-muted text-text-muted hover:bg-bg-interactive transition-colors flex items-center justify-center"
@@ -171,7 +171,7 @@ const handleStyleEnter = (event) => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
               </svg>
             </button>
-            <span class="w-8 text-center text-mode-sticker font-medium">{{ options.layoutCols }}</span>
+            <span class="w-8 text-center text-mode-generate font-medium">{{ options.layoutCols }}</span>
             <button
               @click="options.layoutCols = Math.min(5, options.layoutCols + 1)"
               class="w-8 h-8 rounded-lg bg-bg-muted text-text-muted hover:bg-bg-interactive transition-colors flex items-center justify-center"
@@ -197,7 +197,7 @@ const handleStyleEnter = (event) => {
           <div
             v-for="i in options.layoutRows * options.layoutCols"
             :key="i"
-            class="w-4 h-4 bg-mode-sticker-muted rounded-sm"
+            class="w-4 h-4 bg-mode-generate-muted rounded-sm"
           ></div>
         </div>
         <span class="text-xs text-text-muted">
@@ -219,7 +219,7 @@ const handleStyleEnter = (event) => {
           @click="options.context = ctx.value"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="options.context === ctx.value
-            ? 'bg-mode-sticker-muted border border-mode-sticker text-mode-sticker'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ ctx.label }}
@@ -245,7 +245,7 @@ const handleStyleEnter = (event) => {
         <button
           @click="options.hasText = !options.hasText"
           class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-          :class="options.hasText ? 'bg-mode-sticker-solid' : 'bg-control-inactive'"
+          :class="options.hasText ? 'bg-mode-generate-solid' : 'bg-control-inactive'"
         >
           <span
             class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
@@ -255,7 +255,7 @@ const handleStyleEnter = (event) => {
       </div>
 
       <!-- Text options (shown when hasText is true) -->
-      <div v-if="options.hasText" class="space-y-4 pl-4 border-l-2 border-mode-sticker">
+      <div v-if="options.hasText" class="space-y-4 pl-4 border-l-2 border-mode-generate">
         <!-- Tone (multi-select) -->
         <div class="space-y-2">
           <label class="block text-xs font-medium text-text-muted">{{ $t('sticker.text.tone.label') }}</label>
@@ -266,7 +266,7 @@ const handleStyleEnter = (event) => {
               @click="togglers.tones.toggle(tone.value)"
               class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
               :class="togglers.tones.has(tone.value)
-                ? 'bg-status-warning-muted border border-status-warning text-status-warning'
+                ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
                 : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
             >
               {{ tone.label }}
@@ -291,7 +291,7 @@ const handleStyleEnter = (event) => {
               @click="togglers.languages.toggle(lang.value)"
               class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
               :class="togglers.languages.has(lang.value)
-                ? 'bg-status-info-muted border border-status-info text-status-info'
+                ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
                 : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
             >
               {{ lang.label }}
@@ -325,7 +325,7 @@ const handleStyleEnter = (event) => {
             @click="togglers.cameraAngles.toggle(angle.value)"
             class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
             :class="togglers.cameraAngles.has(angle.value)
-              ? 'bg-status-success-muted border border-status-success text-status-success'
+              ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
               : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
           >
             {{ angle.label }}
@@ -343,7 +343,7 @@ const handleStyleEnter = (event) => {
             @click="togglers.expressions.toggle(expr.value)"
             class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
             :class="togglers.expressions.has(expr.value)
-              ? 'bg-mode-diagram-muted border border-mode-diagram text-mode-diagram'
+              ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
               : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
           >
             {{ expr.label }}

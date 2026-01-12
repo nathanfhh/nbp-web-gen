@@ -70,20 +70,12 @@ export default {
     statusInfoHover: '#0288d1',
 
     // ========================================
-    // 模式色
+    // 模式色（統一品牌色）
     // ========================================
-    modeGenerate: '#7fb069', // Matcha (Brand)
+    modeGenerate: '#95c47d', // = brandPrimaryLight
     modeGenerateMuted: 'rgba(127, 176, 105, 0.2)',
+    modeGenerateSolid: '#7fb069', // = brandPrimary
     modeGenerateHover: 'rgba(127, 176, 105, 0.3)',
-    modeSticker: '#ce93d8', // Light Purple
-    modeStickerMuted: 'rgba(206, 147, 216, 0.2)',
-    modeStickerSolid: '#ba68c8',
-    modeEdit: '#80cbc4', // Teal
-    modeEditMuted: 'rgba(128, 203, 196, 0.2)',
-    modeStory: '#ffb74d', // Orange
-    modeStoryMuted: 'rgba(255, 183, 77, 0.2)',
-    modeDiagram: '#4fc3f7', // Light Blue
-    modeDiagramMuted: 'rgba(79, 195, 247, 0.2)',
 
     // ========================================
     // 控制元件狀態

@@ -70,20 +70,12 @@ export default {
     statusInfoHover: '#00BCD4',
 
     // ========================================
-    // 模式色 (Warm-tinted for dark bg)
+    // 模式色（統一品牌色）
     // ========================================
-    modeGenerate: '#BCAAA4', // Brown-200 (Brand)
-    modeGenerateMuted: 'rgba(188, 170, 164, 0.2)',
-    modeGenerateHover: 'rgba(188, 170, 164, 0.35)',
-    modeSticker: '#F48FB1', // Pink-200
-    modeStickerMuted: 'rgba(244, 143, 177, 0.2)',
-    modeStickerSolid: '#EC407A', // Pink-400
-    modeEdit: '#CE93D8', // Purple-200
-    modeEditMuted: 'rgba(206, 147, 216, 0.2)',
-    modeStory: '#FFCC80', // Orange-200
-    modeStoryMuted: 'rgba(255, 204, 128, 0.2)',
-    modeDiagram: '#80CBC4', // Teal-200
-    modeDiagramMuted: 'rgba(128, 203, 196, 0.2)',
+    modeGenerate: '#BCAAA4', // = brandPrimaryLight
+    modeGenerateMuted: 'rgba(161, 136, 127, 0.2)',
+    modeGenerateSolid: '#A1887F', // = brandPrimary
+    modeGenerateHover: 'rgba(161, 136, 127, 0.35)',
 
     // ========================================
     // 控制元件狀態

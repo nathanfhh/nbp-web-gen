@@ -56,19 +56,11 @@
   --color-status-info-solid: var(--color-status-info-solid);
   --color-status-info-hover: var(--color-status-info-hover);
 
-  /* Mode Colors (5 generation modes) */
+  /* Mode Colors (unified brand color) */
   --color-mode-generate: var(--color-mode-generate);
   --color-mode-generate-muted: var(--color-mode-generate-muted);
+  --color-mode-generate-solid: var(--color-mode-generate-solid);
   --color-mode-generate-hover: var(--color-mode-generate-hover);
-  --color-mode-sticker: var(--color-mode-sticker);
-  --color-mode-sticker-muted: var(--color-mode-sticker-muted);
-  --color-mode-sticker-solid: var(--color-mode-sticker-solid);
-  --color-mode-edit: var(--color-mode-edit);
-  --color-mode-edit-muted: var(--color-mode-edit-muted);
-  --color-mode-story: var(--color-mode-story);
-  --color-mode-story-muted: var(--color-mode-story-muted);
-  --color-mode-diagram: var(--color-mode-diagram);
-  --color-mode-diagram-muted: var(--color-mode-diagram-muted);
 
   /* Control States (toggles, buttons) */
   --color-control-active: var(--color-control-active);

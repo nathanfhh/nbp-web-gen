@@ -70,20 +70,12 @@ export default {
     statusInfoHover: '#075985',
 
     // ========================================
-    // 模式色 (Warm tones preferred)
+    // 模式色（統一品牌色）
     // ========================================
-    modeGenerate: '#EA580C', // Orange (Brand)
-    modeGenerateMuted: 'rgba(234, 88, 12, 0.12)',
-    modeGenerateHover: 'rgba(234, 88, 12, 0.2)',
-    modeSticker: '#BE123C', // Rose-700
-    modeStickerMuted: 'rgba(190, 18, 60, 0.12)',
-    modeStickerSolid: '#E11D48', // Rose-600
-    modeEdit: '#7E22CE', // Purple-700
-    modeEditMuted: 'rgba(126, 34, 206, 0.12)',
-    modeStory: '#A16207', // Yellow-700
-    modeStoryMuted: 'rgba(161, 98, 7, 0.12)',
-    modeDiagram: '#047857', // Emerald-700
-    modeDiagramMuted: 'rgba(4, 120, 87, 0.12)',
+    modeGenerate: '#F97316', // = brandPrimary
+    modeGenerateMuted: 'rgba(249, 115, 22, 0.12)',
+    modeGenerateSolid: '#F97316', // = brandPrimary
+    modeGenerateHover: 'rgba(249, 115, 22, 0.2)',
 
     // ========================================
     // 控制元件狀態

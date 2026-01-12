@@ -1,5 +1,5 @@
 <script setup>
-import { defineAsyncComponent, onMounted, onUnmounted, ref, computed, nextTick } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'

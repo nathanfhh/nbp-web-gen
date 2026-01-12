@@ -76,20 +76,12 @@ export default {
     statusInfoHover: '#A07A99',
 
     // ========================================
-    // 模式色 - Frost + Aurora mix
+    // 模式色（統一品牌色）
     // ========================================
-    modeGenerate: '#88C0D0', // nord8 冰藍
+    modeGenerate: '#88C0D0', // = brandPrimary
     modeGenerateMuted: 'rgba(136, 192, 208, 0.2)',
+    modeGenerateSolid: '#88C0D0', // = brandPrimary
     modeGenerateHover: 'rgba(136, 192, 208, 0.35)',
-    modeSticker: '#B48EAD', // nord15 紫
-    modeStickerMuted: 'rgba(180, 142, 173, 0.2)',
-    modeStickerSolid: '#B48EAD',
-    modeEdit: '#81A1C1', // nord9 藍灰
-    modeEditMuted: 'rgba(129, 161, 193, 0.2)',
-    modeStory: '#D08770', // nord12 橘
-    modeStoryMuted: 'rgba(208, 135, 112, 0.2)',
-    modeDiagram: '#A3BE8C', // nord14 綠
-    modeDiagramMuted: 'rgba(163, 190, 140, 0.2)',
 
     // ========================================
     // 控制元件狀態

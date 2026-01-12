@@ -9,10 +9,10 @@
  */
 export const MODE_TAG_STYLES = {
   generate: 'bg-mode-generate-muted text-mode-generate',
-  sticker: 'bg-mode-sticker-muted text-mode-sticker',
-  edit: 'bg-status-info-muted text-status-info',
-  story: 'bg-status-warning-muted text-status-warning',
-  diagram: 'bg-status-success-muted text-status-success',
+  sticker: 'bg-mode-generate-muted text-mode-generate',
+  edit: 'bg-mode-generate-muted text-mode-generate',
+  story: 'bg-mode-generate-muted text-mode-generate',
+  diagram: 'bg-mode-generate-muted text-mode-generate',
 }
 
 /**

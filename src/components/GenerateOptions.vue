@@ -165,7 +165,7 @@ const addCustomVariation = () => {
           @click="variationsToggle.toggle(variation.value)"
           class="py-2 px-4 rounded-lg text-sm font-medium transition-all"
           :class="variationsToggle.has(variation.value)
-            ? 'bg-status-info-muted border border-status-info text-status-info'
+            ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
             : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'"
         >
           {{ variation.label }}
@@ -177,7 +177,7 @@ const addCustomVariation = () => {
         <span
           v-for="variation in options.variations"
           :key="variation"
-          class="tag tag-cyan"
+          class="tag"
         >
           {{ PREDEFINED_VARIATIONS.find(v => v.value === variation)?.label || variation }}
           <button @click="variationsToggle.remove(variation)" class="tag-remove">

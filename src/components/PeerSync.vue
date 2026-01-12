@@ -415,7 +415,7 @@ const errorMessage = computed(() => {
                     <button
                       v-if="hasTurnConfig"
                       @click="clearTurnSettings"
-                      class="py-2 px-3 rounded-lg text-xs font-medium transition-all bg-mode-edit-muted text-mode-edit hover:bg-status-error-muted"
+                      class="py-2 px-3 rounded-lg text-xs font-medium transition-all bg-mode-generate-muted text-mode-generate hover:bg-status-error-muted"
                     >
                       {{ $t('common.clear') }}
                     </button>
