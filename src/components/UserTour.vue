@@ -83,14 +83,31 @@ const spotlightStyle = computed(() => {
 // ============================================================================
 // Tooltip 位置計算
 // ============================================================================
+const MOBILE_BREAKPOINT = 640 // Tailwind sm breakpoint
+
 const tooltipStyle = computed(() => {
   if (!tour.targetRect.value || !tour.currentStep.value) {
     return { display: 'none' }
   }
 
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const gap = TOOLTIP_PADDING
+
+  // 手機版：固定在底部，左右置中
+  if (viewportWidth < MOBILE_BREAKPOINT) {
+    const mobileWidth = Math.min(TOOLTIP_WIDTH, viewportWidth - gap * 2)
+    return {
+      bottom: `${gap}px`,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: `${mobileWidth}px`,
+    }
+  }
+
+  // 桌面版：根據 placement 計算位置
   const rect = tour.targetRect.value
   const placement = tour.currentStep.value.placement
-  const gap = TOOLTIP_PADDING
   const tooltipWidth = TOOLTIP_WIDTH
   const estimatedTooltipHeight = 200
 
@@ -117,9 +134,6 @@ const tooltipStyle = computed(() => {
   }
 
   // 邊界檢查：確保不超出視窗
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-
   // 水平邊界
   if (left < gap) {
     left = gap

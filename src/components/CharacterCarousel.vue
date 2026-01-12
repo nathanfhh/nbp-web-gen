@@ -553,6 +553,15 @@ watch(() => store.selectedCharacter, (newVal) => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+
+/* 手機版：名稱和按鈕分兩列 */
+@media (max-width: 639px) {
+  .info-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .info-name {
@@ -564,6 +573,14 @@ watch(() => store.selectedCharacter, (newVal) => {
 .info-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+/* 手機版：按鈕列靠右 */
+@media (max-width: 639px) {
+  .info-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
 }
 
 .info-btn {
