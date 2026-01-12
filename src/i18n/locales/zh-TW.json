@@ -33,7 +33,11 @@
       "warm": "暖陽白",
       "espresso": "濃縮咖啡",
       "mocha": "摩卡深焙",
-      "nord": "極地冰藍"
+      "nord": "極地冰藍",
+      "matcha": "抹茶拿鐵",
+      "matcha-dark": "深抹茶",
+      "gruvbox": "復古暖調",
+      "everforest": "常青森林"
     }
   },
   "language": {

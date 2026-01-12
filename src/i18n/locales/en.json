@@ -33,7 +33,11 @@
       "warm": "Warm Latte",
       "espresso": "Espresso",
       "mocha": "Mocha",
-      "nord": "Nord"
+      "nord": "Nord",
+      "matcha": "Matcha Latte",
+      "matcha-dark": "Matcha Dark",
+      "gruvbox": "Gruvbox",
+      "everforest": "Everforest"
     }
   },
   "language": {
