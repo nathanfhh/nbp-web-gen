@@ -265,7 +265,7 @@ const handleGenerate = async () => {
           >
             <div
               v-if="isThemeMenuOpen"
-              class="absolute right-0 mt-2 w-48 rounded-xl shadow-lg border backdrop-blur-xl z-50 overflow-hidden"
+              class="absolute right-0 mt-2 w-48 max-h-[50vh] rounded-xl shadow-lg border backdrop-blur-xl z-50 overflow-y-auto"
               :class="isDarkTheme ? 'bg-bg-elevated/90 border-border-muted' : 'bg-bg-card/95 border-border-subtle'"
             >
               <div class="py-1">

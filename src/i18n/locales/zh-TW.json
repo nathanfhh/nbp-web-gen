@@ -37,7 +37,11 @@
       "matcha": "抹茶拿鐵",
       "matcha-dark": "深抹茶",
       "gruvbox": "復古暖調",
-      "everforest": "常青森林"
+      "everforest": "常青森林",
+      "spring": "櫻花春日",
+      "summer": "海洋微風",
+      "autumn": "楓葉收穫",
+      "winter": "極夜星空"
     }
   },
   "language": {

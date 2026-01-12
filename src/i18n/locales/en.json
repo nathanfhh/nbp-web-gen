@@ -37,7 +37,11 @@
       "matcha": "Matcha Latte",
       "matcha-dark": "Matcha Dark",
       "gruvbox": "Gruvbox",
-      "everforest": "Everforest"
+      "everforest": "Everforest",
+      "spring": "Cherry Blossom",
+      "summer": "Ocean Breeze",
+      "autumn": "Maple Harvest",
+      "winter": "Polar Night"
     }
   },
   "language": {
