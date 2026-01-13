@@ -34,7 +34,7 @@ const TOUR_STEP_CONFIG = [
   {
     id: 'generateButton',
     selector: '[data-tour="generate-button"]',
-    placement: 'top',
+    placement: 'left',
   },
   {
     id: 'history',

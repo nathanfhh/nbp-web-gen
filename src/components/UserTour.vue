@@ -113,13 +113,27 @@ const tooltipStyle = computed(() => {
 
   let top, left
 
+  // 計算各方向可用空間
+  const spaceAbove = rect.top - gap
+  const spaceBelow = viewportHeight - rect.bottom - gap
+
   switch (placement) {
     case 'top':
-      top = rect.top - estimatedTooltipHeight - gap
+      // 檢查上方空間是否足夠，不夠則切換到 bottom
+      if (spaceAbove >= estimatedTooltipHeight) {
+        top = rect.top - estimatedTooltipHeight - gap
+      } else {
+        top = rect.bottom + gap
+      }
       left = rect.left + rect.width / 2 - tooltipWidth / 2
       break
     case 'bottom':
-      top = rect.bottom + gap
+      // 檢查下方空間是否足夠，不夠則切換到 top
+      if (spaceBelow >= estimatedTooltipHeight) {
+        top = rect.bottom + gap
+      } else {
+        top = rect.top - estimatedTooltipHeight - gap
+      }
       left = rect.left + rect.width / 2 - tooltipWidth / 2
       break
     case 'left':
@@ -141,7 +155,7 @@ const tooltipStyle = computed(() => {
     left = viewportWidth - tooltipWidth - gap
   }
 
-  // 垂直邊界
+  // 垂直邊界（針對 left/right placement）
   if (top < gap) {
     top = gap
   } else if (top + estimatedTooltipHeight > viewportHeight - gap) {
