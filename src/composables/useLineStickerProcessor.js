@@ -1,5 +1,7 @@
 import { ref, computed, reactive } from 'vue'
 import JSZip from 'jszip'
+import { useToast } from '@/composables/useToast'
+import { useI18n } from 'vue-i18n'
 
 // LINE Sticker specifications
 const LINE_SPECS = {
@@ -20,6 +22,9 @@ const generateId = () => `img_${Date.now()}_${idCounter++}`
 const roundToEven = (n) => Math.floor(n / 2) * 2
 
 export function useLineStickerProcessor() {
+  const toast = useToast()
+  const { t } = useI18n()
+
   // Image list
   const images = ref([])
   // { id, file, name, size, width, height, preview, status, processed, processedBlob, processedSize }
@@ -129,23 +134,9 @@ export function useLineStickerProcessor() {
     )
   })
 
-  // Can download (has images and all are either processed or already compliant)
+  // Can download (only requires images to exist)
   const canDownload = computed(() => {
-    if (images.value.length === 0) return false
-    // Format must be PNG
-    if (!specChecks.value.format.passed) return false
-    // Cover images must be set
-    if (!specChecks.value.coverImages.passed) return false
-    // All images must either be compliant or processed
-    return images.value.every((img) => {
-      const isCompliant =
-        img.width <= LINE_SPECS.maxWidth &&
-        img.height <= LINE_SPECS.maxHeight &&
-        img.width % 2 === 0 &&
-        img.height % 2 === 0 &&
-        img.size <= LINE_SPECS.maxFileSize
-      return isCompliant || img.status === 'processed'
-    })
+    return images.value.length > 0
   })
 
   // Read image file and extract metadata
@@ -562,6 +553,11 @@ export function useLineStickerProcessor() {
 
   // Download as ZIP
   const downloadAsZip = async () => {
+    // Warn if not fully compliant
+    if (!allPassed.value) {
+      toast.warning(t('lineStickerTool.toast.notFullyCompliant'))
+    }
+
     const zip = new JSZip()
 
     // Add sticker images

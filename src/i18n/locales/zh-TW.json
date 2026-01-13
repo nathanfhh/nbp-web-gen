@@ -652,6 +652,9 @@
       "scaled": "已縮放",
       "quantized": "已降色",
       "reencoded": "僅重編碼"
+    },
+    "toast": {
+      "notFullyCompliant": "提醒您，目前尚未全面符合 LINE 貼圖規格"
     }
   },
   "tour": {

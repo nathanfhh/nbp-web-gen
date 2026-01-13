@@ -54,7 +54,7 @@ This project is a testament to the power of AI-assisted development:
 *   **Batch Download:** Download all generated images as ZIP archive or PDF document.
 *   **Privacy First:** API keys are stored only in your browser's local storage; no backend server is involved.
 *   **Installable PWA:** Install as a native-like app with offline support and automatic updates.
-*   **Multiple Themes with View Transitions:** Choose from Dark (Slate Blue Pro), Light (Greek Blue), or Warm (Warm Latte) themes. Theme switching features a smooth ripple animation powered by the native [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transitions_API).
+*   **14 Themes with View Transitions:** Choose from 14 carefully crafted themes including seasonal themes (Spring, Summer, Autumn, Winter), coffee themes (Espresso, Mocha), nature themes (Matcha, Everforest), and classics (Dark, Light, Warm, Nord, Gruvbox). Theme switching features a smooth ripple animation powered by the native [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transitions_API).
 
 ### 🧩 Spotlight: Intelligent Sticker Segmentation
 
@@ -145,7 +145,7 @@ npm run build
 *   **批次下載：** 可將所有生成圖片打包為 ZIP 壓縮檔或 PDF 文件下載。
 *   **隱私優先：** API Key 僅儲存於您的瀏覽器 Local Storage，完全不經過任何第三方伺服器。
 *   **可安裝 PWA：** 支援安裝為類原生應用程式，具備離線支援與自動更新功能。
-*   **多主題支援與原生過渡動畫：** 提供深色 (Slate Blue Pro)、亮色 (Greek Blue)、暖色 (Warm Latte) 三種主題。主題切換採用瀏覽器原生 [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transitions_API)，實現從點擊位置擴散的平滑動畫效果。
+*   **14 種主題與原生過渡動畫：** 提供 14 種精心設計的主題，包括季節主題（春、夏、秋、冬）、咖啡主題（Espresso、Mocha）、自然主題（Matcha、Everforest）以及經典主題（Dark、Light、Warm、Nord、Gruvbox）。主題切換採用瀏覽器原生 [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transitions_API)，實現從點擊位置擴散的平滑動畫效果。
 
 ### 🧩 技術亮點：智慧貼圖分割 (Sticker Segmentation)
 

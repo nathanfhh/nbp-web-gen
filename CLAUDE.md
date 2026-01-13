@@ -53,13 +53,21 @@ Similar to i18n architecture - add a file to add a theme:
 src/theme/
 ├── index.js              # Theme registry (initTheme, setTheme, toggleTheme)
 ├── tokens.js             # Semantic token definitions + migration map
-└── themes/
-    ├── dark.js           # Dark theme (Slate Blue Pro) - type: dark
-    ├── light.js          # Light theme (Greek Blue) - type: light
-    ├── warm.js           # Warm theme (Warm Latte) - type: light, orange brand
-    ├── espresso.js       # Espresso theme (Coffee & Cream) - type: light, coffee brand
-    ├── mocha.js          # Mocha theme (Dark Coffee) - type: dark, coffee brand
-    └── nord.js           # Nord theme (Arctic Ice Blue) - type: dark, nord palette
+└── themes/               # 14 themes available
+    ├── dark.js           # Slate Blue Pro - type: dark
+    ├── light.js          # Greek Blue - type: light
+    ├── warm.js           # Warm Latte - type: light, orange brand
+    ├── espresso.js       # Coffee & Cream - type: light, coffee brand
+    ├── mocha.js          # Dark Coffee - type: dark, coffee brand
+    ├── nord.js           # Arctic Ice Blue - type: dark, nord palette
+    ├── matcha.js         # Matcha Latte - type: light, green brand
+    ├── matcha-dark.js    # Matcha Dark - type: dark, green brand
+    ├── gruvbox.js        # Gruvbox - type: dark, retro palette
+    ├── everforest.js     # Everforest - type: dark, forest palette
+    ├── spring.js         # Spring Blossom - type: light, seasonal
+    ├── summer.js         # Summer Ocean - type: light, seasonal
+    ├── autumn.js         # Autumn Harvest - type: light, seasonal
+    └── winter.js         # Winter Frost - type: dark, seasonal
 ```
 
 **Key concepts:**
@@ -85,12 +93,25 @@ src/theme/
 - If a needed color token doesn't exist, **add it to the theme files** (`tokens.js` + all `themes/*.js`) first
 - Example tokens: `textOnBrand` (text color for brand-colored buttons - white on blue, black on orange)
 
+### User Tour (Onboarding)
+First-time user guidance system:
+- `composables/useTour.js` - Tour state management (Singleton pattern)
+- `components/UserTour.vue` - Tour UI with spotlight effect and confetti celebration
+
+**How it works:**
+- Auto-starts for new users (checks `localStorage['nbp-tour-completed']`)
+- 5 steps: API Key → Mode Selector → Prompt Input → Generate Button → History
+- Keyboard navigation: `←` `→` to navigate, `ESC` to skip
+- Version-controlled: bump `TOUR_VERSION` in `useTour.js` to force re-show after major updates
+- Info button (ⓘ) in hero section to replay tour
+
 ### Key Composables
 - `useApi.js` - API requests, prompt building, SSE streaming
 - `useGeneration.js` - High-level generation flow with callbacks
 - `useImageStorage.js` - OPFS image persistence
 - `useToast.js` - Toast notifications
 - `useStyleOptions.js` - Style/variation option definitions
+- `useTour.js` - User tour/onboarding state (Singleton pattern, localStorage persistence)
 
 ### Constants
 - `constants/defaults.js` - Default options per mode (`getDefaultOptions()`)

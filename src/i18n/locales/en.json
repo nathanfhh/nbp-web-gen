@@ -652,6 +652,9 @@
       "scaled": "Scaled",
       "quantized": "Quantized",
       "reencoded": "Re-encoded only"
+    },
+    "toast": {
+      "notFullyCompliant": "Note: Your stickers are not fully compliant with LINE specifications"
     }
   },
   "tour": {
