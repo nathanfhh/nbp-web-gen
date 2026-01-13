@@ -208,6 +208,10 @@ const goToIndex = (index) => {
 const handleKeydown = (e) => {
   if (!props.modelValue) return
 
+  // When StickerCropper is open, let it handle keyboard events
+  // to prevent accidentally closing the lightbox while cropping
+  if (showCropper.value) return
+
   switch (e.key) {
     case 'ArrowLeft':
       e.preventDefault()

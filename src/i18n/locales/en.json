@@ -435,7 +435,10 @@
       "removed": "Removed {count} pixels",
       "alreadyTransparent": "This area is already transparent",
       "applied": "Edit applied"
-    }
+    },
+    "unsavedWarning": "Your cropped stickers haven't been downloaded. Are you sure you want to leave?",
+    "unsavedTitle": "Not Downloaded",
+    "unsavedConfirm": "Leave"
   },
   "storyProgress": {
     "generating": "Generating image {current}/{total}"

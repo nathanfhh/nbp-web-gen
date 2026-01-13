@@ -435,7 +435,10 @@
       "removed": "已移除 {count} 個像素",
       "alreadyTransparent": "此區域已經透明",
       "applied": "已套用編輯"
-    }
+    },
+    "unsavedWarning": "您已裁切的貼圖尚未下載，確定要離開嗎？",
+    "unsavedTitle": "尚未下載",
+    "unsavedConfirm": "離開"
   },
   "storyProgress": {
     "generating": "生成第 {current}/{total} 張圖片"

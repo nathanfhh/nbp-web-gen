@@ -8,6 +8,7 @@ import { useColorPicker } from '@/composables/useColorPicker'
 import { useStickerDownload } from '@/composables/useStickerDownload'
 import { useStickerEdit } from '@/composables/useStickerEdit'
 import StickerLightbox from '@/components/StickerLightbox.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 
 const { t } = useI18n()
@@ -160,9 +161,40 @@ const selectedStickers = ref(new Set())
 // Preview sticker
 const previewSticker = ref(null)
 
+// Confirm modal ref
+const confirmModalRef = ref(null)
+
+// Check if there's unsaved work (cropped stickers exist)
+const hasUnsavedWork = computed(() => croppedStickers.value.length > 0)
+
+// Warn user before leaving page with unsaved work
+const handleBeforeUnload = (e) => {
+  if (hasUnsavedWork.value && props.modelValue) {
+    e.preventDefault()
+    // Modern browsers ignore custom messages, but we still need to set returnValue
+    e.returnValue = ''
+    return ''
+  }
+}
+
 // History state management
 const { pushState, popState } = useHistoryState('stickerCropper', {
-  onBackNavigation: () => {
+  onBackNavigation: async () => {
+    if (hasUnsavedWork.value) {
+      // Re-push state first to prevent immediate close (popstate already fired)
+      pushState()
+      // Show styled confirmation modal
+      const confirmed = await confirmModalRef.value?.show({
+        title: t('stickerCropper.unsavedTitle'),
+        message: t('stickerCropper.unsavedWarning'),
+        confirmText: t('stickerCropper.unsavedConfirm'),
+        cancelText: t('common.cancel'),
+      })
+      if (!confirmed) {
+        // User cancelled - stay on cropper (state already pushed)
+        return
+      }
+    }
     close()
   },
 })
@@ -495,24 +527,27 @@ const handleKeydown = (e) => {
   if (!props.modelValue) return
   if (e.key === 'Escape') {
     e.preventDefault()
+    // Only handle ESC for sub-panels (preview/edit), not for closing the main cropper
+    // This prevents accidentally losing work in progress
     if (previewSticker.value) {
       closePreview()
     } else if (editingSticker.value) {
       closeEditMode()
-    } else {
-      close()
     }
+    // Do nothing when in main cropper view - user must click X button to close
   }
 }
 
 onMounted(() => {
   isMounted = true
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
 onUnmounted(() => {
   isMounted = false
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
   document.body.style.overflow = ''
 
   isProcessing.value = false
@@ -947,6 +982,9 @@ onUnmounted(() => {
       :sticker="previewSticker"
       @close="closePreview"
     />
+
+    <!-- Confirm modal for unsaved work warning -->
+    <ConfirmModal ref="confirmModalRef" />
   </Teleport>
 </template>
 
