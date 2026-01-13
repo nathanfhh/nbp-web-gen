@@ -276,6 +276,10 @@
     "status": {
       "success": "成功",
       "failed": "失敗"
+    },
+    "filter": {
+      "all": "全部",
+      "noResults": "無符合條件的紀錄"
     }
   },
   "historyTransfer": {

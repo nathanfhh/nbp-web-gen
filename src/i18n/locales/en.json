@@ -276,6 +276,10 @@
     "status": {
       "success": "Success",
       "failed": "Failed"
+    },
+    "filter": {
+      "all": "All",
+      "noResults": "No matching records"
     }
   },
   "historyTransfer": {

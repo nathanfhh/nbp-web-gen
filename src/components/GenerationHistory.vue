@@ -26,6 +26,17 @@ const store = useGeneratorStore()
 const imageStorage = useImageStorage()
 const confirmModal = ref(null)
 
+// Filter state
+const selectedFilter = ref('all')
+const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram']
+
+const filteredHistory = computed(() => {
+  if (selectedFilter.value === 'all') {
+    return store.history
+  }
+  return store.history.filter((item) => item.mode === selectedFilter.value)
+})
+
 // Lightbox state
 const showLightbox = ref(false)
 const lightboxImages = ref([])
@@ -225,9 +236,26 @@ const handleImported = async () => {
       <span>{{ $t('history.storage', { size: formattedStorageUsage }) }}</span>
     </div>
 
-    <div v-if="store.history.length > 0" class="space-y-3 max-h-[400px] overflow-y-auto -mr-4 pr-[5px] history-scroll">
+    <!-- Filter Buttons -->
+    <div v-if="store.history.length > 0" class="mb-4 flex flex-wrap gap-2">
+      <button
+        v-for="filter in filterOptions"
+        :key="filter"
+        @click="selectedFilter = filter"
+        class="text-xs px-2.5 py-1 rounded-md font-medium transition-all"
+        :class="
+          selectedFilter === filter
+            ? 'bg-brand-primary text-text-on-brand'
+            : 'bg-bg-muted text-text-secondary hover:bg-bg-interactive'
+        "
+      >
+        {{ filter === 'all' ? $t('history.filter.all') : modeLabels[filter] }}
+      </button>
+    </div>
+
+    <div v-if="filteredHistory.length > 0" class="space-y-3 max-h-[400px] overflow-y-auto -mr-4 pr-[5px] history-scroll">
       <div
-        v-for="item in store.history"
+        v-for="item in filteredHistory"
         :key="item.id"
         @click="loadHistoryItem(item)"
         class="history-item group"
@@ -304,7 +332,18 @@ const handleImported = async () => {
       </div>
     </div>
 
-    <div v-else class="text-center py-8">
+    <!-- Empty state for filtered results -->
+    <div v-else-if="store.history.length > 0 && filteredHistory.length === 0" class="text-center py-8">
+      <div class="w-12 h-12 rounded-xl bg-bg-muted flex items-center justify-center mx-auto mb-4">
+        <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+      <p class="text-sm text-text-muted">{{ $t('history.filter.noResults') }}</p>
+    </div>
+
+    <!-- Empty state for no history -->
+    <div v-else-if="store.history.length === 0" class="text-center py-8">
       <div class="w-12 h-12 rounded-xl bg-bg-muted flex items-center justify-center mx-auto mb-4">
         <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
