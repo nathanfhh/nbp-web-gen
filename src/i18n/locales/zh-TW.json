@@ -17,7 +17,8 @@
     "change": "更換",
     "characters": "字元",
     "back": "返回",
-    "images": "張圖片"
+    "images": "張圖片",
+    "optional": "可選"
   },
   "hero": {
     "subtitle": "AI 圖像生成工具",
@@ -78,6 +79,10 @@
     "diagram": {
       "name": "圖表",
       "description": "創建技術圖表"
+    },
+    "video": {
+      "name": "影片",
+      "description": "生成 AI 影片"
     }
   },
   "prompt": {
@@ -87,7 +92,8 @@
       "generate": "描述您想要生成的圖片，例如：一隻在星空下的貓咪...",
       "edit": "描述您想要對圖片進行的修改，例如：加上太陽眼鏡...",
       "story": "描述故事的主題，例如：一顆種子成長為大樹的過程...",
-      "diagram": "描述圖表的內容，例如：使用者登入的流程圖..."
+      "diagram": "描述圖表的內容，例如：使用者登入的流程圖...",
+      "video": "描述您想要生成的影片，例如：一隻貓咪在草地上奔跑..."
     }
   },
   "settings": {
@@ -201,6 +207,220 @@
       "individual": "單張"
     }
   },
+  "video": {
+    "subMode": {
+      "label": "生成方式",
+      "text-to-video": "文字生成",
+      "frames-to-video": "圖片轉影片",
+      "references-to-video": "參考圖生成",
+      "extend-video": "延伸影片"
+    },
+    "model": {
+      "label": "模型",
+      "fast": "Veo 3.1 Fast",
+      "standard": "Veo 3.1"
+    },
+    "duration": {
+      "label": "影片長度",
+      "lockedHint": "此解析度或模式僅支援 8 秒長度"
+    },
+    "negativePrompt": {
+      "label": "排除提示",
+      "placeholder": "例如：卡通、繪畫、低品質、模糊...",
+      "hint": "描述您不想在影片中出現的元素"
+    },
+    "frames": {
+      "startFrame": "起始幀",
+      "endFrame": "結束幀",
+      "createLoop": "建立循環影片"
+    },
+    "references": {
+      "images": "參考圖片",
+      "asset": "主體參考",
+      "style": "風格參考",
+      "hint": "點擊標籤切換主體/風格參考"
+    },
+    "extend": {
+      "selectVideo": "選擇影片",
+      "noVideos": "尚無可延伸的影片（需先生成 720p 影片）"
+    },
+    "cost": {
+      "estimate": "預估費用",
+      "second": "秒"
+    },
+    "constraints": {
+      "notice": "此模式有以下限制：",
+      "model": "模型固定為 {model}",
+      "resolution": "解析度固定為 {resolution}",
+      "ratio": "比例固定為 {ratio}",
+      "duration": "長度固定為 {duration} 秒"
+    },
+    "progress": {
+      "starting": "準備生成影片...",
+      "polling": "影片生成中...",
+      "downloading": "下載影片中...",
+      "complete": "影片生成完成"
+    },
+    "errors": {
+      "noStartFrame": "請上傳起始幀圖片",
+      "noReferenceImages": "請上傳至少一張參考圖片",
+      "noInputVideo": "請選擇要延伸的影片",
+      "generationFailed": "影片生成失敗",
+      "downloadFailed": "影片下載失敗",
+      "operationExpired": "操作已過期，請重新生成"
+    }
+  },
+  "videoPrompt": {
+    "title": "影片 Prompt 構建器",
+    "preview": "Prompt 預覽",
+    "positivePreview": "正向提示：",
+    "negativePreview": "排除提示：",
+    "emptyPreview": "選擇選項後會在此顯示預覽",
+    "customPlaceholder": "自訂其他選項...",
+    "customNegativePlaceholder": "自訂要排除的元素...",
+    "categories": {
+      "style": "風格",
+      "camera": "攝影機",
+      "composition": "構圖",
+      "lens": "鏡頭",
+      "ambiance": "氛圍",
+      "action": "動作",
+      "negative": "排除項目",
+      "audio": "音訊提示"
+    },
+    "style": {
+      "cinematic": "電影感",
+      "documentary": "紀錄片",
+      "noir": "黑色電影",
+      "vintage": "復古",
+      "retro": "懷舊",
+      "scifi": "科幻",
+      "horror": "恐怖",
+      "fantasy": "奇幻",
+      "romance": "浪漫",
+      "action": "動作",
+      "thriller": "驚悚",
+      "cartoon": "卡通",
+      "anime": "動畫",
+      "3d-animation": "3D 動畫",
+      "stop-motion": "定格動畫",
+      "pixar-style": "皮克斯風格"
+    },
+    "camera": {
+      "eye-level": "平視角度",
+      "birds-eye": "鳥瞰視角",
+      "low-angle": "低角度",
+      "high-angle": "高角度",
+      "dutch-angle": "傾斜角度",
+      "overhead": "俯視",
+      "tracking-shot": "跟蹤鏡頭",
+      "dolly-shot": "推軌鏡頭",
+      "pan": "橫搖",
+      "tilt": "直搖",
+      "zoom-in": "推進",
+      "zoom-out": "拉遠",
+      "crane-shot": "升降鏡頭",
+      "handheld": "手持",
+      "steadicam": "穩定器",
+      "static": "靜態"
+    },
+    "composition": {
+      "extreme-close-up": "大特寫",
+      "close-up": "特寫",
+      "medium-close-up": "中特寫",
+      "medium-shot": "中景",
+      "medium-wide": "中遠景",
+      "wide-shot": "遠景",
+      "extreme-wide": "大遠景",
+      "establishing-shot": "場景建立鏡頭",
+      "single-shot": "單人鏡頭",
+      "two-shot": "雙人鏡頭",
+      "group-shot": "群像",
+      "over-the-shoulder": "過肩鏡頭",
+      "pov": "第一人稱視角"
+    },
+    "lens": {
+      "shallow-dof": "淺景深",
+      "deep-dof": "深景深",
+      "soft-focus": "柔焦",
+      "rack-focus": "變焦",
+      "wide-angle-lens": "廣角鏡頭",
+      "telephoto-lens": "望遠鏡頭",
+      "macro-lens": "微距鏡頭",
+      "fisheye-lens": "魚眼鏡頭",
+      "anamorphic-lens": "變形寬銀幕",
+      "lens-flare": "鏡頭光暈",
+      "bokeh": "散景",
+      "motion-blur": "動態模糊"
+    },
+    "ambiance": {
+      "golden-hour": "黃金時刻",
+      "blue-hour": "藍調時刻",
+      "midday": "正午",
+      "night": "夜晚",
+      "dawn": "黎明",
+      "dusk": "黃昏",
+      "warm-tones": "暖色調",
+      "cool-tones": "冷色調",
+      "muted-colors": "柔和色彩",
+      "vibrant-colors": "鮮豔色彩",
+      "monochrome": "黑白",
+      "sepia": "棕褐色調",
+      "natural-light": "自然光",
+      "dramatic-lighting": "戲劇性光線",
+      "soft-lighting": "柔和光線",
+      "backlit": "背光",
+      "silhouette": "剪影",
+      "neon-lights": "霓虹燈",
+      "candlelight": "燭光"
+    },
+    "action": {
+      "walking": "行走",
+      "running": "奔跑",
+      "sitting": "坐著",
+      "standing": "站立",
+      "talking": "說話",
+      "looking-at-camera": "看向鏡頭",
+      "turning-head": "轉頭",
+      "dancing": "跳舞",
+      "flying": "飛行",
+      "floating": "漂浮"
+    },
+    "negative": {
+      "low-quality": "低品質",
+      "blurry": "模糊",
+      "pixelated": "像素化",
+      "grainy": "顆粒感",
+      "overexposed": "過曝",
+      "underexposed": "曝光不足",
+      "noisy": "雜訊",
+      "cartoon": "卡通",
+      "anime": "動畫",
+      "drawing": "繪畫",
+      "painting": "油畫",
+      "sketch": "素描",
+      "cgi": "CGI",
+      "unrealistic": "不真實",
+      "text": "文字",
+      "watermark": "浮水印",
+      "logo": "標誌",
+      "border": "邊框",
+      "frame": "框架",
+      "static": "靜態",
+      "jittery": "抖動",
+      "slow-motion": "慢動作",
+      "fast-motion": "快動作"
+    },
+    "audio": {
+      "dialogue": "對話",
+      "dialoguePlaceholder": "例如：「這一定是鑰匙，」他低聲說道",
+      "dialogueHint": "使用引號標示特定語音",
+      "soundEffects": "音效",
+      "soundEffectsPlaceholder": "例如：輪胎尖銳的摩擦聲、引擎轟隆聲",
+      "ambientSound": "環境音",
+      "ambientSoundPlaceholder": "例如：背景中傳來微弱的詭異嗡嗡聲"
+    }
+  },
   "diagram": {
     "type": {
       "label": "圖表類型",
@@ -253,11 +473,14 @@
   },
   "preview": {
     "title": "生成結果",
+    "videoTitle": "影片生成結果",
     "zoom": "放大預覽",
     "loading": "生成中...",
     "loadingHint": "請稍候，這可能需要一些時間",
     "empty": "尚未生成圖片",
-    "emptyHint": "輸入 Prompt 後點擊生成按鈕開始"
+    "emptyHint": "輸入 Prompt 後點擊生成按鈕開始",
+    "emptyVideo": "尚未生成影片",
+    "emptyVideoHint": "輸入 Prompt 後點擊生成按鈕開始"
   },
   "history": {
     "title": "歷史紀錄",
@@ -273,6 +496,7 @@
     "clearConfirmMessage": "確定要清除所有歷史紀錄嗎？此操作無法復原。",
     "clearConfirmButton": "清除全部",
     "loadingImages": "載入圖片中...",
+    "loadingVideo": "載入影片中...",
     "status": {
       "success": "成功",
       "failed": "失敗"
@@ -342,7 +566,9 @@
     "generateSuccess": "成功生成 {count} 張圖片",
     "imageSaveFailed": "圖片儲存失敗，但生成已完成",
     "generateFailed": "生成失敗，請重試",
-    "appUpdated": "應用程式已更新至 v{version}！"
+    "appUpdated": "應用程式已更新至 v{version}！",
+    "videoGenerateSuccess": "影片生成成功",
+    "videoSaveFailed": "影片儲存失敗，但生成已完成"
   },
   "errors": {
     "noPrompt": "請輸入 Prompt 描述",
@@ -517,7 +743,14 @@
     "manage": "管理角色",
     "extractNew": "萃取新角色",
     "exportSuccess": "角色已成功匯出",
-    "exportError": "匯出失敗，請重試"
+    "exportError": "匯出失敗，請重試",
+    "setAsStartFrame": "設為起始幀",
+    "setAsStartFrameSuccess": "已設為起始幀",
+    "setAsStartFrameError": "設定失敗，請重試",
+    "addToReferences": "加入參考圖",
+    "addToReferencesSuccess": "已加入參考圖",
+    "addToReferencesError": "加入失敗，請重試",
+    "referencesLimitReached": "已達參考圖上限（{max} 張）"
   },
   "peerSync": {
     "title": "跨裝置同步",
@@ -678,7 +911,7 @@
       },
       "modeSelector": {
         "title": "選擇生成模式",
-        "description": "我們提供 5 種不同的生成模式：基本生成、貼圖製作、圖片編輯、故事序列、圖表繪製。選擇最適合您需求的模式。"
+        "description": "我們提供 6 種不同的生成模式：基本生成、貼圖製作、圖片編輯、故事序列、圖表繪製、影片生成。選擇最適合您需求的模式。"
       },
       "promptInput": {
         "title": "輸入 Prompt",

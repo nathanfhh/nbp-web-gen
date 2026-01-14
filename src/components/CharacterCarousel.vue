@@ -9,13 +9,24 @@ import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { useToast } from '@/composables/useToast'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
+// Props for video mode integration
+const props = defineProps({
+  videoSubMode: {
+    type: String,
+    default: null, // null means not in video mode, or 'frames-to-video' / 'references-to-video'
+  },
+})
+
+// Emit events for video mode actions
+const emit = defineEmits(['set-as-start-frame', 'add-to-references'])
+
 const { t } = useI18n()
 const router = useRouter()
 const store = useGeneratorStore()
 const toast = useToast()
 const { getCharacters, deleteCharacter: dbDeleteCharacter, getCharacterCount } = useIndexedDB()
 const { exportSingleCharacter, isExporting } = useCharacterTransfer()
-const { deleteCharacterImage } = useCharacterStorage()
+const { deleteCharacterImage, loadCharacterImageWithFallback } = useCharacterStorage()
 
 // Confirm modal ref
 const confirmModal = ref(null)
@@ -183,6 +194,62 @@ watch(() => store.selectedCharacter, (newVal) => {
     }
   }
 })
+
+// Video mode actions
+const isVideoFramesMode = computed(() => props.videoSubMode === 'frames-to-video')
+const isVideoReferencesMode = computed(() => props.videoSubMode === 'references-to-video')
+const isVideoMode = computed(() => isVideoFramesMode.value || isVideoReferencesMode.value)
+
+// Set current character as start frame for frames-to-video
+const setAsStartFrame = async () => {
+  if (!currentCharacter.value) return
+
+  try {
+    // Load full image data from OPFS
+    const imageData = await loadCharacterImageWithFallback(
+      currentCharacter.value.id,
+      currentCharacter.value.imageData
+    )
+
+    emit('set-as-start-frame', {
+      data: imageData,
+      mimeType: 'image/png',
+      preview: `data:image/webp;base64,${currentCharacter.value.thumbnail}`,
+      name: currentCharacter.value.name,
+    })
+
+    toast.success(t('characterCarousel.setAsStartFrameSuccess'))
+  } catch (err) {
+    console.error('Failed to set as start frame:', err)
+    toast.error(t('characterCarousel.setAsStartFrameError'))
+  }
+}
+
+// Add current character to reference images for references-to-video
+const addToReferences = async () => {
+  if (!currentCharacter.value) return
+
+  try {
+    // Load full image data from OPFS
+    const imageData = await loadCharacterImageWithFallback(
+      currentCharacter.value.id,
+      currentCharacter.value.imageData
+    )
+
+    emit('add-to-references', {
+      data: imageData,
+      mimeType: 'image/png',
+      preview: `data:image/webp;base64,${currentCharacter.value.thumbnail}`,
+      name: currentCharacter.value.name,
+      type: 'asset', // Default to asset reference type
+    })
+
+    toast.success(t('characterCarousel.addToReferencesSuccess'))
+  } catch (err) {
+    console.error('Failed to add to references:', err)
+    toast.error(t('characterCarousel.addToReferencesError'))
+  }
+}
 </script>
 
 <template>
@@ -281,7 +348,33 @@ watch(() => store.selectedCharacter, (newVal) => {
       <div class="info-header">
         <h4 class="info-name">{{ currentCharacter.name }}</h4>
         <div class="info-actions">
+          <!-- Video Mode: Set as Start Frame (frames-to-video) -->
           <button
+            v-if="isVideoFramesMode"
+            @click="setAsStartFrame"
+            class="info-btn info-btn-video"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {{ $t('characterCarousel.setAsStartFrame') }}
+          </button>
+
+          <!-- Video Mode: Add to References (references-to-video) -->
+          <button
+            v-if="isVideoReferencesMode"
+            @click="addToReferences"
+            class="info-btn info-btn-video"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
+            </svg>
+            {{ $t('characterCarousel.addToReferences') }}
+          </button>
+
+          <!-- Default Mode: Select Character -->
+          <button
+            v-if="!isVideoMode"
             @click="toggleSelect"
             class="info-btn"
             :class="{ 'is-selected': isSelected }"
@@ -623,6 +716,16 @@ watch(() => store.selectedCharacter, (newVal) => {
 
 .info-btn-danger:hover {
   background: var(--color-status-error-muted);
+  opacity: 0.8;
+}
+
+.info-btn-video {
+  background: var(--color-mode-generate-muted);
+  color: var(--color-mode-generate);
+}
+
+.info-btn-video:hover {
+  background: var(--color-mode-generate-muted);
   opacity: 0.8;
 }
 
