@@ -241,10 +241,11 @@ export function usePeerDataTransfer(deps) {
    * Send characters data (sender side)
    * @param {Object} params
    * @param {Object} params.indexedDB - IndexedDB composable
+   * @param {Object} params.characterStorage - Character storage composable for OPFS access
    * @param {Array<number>|null} params.selectedCharacterIds - Specific character IDs to sync
    * @returns {Promise<{sent: number, failed: number, total: number}>}
    */
-  const sendCharactersData = async ({ indexedDB, selectedCharacterIds }) => {
+  const sendCharactersData = async ({ indexedDB, characterStorage, selectedCharacterIds }) => {
     if (!connection.value) return { sent: 0, failed: 0, total: 0 }
 
     let characters
@@ -282,12 +283,17 @@ export function usePeerDataTransfer(deps) {
         // Send character start
         sendJson({ type: 'character_start', character: characterMeta })
 
+        // Load imageData from OPFS with fallback to legacy IndexedDB data
+        const imageData = characterStorage
+          ? await characterStorage.loadCharacterImageWithFallback(character.id, character.imageData)
+          : character.imageData
+
         // Send character image as binary if present
-        if (character.imageData) {
+        if (imageData) {
           let imageBlob
           // imageData might be base64 data URL or raw base64
-          if (character.imageData.startsWith('data:')) {
-            const [header, base64] = character.imageData.split(',')
+          if (imageData.startsWith('data:')) {
+            const [header, base64] = imageData.split(',')
             const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png'
             const binaryString = atob(base64)
             const bytes = new Uint8Array(binaryString.length)
@@ -297,7 +303,7 @@ export function usePeerDataTransfer(deps) {
             imageBlob = new Blob([bytes], { type: mimeType })
           } else {
             // Raw base64
-            const binaryString = atob(character.imageData)
+            const binaryString = atob(imageData)
             const bytes = new Uint8Array(binaryString.length)
             for (let i = 0; i < binaryString.length; i++) {
               bytes[i] = binaryString.charCodeAt(i)

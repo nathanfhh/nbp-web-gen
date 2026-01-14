@@ -36,8 +36,10 @@ Five modes with mode-specific option components and prompt builders:
 
 ### Storage Layers
 - **localStorage** - API key, quick settings (mode, temperature, seed)
-- **IndexedDB** (`useIndexedDB.js`) - Generation history records
-- **OPFS** (`useOPFS.js`, `useImageStorage.js`) - Generated image blobs for history
+- **IndexedDB** (`useIndexedDB.js`) - Generation history records, character metadata
+- **OPFS** (`useOPFS.js`, `useImageStorage.js`, `useCharacterStorage.js`) - Image blobs for history and characters
+
+> **詳細文件**: 完整的儲存架構說明請參閱 [`docs/storage.md`](docs/storage.md)
 
 ### Web Workers
 - `workers/stickerSegmentation.worker.js` - Client-side sticker sheet segmentation using BFS flood fill and projection-based region detection

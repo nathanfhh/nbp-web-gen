@@ -2,6 +2,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import Peer from 'peerjs'
 import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
+import { useCharacterStorage } from './useCharacterStorage'
 import { useOPFS } from './useOPFS'
 import { buildIceServers } from './useCloudfareTurn'
 import { usePeerDataTransfer } from './usePeerDataTransfer'
@@ -17,6 +18,7 @@ import {
 export function usePeerSync() {
   const indexedDB = useIndexedDB()
   const imageStorage = useImageStorage()
+  const characterStorage = useCharacterStorage()
   const opfs = useOPFS()
 
   // ============================================================================
@@ -177,6 +179,7 @@ export function usePeerSync() {
     try {
       const result = await transfer.sendCharactersData({
         indexedDB,
+        characterStorage,
         selectedCharacterIds: selectedCharacterIds.value,
       })
 
@@ -264,6 +267,7 @@ export function usePeerSync() {
     sendData,
     indexedDB,
     opfs,
+    characterStorage,
   })
 
   // ============================================================================

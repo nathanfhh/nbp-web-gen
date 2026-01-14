@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { useIndexedDB } from './useIndexedDB'
+import { useCharacterStorage } from './useCharacterStorage'
 import { generateUUID } from './useUUID'
 
 const EXPORT_VERSION = 1
@@ -11,6 +12,7 @@ export function useCharacterTransfer() {
     addCharacter,
     getCharacterByName,
   } = useIndexedDB()
+  const { loadCharacterImageWithFallback, saveCharacterImage } = useCharacterStorage()
 
   const isExporting = ref(false)
   const isImporting = ref(false)
@@ -45,6 +47,9 @@ export function useCharacterTransfer() {
         const char = characters[i]
         progress.value.current = i + 1
 
+        // Load imageData from OPFS with fallback to legacy IndexedDB data
+        const imageData = await loadCharacterImageWithFallback(char.id, char.imageData)
+
         exportCharacters.push({
           uuid: char.uuid || generateUUID(),
           name: char.name,
@@ -53,7 +58,7 @@ export function useCharacterTransfer() {
           clothing: char.clothing,
           accessories: char.accessories,
           distinctiveFeatures: char.distinctiveFeatures,
-          imageData: char.imageData,
+          imageData, // Loaded from OPFS
           thumbnail: char.thumbnail,
           createdAt: char.createdAt,
         })
@@ -136,8 +141,8 @@ export function useCharacterTransfer() {
             continue
           }
 
-          // Create new character record
-          await addCharacter({
+          // Create new character record (metadata only, no imageData)
+          const newCharacterId = await addCharacter({
             uuid: char.uuid || generateUUID(),
             name: char.name,
             description: char.description,
@@ -145,9 +150,14 @@ export function useCharacterTransfer() {
             clothing: char.clothing,
             accessories: char.accessories || [],
             distinctiveFeatures: char.distinctiveFeatures || [],
-            imageData: char.imageData,
             thumbnail: char.thumbnail,
+            // imageData is stored in OPFS, not IndexedDB
           })
+
+          // Save imageData to OPFS
+          if (char.imageData) {
+            await saveCharacterImage(newCharacterId, char.imageData)
+          }
 
           imported++
         } catch (err) {

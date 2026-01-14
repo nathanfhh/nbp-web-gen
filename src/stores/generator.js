@@ -3,13 +3,24 @@ import { defineStore } from 'pinia'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useImageStorage } from '@/composables/useImageStorage'
+import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions } from '@/constants'
 import { useThemeName, toggleTheme as themeToggle, setTheme as themeSet } from '@/theme'
 
 export const useGeneratorStore = defineStore('generator', () => {
-  const { addHistory, getHistory, deleteHistory, clearAllHistory, getHistoryCount, migrateAddUUIDs } = useIndexedDB()
+  const {
+    addHistory,
+    getHistory,
+    deleteHistory,
+    clearAllHistory,
+    getHistoryCount,
+    migrateAddUUIDs,
+    getAllCharacters,
+    updateCharacter,
+  } = useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
   const imageStorage = useImageStorage()
+  const characterStorage = useCharacterStorage()
 
   // Flag to prevent saving during initialization
   let isInitialized = false
@@ -128,6 +139,18 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     // Migrate existing records to add UUID (idempotent)
     await migrateAddUUIDs()
+
+    // Migrate character images from IndexedDB to OPFS (idempotent)
+    // This only runs if there are characters with imageData in IndexedDB
+    try {
+      await characterStorage.migrateAllCharactersToOPFS({
+        getAllCharacters,
+        updateCharacter,
+      })
+    } catch (err) {
+      console.error('Character image migration failed:', err)
+      // Non-fatal - app can still function, migration will retry next load
+    }
 
     // Load history from IndexedDB
     await loadHistory()
@@ -393,7 +416,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   // Character Selection
   // ============================================================================
 
-  const selectCharacter = (character) => {
+  const selectCharacter = async (character) => {
     // Deselect current character first if any
     if (selectedCharacter.value) {
       deselectCharacter()
@@ -401,9 +424,12 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     selectedCharacter.value = character
 
+    // Load imageData from OPFS with fallback to legacy IndexedDB data
+    const imageData = await characterStorage.loadCharacterImageWithFallback(character.id, character.imageData)
+
     // Add character image to reference images (marked as locked)
     addReferenceImage({
-      data: character.imageData,
+      data: imageData,
       preview: `data:image/webp;base64,${character.thumbnail}`,
       mimeType: 'image/png',
       name: character.name,

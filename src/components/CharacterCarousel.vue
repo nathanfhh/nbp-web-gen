@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useCharacterTransfer } from '@/composables/useCharacterTransfer'
+import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { useToast } from '@/composables/useToast'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
@@ -14,6 +15,7 @@ const store = useGeneratorStore()
 const toast = useToast()
 const { getCharacters, deleteCharacter: dbDeleteCharacter, getCharacterCount } = useIndexedDB()
 const { exportSingleCharacter, isExporting } = useCharacterTransfer()
+const { deleteCharacterImage } = useCharacterStorage()
 
 // Confirm modal ref
 const confirmModal = ref(null)
@@ -83,13 +85,13 @@ const goToNext = () => {
 }
 
 // Select/deselect character
-const toggleSelect = () => {
+const toggleSelect = async () => {
   if (!currentCharacter.value) return
 
   if (isSelected.value) {
     store.deselectCharacter()
   } else {
-    store.selectCharacter(currentCharacter.value)
+    await store.selectCharacter(currentCharacter.value)
   }
 }
 
@@ -112,7 +114,11 @@ const handleDelete = async () => {
   }
 
   try {
-    await dbDeleteCharacter(currentCharacter.value.id)
+    const characterId = currentCharacter.value.id
+    // Delete image from OPFS first
+    await deleteCharacterImage(characterId)
+    // Then delete metadata from IndexedDB
+    await dbDeleteCharacter(characterId)
     await loadCharacters()
     toast.success(t('characterCarousel.deleteSuccess'))
   } catch (err) {

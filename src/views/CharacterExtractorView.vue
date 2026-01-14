@@ -6,6 +6,7 @@ import { useGeneratorStore } from '@/stores/generator'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useCharacterExtraction, EXTRACTION_MODELS } from '@/composables/useCharacterExtraction'
+import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
@@ -16,6 +17,7 @@ const toast = useToast()
 const { addCharacter, getCharacterById, updateCharacter } = useIndexedDB()
 const { getQuickSetting, updateQuickSetting } = useLocalStorage()
 const { isExtracting, extractCharacter, generateThumbnail } = useCharacterExtraction()
+const { saveCharacterImage, loadCharacterImageWithFallback } = useCharacterStorage()
 
 // Editing state
 const editingCharacterId = ref(null)
@@ -62,8 +64,11 @@ onMounted(async () => {
         if (character) {
           editingCharacterId.value = characterId
           characterName.value = character.name
-          imageData.value = character.imageData
-          imagePreview.value = `data:image/webp;base64,${character.thumbnail}`
+
+          // Load imageData from OPFS with fallback to legacy IndexedDB data
+          imageData.value = await loadCharacterImageWithFallback(characterId, character.imageData)
+          // Use full-resolution image for preview, not thumbnail
+          imagePreview.value = imageData.value ? `data:image/png;base64,${imageData.value}` : null
           imageMimeType.value = 'image/png'
           extractedData.value = {
             description: character.description,
@@ -186,20 +191,25 @@ const handleSave = async () => {
     // Generate thumbnail
     const thumbnail = await generateThumbnail(imageData.value)
 
-    const characterData = {
+    // Metadata only - imageData stored in OPFS, NOT in IndexedDB
+    const characterMetadata = {
       name: characterName.value.trim(),
       ...extractedData.value,
-      imageData: imageData.value,
       thumbnail,
+      // Do NOT include imageData - it goes to OPFS
     }
 
     if (isEditMode.value) {
-      // Update existing character
-      await updateCharacter(editingCharacterId.value, characterData)
+      // Update existing character metadata
+      await updateCharacter(editingCharacterId.value, characterMetadata)
+      // Save imageData to OPFS
+      await saveCharacterImage(editingCharacterId.value, imageData.value, imageMimeType.value)
       toast.success(t('characterExtractor.updateSuccess'))
     } else {
-      // Create new character
-      await addCharacter(characterData)
+      // Create new character (get the new ID)
+      const newCharacterId = await addCharacter(characterMetadata)
+      // Save imageData to OPFS using the new ID
+      await saveCharacterImage(newCharacterId, imageData.value, imageMimeType.value)
       toast.success(t('characterExtractor.saveSuccess'))
     }
 

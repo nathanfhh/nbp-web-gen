@@ -33,6 +33,7 @@ import {
  * @param {Function} deps.sendData - Send data function (for sender after pairing)
  * @param {Object} deps.indexedDB - IndexedDB composable
  * @param {Object} deps.opfs - OPFS composable
+ * @param {Object} deps.characterStorage - Character storage composable for OPFS
  */
 export function usePeerDataReceiver(deps) {
   const {
@@ -55,6 +56,7 @@ export function usePeerDataReceiver(deps) {
     sendData,
     indexedDB,
     opfs,
+    characterStorage,
   } = deps
 
   // Receiver-side: pending record being assembled
@@ -343,7 +345,7 @@ export function usePeerDataReceiver(deps) {
   }
 
   /**
-   * Save received character to IndexedDB
+   * Save received character to IndexedDB (metadata) and OPFS (imageData)
    */
   const saveReceivedCharacter = async (characterData, imageData) => {
     try {
@@ -353,29 +355,38 @@ export function usePeerDataReceiver(deps) {
         return { skipped: true }
       }
 
-      const character = {
+      // Character metadata (without imageData - that goes to OPFS)
+      const characterMeta = {
         name: characterData.name,
         description: characterData.description,
         physicalTraits: characterData.physicalTraits,
         clothing: characterData.clothing,
         accessories: characterData.accessories,
         distinctiveFeatures: characterData.distinctiveFeatures,
-        imageData: characterData.imageData,
         thumbnail: characterData.thumbnail,
+        // imageData is stored in OPFS, not IndexedDB
       }
 
-      // If we received binary image data, convert to base64
+      // Prepare imageData for OPFS storage
+      let imageBase64 = null
       if (imageData && imageData.data) {
         const blob = new Blob([imageData.data], { type: imageData.mimeType || 'image/png' })
         // blobToBase64 returns full data URL, but we only need the base64 part
         const dataUrl = await blobToBase64(blob)
-        character.imageData = dataUrl.split(',')[1] // Extract base64 portion only
-        if (!character.thumbnail) {
-          character.thumbnail = await generateThumbnailFromBlob(blob)
+        imageBase64 = dataUrl.split(',')[1] // Extract base64 portion only
+        if (!characterMeta.thumbnail) {
+          characterMeta.thumbnail = await generateThumbnailFromBlob(blob)
         }
       }
 
-      await indexedDB.addCharacter(character)
+      // Save metadata to IndexedDB first to get the ID
+      const newCharacterId = await indexedDB.addCharacter(characterMeta)
+
+      // Save imageData to OPFS
+      if (imageBase64 && characterStorage) {
+        await characterStorage.saveCharacterImage(newCharacterId, imageBase64)
+      }
+
       addDebug(`Saved character: ${characterData.name}`)
       return { imported: true }
     } catch (err) {
