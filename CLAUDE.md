@@ -24,12 +24,13 @@ npm run format   # Prettier formatting for src/
 - `composables/useApi.js` - Gemini API interaction with SSE streaming, prompt building per mode
 
 ### Generation Modes
-Five modes with mode-specific option components and prompt builders:
+Six modes with mode-specific option components and prompt builders:
 - **generate** - Basic image generation with styles/variations
 - **sticker** - Sticker sheet generation with auto-segmentation
 - **edit** - Image editing with reference images
 - **story** - Multi-step visual storytelling (sequential API calls)
 - **diagram** - Technical diagram generation
+- **video** - AI video generation using Google Veo 3.1 API (REST, not SDK)
 
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.
@@ -94,6 +95,13 @@ src/theme/
 - **ALWAYS** use CSS variables from the theme system: `var(--color-text-primary)`, `var(--color-brand-primary)`, etc.
 - If a needed color token doesn't exist, **add it to the theme files** (`tokens.js` + all `themes/*.js`) first
 - Example tokens: `textOnBrand` (text color for brand-colored buttons - white on blue, black on orange)
+
+**⚠️ CRITICAL - Use Unified Brand Colors for ALL Modes:**
+- **ALL generation modes (generate, sticker, edit, story, diagram, video) MUST use `mode-generate` as the accent color**
+- **NEVER create mode-specific colors** like `mode-video`, `mode-sticker`, etc. for UI elements
+- Selected states, buttons, icons, badges, focus rings → always use `mode-generate`, `mode-generate-muted`, `brand-primary`
+- The `mode-video` and `mode-video-muted` tokens exist in theme files but are **RESERVED for future use** (e.g., if we need to visually distinguish video results in history). Do NOT use them for interactive UI elements.
+- This ensures consistent look across all themes (warm=orange, espresso=coffee, dark=blue, etc.)
 
 ### User Tour (Onboarding)
 First-time user guidance system:

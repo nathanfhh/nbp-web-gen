@@ -17,9 +17,9 @@
 <a name="english"></a>
 ## 🍌 About The Project
 
-**Nano Banana Pro Web Gen** is a modern web interface designed to unlock the full potential of Google's Gemini image generation models (namely `gemini-3-pro-image-preview`). 
+**Nano Banana Pro Web Gen** is a modern web interface designed to unlock the full potential of Google's Gemini image generation models (namely `gemini-3-pro-image-preview`) and **Veo 3.1 video generation API**.
 
-While starting as a web adaptation of existing CLI tools, this project has evolved into a feature-rich PWA with unique capabilities like **Automated Sticker Segmentation**, **Visual Storytelling**, and **Technical Diagramming**.
+While starting as a web adaptation of existing CLI tools, this project has evolved into a feature-rich PWA with unique capabilities like **Automated Sticker Segmentation**, **Visual Storytelling**, **Technical Diagramming**, and **AI Video Generation**.
 
 ### 💡 Origins & Acknowledgements
 
@@ -43,6 +43,12 @@ This project is a testament to the power of AI-assisted development:
 ## ✨ Key Features
 
 *   **Advanced Generation:** Full support for styles (Watercolor, Pixar 3D, Pixel Art, etc.) and variations (Lighting, Angle, Composition).
+*   **AI Video Generation (NEW!):** Generate videos using Google's Veo 3.1 API with multiple sub-modes:
+    *   **Text-to-Video:** Generate videos from text prompts with camera motion and style controls.
+    *   **Frames-to-Video:** Create videos from start/end frame images for precise transitions.
+    *   **References-to-Video:** Generate videos while maintaining consistency with reference images.
+    *   **Extend Video:** Extend existing videos with new content.
+    *   Includes a **Video Prompt Builder** with preset camera motions, visual styles, atmosphere, and negative prompts.
 *   **Visual Storytelling:** Create consistent multi-step storyboards or process visualizations.
 *   **Technical Diagrams:** Generate flowcharts, architecture diagrams, and mind maps from text.
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
@@ -108,9 +114,9 @@ npm run build
 
 ## 🍌 關於本專案
 
-**Nano Banana Pro Web Gen** 是一個專為 Google Gemini 圖像生成模型（即 `gemini-3-pro-image-preview`）打造的現代化網頁介面。
+**Nano Banana Pro Web Gen** 是一個專為 Google Gemini 圖像生成模型（即 `gemini-3-pro-image-preview`）與 **Veo 3.1 影片生成 API** 打造的現代化網頁介面。
 
-本專案最初是為了將強大的 CLI 工具網頁化，隨後發展成為一個功能豐富的 PWA，並加入了許多獨家功能，如**自動化貼圖分割**、**視覺故事生成**以及**技術圖表繪製**。
+本專案最初是為了將強大的 CLI 工具網頁化，隨後發展成為一個功能豐富的 PWA，並加入了許多獨家功能，如**自動化貼圖分割**、**視覺故事生成**、**技術圖表繪製**以及 **AI 影片生成**。
 
 ### 💡 發想源起與致謝
 
@@ -134,6 +140,12 @@ npm run build
 ## ✨ 核心特色
 
 *   **進階圖像生成：** 支援多種藝術風格（水彩、Pixar 3D、像素風等）與變體控制（光影、角度、構圖）。
+*   **AI 影片生成（新功能！）：** 使用 Google Veo 3.1 API 生成影片，支援多種子模式：
+    *   **文字轉影片：** 透過文字描述生成影片，可控制鏡頭運動與風格。
+    *   **關鍵幀轉影片：** 從起始/結束畫面圖片創建影片，實現精確的畫面過渡。
+    *   **參考圖轉影片：** 生成影片時保持與參考圖像的一致性。
+    *   **延伸影片：** 延續現有影片生成新內容。
+    *   內建 **影片 Prompt 建構器**，提供預設鏡頭運動、視覺風格、氛圍設定與負面提示詞。
 *   **視覺故事模式：** 可生成連貫的多步驟故事板或流程圖。
 *   **技術圖表生成：** 透過文字描述產生流程圖、系統架構圖與心智圖。
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
