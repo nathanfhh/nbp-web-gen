@@ -82,6 +82,8 @@ export default {
     modeGenerateMuted: 'rgba(136, 192, 208, 0.2)',
     modeGenerateSolid: '#88C0D0', // = brandPrimary
     modeGenerateHover: 'rgba(136, 192, 208, 0.35)',
+    modeVideo: '#B48EAD', // 影片模式 - nord15 紫
+    modeVideoMuted: 'rgba(180, 142, 173, 0.2)',
 
     // ========================================
     // 控制元件狀態

@@ -76,6 +76,8 @@ export default {
     modeGenerateMuted: 'rgba(249, 115, 22, 0.12)',
     modeGenerateSolid: '#F97316', // = brandPrimary
     modeGenerateHover: 'rgba(249, 115, 22, 0.2)',
+    modeVideo: '#7C3AED', // 影片模式 - violet-600
+    modeVideoMuted: 'rgba(124, 58, 237, 0.12)',
 
     // ========================================
     // 控制元件狀態

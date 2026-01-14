@@ -76,6 +76,8 @@ export default {
     modeGenerateMuted: 'rgba(215, 153, 33, 0.2)',
     modeGenerateSolid: '#d79921', // = brandPrimary
     modeGenerateHover: 'rgba(215, 153, 33, 0.3)',
+    modeVideo: '#d3869b', // 影片模式 - Gruvbox Purple
+    modeVideoMuted: 'rgba(211, 134, 155, 0.2)',
 
     // ========================================
     // 控制元件狀態

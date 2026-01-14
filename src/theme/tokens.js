@@ -48,7 +48,7 @@ export const TOKEN_SCHEMA = {
     'infoHover',
   ],
 
-  // 模式色（對應 5 種生成模式，含 hover 變體）
+  // 模式色（對應 6 種生成模式，含 hover 變體）
   mode: [
     'generate',
     'generateMuted',
@@ -62,6 +62,8 @@ export const TOKEN_SCHEMA = {
     'storyMuted',
     'diagram',
     'diagramMuted',
+    'video',
+    'videoMuted',
   ],
 
   // 控制元件狀態（toggle、按鈕等）
