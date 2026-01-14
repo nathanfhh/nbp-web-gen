@@ -3,7 +3,9 @@ import {
   encodeJsonMessage,
   formatBytes,
   createBinaryPacket,
+  createChunkPacket,
   MSG_TYPE_BINARY,
+  CHUNK_SIZE,
 } from './peerSyncUtils'
 
 /**
@@ -111,6 +113,44 @@ export function usePeerDataTransfer(deps) {
   }
 
   /**
+   * Send large binary data in chunks (for videos and other large files)
+   * @param {object} header - Header object for the data
+   * @param {Uint8Array} rawData - Raw binary data
+   * @throws {Error} if connection is closed
+   */
+  const sendChunked = async (header, rawData) => {
+    const totalChunks = Math.ceil(rawData.length / CHUNK_SIZE)
+    addDebug(`Sending ${formatBytes(rawData.length)} in ${totalChunks} chunks`)
+
+    for (let i = 0; i < totalChunks; i++) {
+      if (!connection.value || !connection.value.open) {
+        throw new Error('Connection closed')
+      }
+
+      const start = i * CHUNK_SIZE
+      const end = Math.min(start + CHUNK_SIZE, rawData.length)
+      const chunkData = rawData.slice(start, end)
+
+      const packet = createChunkPacket(header, chunkData, i, totalChunks)
+
+      // Wait for buffer to drain before sending more
+      await waitForBufferDrain()
+
+      if (!connection.value || !connection.value.open) {
+        throw new Error('Connection closed')
+      }
+
+      transferStats.value.bytesSent += packet.length
+      connection.value.send(packet)
+
+      // Log progress every 10% or so
+      if (i % Math.max(1, Math.floor(totalChunks / 10)) === 0 || i === totalChunks - 1) {
+        addDebug(`Chunk ${i + 1}/${totalChunks} sent`)
+      }
+    }
+  }
+
+  /**
    * Wait for ACK from receiver with timeout
    * @param {string} identifier - Record UUID or character name for logging
    * @param {number} timeout - Timeout in ms
@@ -133,10 +173,11 @@ export function usePeerDataTransfer(deps) {
    * @param {Object} params
    * @param {Object} params.indexedDB - IndexedDB composable
    * @param {Object} params.imageStorage - Image storage composable
+   * @param {Object} params.videoStorage - Video storage composable
    * @param {Array<number>|null} params.selectedRecordIds - Specific record IDs to sync
    * @returns {Promise<{sent: number, failed: number, total: number}>}
    */
-  const sendHistoryData = async ({ indexedDB, imageStorage, selectedRecordIds }) => {
+  const sendHistoryData = async ({ indexedDB, imageStorage, videoStorage, selectedRecordIds }) => {
     if (!connection.value) return { sent: 0, failed: 0, total: 0 }
 
     let records
@@ -157,7 +198,7 @@ export function usePeerDataTransfer(deps) {
       try {
         const uuid = record.uuid || generateUUID()
 
-        // Prepare record metadata (without image data)
+        // Prepare record metadata (without image/video data)
         const recordMeta = {
           uuid,
           timestamp: record.timestamp,
@@ -168,6 +209,7 @@ export function usePeerDataTransfer(deps) {
           thinkingText: record.thinkingText,
           error: record.error,
           imageCount: record.images?.length || 0,
+          hasVideo: !!(record.video && record.video.opfsPath),
         }
 
         // Send record start with metadata
@@ -196,6 +238,28 @@ export function usePeerDataTransfer(deps) {
               await sendBinary(packet)
               addDebug(`Sent image ${i + 1}/${record.images.length}: ${formatBytes(rawData.length)}`)
             }
+          }
+        }
+
+        // Send video if present (using chunked transfer for large files)
+        if (record.video && record.video.opfsPath && videoStorage) {
+          const videoBlob = await videoStorage.loadVideoBlob(record.video.opfsPath)
+          if (videoBlob) {
+            const arrayBuffer = await videoBlob.arrayBuffer()
+            const rawData = new Uint8Array(arrayBuffer)
+
+            const header = {
+              type: 'record_video',
+              uuid,
+              width: record.video.width,
+              height: record.video.height,
+              size: rawData.length,
+              mimeType: record.video.mimeType || 'video/mp4',
+            }
+
+            // Use chunked transfer for videos (they can be large)
+            await sendChunked(header, rawData)
+            addDebug(`Sent video: ${formatBytes(rawData.length)}`)
           }
         }
 

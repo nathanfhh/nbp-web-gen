@@ -201,6 +201,35 @@ export function useIndexedDB() {
   }
 
   /**
+   * Update history record with video metadata
+   * @param {number} id - History record ID
+   * @param {Object} video - Video metadata object
+   * @returns {Promise<boolean>}
+   */
+  const updateHistoryVideo = async (id, video) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readwrite')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const getRequest = store.get(id)
+
+      getRequest.onsuccess = () => {
+        const record = getRequest.result
+        if (record) {
+          // Deep clone video to ensure plain object
+          record.video = JSON.parse(JSON.stringify(video))
+          const putRequest = store.put(record)
+          putRequest.onsuccess = () => resolve(true)
+          putRequest.onerror = () => reject(putRequest.error)
+        } else {
+          reject(new Error(`History record with id ${id} not found`))
+        }
+      }
+      getRequest.onerror = () => reject(getRequest.error)
+    })
+  }
+
+  /**
    * Get all history record IDs (for cleanup operations)
    * @returns {Promise<Array<number>>}
    */
@@ -535,6 +564,7 @@ export function useIndexedDB() {
     clearAllHistory,
     getHistoryCount,
     updateHistoryImages,
+    updateHistoryVideo,
     getAllHistoryIds,
     getAllHistory,
     hasHistoryByUUID,
