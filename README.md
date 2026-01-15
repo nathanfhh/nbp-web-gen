@@ -1,6 +1,8 @@
-# Nano Banana Pro Web Generator (NBP Web Gen)
+# Mediator - AI Image & Video Generator
 
-[![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/) [![Vite](https://img.shields.io/badge/Vite-7.x-blue.svg)](https://vitejs.dev/) [![Gemini API](https://img.shields.io/badge/Powered%20by-Gemini-8E75B2.svg)](https://deepmind.google/technologies/gemini/) [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet.svg)](https://claude.ai/code) [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue.svg)](https://nathanfhh.github.io/nbp-web-gen/) [![DeepWiki](https://img.shields.io/badge/DeepWiki-nathanfhh%2Fnbp--web--gen-blue.svg?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTkuNXYtMTVBMi41IDIuNSAwIDAgMSA2LjUgMkgxOXYyMEg2LjVhMi41IDIuNSAwIDAgMS0yLjUtMi41eiIvPjxwYXRoIGQ9Ik04IDdoOCIvPjxwYXRoIGQ9Ik04IDExaDgiLz48cGF0aCBkPSJNOCAxNWg0Ii8+PC9zdmc+)](https://deepwiki.com/nathanfhh/nbp-web-gen)
+### Media + Creator = Mediator | Powered by Gemini & Veo 3.1
+
+[![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/) [![Vite](https://img.shields.io/badge/Vite-7.x-blue.svg)](https://vitejs.dev/) [![Gemini API](https://img.shields.io/badge/Image-Gemini%20API-8E75B2.svg)](https://deepmind.google/technologies/gemini/) [![Veo 3.1](https://img.shields.io/badge/Video-Veo%203.1-FF6F00.svg)](https://deepmind.google/technologies/veo/) [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet.svg)](https://claude.ai/code) [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue.svg)](https://nathanfhh.github.io/nbp-web-gen/) [![DeepWiki](https://img.shields.io/badge/DeepWiki-nathanfhh%2Fnbp--web--gen-blue.svg?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTkuNXYtMTVBMi41IDIuNSAwIDAgMSA2LjUgMkgxOXYyMEg2LjVhMi41IDIuNSAwIDAgMS0yLjUtMi41eiIvPjxwYXRoIGQ9Ik04IDdoOCIvPjxwYXRoIGQ9Ik04IDExaDgiLz48cGF0aCBkPSJNOCAxNWg0Ii8+PC9zdmc+)](https://deepwiki.com/nathanfhh/nbp-web-gen)
 
 > **🔒 100% Client-Side | No Backend | Your Data Stays in Your Browser**
 
@@ -8,16 +10,16 @@
 
 ### 📺 Video Introduction | 影片介紹
 
-[![Nano Banana Pro Demo](https://img.youtube.com/vi/w7yAHJq66Pk/maxresdefault.jpg)](https://youtu.be/w7yAHJq66Pk)
+[![Mediator Demo](https://img.youtube.com/vi/w7yAHJq66Pk/maxresdefault.jpg)](https://youtu.be/w7yAHJq66Pk)
 
 [English](#english) | [Traditional Chinese](#traditional-chinese)
 
 ---
 
 <a name="english"></a>
-## 🍌 About The Project
+## 🎬 About The Project
 
-**Nano Banana Pro Web Gen** is a modern web interface designed to unlock the full potential of Google's Gemini image generation models (namely `gemini-3-pro-image-preview`) and **Veo 3.1 video generation API**.
+**Mediator** (Media + Creator) is a modern web interface designed to unlock the full potential of Google's Gemini image generation models (namely `gemini-3-pro-image-preview`) and **Veo 3.1 video generation API**.
 
 While starting as a web adaptation of existing CLI tools, this project has evolved into a feature-rich PWA with unique capabilities like **Automated Sticker Segmentation**, **Visual Storytelling**, **Technical Diagramming**, and **AI Video Generation**.
 
@@ -112,9 +114,9 @@ npm run build
 
 **🚀 [線上體驗: https://nathanfhh.github.io/nbp-web-gen/](https://nathanfhh.github.io/nbp-web-gen/)**
 
-## 🍌 關於本專案
+## 🎬 關於本專案
 
-**Nano Banana Pro Web Gen** 是一個專為 Google Gemini 圖像生成模型（即 `gemini-3-pro-image-preview`）與 **Veo 3.1 影片生成 API** 打造的現代化網頁介面。
+**Mediator**（Media + Creator = Mediator）是一個專為 Google Gemini 圖像生成模型（即 `gemini-3-pro-image-preview`）與 **Veo 3.1 影片生成 API** 打造的現代化網頁介面。
 
 本專案最初是為了將強大的 CLI 工具網頁化，隨後發展成為一個功能豐富的 PWA，並加入了許多獨家功能，如**自動化貼圖分割**、**視覺故事生成**、**技術圖表繪製**以及 **AI 影片生成**。
 
