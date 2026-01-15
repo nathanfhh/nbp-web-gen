@@ -661,7 +661,7 @@ const removePageReference = (pageIndex, refIndex) => {
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs text-text-muted">{{ $t('slides.pageReferences') }}</span>
               <span class="text-xs text-text-muted">
-                {{ (page.referenceImages?.length || 0) + globalReferenceCount }}/{{ MAX_REFERENCE_IMAGES }}
+                {{ Math.min((page.referenceImages?.length || 0) + globalReferenceCount, MAX_REFERENCE_IMAGES) }}/{{ MAX_REFERENCE_IMAGES }}
               </span>
             </div>
             <div class="flex flex-wrap gap-2">
