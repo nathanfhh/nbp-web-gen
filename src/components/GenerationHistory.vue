@@ -199,8 +199,7 @@ const loadHistoryItem = async (item) => {
     store.slidesOptions.analysisModel = item.options.analysisModel || 'gemini-3-flash-preview'
     store.slidesOptions.analyzedStyle = item.options.analyzedStyle || ''
     store.slidesOptions.styleConfirmed = item.options.styleConfirmed || false
-    store.slidesOptions.temperature = item.options.temperature
-    store.slidesOptions.seed = item.options.seed
+    // Note: temperature and seed are already restored at store level (line 134-135)
 
     // Restore pagesRaw (this will trigger parsePages via watch)
     if (item.options.pagesRaw) {

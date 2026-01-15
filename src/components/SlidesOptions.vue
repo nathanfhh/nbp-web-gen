@@ -152,8 +152,9 @@ const totalReferenceCount = computed(() => {
 })
 
 // Can add more global reference images?
+// Global images can be up to MAX_REFERENCE_IMAGES; each page's combined (global + page-specific) is checked separately
 const canAddGlobalReference = computed(() => {
-  return totalReferenceCount.value < MAX_REFERENCE_IMAGES
+  return globalReferenceCount.value < MAX_REFERENCE_IMAGES
 })
 
 // Can add more reference images to a specific page?
@@ -183,6 +184,9 @@ const handleGlobalReferenceUpload = (event) => {
       name: file.name,
     })
   }
+  reader.onerror = () => {
+    toast.error(t('slides.imageLoadError'))
+  }
   reader.readAsDataURL(file)
   event.target.value = ''
 }
@@ -209,6 +213,9 @@ const handlePageReferenceUpload = (event, pageIndex) => {
       preview: e.target.result,
       name: file.name,
     })
+  }
+  reader.onerror = () => {
+    toast.error(t('slides.imageLoadError'))
   }
   reader.readAsDataURL(file)
   event.target.value = ''

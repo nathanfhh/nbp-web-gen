@@ -262,6 +262,7 @@
     "pageStyleGuide": "此頁風格指引",
     "pageStylePlaceholder": "此頁專屬的設計風格說明（留空則使用全域風格）",
     "pageStyleHint": "若此頁有特殊內容（圖表、引言等），可指定專屬風格",
+    "imageLoadError": "圖片讀取失敗",
     "contentSplitter": {
       "button": "AI 內容拆分",
       "title": "AI 內容拆分",

@@ -262,6 +262,7 @@
     "pageStyleGuide": "Page Style Guide",
     "pageStylePlaceholder": "Page-specific design style (leave empty to use global style)",
     "pageStyleHint": "Specify custom style for pages with special content (charts, quotes, etc.)",
+    "imageLoadError": "Failed to load image",
     "contentSplitter": {
       "button": "AI Content Split",
       "title": "AI Content Split",
