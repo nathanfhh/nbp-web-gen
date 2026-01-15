@@ -638,6 +638,7 @@ export function useApi() {
    * @param {Array<{id: string, pageNumber: number, content: string}>} pages - Pages with ID and content
    * @param {Object} options - Analysis options
    * @param {string} options.model - Model to use (default: gemini-3-flash-preview)
+   * @param {string} options.styleGuidance - User's style preferences and constraints
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
    * @returns {Promise<{globalStyle: string, pageStyles: Array<{pageId: string, styleGuide: string}>}>}
    */
@@ -649,11 +650,28 @@ export function useApi() {
 
     const ai = new GoogleGenAI({ apiKey })
     const model = options.model || 'gemini-3-flash-preview'
+    const styleGuidance = options.styleGuidance?.trim() || ''
 
     // Build content with page IDs
     const pagesContent = pages
       .map((p) => `[Page ID: ${p.id}]\nPage ${p.pageNumber}:\n${p.content}`)
       .join('\n\n---\n\n')
+
+    // Build optional style guidance section
+    const styleGuidanceSection = styleGuidance
+      ? `
+---
+
+## USER STYLE GUIDANCE
+
+The user has provided the following preferences and constraints for the design:
+
+${styleGuidance}
+
+**Important:** You MUST incorporate these preferences into your design recommendations. If the user specifies things they want or don't want, respect those requirements strictly.
+
+`
+      : ''
 
     const analysisPrompt = `# Presentation Design Analysis Task
 
@@ -664,7 +682,7 @@ You are a senior presentation design consultant. Analyze the slide content below
 ## INPUT: Slide Content
 
 ${pagesContent}
-
+${styleGuidanceSection}
 ---
 
 ## OUTPUT REQUIREMENTS

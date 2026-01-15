@@ -40,6 +40,11 @@ const analysisModels = [
 
 const options = computed(() => store.slidesOptions)
 
+// Ensure styleGuidance exists (for backward compatibility with old localStorage data)
+if (store.slidesOptions.styleGuidance === undefined) {
+  store.slidesOptions.styleGuidance = ''
+}
+
 // Check if page count exceeds limit
 const isPageLimitExceeded = computed(() => options.value.totalPages > MAX_PAGES)
 
@@ -453,6 +458,18 @@ const togglePageStyle = (pageId) => {
               {{ model.label }}
             </button>
           </div>
+        </div>
+
+        <!-- Style Guidance (Free Typing) -->
+        <div class="space-y-2">
+          <label class="block text-xs text-text-muted">{{ $t('slides.styleGuidance') }}</label>
+          <textarea
+            v-model="store.slidesOptions.styleGuidance"
+            :placeholder="$t('slides.styleGuidancePlaceholder')"
+            :disabled="store.isGenerating || options.isAnalyzing"
+            class="input-premium min-h-[60px] text-sm resize-y"
+          />
+          <p class="text-xs text-text-muted">{{ $t('slides.styleGuidanceHint') }}</p>
         </div>
 
         <!-- Analyze Button -->

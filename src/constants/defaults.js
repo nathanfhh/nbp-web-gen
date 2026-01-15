@@ -93,6 +93,9 @@ export const DEFAULT_SLIDES_OPTIONS = {
   // Each: { data, preview, mimeType, name }
   globalReferenceImages: [],
 
+  // User guidance for style analysis (free typing)
+  styleGuidance: '',
+
   // AI analyzed style (editable by user)
   analyzedStyle: '',
   styleConfirmed: false,

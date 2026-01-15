@@ -69,7 +69,10 @@ export function useSlidesGeneration() {
 
       const result = await apiAnalyzeSlideStyle(
         pagesForAnalysis,
-        { model: options.analysisModel },
+        {
+          model: options.analysisModel,
+          styleGuidance: options.styleGuidance || '',
+        },
         handleThinkingChunk,
       )
 
