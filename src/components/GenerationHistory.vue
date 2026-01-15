@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watchEffect, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -207,9 +207,9 @@ const loadHistoryItem = async (item) => {
       store.slidesOptions.pagesRaw = item.options.pagesRaw
 
       // Restore per-page styleGuides after pages are parsed
-      // Use nextTick to ensure parsePages has completed
+      // Use nextTick to ensure parsePages has completed via watch
       if (item.options.pageStyleGuides?.length > 0) {
-        setTimeout(() => {
+        nextTick(() => {
           for (const psg of item.options.pageStyleGuides) {
             const pageIndex = store.slidesOptions.pages.findIndex(
               (p) => p.pageNumber === psg.pageNumber,
@@ -218,7 +218,7 @@ const loadHistoryItem = async (item) => {
               store.slidesOptions.pages[pageIndex].styleGuide = psg.styleGuide
             }
           }
-        }, 0)
+        })
       }
     }
   }

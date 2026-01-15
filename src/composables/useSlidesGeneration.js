@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
 import { useToast } from './useToast'
+import { generateUUID } from './useUUID'
 
 /**
  * Composable for handling slides generation logic
@@ -112,7 +113,7 @@ export function useSlidesGeneration() {
     }
 
     if (options.pages.length > 30) {
-      throw new Error(t('slides.tooManyPages'))
+      throw new Error(t('slides.tooManyPages', { max: 30 }))
     }
 
     isGenerating.value = true
@@ -184,8 +185,11 @@ export function useSlidesGeneration() {
         }
       }
 
+      // Determine overall success: true only if all pages succeeded
+      const allSucceeded = results.every((r) => r.success)
+
       return {
-        success: true,
+        success: allSucceeded,
         results,
         totalPages: options.totalPages,
         images: results.filter((r) => r.success).map((r) => r.image),
@@ -294,7 +298,7 @@ export function useSlidesGeneration() {
 
       // New or modified page
       return {
-        id: existingPage?.id || crypto.randomUUID(),
+        id: existingPage?.id || generateUUID(),
         pageNumber: index + 1,
         content: trimmedContent,
         status: 'pending',
