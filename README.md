@@ -45,12 +45,17 @@ This project is a testament to the power of AI-assisted development:
 ## ✨ Key Features
 
 *   **Advanced Generation:** Full support for styles (Watercolor, Pixar 3D, Pixel Art, etc.) and variations (Lighting, Angle, Composition).
-*   **AI Video Generation (NEW!):** Generate videos using Google's Veo 3.1 API with multiple sub-modes:
+*   **AI Video Generation:** Generate videos using Google's Veo 3.1 API with multiple sub-modes:
     *   **Text-to-Video:** Generate videos from text prompts with camera motion and style controls.
     *   **Frames-to-Video:** Create videos from start/end frame images for precise transitions.
     *   **References-to-Video:** Generate videos while maintaining consistency with reference images.
     *   **Extend Video:** Extend existing videos with new content.
     *   Includes a **Video Prompt Builder** with preset camera motions, visual styles, atmosphere, and negative prompts.
+*   **Presentation Slides (NEW!):** Generate multi-page presentation slides with AI-powered design:
+    *   **AI Style Analysis:** Gemini analyzes your content and suggests cohesive design styles.
+    *   **AI Content Splitter:** Automatically split raw content (articles, notes) into structured slide pages.
+    *   **Per-Page Customization:** Add page-specific style guides and reference images.
+    *   **Progress Tracking:** Real-time progress bar with ETA during generation.
 *   **Visual Storytelling:** Create consistent multi-step storyboards or process visualizations.
 *   **Technical Diagrams:** Generate flowcharts, architecture diagrams, and mind maps from text.
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
@@ -142,12 +147,17 @@ npm run build
 ## ✨ 核心特色
 
 *   **進階圖像生成：** 支援多種藝術風格（水彩、Pixar 3D、像素風等）與變體控制（光影、角度、構圖）。
-*   **AI 影片生成（新功能！）：** 使用 Google Veo 3.1 API 生成影片，支援多種子模式：
+*   **AI 影片生成：** 使用 Google Veo 3.1 API 生成影片，支援多種子模式：
     *   **文字轉影片：** 透過文字描述生成影片，可控制鏡頭運動與風格。
     *   **關鍵幀轉影片：** 從起始/結束畫面圖片創建影片，實現精確的畫面過渡。
     *   **參考圖轉影片：** 生成影片時保持與參考圖像的一致性。
     *   **延伸影片：** 延續現有影片生成新內容。
     *   內建 **影片 Prompt 建構器**，提供預設鏡頭運動、視覺風格、氛圍設定與負面提示詞。
+*   **簡報投影片生成（新功能！）：** 透過 AI 輔助生成多頁簡報投影片：
+    *   **AI 風格分析：** Gemini 分析您的內容並建議統一的設計風格。
+    *   **AI 內容拆分：** 自動將原始素材（文章、筆記）拆分為結構化的簡報頁面。
+    *   **頁面客製化：** 可為每頁加入專屬的風格指引與參考圖片。
+    *   **進度追蹤：** 生成時顯示即時進度條與預估剩餘時間。
 *   **視覺故事模式：** 可生成連貫的多步驟故事板或流程圖。
 *   **技術圖表生成：** 透過文字描述產生流程圖、系統架構圖與心智圖。
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
