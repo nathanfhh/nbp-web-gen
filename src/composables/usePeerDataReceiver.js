@@ -466,7 +466,6 @@ export function usePeerDataReceiver(deps) {
       if (video && video.data) {
         const videoDirPath = `videos/${historyId}`
         const videoPath = `/${videoDirPath}/video.mp4`
-        const thumbnailPath = `/${videoDirPath}/thumbnail.webp`
 
         const videoBlob = new Blob([video.data], { type: video.mimeType || 'video/mp4' })
 
@@ -480,8 +479,6 @@ export function usePeerDataReceiver(deps) {
           if (videoStorage?.extractThumbnail) {
             const thumbResult = await videoStorage.extractThumbnail(videoBlob)
             thumbnailData = thumbResult.thumbnail
-            const thumbnailBlob = await fetch(thumbnailData).then((r) => r.blob())
-            await opfs.writeFile(thumbnailPath, thumbnailBlob)
           }
         } catch (thumbErr) {
           addDebug(`Failed to extract video thumbnail: ${thumbErr.message}`)
@@ -490,7 +487,6 @@ export function usePeerDataReceiver(deps) {
         // Update history record with video metadata
         await indexedDB.updateHistoryVideo(historyId, {
           opfsPath: videoPath,
-          thumbnailPath,
           size: videoBlob.size,
           mimeType: video.mimeType || 'video/mp4',
           width: video.width,

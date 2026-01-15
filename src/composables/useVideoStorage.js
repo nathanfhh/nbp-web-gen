@@ -11,7 +11,6 @@ import { formatFileSize } from './useImageCompression'
  *
  * Directory structure:
  *   /videos/{historyId}/video.mp4
- *   /videos/{historyId}/thumbnail.webp
  */
 export function useVideoStorage() {
   const opfs = useOPFS()
@@ -168,10 +167,6 @@ export function useVideoStorage() {
         thumbnailData = thumbResult.thumbnail
         videoWidth = thumbResult.width
         videoHeight = thumbResult.height
-
-        // Save thumbnail as webp file
-        const thumbnailBlob = await fetch(thumbnailData).then((r) => r.blob())
-        await opfs.writeFile(`/${dirPath}/thumbnail.webp`, thumbnailBlob)
       } catch (err) {
         console.warn('Failed to extract thumbnail:', err)
         // Continue without thumbnail
@@ -180,7 +175,6 @@ export function useVideoStorage() {
       // Return metadata
       return {
         opfsPath: videoPath,
-        thumbnailPath: `/${dirPath}/thumbnail.webp`,
         size: video.blob.size,
         mimeType: 'video/mp4',
         width: videoWidth,
@@ -224,23 +218,6 @@ export function useVideoStorage() {
   }
 
   /**
-   * Load thumbnail for a video history record
-   * @param {string} thumbnailPath - Thumbnail OPFS path
-   * @returns {Promise<string|null>} Object URL or null
-   */
-  const loadThumbnail = async (thumbnailPath) => {
-    if (urlCache.has(thumbnailPath)) {
-      return urlCache.get(thumbnailPath)
-    }
-
-    const url = await opfs.getFileURL(thumbnailPath)
-    if (url) {
-      urlCache.set(thumbnailPath, url)
-    }
-    return url
-  }
-
-  /**
    * Load video metadata for a history record
    * @param {Object} historyRecord - History record with video object
    * @returns {Promise<Object>} Video with loaded URLs
@@ -251,14 +228,10 @@ export function useVideoStorage() {
     }
 
     const videoUrl = await loadVideo(historyRecord.video.opfsPath)
-    const thumbnailUrl = historyRecord.video.thumbnailPath
-      ? await loadThumbnail(historyRecord.video.thumbnailPath)
-      : null
 
     return {
       ...historyRecord.video,
       url: videoUrl,
-      thumbnailUrl,
     }
   }
 
@@ -356,7 +329,6 @@ export function useVideoStorage() {
     saveGeneratedVideo,
     loadVideo,
     loadVideoBlob,
-    loadThumbnail,
     loadHistoryVideo,
     deleteHistoryVideo,
     deleteAllVideos,

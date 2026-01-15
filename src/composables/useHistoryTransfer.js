@@ -217,7 +217,6 @@ export function useHistoryTransfer() {
           if (record.video && record.video.data) {
             const videoDirPath = `videos/${historyId}`
             const videoPath = `/${videoDirPath}/video.mp4`
-            const thumbnailPath = `/${videoDirPath}/thumbnail.webp`
 
             // base64 to Blob
             const binaryString = atob(record.video.data)
@@ -231,13 +230,11 @@ export function useHistoryTransfer() {
             await opfs.getOrCreateDirectory(videoDirPath)
             await opfs.writeFile(videoPath, videoBlob)
 
-            // Extract and save thumbnail
+            // Extract thumbnail
             let thumbnailData = null
             try {
               const thumbResult = await videoStorage.extractThumbnail(videoBlob)
               thumbnailData = thumbResult.thumbnail
-              const thumbnailBlob = await fetch(thumbnailData).then((r) => r.blob())
-              await opfs.writeFile(thumbnailPath, thumbnailBlob)
             } catch (thumbErr) {
               console.warn('Failed to extract video thumbnail:', thumbErr)
             }
@@ -245,7 +242,6 @@ export function useHistoryTransfer() {
             // Update history record with video metadata
             await indexedDB.updateHistoryVideo(historyId, {
               opfsPath: videoPath,
-              thumbnailPath,
               size: videoBlob.size,
               mimeType: record.video.mimeType || 'video/mp4',
               width: record.video.width,
