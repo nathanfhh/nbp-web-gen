@@ -86,6 +86,34 @@ const formatFullTime = (timestamp) => {
   return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
 }
 
+/**
+ * Calculate total size of a history item (images + video)
+ * @param {Object} item - History item
+ * @returns {string} Formatted size string (KB or MB)
+ */
+const getItemSize = (item) => {
+  let totalBytes = 0
+
+  // Sum image sizes (compressedSize)
+  if (item.images?.length > 0) {
+    totalBytes += item.images.reduce((sum, img) => sum + (img.compressedSize || 0), 0)
+  }
+
+  // Add video size
+  if (item.video?.size) {
+    totalBytes += item.video.size
+  }
+
+  if (totalBytes === 0) return null
+
+  const kb = totalBytes / 1024
+  if (kb >= 1000) {
+    const mb = kb / 1024
+    return `${mb.toFixed(2)} MB`
+  }
+  return `${Math.round(kb)} KB`
+}
+
 const truncatePrompt = (prompt, maxLength = 60) => {
   if (prompt.length <= maxLength) return prompt
   return prompt.slice(0, maxLength) + '...'
@@ -170,8 +198,29 @@ const loadHistoryItem = async (item) => {
     store.slidesOptions.ratio = item.options.ratio || '16:9'
     store.slidesOptions.analysisModel = item.options.analysisModel || 'gemini-3-flash-preview'
     store.slidesOptions.analyzedStyle = item.options.analyzedStyle || ''
-    // Note: pages and pagesRaw are not restored since they contain generation state
-    // User will need to re-enter content for new generation
+    store.slidesOptions.styleConfirmed = item.options.styleConfirmed || false
+    store.slidesOptions.temperature = item.options.temperature
+    store.slidesOptions.seed = item.options.seed
+
+    // Restore pagesRaw (this will trigger parsePages via watch)
+    if (item.options.pagesRaw) {
+      store.slidesOptions.pagesRaw = item.options.pagesRaw
+
+      // Restore per-page styleGuides after pages are parsed
+      // Use nextTick to ensure parsePages has completed
+      if (item.options.pageStyleGuides?.length > 0) {
+        setTimeout(() => {
+          for (const psg of item.options.pageStyleGuides) {
+            const pageIndex = store.slidesOptions.pages.findIndex(
+              (p) => p.pageNumber === psg.pageNumber,
+            )
+            if (pageIndex !== -1) {
+              store.slidesOptions.pages[pageIndex].styleGuide = psg.styleGuide
+            }
+          }
+        }, 0)
+      }
+    }
   }
 }
 
@@ -416,12 +465,15 @@ const handleImported = async () => {
             <p class="text-sm text-text-secondary truncate">
               {{ truncatePrompt(item.prompt) }}
             </p>
-            <div v-if="item.status" class="mt-2">
+            <div v-if="item.status" class="mt-2 flex items-center justify-between">
               <span
                 class="text-xs px-2 py-0.5 rounded-md"
                 :class="item.status === 'success' ? 'bg-status-success-muted text-status-success' : 'bg-status-error-muted text-status-error'"
               >
                 {{ item.status === 'success' ? $t('history.status.success') : $t('history.status.failed') }}
+              </span>
+              <span v-if="getItemSize(item)" class="text-xs text-text-muted font-mono">
+                {{ getItemSize(item) }}
               </span>
             </div>
           </div>
