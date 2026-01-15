@@ -5,6 +5,7 @@ import { useHistoryTransfer } from '@/composables/useHistoryTransfer'
 import { useCharacterTransfer } from '@/composables/useCharacterTransfer'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useImageStorage } from '@/composables/useImageStorage'
+import { useVideoStorage } from '@/composables/useVideoStorage'
 import { useToast } from '@/composables/useToast'
 import { useHistoryState } from '@/composables/useHistoryState'
 import { useHistoryTransferUI } from '@/composables/useHistoryTransferUI'
@@ -20,6 +21,7 @@ const transfer = useHistoryTransfer()
 const charTransfer = useCharacterTransfer()
 const indexedDB = useIndexedDB()
 const imageStorage = useImageStorage()
+const videoStorage = useVideoStorage()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -44,6 +46,7 @@ const {
   previewCharacter,
   previewHistoryItem,
   previewHistoryImageUrl,
+  previewHistoryVideoUrl,
   isLoadingPreview,
   isDragOver,
   modeColors,
@@ -65,7 +68,7 @@ const {
   handleDragOver,
   handleDragLeave,
   handleDropEnd,
-} = useHistoryTransferUI({ indexedDB, imageStorage })
+} = useHistoryTransferUI({ indexedDB, imageStorage, videoStorage })
 
 // Peer sync modal
 const showPeerSync = ref(false)
@@ -191,6 +194,11 @@ const close = () => {
 
 // Helper to get thumbnail src
 const getHistoryThumbnail = (item) => {
+  // Check for video thumbnail first (already a complete data URL)
+  if (item.video?.thumbnail) {
+    return item.video.thumbnail
+  }
+  // Fall back to image thumbnail (needs base64 prefix)
   return item.images?.[0]?.thumbnail ? `data:image/webp;base64,${item.images[0].thumbnail}` : null
 }
 
@@ -305,7 +313,7 @@ const getHistoryPreviewSrc = () => {
                 :key="item.id"
                 :selected="selectedIds.has(item.id)"
                 :thumbnail-src="getHistoryThumbnail(item)"
-                :can-preview="!!item.images?.[0]?.thumbnail"
+                :can-preview="!!item.video?.opfsPath || !!item.images?.[0]?.opfsPath"
                 @toggle="toggleSelect(item.id)"
                 @preview="openHistoryPreview(item, $event)"
               >
@@ -479,6 +487,7 @@ const getHistoryPreviewSrc = () => {
   <PreviewLightbox
     :visible="!!previewHistoryItem"
     :image-src="getHistoryPreviewSrc()"
+    :video-src="previewHistoryVideoUrl"
     :is-loading="isLoadingPreview"
     @close="closeHistoryPreview"
   >

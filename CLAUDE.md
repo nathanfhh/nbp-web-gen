@@ -32,6 +32,35 @@ Six modes with mode-specific option components and prompt builders:
 - **diagram** - Technical diagram generation
 - **video** - AI video generation using Google Veo 3.1 API (REST, not SDK)
 
+### Video Generation - API Limitations
+
+**⚠️ IMPORTANT: `generateAudio` is NOT supported by Gemini API (browser)**
+
+The `@google/genai` SDK includes `generateAudio` in its TypeScript definitions, but **Gemini API does not support this parameter** - it returns error: `"generateAudio parameter is not supported in Gemini API"`.
+
+This is a **Vertex AI only** feature. Vertex AI requires:
+- Service Account / ADC authentication
+- Node.js runtime (not browser)
+
+Since this project runs 100% client-side in browser, we cannot use Vertex AI.
+
+**Current behavior:**
+- Audio is **always generated** by Veo 3.1 API (no way to disable via Gemini API)
+- Price calculation always uses `audio` pricing (not `noAudio`)
+- UI toggle is hidden (commented out in `VideoOptions.vue`)
+
+**Preserved code for future Vertex AI support:**
+| File | What | Why preserved |
+|------|------|---------------|
+| `videoPricing.js` | `generateAudio` param in price functions | Ready for Vertex AI pricing |
+| `VideoOptions.vue:591-621` | Commented Audio Toggle UI | Ready to uncomment |
+| `i18n/locales/*.json` | `video.audio.*` translations | UI strings ready |
+
+**DO NOT:**
+- Re-add `generateAudio` to API payload in `useVideoApi.js`
+- Uncomment the Audio Toggle UI (unless switching to Vertex AI)
+- Use `noAudio` pricing (Gemini API always generates audio)
+
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.
 

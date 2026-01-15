@@ -32,7 +32,14 @@ const effectiveOptions = computed(() => getEffectiveOptions(options))
 // Check current sub-mode constraints
 const currentConstraints = computed(() => VIDEO_MODE_CONSTRAINTS[options.subMode] || {})
 
+// Reference image constraints
+const referenceConstraints = VIDEO_MODE_CONSTRAINTS[VIDEO_SUB_MODES.REFERENCES_TO_VIDEO]
+
 // Check if options are locked
+// Reference images constraints (2026/01 update):
+// - Model: Veo 3.1 only (Fast not supported)
+// - Duration: 8 seconds only
+// - Resolution & Ratio: Now unlocked
 const isModelLocked = computed(() => !!currentConstraints.value.lockedModel)
 const isResolutionLocked = computed(() => !!currentConstraints.value.lockedResolution)
 const isRatioLocked = computed(() => !!currentConstraints.value.lockedRatio)
@@ -45,6 +52,11 @@ const isDurationLocked = computed(() => {
   const resConstraints = VIDEO_RESOLUTION_CONSTRAINTS[effectiveOptions.value.resolution]
   return resConstraints?.lockedDuration !== undefined
 })
+
+// Max reference images allowed
+const maxReferenceImages = computed(() =>
+  currentConstraints.value.maxReferenceImages || referenceConstraints.maxReferenceImages || 3
+)
 
 // Get allowed duration options based on current resolution
 const allowedDurations = computed(() => {
@@ -117,8 +129,7 @@ const handleReferenceUpload = (event) => {
   const file = event.target.files?.[0]
   if (!file) return
 
-  const maxRefs = currentConstraints.value.maxReferenceImages || 3
-  if (options.referenceImages.length >= maxRefs) return
+  if (options.referenceImages.length >= maxReferenceImages.value) return
 
   const reader = new FileReader()
   reader.onload = (e) => {
@@ -383,18 +394,13 @@ const selectInputVideo = (historyItem) => {
       </div>
     </div>
 
-    <!-- Text-to-Video: Hide the main ImageUploader (only prompt needed) -->
-    <!-- Note: The main ImageUploader in HomeView is hidden when in video mode -->
-
-    <!-- References-to-Video: Reference Images (max 3) -->
+    <!-- Reference Images (only for references-to-video mode) -->
     <div v-if="options.subMode === VIDEO_SUB_MODES.REFERENCES_TO_VIDEO" class="space-y-4">
       <div class="space-y-2">
         <label class="block text-sm font-medium text-text-secondary">
           {{ $t('video.references.images') }}
           <span class="text-text-muted text-xs"
-            >({{ options.referenceImages.length }}/{{
-              currentConstraints.maxReferenceImages || 3
-            }})</span
+            >({{ options.referenceImages.length }}/{{ maxReferenceImages }})</span
           >
         </label>
         <div class="flex flex-wrap gap-3">
@@ -438,7 +444,7 @@ const selectInputVideo = (historyItem) => {
           </div>
           <!-- Add button -->
           <label
-            v-if="options.referenceImages.length < (currentConstraints.maxReferenceImages || 3)"
+            v-if="options.referenceImages.length < maxReferenceImages"
             class="flex items-center justify-center w-24 h-24 border-2 border-dashed border-border-muted rounded-lg cursor-pointer hover:border-mode-generate transition-colors"
           >
             <input
@@ -581,6 +587,35 @@ const selectInputVideo = (historyItem) => {
         </button>
       </div>
     </div>
+
+    <!-- Audio Toggle - HIDDEN: Gemini API does not support generateAudio parameter (Vertex AI only)
+    <div class="flex items-center justify-between p-4 rounded-xl bg-bg-muted border border-border-muted">
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+            />
+          </svg>
+          <span class="text-sm font-medium text-text-secondary">{{ $t('video.audio.label') }}</span>
+        </div>
+        <p class="text-xs text-text-muted mt-1">{{ $t('video.audio.hint') }}</p>
+      </div>
+      <button
+        @click="options.generateAudio = !options.generateAudio"
+        class="relative w-12 h-7 rounded-full transition-colors duration-200"
+        :class="options.generateAudio ? 'bg-mode-generate' : 'bg-bg-interactive'"
+      >
+        <span
+          class="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+          :class="options.generateAudio ? 'translate-x-5' : 'translate-x-0'"
+        />
+      </button>
+    </div>
+    -->
 
     <!-- Duration -->
     <div class="space-y-3">

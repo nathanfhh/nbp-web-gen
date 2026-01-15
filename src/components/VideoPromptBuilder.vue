@@ -157,6 +157,17 @@ const builtPrompt = computed(() => {
     parts.push(actions.map((a) => t(`videoPrompt.action.${a}`, a)).join(', '))
   }
 
+  // Add audio prompts (dialogue, sound effects, ambient sound)
+  if (promptOptions.value.dialogue) {
+    parts.push(promptOptions.value.dialogue)
+  }
+  if (promptOptions.value.soundEffects) {
+    parts.push(promptOptions.value.soundEffects)
+  }
+  if (promptOptions.value.ambientSound) {
+    parts.push(promptOptions.value.ambientSound)
+  }
+
   return parts.join('. ')
 })
 

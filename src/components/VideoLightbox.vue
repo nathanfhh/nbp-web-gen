@@ -76,24 +76,43 @@ const videoInfo = computed(() => {
 
 // Download video
 const downloadVideo = async () => {
-  if (!props.metadata?.opfsPath || isDownloading.value) return
+  if (isDownloading.value) return
+
+  // Need either opfsPath (from history) or videoUrl (from preview)
+  const hasOpfsPath = !!props.metadata?.opfsPath
+  const hasVideoUrl = !!props.videoUrl
+
+  if (!hasOpfsPath && !hasVideoUrl) return
 
   isDownloading.value = true
 
   try {
-    const blob = await videoStorage.loadVideoBlob(props.metadata.opfsPath)
-    if (!blob) {
-      throw new Error('Failed to load video')
+    let blob
+    let downloadUrl
+
+    if (hasOpfsPath) {
+      // Load from OPFS (history video)
+      blob = await videoStorage.loadVideoBlob(props.metadata.opfsPath)
+      if (!blob) {
+        throw new Error('Failed to load video from storage')
+      }
+      downloadUrl = URL.createObjectURL(blob)
+    } else {
+      // Use videoUrl directly (preview video, already a blob URL)
+      downloadUrl = props.videoUrl
     }
 
-    const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = `video-${props.metadata.historyId || 'download'}.mp4`
+    a.href = downloadUrl
+    a.download = `video-${props.metadata?.historyId || Date.now()}.mp4`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+
+    // Only revoke if we created the URL
+    if (hasOpfsPath) {
+      URL.revokeObjectURL(downloadUrl)
+    }
 
     toast.success(t('toast.downloadSuccess'))
   } catch (err) {

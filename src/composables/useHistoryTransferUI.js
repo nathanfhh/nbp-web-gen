@@ -14,10 +14,11 @@ dayjs.extend(relativeTime)
  * @param {Object} deps - Dependencies
  * @param {Object} deps.indexedDB - IndexedDB composable
  * @param {Object} deps.imageStorage - Image storage composable
+ * @param {Object} deps.videoStorage - Video storage composable
  * @returns {Object} UI state and helpers
  */
 export function useHistoryTransferUI(deps) {
-  const { indexedDB, imageStorage } = deps
+  const { indexedDB, imageStorage, videoStorage } = deps
   const { locale } = useI18n()
 
   // Tab state
@@ -39,6 +40,7 @@ export function useHistoryTransferUI(deps) {
   // Preview state for history
   const previewHistoryItem = ref(null)
   const previewHistoryImageUrl = ref(null)
+  const previewHistoryVideoUrl = ref(null)
   const isLoadingPreview = ref(false)
 
   // Drag state
@@ -141,22 +143,31 @@ export function useHistoryTransferUI(deps) {
     previewCharacter.value = null
   }
 
-  // Preview history image - load full image from OPFS
+  // Preview history image or video - load from OPFS
   const openHistoryPreview = async (item, e) => {
     e?.stopPropagation()
-    if (!item.images?.[0]) return
+
+    // Check if item has video or images
+    const hasVideo = !!item.video?.opfsPath
+    const hasImages = !!item.images?.[0]?.opfsPath
+
+    if (!hasVideo && !hasImages) return
 
     previewHistoryItem.value = item
     isLoadingPreview.value = true
 
     try {
-      const opfsPath = item.images[0].opfsPath
-      if (opfsPath) {
-        const url = await imageStorage.loadImage(opfsPath)
+      if (hasVideo) {
+        // Load video from OPFS
+        const url = await videoStorage.loadVideo(item.video.opfsPath)
+        previewHistoryVideoUrl.value = url
+      } else if (hasImages) {
+        // Load image from OPFS
+        const url = await imageStorage.loadImage(item.images[0].opfsPath)
         previewHistoryImageUrl.value = url
       }
     } catch (err) {
-      console.error('Failed to load preview image:', err)
+      console.error('Failed to load preview:', err)
     } finally {
       isLoadingPreview.value = false
     }
@@ -165,6 +176,7 @@ export function useHistoryTransferUI(deps) {
   const closeHistoryPreview = () => {
     previewHistoryItem.value = null
     previewHistoryImageUrl.value = null
+    previewHistoryVideoUrl.value = null
   }
 
   // Check if any preview is open
@@ -228,6 +240,7 @@ export function useHistoryTransferUI(deps) {
     previewCharacter,
     previewHistoryItem,
     previewHistoryImageUrl,
+    previewHistoryVideoUrl,
     isLoadingPreview,
     hasOpenPreview,
 

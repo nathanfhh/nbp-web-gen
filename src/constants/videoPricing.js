@@ -55,22 +55,45 @@ export const VIDEO_DURATION_OPTIONS = [
 export const VIDEO_DEFAULT_DURATION = 8
 
 // Pricing per second (USD)
-// Source: Google Cloud Veo pricing page
-// Note: Veo 3.1 always generates audio natively, no option to disable
+// Source: Google Cloud Veo pricing page (2025)
+// Prices vary by model, resolution, and audio setting
 export const VEO_PRICING = {
-  FAST: 0.15, // Veo 3.1 Fast (with audio)
-  STANDARD: 0.4, // Veo 3.1 (with audio)
+  standard: {
+    '720p': { audio: 0.4, noAudio: 0.2 },
+    '1080p': { audio: 0.4, noAudio: 0.2 },
+    '4k': { audio: 0.6, noAudio: 0.4 },
+  },
+  fast: {
+    '720p': { audio: 0.15, noAudio: 0.1 },
+    '1080p': { audio: 0.15, noAudio: 0.1 },
+    '4k': { audio: 0.35, noAudio: 0.3 },
+  },
+}
+
+/**
+ * Get price per second for video generation
+ * @param {string} model - 'fast' | 'standard'
+ * @param {string} resolution - '720p' | '1080p' | '4k'
+ * @param {boolean} generateAudio - Whether audio is enabled (default: true)
+ * @returns {number} Price per second in USD
+ */
+export const getVideoPricePerSecond = (model, resolution, generateAudio = true) => {
+  const modelPricing = VEO_PRICING[model] || VEO_PRICING.fast
+  const resPricing = modelPricing[resolution] || modelPricing['720p']
+  return generateAudio ? resPricing.audio : resPricing.noAudio
 }
 
 /**
  * Calculate video generation cost
  * @param {string} model - 'fast' | 'standard'
+ * @param {string} resolution - '720p' | '1080p' | '4k'
  * @param {number} duration - Duration in seconds (4, 6, or 8)
+ * @param {boolean} generateAudio - Whether audio is enabled (default: true)
  * @returns {number} Cost in USD
  */
-export const calculateVideoCost = (model, duration) => {
-  const perSecond = model === 'standard' ? VEO_PRICING.STANDARD : VEO_PRICING.FAST
-  return perSecond * duration
+export const calculateVideoCost = (model, resolution, duration, generateAudio = true) => {
+  const pricePerSecond = getVideoPricePerSecond(model, resolution, generateAudio)
+  return pricePerSecond * duration
 }
 
 // Resolution-specific constraints
@@ -98,10 +121,11 @@ export const VIDEO_MODE_CONSTRAINTS = {
     requiresStartFrame: true,
   },
   [VIDEO_SUB_MODES.REFERENCES_TO_VIDEO]: {
-    // Locked settings (per Google Cloud docs)
+    // Locked settings (per Google Cloud docs - 2026/01 update)
+    // - Model: Veo 3.1 only (Fast not supported)
+    // - Duration: 8 seconds only
+    // - Resolution & Ratio: Now unlocked (supports 720p/1080p/4k, 16:9/9:16)
     lockedModel: 'standard',
-    lockedRatio: '16:9',
-    lockedResolution: '720p',
     lockedDuration: 8,
     maxReferenceImages: 3,
     requiresPrompt: true,
