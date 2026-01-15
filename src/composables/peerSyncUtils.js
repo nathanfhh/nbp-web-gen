@@ -14,6 +14,10 @@ export const EMOJI_POOL = [
 // Message type prefixes for raw binary mode
 export const MSG_TYPE_JSON = 0x4A    // 'J' - JSON control message
 export const MSG_TYPE_BINARY = 0x42  // 'B' - Binary data packet (images)
+export const MSG_TYPE_CHUNK = 0x43   // 'C' - Chunked data packet (for large files like videos)
+
+// Chunk size for large file transfer (16KB is safe for WebRTC)
+export const CHUNK_SIZE = 16 * 1024
 
 /**
  * Encode a JSON object as binary with type prefix
@@ -160,4 +164,47 @@ export function createBinaryPacket(header, rawData) {
   packet.set(headerBytes, 4)
   packet.set(rawData, 4 + headerBytes.length)
   return packet
+}
+
+/**
+ * Create a chunk packet for large file transfer
+ * Packet format: [1-byte type][4-byte chunk index][4-byte total chunks][4-byte header len][header JSON][chunk data]
+ * @param {object} header - Header object (includes uuid, type, etc.)
+ * @param {Uint8Array} chunkData - Chunk binary data
+ * @param {number} chunkIndex - Current chunk index (0-based)
+ * @param {number} totalChunks - Total number of chunks
+ * @returns {Uint8Array}
+ */
+export function createChunkPacket(header, chunkData, chunkIndex, totalChunks) {
+  const headerStr = JSON.stringify(header)
+  const headerBytes = new TextEncoder().encode(headerStr)
+  // [1 type][4 chunkIndex][4 totalChunks][4 headerLen][header][data]
+  const packet = new Uint8Array(1 + 4 + 4 + 4 + headerBytes.length + chunkData.length)
+  const view = new DataView(packet.buffer)
+
+  packet[0] = MSG_TYPE_CHUNK
+  view.setUint32(1, chunkIndex, true)
+  view.setUint32(5, totalChunks, true)
+  view.setUint32(9, headerBytes.length, true)
+  packet.set(headerBytes, 13)
+  packet.set(chunkData, 13 + headerBytes.length)
+
+  return packet
+}
+
+/**
+ * Parse a chunk packet
+ * @param {Uint8Array} bytes - Raw packet data (without MSG_TYPE prefix)
+ * @returns {{ header: object, chunkIndex: number, totalChunks: number, chunkData: Uint8Array }}
+ */
+export function parseChunkPacket(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const chunkIndex = view.getUint32(0, true)
+  const totalChunks = view.getUint32(4, true)
+  const headerLength = view.getUint32(8, true)
+  const headerBytes = bytes.slice(12, 12 + headerLength)
+  const header = JSON.parse(new TextDecoder().decode(headerBytes))
+  const chunkData = bytes.slice(12 + headerLength)
+
+  return { header, chunkIndex, totalChunks, chunkData }
 }

@@ -1,6 +1,7 @@
 import { ref } from 'vue'
+import { GoogleGenAI, Modality } from '@google/genai'
 import { useLocalStorage } from './useLocalStorage'
-import { API_BASE_URL, DEFAULT_MODEL, RATIO_API_MAP, RESOLUTION_API_MAP } from '@/constants'
+import { DEFAULT_MODEL, RATIO_API_MAP, RESOLUTION_API_MAP } from '@/constants'
 import i18n from '@/i18n'
 
 // Helper to get translated error messages
@@ -247,7 +248,10 @@ export function useApi() {
   const error = ref(null)
   const { getApiKey } = useLocalStorage()
 
-  const buildRequestBody = (prompt, options = {}, _mode = 'generate', referenceImages = []) => {
+  /**
+   * Build content parts for SDK request
+   */
+  const buildContentParts = (prompt, referenceImages = []) => {
     const parts = []
 
     // Add text prompt
@@ -265,23 +269,28 @@ export function useApi() {
       }
     }
 
-    // Build generation config - ORDER MATTERS for Gemini API!
-    // Must be: responseModalities → temperature → imageConfig → thinking_config
-    const generationConfig = {
-      responseModalities: ['IMAGE', 'TEXT'],
+    return parts
+  }
+
+  /**
+   * Build SDK generation config
+   */
+  const buildSdkConfig = (options = {}) => {
+    const config = {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
     }
 
-    // Add temperature if specified (must come before imageConfig)
+    // Add temperature if specified
     if (options.temperature !== undefined && options.temperature !== null) {
-      generationConfig.temperature = parseFloat(options.temperature)
+      config.temperature = parseFloat(options.temperature)
     }
 
     // Add seed if specified
     if (options.seed !== undefined && options.seed !== null && options.seed !== '') {
-      generationConfig.seed = parseInt(options.seed, 10)
+      config.seed = parseInt(options.seed, 10)
     }
 
-    // Build image config (must come before thinking_config)
+    // Build image config
     const imageConfig = {}
 
     // Add aspect ratio
@@ -289,38 +298,29 @@ export function useApi() {
       imageConfig.aspectRatio = RATIO_API_MAP[options.ratio]
     }
 
-    // Add resolution/image size (snake_case for Gemini API)
+    // Add resolution/image size (camelCase for SDK)
     if (options.resolution && RESOLUTION_API_MAP[options.resolution]) {
-      imageConfig.image_size = RESOLUTION_API_MAP[options.resolution]
+      imageConfig.imageSize = RESOLUTION_API_MAP[options.resolution]
     }
 
     if (Object.keys(imageConfig).length > 0) {
-      generationConfig.imageConfig = imageConfig
+      config.imageConfig = imageConfig
     }
 
-    // thinking_config must come LAST
-    generationConfig.thinking_config = {
-      include_thoughts: true,
+    // Enable thinking mode
+    config.thinkingConfig = {
+      includeThoughts: true,
     }
 
-    return {
-      contents: [
-        {
-          role: 'user',
-          parts,
-        },
-      ],
-      generationConfig,
-      // Enable Google Search for real-time data (weather, stocks, etc.)
-      tools: [
-        {
-          googleSearch: {},
-        },
-      ],
-    }
+    // Enable Google Search for real-time data (weather, stocks, etc.)
+    config.tools = [{ googleSearch: {} }]
+
+    return config
   }
 
-  // Stream API call with SSE
+  /**
+   * Stream API call using @google/genai SDK
+   */
   const generateImageStream = async (
     prompt,
     options = {},
@@ -340,118 +340,80 @@ export function useApi() {
       // Build the enhanced prompt
       const enhancedPrompt = buildPrompt(prompt, options, mode)
 
-      // Build request body
-      const requestBody = buildRequestBody(enhancedPrompt, options, mode, referenceImages)
+      // Initialize SDK client
+      const ai = new GoogleGenAI({ apiKey })
 
-      // Make streaming API request
+      // Build content parts and config
+      const parts = buildContentParts(enhancedPrompt, referenceImages)
+      const config = buildSdkConfig(options)
+
+      // Get model
       const model = options.model || DEFAULT_MODEL
-      const url = `${API_BASE_URL}/${model}:streamGenerateContent?key=${apiKey}&alt=sse`
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+      // Make streaming API request using SDK
+      const response = await ai.models.generateContentStream({
+        model,
+        contents: [{ role: 'user', parts }],
+        config,
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        let errorMessage = t('errors.apiRequestFailed', { status: response.status })
-        try {
-          const errorData = JSON.parse(errorText)
-          errorMessage = errorData.error?.message || errorMessage
-        } catch {
-          // ignore parse error
-        }
-        throw new Error(errorMessage)
-      }
-
-      // Process SSE stream
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-
+      // Process stream
       const images = []
       let textResponse = ''
       let thinkingText = ''
       let metadata = {}
 
-      let buffer = ''
+      for await (const chunk of response) {
+        // Process candidates
+        if (chunk.candidates && chunk.candidates.length > 0) {
+          const candidate = chunk.candidates[0]
 
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-
-        // Process complete SSE events
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const jsonStr = line.slice(6).trim()
-            if (jsonStr && jsonStr !== '[DONE]') {
-              try {
-                const data = JSON.parse(jsonStr)
-
-                // Process candidates
-                if (data.candidates && data.candidates.length > 0) {
-                  const candidate = data.candidates[0]
-
-                  if (candidate.content && candidate.content.parts) {
-                    for (const part of candidate.content.parts) {
-                      if (part.inlineData) {
-                        const imageData = {
-                          data: part.inlineData.data,
-                          mimeType: part.inlineData.mimeType || 'image/png',
-                          isThought: !!part.thought,
-                        }
-                        images.push(imageData)
-
-                        // If this is a thought image, send it to the thinking callback
-                        if (part.thought && onThinkingChunk) {
-                          onThinkingChunk({
-                            type: 'image',
-                            data: part.inlineData.data,
-                            mimeType: part.inlineData.mimeType || 'image/png',
-                          })
-                        }
-                      } else if (part.text) {
-                        // Check if this is thinking content (thought: true flag)
-                        if (part.thought) {
-                          // This is thinking/reasoning text
-                          if (onThinkingChunk) {
-                            onThinkingChunk(part.text)
-                          }
-                          thinkingText += part.text
-                        } else {
-                          // Regular text response
-                          textResponse += part.text
-                        }
-                      }
-                    }
-                  }
-
-                  // Capture metadata
-                  if (candidate.finishReason) {
-                    metadata.finishReason = candidate.finishReason
-                  }
-                  if (candidate.safetyRatings) {
-                    metadata.safetyRatings = candidate.safetyRatings
-                  }
+          if (candidate.content && candidate.content.parts) {
+            for (const part of candidate.content.parts) {
+              if (part.inlineData) {
+                const imageData = {
+                  data: part.inlineData.data,
+                  mimeType: part.inlineData.mimeType || 'image/png',
+                  isThought: !!part.thought,
                 }
+                images.push(imageData)
 
-                // Model thinking/reasoning (some models expose this)
-                if (data.modelVersion) {
-                  metadata.modelVersion = data.modelVersion
+                // If this is a thought image, send it to the thinking callback
+                if (part.thought && onThinkingChunk) {
+                  onThinkingChunk({
+                    type: 'image',
+                    data: part.inlineData.data,
+                    mimeType: part.inlineData.mimeType || 'image/png',
+                  })
                 }
-              } catch (parseError) {
-                console.warn('Failed to parse SSE data:', parseError)
+              } else if (part.text) {
+                // Check if this is thinking content (thought: true flag)
+                if (part.thought) {
+                  // This is thinking/reasoning text
+                  if (onThinkingChunk) {
+                    onThinkingChunk(part.text)
+                  }
+                  thinkingText += part.text
+                } else {
+                  // Regular text response
+                  textResponse += part.text
+                }
               }
             }
           }
+
+          // Capture metadata
+          if (candidate.finishReason) {
+            metadata.finishReason = candidate.finishReason
+          }
+          if (candidate.safetyRatings) {
+            metadata.safetyRatings = candidate.safetyRatings
+          }
+        }
+
+        // Model version
+        if (chunk.modelVersion) {
+          metadata.modelVersion = chunk.modelVersion
         }
       }
 
@@ -486,101 +448,6 @@ export function useApi() {
       throw err
     } finally {
       isLoading.value = false
-    }
-  }
-
-  // Non-streaming fallback
-  const generateImage = async (prompt, options = {}, mode = 'generate', referenceImages = []) => {
-    const apiKey = getApiKey()
-    if (!apiKey) {
-      throw new Error(t('errors.apiKeyNotSet'))
-    }
-
-    isLoading.value = true
-    error.value = null
-
-    try {
-      // Build the enhanced prompt
-      const enhancedPrompt = buildPrompt(prompt, options, mode)
-
-      // Build request body
-      const requestBody = buildRequestBody(enhancedPrompt, options, mode, referenceImages)
-
-      // Make API request
-      const model = options.model || DEFAULT_MODEL
-      const url = `${API_BASE_URL}/${model}:generateContent?key=${apiKey}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(
-          errorData.error?.message || t('errors.apiRequestFailed', { status: response.status }),
-        )
-      }
-
-      const data = await response.json()
-
-      // Extract image from response
-      const result = extractImageFromResponse(data)
-
-      return {
-        success: true,
-        ...result,
-        prompt: enhancedPrompt,
-        originalPrompt: prompt,
-        options,
-        mode,
-      }
-    } catch (err) {
-      error.value = err.message
-      throw err
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  const extractImageFromResponse = (response) => {
-    if (!response.candidates || response.candidates.length === 0) {
-      throw new Error(t('errors.noImageInResponse'))
-    }
-
-    const candidate = response.candidates[0]
-    if (!candidate.content || !candidate.content.parts) {
-      throw new Error(t('errors.invalidResponseFormat'))
-    }
-
-    const images = []
-    let textResponse = ''
-
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        images.push({
-          data: part.inlineData.data,
-          mimeType: part.inlineData.mimeType || 'image/png',
-        })
-      } else if (part.text) {
-        textResponse += part.text
-      }
-    }
-
-    if (images.length === 0) {
-      throw new Error(t('errors.noImageData'))
-    }
-
-    return {
-      images,
-      textResponse,
-      metadata: {
-        finishReason: candidate.finishReason,
-        safetyRatings: candidate.safetyRatings,
-      },
     }
   }
 
@@ -639,7 +506,6 @@ export function useApi() {
   return {
     isLoading,
     error,
-    generateImage,
     generateImageStream,
     generateStory,
     editImage,

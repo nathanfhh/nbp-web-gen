@@ -62,6 +62,8 @@
   --color-mode-generate-muted: var(--color-mode-generate-muted);
   --color-mode-generate-solid: var(--color-mode-generate-solid);
   --color-mode-generate-hover: var(--color-mode-generate-hover);
+  --color-mode-video: var(--color-mode-video);
+  --color-mode-video-muted: var(--color-mode-video-muted);
 
   /* Control States (toggles, buttons) */
   --color-control-active: var(--color-control-active);

@@ -1,8 +1,10 @@
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
+import { useVideoApi, buildVideoPrompt, buildVideoNegativePrompt } from './useVideoApi'
 import { useToast } from './useToast'
 import { useImageStorage } from './useImageStorage'
+import { useVideoStorage } from './useVideoStorage'
 import { useIndexedDB } from './useIndexedDB'
 import { useAnalytics } from './useAnalytics'
 
@@ -15,8 +17,10 @@ export function useGeneration() {
   const toast = useToast()
   const { t } = useI18n()
   const imageStorage = useImageStorage()
-  const { updateHistoryImages } = useIndexedDB()
+  const videoStorage = useVideoStorage()
+  const { updateHistoryImages, updateHistoryVideo } = useIndexedDB()
   const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
+  const { generateVideo } = useVideoApi()
   const { trackGenerateSuccess, trackGenerateFailed } = useAnalytics()
 
   /**
@@ -81,6 +85,23 @@ export function useGeneration() {
       case 'diagram':
         return generateDiagram(store.prompt, options, refImages, onThinkingChunk)
 
+      case 'video': {
+        // Build enhanced prompt from prompt builder options
+        const enhancedPrompt = buildVideoPrompt(store.prompt, store.videoPromptOptions)
+        // Build negative prompt (separate API field)
+        const negativePrompt = buildVideoNegativePrompt(store.videoPromptOptions)
+        // Merge negative prompt into options for API call
+        const videoOptions = {
+          ...options,
+          negativePrompt: negativePrompt || options.negativePrompt || '',
+        }
+        const videoResult = await generateVideo(enhancedPrompt, videoOptions, (progress) => {
+          // Convert progress to thinking chunk format
+          onThinkingChunk(progress.message)
+        })
+        return videoResult
+      }
+
       default:
         throw new Error(`Unknown mode: ${store.currentMode}`)
     }
@@ -103,6 +124,24 @@ export function useGeneration() {
     } catch (err) {
       console.error('Failed to save images to OPFS:', err)
       toast.warning(t('toast.imageSaveFailed'))
+    }
+  }
+
+  /**
+   * Save video to storage (background operation)
+   */
+  const saveVideoToStorage = async (historyId, video) => {
+    try {
+      const metadata = await videoStorage.saveGeneratedVideo(historyId, video)
+      // Update IndexedDB with video metadata
+      await updateHistoryVideo(historyId, metadata)
+      // Update storage usage
+      await store.updateStorageUsage()
+      // Reload history to get updated record with video
+      await store.loadHistory()
+    } catch (err) {
+      console.error('Failed to save video to OPFS:', err)
+      toast.warning(t('toast.videoSaveFailed'))
     }
   }
 
@@ -130,6 +169,7 @@ export function useGeneration() {
     store.setStreaming(true)
     store.clearGenerationError()
     store.clearGeneratedImages()
+    store.clearGeneratedVideo()
     store.clearThinkingProcess()
 
     const options = store.getCurrentOptions
@@ -140,8 +180,24 @@ export function useGeneration() {
       // Execute generation
       const result = await executeGeneration(options, refImages)
 
-      // Process result
-      if (result?.images) {
+      // Process result based on mode
+      const isVideoMode = store.currentMode === 'video'
+
+      if (isVideoMode && result?.video) {
+        // Video mode result - set video for preview
+        store.setGeneratedVideo(result.video)
+        toast.success(t('toast.videoGenerateSuccess'))
+
+        // Track GA4 event
+        trackGenerateSuccess({
+          mode: store.currentMode,
+          imageCount: 0,
+          videoGenerated: true,
+          hasReferenceImages: refImages.length > 0,
+          options,
+        })
+      } else if (result?.images) {
+        // Image mode result
         store.setGeneratedImages(result.images)
         const imageCount = result.images.length
         toast.success(t('toast.generateSuccess', { count: imageCount }))
@@ -161,10 +217,29 @@ export function useGeneration() {
       }
 
       // Save to history
+      // For video mode, use effectiveOptions from result (with constraints applied)
+      // Also include videoPromptOptions for prompt builder restoration
+      // IMPORTANT: Exclude large binary data fields to keep history/export size small
+      let historyOptions
+      if (isVideoMode && result?.options) {
+        const { startFrame, endFrame, referenceImages, inputVideo, ...cleanOptions } = result.options
+        historyOptions = {
+          ...cleanOptions,
+          // Only store counts/flags, not the actual binary data
+          hasStartFrame: !!startFrame,
+          hasEndFrame: !!endFrame,
+          referenceImageCount: referenceImages?.length || 0,
+          hasInputVideo: !!inputVideo,
+          videoPromptOptions: JSON.parse(JSON.stringify(store.videoPromptOptions)),
+        }
+      } else {
+        historyOptions = { ...options }
+      }
+
       const historyId = await store.addToHistory({
         prompt: store.prompt,
         mode: store.currentMode,
-        options: { ...options },
+        options: historyOptions,
         status: 'success',
         thinkingText:
           thinkingText ||
@@ -174,8 +249,10 @@ export function useGeneration() {
             .join(''),
       })
 
-      // Background save images to storage (don't block UI)
-      if (result?.images && result.images.length > 0) {
+      // Background save to storage (don't block UI)
+      if (isVideoMode && result?.video) {
+        saveVideoToStorage(historyId, result.video)
+      } else if (result?.images && result.images.length > 0) {
         saveImagesToStorage(historyId, result.images)
       }
 

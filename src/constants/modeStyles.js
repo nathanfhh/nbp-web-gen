@@ -13,6 +13,7 @@ export const MODE_TAG_STYLES = {
   edit: 'bg-mode-generate-muted text-mode-generate',
   story: 'bg-mode-generate-muted text-mode-generate',
   diagram: 'bg-mode-generate-muted text-mode-generate',
+  video: 'bg-mode-generate-muted text-mode-generate',
 }
 
 /**

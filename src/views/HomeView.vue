@@ -17,6 +17,7 @@ import ImagePreview from '@/components/ImagePreview.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import GitHubLink from '@/components/GitHubLink.vue'
 import YouTubeLink from '@/components/YouTubeLink.vue'
+import HeroTitle from '@/components/HeroTitle.vue'
 
 // Lazy loaded: Mode-specific options (only one shown at a time)
 const GenerateOptions = defineAsyncComponent(() => import('@/components/GenerateOptions.vue'))
@@ -24,6 +25,8 @@ const StickerOptions = defineAsyncComponent(() => import('@/components/StickerOp
 const EditOptions = defineAsyncComponent(() => import('@/components/EditOptions.vue'))
 const StoryOptions = defineAsyncComponent(() => import('@/components/StoryOptions.vue'))
 const DiagramOptions = defineAsyncComponent(() => import('@/components/DiagramOptions.vue'))
+const VideoOptions = defineAsyncComponent(() => import('@/components/VideoOptions.vue'))
+const VideoPromptBuilder = defineAsyncComponent(() => import('@/components/VideoPromptBuilder.vue'))
 
 // Lazy loaded: Heavy components
 const GenerationHistory = defineAsyncComponent(() => import('@/components/GenerationHistory.vue'))
@@ -173,6 +176,9 @@ const setupIntersectionObserver = () => {
 let intersectionObserver = null
 
 onMounted(() => {
+  // Force scroll to top on page load (before scroll-snap takes over)
+  window.scrollTo({ top: 0, behavior: 'instant' })
+
   intersectionObserver = setupIntersectionObserver()
   checkAppUpdate()
   setupClickOutside()
@@ -200,6 +206,21 @@ const handleGenerate = async () => {
       scrollToThinking()
     },
   })
+}
+
+// Handle character set as start frame (frames-to-video mode)
+const handleSetAsStartFrame = (frameData) => {
+  store.videoOptions.startFrame = frameData
+}
+
+// Handle character add to references (references-to-video mode)
+const handleAddToReferences = (referenceData) => {
+  const maxRefs = 3
+  if (store.videoOptions.referenceImages.length >= maxRefs) {
+    toast.warning(t('characterCarousel.referencesLimitReached', { max: maxRefs }))
+    return
+  }
+  store.videoOptions.referenceImages.push(referenceData)
 }
 </script>
 
@@ -368,17 +389,14 @@ const handleGenerate = async () => {
             class="w-40 h-40 lg:w-48 lg:h-48 drop-shadow-2xl hero-float"
           />
         </div>
-        <h1
-          class="text-5xl lg:text-7xl font-bold bg-clip-text text-transparent mb-4 bg-gradient-to-r from-[var(--color-gradient-brand-start)] via-[var(--color-gradient-brand-middle)] to-[var(--color-gradient-brand-end)]"
-          :class="store.theme === 'dark' ? 'glow-text-purple' : ''"
-        >
-          Nano Banana Pro
-        </h1>
+        <HeroTitle />
         <p
-          class="text-2xl lg:text-3xl flex items-center justify-center gap-3 mb-2"
+          class="text-lg lg:text-xl flex items-center justify-center gap-2 mb-2"
           :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
         >
-          {{ $t('hero.subtitle') }}
+          <span class="opacity-60">—</span>
+          <span>Powered by Nano Banana Pro & Veo</span>
+          <span class="opacity-60">—</span>
         </p>
         <div class="flex flex-col items-center gap-2">
           <span class="text-sm px-3 py-1 rounded-full bg-mode-generate-muted text-mode-generate font-mono">
@@ -444,8 +462,8 @@ const handleGenerate = async () => {
             <ModeSelector />
           </div>
 
-          <!-- Common Settings -->
-          <div data-panel-id="common-settings" class="panel-animate">
+          <!-- Common Settings (hidden in video mode - not used) -->
+          <div v-show="store.currentMode !== 'video'" data-panel-id="common-settings" class="panel-animate">
             <CommonSettings />
           </div>
 
@@ -488,14 +506,23 @@ const handleGenerate = async () => {
               </svg>
             </router-link>
 
-            <!-- Reference Images (shared across all modes) -->
-            <div class="mt-6">
+            <!-- Reference Images (not shown in video mode - VideoOptions has its own upload) -->
+            <div v-if="store.currentMode !== 'video'" class="mt-6">
               <ImageUploader />
             </div>
 
-            <!-- Character Carousel (available in all modes) -->
-            <div class="mt-6">
-              <CharacterCarousel />
+            <!-- Character Carousel -->
+            <!-- In video mode: only show for frames-to-video and references-to-video -->
+            <!-- In other modes: always show -->
+            <div
+              v-if="store.currentMode !== 'video' || ['frames-to-video', 'references-to-video'].includes(store.videoOptions.subMode)"
+              class="mt-6"
+            >
+              <CharacterCarousel
+                :video-sub-mode="store.currentMode === 'video' ? store.videoOptions.subMode : null"
+                @set-as-start-frame="handleSetAsStartFrame"
+                @add-to-references="handleAddToReferences"
+              />
             </div>
 
             <!-- Mode-specific Options -->
@@ -508,7 +535,20 @@ const handleGenerate = async () => {
                 <EditOptions v-else-if="store.currentMode === 'edit'" key="edit" />
                 <StoryOptions v-else-if="store.currentMode === 'story'" key="story" />
                 <DiagramOptions v-else-if="store.currentMode === 'diagram'" key="diagram" />
+                <VideoOptions v-else-if="store.currentMode === 'video'" key="video" />
               </Transition>
+            </div>
+
+            <!-- Video Prompt Builder (video mode only) -->
+            <div v-if="store.currentMode === 'video'" class="mt-6">
+              <div class="divider"></div>
+              <h3 class="font-semibold text-text-primary mb-4 flex items-center gap-2 mt-6">
+                <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                {{ $t('videoPrompt.title') }}
+              </h3>
+              <VideoPromptBuilder />
             </div>
 
             <!-- Error Message -->

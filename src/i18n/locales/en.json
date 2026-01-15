@@ -17,11 +17,13 @@
     "change": "Change",
     "characters": "characters",
     "back": "Back",
-    "images": "images"
+    "images": "images",
+    "optional": "Optional"
   },
   "hero": {
-    "subtitle": "AI Image Generator",
-    "startUsing": "Get Started"
+    "subtitle": "AI Image & Video Generator",
+    "startUsing": "Get Started",
+    "replayAnimation": "Click to replay animation"
   },
   "theme": {
     "switchToLight": "Switch to Light Mode",
@@ -78,6 +80,10 @@
     "diagram": {
       "name": "Diagram",
       "description": "Create technical diagrams"
+    },
+    "video": {
+      "name": "Video",
+      "description": "Generate AI videos"
     }
   },
   "prompt": {
@@ -87,7 +93,8 @@
       "generate": "Describe the image you want to generate, e.g., a cat under the starry sky...",
       "edit": "Describe the changes you want to make, e.g., add sunglasses...",
       "story": "Describe the story theme, e.g., a seed growing into a tree...",
-      "diagram": "Describe the diagram content, e.g., user login flowchart..."
+      "diagram": "Describe the diagram content, e.g., user login flowchart...",
+      "video": "Describe the video you want to generate, e.g., a cat running in a meadow..."
     }
   },
   "settings": {
@@ -201,6 +208,236 @@
       "individual": "Individual"
     }
   },
+  "video": {
+    "subMode": {
+      "label": "Generation Mode",
+      "text-to-video": "Text to Video",
+      "frames-to-video": "Frames to Video",
+      "references-to-video": "References to Video",
+      "extend-video": "Extend Video"
+    },
+    "model": {
+      "label": "Model",
+      "fast": "Veo 3.1 Fast",
+      "standard": "Veo 3.1"
+    },
+    "audio": {
+      "label": "Generate Audio",
+      "hint": "Disable to save up to 50%",
+      "notSupported": "Audio generation not available in References mode"
+    },
+    "duration": {
+      "label": "Duration",
+      "lockedHint": "This resolution or mode only supports 8-second duration"
+    },
+    "negativePrompt": {
+      "label": "Negative Prompt",
+      "placeholder": "e.g., cartoon, painting, low quality, blurry...",
+      "hint": "Describe elements you don't want in the video"
+    },
+    "frames": {
+      "startFrame": "Start Frame",
+      "endFrame": "End Frame",
+      "createLoop": "Create Loop Video"
+    },
+    "references": {
+      "images": "Reference Images",
+      "asset": "Subject",
+      "style": "Style",
+      "hint": "Tap label to toggle Subject/Style",
+      "constraintsNotice": "Using reference images locks model to Veo 3.1 and duration to 8 seconds"
+    },
+    "extend": {
+      "selectVideo": "Select Video",
+      "noVideos": "No videos available (generate a 720p video first)"
+    },
+    "cost": {
+      "estimate": "Estimated Cost",
+      "second": "sec"
+    },
+    "constraints": {
+      "notice": "This mode has the following restrictions:",
+      "model": "Model locked to {model}",
+      "resolution": "Resolution locked to {resolution}",
+      "ratio": "Ratio locked to {ratio}",
+      "duration": "Duration locked to {duration} seconds"
+    },
+    "progress": {
+      "starting": "Preparing to generate video...",
+      "polling": "Generating video...",
+      "downloading": "Downloading video...",
+      "complete": "Video generation complete",
+      "steps": {
+        "preparing": "Preparing",
+        "generating": "Generating",
+        "downloading": "Downloading",
+        "complete": "Complete"
+      },
+      "preparingDesc": "Initializing video generation task...",
+      "iteration": "Check #{n} (waited ~{time}s)",
+      "downloadingDesc": "Video generated successfully. Downloading to device. If download fails, copy the link below to access manually:",
+      "completeDesc": "Video downloaded and saved to history."
+    },
+    "errors": {
+      "noStartFrame": "Please upload a start frame image",
+      "noReferenceImages": "Please upload at least one reference image",
+      "noInputVideo": "Please select a video to extend",
+      "generationFailed": "Video generation failed",
+      "downloadFailed": "Video download failed",
+      "operationExpired": "Operation expired, please regenerate"
+    }
+  },
+  "videoPrompt": {
+    "title": "Video Prompt Builder",
+    "preview": "Prompt Preview",
+    "positivePreview": "Positive prompt:",
+    "negativePreview": "Negative prompt:",
+    "emptyPreview": "Select options to see preview",
+    "customPlaceholder": "Custom option...",
+    "customNegativePlaceholder": "Custom elements to exclude...",
+    "categories": {
+      "style": "Style",
+      "camera": "Camera",
+      "composition": "Composition",
+      "lens": "Lens",
+      "ambiance": "Ambiance",
+      "action": "Action",
+      "negative": "Negative",
+      "audio": "Audio Prompts"
+    },
+    "style": {
+      "cinematic": "Cinematic",
+      "documentary": "Documentary",
+      "noir": "Film Noir",
+      "vintage": "Vintage",
+      "retro": "Retro",
+      "scifi": "Sci-Fi",
+      "horror": "Horror",
+      "fantasy": "Fantasy",
+      "romance": "Romance",
+      "action": "Action",
+      "thriller": "Thriller",
+      "cartoon": "Cartoon",
+      "anime": "Anime",
+      "3d-animation": "3D Animation",
+      "stop-motion": "Stop Motion",
+      "pixar-style": "Pixar Style"
+    },
+    "camera": {
+      "eye-level": "Eye Level",
+      "birds-eye": "Bird's Eye",
+      "low-angle": "Low Angle",
+      "high-angle": "High Angle",
+      "dutch-angle": "Dutch Angle",
+      "overhead": "Overhead",
+      "tracking-shot": "Tracking Shot",
+      "dolly-shot": "Dolly Shot",
+      "pan": "Pan",
+      "tilt": "Tilt",
+      "zoom-in": "Zoom In",
+      "zoom-out": "Zoom Out",
+      "crane-shot": "Crane Shot",
+      "handheld": "Handheld",
+      "steadicam": "Steadicam",
+      "static": "Static"
+    },
+    "composition": {
+      "extreme-close-up": "Extreme Close-up",
+      "close-up": "Close-up",
+      "medium-close-up": "Medium Close-up",
+      "medium-shot": "Medium Shot",
+      "medium-wide": "Medium Wide",
+      "wide-shot": "Wide Shot",
+      "extreme-wide": "Extreme Wide",
+      "establishing-shot": "Establishing Shot",
+      "single-shot": "Single Shot",
+      "two-shot": "Two Shot",
+      "group-shot": "Group Shot",
+      "over-the-shoulder": "Over the Shoulder",
+      "pov": "POV"
+    },
+    "lens": {
+      "shallow-dof": "Shallow DOF",
+      "deep-dof": "Deep DOF",
+      "soft-focus": "Soft Focus",
+      "rack-focus": "Rack Focus",
+      "wide-angle-lens": "Wide Angle Lens",
+      "telephoto-lens": "Telephoto Lens",
+      "macro-lens": "Macro Lens",
+      "fisheye-lens": "Fisheye Lens",
+      "anamorphic-lens": "Anamorphic Lens",
+      "lens-flare": "Lens Flare",
+      "bokeh": "Bokeh",
+      "motion-blur": "Motion Blur"
+    },
+    "ambiance": {
+      "golden-hour": "Golden Hour",
+      "blue-hour": "Blue Hour",
+      "midday": "Midday",
+      "night": "Night",
+      "dawn": "Dawn",
+      "dusk": "Dusk",
+      "warm-tones": "Warm Tones",
+      "cool-tones": "Cool Tones",
+      "muted-colors": "Muted Colors",
+      "vibrant-colors": "Vibrant Colors",
+      "monochrome": "Monochrome",
+      "sepia": "Sepia",
+      "natural-light": "Natural Light",
+      "dramatic-lighting": "Dramatic Lighting",
+      "soft-lighting": "Soft Lighting",
+      "backlit": "Backlit",
+      "silhouette": "Silhouette",
+      "neon-lights": "Neon Lights",
+      "candlelight": "Candlelight"
+    },
+    "action": {
+      "walking": "Walking",
+      "running": "Running",
+      "sitting": "Sitting",
+      "standing": "Standing",
+      "talking": "Talking",
+      "looking-at-camera": "Looking at Camera",
+      "turning-head": "Turning Head",
+      "dancing": "Dancing",
+      "flying": "Flying",
+      "floating": "Floating"
+    },
+    "negative": {
+      "low-quality": "Low Quality",
+      "blurry": "Blurry",
+      "pixelated": "Pixelated",
+      "grainy": "Grainy",
+      "overexposed": "Overexposed",
+      "underexposed": "Underexposed",
+      "noisy": "Noisy",
+      "cartoon": "Cartoon",
+      "anime": "Anime",
+      "drawing": "Drawing",
+      "painting": "Painting",
+      "sketch": "Sketch",
+      "cgi": "CGI",
+      "unrealistic": "Unrealistic",
+      "text": "Text",
+      "watermark": "Watermark",
+      "logo": "Logo",
+      "border": "Border",
+      "frame": "Frame",
+      "static": "Static",
+      "jittery": "Jittery",
+      "slow-motion": "Slow Motion",
+      "fast-motion": "Fast Motion"
+    },
+    "audio": {
+      "dialogue": "Dialogue",
+      "dialoguePlaceholder": "e.g., \"This must be the key,\" he whispered",
+      "dialogueHint": "Use quotes for specific speech",
+      "soundEffects": "Sound Effects",
+      "soundEffectsPlaceholder": "e.g., screeching tires, roaring engine",
+      "ambientSound": "Ambient Sound",
+      "ambientSoundPlaceholder": "e.g., a faint eerie hum in the background"
+    }
+  },
   "diagram": {
     "type": {
       "label": "Diagram Type",
@@ -253,11 +490,14 @@
   },
   "preview": {
     "title": "Generated Results",
+    "videoTitle": "Generated Video",
     "zoom": "Zoom Preview",
     "loading": "Generating...",
     "loadingHint": "Please wait, this may take some time",
     "empty": "No images generated yet",
-    "emptyHint": "Enter a prompt and click Generate to start"
+    "emptyHint": "Enter a prompt and click Generate to start",
+    "emptyVideo": "No videos generated yet",
+    "emptyVideoHint": "Enter a prompt and click Generate to start"
   },
   "history": {
     "title": "History",
@@ -273,6 +513,7 @@
     "clearConfirmMessage": "Are you sure you want to clear all history? This cannot be undone.",
     "clearConfirmButton": "Clear All",
     "loadingImages": "Loading images...",
+    "loadingVideo": "Loading video...",
     "status": {
       "success": "Success",
       "failed": "Failed"
@@ -342,7 +583,11 @@
     "generateSuccess": "Successfully generated {count} images",
     "imageSaveFailed": "Failed to save images, but generation completed",
     "generateFailed": "Generation failed, please try again",
-    "appUpdated": "App has been updated to v{version}!"
+    "appUpdated": "App has been updated to v{version}!",
+    "videoGenerateSuccess": "Video generated successfully",
+    "videoSaveFailed": "Failed to save video, but generation completed",
+    "downloadSuccess": "Download started",
+    "downloadFailed": "Download failed, please try again"
   },
   "errors": {
     "noPrompt": "Please enter a prompt description",
@@ -355,7 +600,7 @@
     "noImageData": "No image data in API response"
   },
   "footer": {
-    "title": "Nano Banana Pro Image Generator"
+    "title": "Mediator - AI Image & Video Generator"
   },
   "lightbox": {
     "resetZoom": "Reset Zoom (Press 0)",
@@ -517,7 +762,14 @@
     "manage": "Manage Characters",
     "extractNew": "Extract New Character",
     "exportSuccess": "Character exported successfully",
-    "exportError": "Export failed, please try again"
+    "exportError": "Export failed, please try again",
+    "setAsStartFrame": "Set as Start Frame",
+    "setAsStartFrameSuccess": "Set as start frame",
+    "setAsStartFrameError": "Failed to set, please try again",
+    "addToReferences": "Add to References",
+    "addToReferencesSuccess": "Added to references",
+    "addToReferencesError": "Failed to add, please try again",
+    "referencesLimitReached": "Reference limit reached ({max} images)"
   },
   "peerSync": {
     "title": "Cross-Device Sync",
@@ -678,7 +930,7 @@
       },
       "modeSelector": {
         "title": "Choose Generation Mode",
-        "description": "We offer 5 different modes: Generate, Sticker, Edit, Story, and Diagram. Choose the mode that best fits your needs."
+        "description": "We offer 6 different modes: Generate, Sticker, Edit, Story, Diagram, and Video. Choose the mode that best fits your needs."
       },
       "promptInput": {
         "title": "Enter Your Prompt",

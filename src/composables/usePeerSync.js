@@ -2,6 +2,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import Peer from 'peerjs'
 import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
+import { useVideoStorage } from './useVideoStorage'
 import { useCharacterStorage } from './useCharacterStorage'
 import { useOPFS } from './useOPFS'
 import { buildIceServers } from './useCloudfareTurn'
@@ -18,6 +19,7 @@ import {
 export function usePeerSync() {
   const indexedDB = useIndexedDB()
   const imageStorage = useImageStorage()
+  const videoStorage = useVideoStorage()
   const characterStorage = useCharacterStorage()
   const opfs = useOPFS()
 
@@ -159,6 +161,7 @@ export function usePeerSync() {
       const result = await transfer.sendHistoryData({
         indexedDB,
         imageStorage,
+        videoStorage,
         selectedRecordIds: selectedRecordIds.value,
       })
 
@@ -268,6 +271,7 @@ export function usePeerSync() {
     indexedDB,
     opfs,
     characterStorage,
+    videoStorage,
   })
 
   // ============================================================================
@@ -369,8 +373,17 @@ export function usePeerSync() {
     checkIceState()
 
     conn.on('data', async (data) => {
-      const size = data instanceof ArrayBuffer ? data.byteLength : data?.length || 0
-      addDebug(`Received data: ${size} bytes`)
+      // Enhanced debugging for data type issues
+      const dataType = data?.constructor?.name || typeof data
+      let size = 0
+      if (data instanceof ArrayBuffer) {
+        size = data.byteLength
+      } else if (data instanceof Uint8Array) {
+        size = data.length
+      } else if (typeof data === 'object' && data !== null) {
+        size = JSON.stringify(data).length
+      }
+      addDebug(`Received: type=${dataType}, size=${size} bytes`)
       try {
         await receiver.handleIncomingData(data)
       } catch (err) {

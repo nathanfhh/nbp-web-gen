@@ -6,7 +6,9 @@ import {
   encodeJsonMessage,
   formatBytes,
   parseBinaryPacket,
+  parseChunkPacket,
   blobToBase64,
+  MSG_TYPE_CHUNK,
 } from './peerSyncUtils'
 
 /**
@@ -34,6 +36,7 @@ import {
  * @param {Object} deps.indexedDB - IndexedDB composable
  * @param {Object} deps.opfs - OPFS composable
  * @param {Object} deps.characterStorage - Character storage composable for OPFS
+ * @param {Object} deps.videoStorage - Video storage composable for thumbnail extraction
  */
 export function usePeerDataReceiver(deps) {
   const {
@@ -57,11 +60,17 @@ export function usePeerDataReceiver(deps) {
     indexedDB,
     opfs,
     characterStorage,
+    videoStorage,
   } = deps
 
   // Receiver-side: pending record being assembled
   const pendingRecord = ref(null)
   const pendingImages = ref([])
+  const pendingVideo = ref(null)
+
+  // Chunked transfer: store chunks being received
+  // Map of uuid -> { header, chunks: Map<index, Uint8Array>, totalChunks }
+  const pendingChunks = ref(new Map())
 
   // Receiver-side counters for imported/skipped/failed
   const receiverCounts = ref({ imported: 0, skipped: 0, failed: 0 })
@@ -70,11 +79,18 @@ export function usePeerDataReceiver(deps) {
    * Handle incoming data - supports both binary (Uint8Array/ArrayBuffer) and msgpack-decoded data
    */
   const handleIncomingData = async (rawData) => {
+    // Handle binary data (Uint8Array or ArrayBuffer)
     if (rawData instanceof ArrayBuffer || rawData instanceof Uint8Array) {
-      const rawBytes = rawData instanceof ArrayBuffer ? rawData.byteLength : rawData.length
-      transferStats.value.bytesReceived += rawBytes
+      const bytes = rawData instanceof ArrayBuffer ? new Uint8Array(rawData) : rawData
+      transferStats.value.bytesReceived += bytes.length
 
-      const decoded = decodeMessage(rawData)
+      // Check for chunk message type (first byte)
+      if (bytes[0] === MSG_TYPE_CHUNK) {
+        await handleChunkData(bytes.slice(1))
+        return
+      }
+
+      const decoded = decodeMessage(bytes)
 
       if (decoded.type === 'json') {
         await handleJsonMessage(decoded.data)
@@ -83,7 +99,84 @@ export function usePeerDataReceiver(deps) {
       }
     } else if (typeof rawData === 'object' && rawData !== null) {
       // Msgpack decoded object (fallback for compatibility)
+      // Also count received bytes for non-binary data
+      const jsonSize = JSON.stringify(rawData).length
+      transferStats.value.bytesReceived += jsonSize
       await handleJsonMessage(rawData)
+    }
+  }
+
+  /**
+   * Handle chunked data packet (for large files like videos)
+   */
+  const handleChunkData = async (bytes) => {
+    try {
+      const { header, chunkIndex, totalChunks, chunkData } = parseChunkPacket(bytes)
+      const uuid = header.uuid
+
+      // Initialize chunk storage if first chunk
+      if (!pendingChunks.value.has(uuid)) {
+        pendingChunks.value.set(uuid, {
+          header,
+          chunks: new Map(),
+          totalChunks,
+        })
+        addDebug(`Starting chunked receive: ${uuid}, ${totalChunks} chunks expected`)
+      }
+
+      const chunkState = pendingChunks.value.get(uuid)
+      chunkState.chunks.set(chunkIndex, chunkData)
+
+      // Log progress every 10% or so
+      const received = chunkState.chunks.size
+      if (received % Math.max(1, Math.floor(totalChunks / 10)) === 0 || received === totalChunks) {
+        addDebug(`Chunk ${received}/${totalChunks} received for ${uuid}`)
+      }
+
+      // Check if all chunks received
+      if (chunkState.chunks.size === totalChunks) {
+        addDebug(`All ${totalChunks} chunks received for ${uuid}, reassembling...`)
+
+        // Reassemble the data
+        let totalSize = 0
+        for (let i = 0; i < totalChunks; i++) {
+          totalSize += chunkState.chunks.get(i).length
+        }
+
+        const fullData = new Uint8Array(totalSize)
+        let offset = 0
+        for (let i = 0; i < totalChunks; i++) {
+          const chunk = chunkState.chunks.get(i)
+          fullData.set(chunk, offset)
+          offset += chunk.length
+        }
+
+        // Clean up chunk storage
+        pendingChunks.value.delete(uuid)
+
+        // Process the reassembled data as a complete binary packet
+        addDebug(`Reassembled ${formatBytes(totalSize)} for ${header.type}`)
+
+        // Handle based on header type
+        if (header.type === 'record_video') {
+          if (!pendingRecord.value || pendingRecord.value.uuid !== header.uuid) {
+            addDebug(`Ignoring video for unknown/mismatched record: ${header.uuid}`)
+            return
+          }
+
+          pendingVideo.value = {
+            uuid: header.uuid,
+            width: header.width,
+            height: header.height,
+            mimeType: header.mimeType,
+            data: fullData,
+          }
+          addDebug(`Video reassembled: ${formatBytes(fullData.length)}`)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to handle chunk data:', err)
+      addDebug(`Chunk parse error: ${err.message}`)
     }
   }
 
@@ -114,11 +207,13 @@ export function usePeerDataReceiver(deps) {
     } else if (data.type === 'record_start') {
       pendingRecord.value = data.meta
       pendingImages.value = []
-      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images`)
+      pendingVideo.value = null
+      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images${data.meta.hasVideo ? ' + video' : ''}`)
     } else if (data.type === 'record_end') {
       if (pendingRecord.value && pendingRecord.value.uuid === data.uuid) {
         const expectedImages = pendingRecord.value.imageCount || 0
         const receivedImages = pendingImages.value.length
+        const expectsVideo = pendingRecord.value.hasVideo
 
         // Wait for remaining images if needed
         if (receivedImages < expectedImages) {
@@ -135,8 +230,23 @@ export function usePeerDataReceiver(deps) {
           }
         }
 
+        // Wait for video if expected
+        if (expectsVideo && !pendingVideo.value) {
+          addDebug('Waiting for video data...')
+          for (let i = 0; i < 300; i++) { // 30 seconds max for video
+            await new Promise(r => setTimeout(r, 100))
+            if (pendingVideo.value) {
+              addDebug('Video received')
+              break
+            }
+            if (i % 50 === 0) {
+              addDebug('Still waiting for video...')
+            }
+          }
+        }
+
         const finalImageCount = pendingImages.value.length
-        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value)
+        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value, pendingVideo.value)
         transferProgress.value.current++
 
         if (result.skipped) {
@@ -150,17 +260,19 @@ export function usePeerDataReceiver(deps) {
         }
 
         // Send ACK back to sender
-        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}, skipped: ${!!result.skipped}`)
+        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}, video: ${!!pendingVideo.value}, skipped: ${!!result.skipped}`)
         connection.value.send(encodeJsonMessage({
           type: 'record_ack',
           uuid: data.uuid,
           receivedImages: finalImageCount,
           expectedImages: expectedImages,
+          hasVideo: !!pendingVideo.value,
           skipped: !!result.skipped,
         }))
 
         pendingRecord.value = null
         pendingImages.value = []
+        pendingVideo.value = null
       }
     } else if (data.type === 'record_ack') {
       addDebug(`Received record_ack for ${data.uuid}, images: ${data.receivedImages}`)
@@ -259,6 +371,21 @@ export function usePeerDataReceiver(deps) {
           mimeType: header.mimeType,
           data: imageData,
         })
+      } else if (header.type === 'record_video') {
+        if (!pendingRecord.value || pendingRecord.value.uuid !== header.uuid) {
+          addDebug(`Ignoring video for unknown/mismatched record: ${header.uuid}`)
+          return
+        }
+
+        addDebug(`Received video ${header.uuid}: ${formatBytes(imageData.length)}`)
+
+        pendingVideo.value = {
+          uuid: header.uuid,
+          width: header.width,
+          height: header.height,
+          mimeType: header.mimeType,
+          data: imageData,
+        }
       } else if (header.type === 'character_image') {
         if (!pendingRecord.value || pendingRecord.value._type !== 'character' || pendingRecord.value.name !== header.name) {
           addDebug(`Ignoring character image for unknown/mismatched character: ${header.name}`)
@@ -282,7 +409,7 @@ export function usePeerDataReceiver(deps) {
   /**
    * Save received record to IndexedDB/OPFS (new binary protocol)
    */
-  const saveReceivedRecord = async (meta, images) => {
+  const saveReceivedRecord = async (meta, images, video = null) => {
     try {
       // Check if UUID already exists
       if (meta.uuid && (await indexedDB.hasHistoryByUUID(meta.uuid))) {
@@ -333,6 +460,43 @@ export function usePeerDataReceiver(deps) {
         }
 
         await indexedDB.updateHistoryImages(historyId, imageMetadata)
+      }
+
+      // Save video to OPFS
+      if (video && video.data) {
+        const videoDirPath = `videos/${historyId}`
+        const videoPath = `/${videoDirPath}/video.mp4`
+        const thumbnailPath = `/${videoDirPath}/thumbnail.webp`
+
+        const videoBlob = new Blob([video.data], { type: video.mimeType || 'video/mp4' })
+
+        // Create directory and save video
+        await opfs.getOrCreateDirectory(videoDirPath)
+        await opfs.writeFile(videoPath, videoBlob)
+
+        // Extract thumbnail from video using shared utility
+        let thumbnailData = null
+        try {
+          if (videoStorage?.extractThumbnail) {
+            const thumbResult = await videoStorage.extractThumbnail(videoBlob)
+            thumbnailData = thumbResult.thumbnail
+            const thumbnailBlob = await fetch(thumbnailData).then((r) => r.blob())
+            await opfs.writeFile(thumbnailPath, thumbnailBlob)
+          }
+        } catch (thumbErr) {
+          addDebug(`Failed to extract video thumbnail: ${thumbErr.message}`)
+        }
+
+        // Update history record with video metadata
+        await indexedDB.updateHistoryVideo(historyId, {
+          opfsPath: videoPath,
+          thumbnailPath,
+          size: videoBlob.size,
+          mimeType: video.mimeType || 'video/mp4',
+          width: video.width,
+          height: video.height,
+          thumbnail: thumbnailData,
+        })
       }
 
       addDebug(`Saved record: ${meta.uuid}`)
@@ -464,6 +628,8 @@ export function usePeerDataReceiver(deps) {
   const resetReceiverState = () => {
     pendingRecord.value = null
     pendingImages.value = []
+    pendingVideo.value = null
+    pendingChunks.value = new Map()
     receiverCounts.value = { imported: 0, skipped: 0, failed: 0 }
   }
 

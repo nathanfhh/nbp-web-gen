@@ -55,13 +55,32 @@ export const DEFAULT_STICKER_OPTIONS = {
   expressions: ['natural'],
 }
 
+export const DEFAULT_VIDEO_OPTIONS = {
+  // Sub-mode
+  subMode: 'text-to-video', // text-to-video | frames-to-video | references-to-video | extend-video
+  // Generation settings
+  model: 'fast', // fast | standard
+  resolution: '720p', // 720p | 1080p | 4k
+  ratio: '16:9', // 16:9 | 9:16
+  duration: 8, // 4 | 6 | 8 seconds
+  negativePrompt: '', // Things to avoid in the video
+  // Frames-to-video
+  startFrame: null, // { data: base64, mimeType, preview, name }
+  endFrame: null,
+  isLooping: false,
+  // References-to-video
+  referenceImages: [], // [{ data: base64, mimeType, preview, name, type: 'asset' | 'style' }]
+  // Extend-video
+  inputVideo: null, // { historyId, uri, thumbnail }
+}
+
 // Common settings defaults
 export const DEFAULT_TEMPERATURE = 1.0
 export const DEFAULT_SEED = ''
 
 /**
  * Get a fresh copy of default options for a mode
- * @param {string} mode - 'generate' | 'edit' | 'story' | 'diagram' | 'sticker'
+ * @param {string} mode - 'generate' | 'edit' | 'story' | 'diagram' | 'sticker' | 'video'
  * @returns {Object} Deep copy of default options
  */
 export const getDefaultOptions = (mode) => {
@@ -71,6 +90,7 @@ export const getDefaultOptions = (mode) => {
     story: DEFAULT_STORY_OPTIONS,
     diagram: DEFAULT_DIAGRAM_OPTIONS,
     sticker: DEFAULT_STICKER_OPTIONS,
+    video: DEFAULT_VIDEO_OPTIONS,
   }
 
   const defaultOption = defaults[mode]

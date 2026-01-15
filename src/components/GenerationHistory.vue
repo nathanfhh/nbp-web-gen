@@ -7,10 +7,12 @@ import 'dayjs/locale/zh-tw'
 import 'dayjs/locale/en'
 import { useGeneratorStore } from '@/stores/generator'
 import { useImageStorage } from '@/composables/useImageStorage'
+import { useVideoStorage } from '@/composables/useVideoStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
 import { getModeTagStyle } from '@/constants'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
+import VideoLightbox from '@/components/VideoLightbox.vue'
 import HistoryTransfer from '@/components/HistoryTransfer.vue'
 
 dayjs.extend(relativeTime)
@@ -24,11 +26,12 @@ watchEffect(() => {
 })
 const store = useGeneratorStore()
 const imageStorage = useImageStorage()
+const videoStorage = useVideoStorage()
 const confirmModal = ref(null)
 
 // Filter state
 const selectedFilter = ref('all')
-const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram']
+const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video']
 
 const filteredHistory = computed(() => {
   if (selectedFilter.value === 'all') {
@@ -45,6 +48,12 @@ const lightboxHistoryId = ref(null)
 const lightboxInitialIndex = ref(0)
 const isLoadingImages = ref(false)
 
+// Video Lightbox state
+const showVideoLightbox = ref(false)
+const videoUrl = ref(null)
+const videoMetadata = ref(null)
+const isLoadingVideo = ref(false)
+
 // Format storage usage
 const formattedStorageUsage = computed(() => formatFileSize(store.storageUsage))
 
@@ -54,6 +63,7 @@ const modeLabels = computed(() => ({
   story: t('modes.story.name'),
   diagram: t('modes.diagram.name'),
   sticker: t('modes.sticker.name'),
+  video: t('modes.video.name'),
 }))
 
 // Track the current lightbox item's mode
@@ -124,6 +134,35 @@ const loadHistoryItem = async (item) => {
     Object.assign(store.storyOptions, item.options)
   } else if (item.mode === 'diagram' && item.options) {
     Object.assign(store.diagramOptions, item.options)
+  } else if (item.mode === 'video' && item.options) {
+    // Restore video options (resolution, ratio, duration, model, subMode, etc.)
+    store.videoOptions.resolution = item.options.resolution || '720p'
+    store.videoOptions.ratio = item.options.ratio || '16:9'
+    store.videoOptions.duration = item.options.duration || 8
+    store.videoOptions.model = item.options.model || 'fast'
+    store.videoOptions.subMode = item.options.subMode || 'text-to-video'
+    store.videoOptions.negativePrompt = item.options.negativePrompt || ''
+
+    // Restore video prompt builder options if available
+    if (item.options.videoPromptOptions) {
+      const vpo = item.options.videoPromptOptions
+      // Reset arrays using splice to maintain reactivity
+      store.videoPromptOptions.styles.splice(0, store.videoPromptOptions.styles.length, ...(vpo.styles || []))
+      store.videoPromptOptions.cameras.splice(0, store.videoPromptOptions.cameras.length, ...(vpo.cameras || []))
+      store.videoPromptOptions.lenses.splice(0, store.videoPromptOptions.lenses.length, ...(vpo.lenses || []))
+      store.videoPromptOptions.ambiances.splice(0, store.videoPromptOptions.ambiances.length, ...(vpo.ambiances || []))
+      store.videoPromptOptions.actions.splice(0, store.videoPromptOptions.actions.length, ...(vpo.actions || []))
+      store.videoPromptOptions.negatives.splice(0, store.videoPromptOptions.negatives.length, ...(vpo.negatives || []))
+      // Restore string fields
+      store.videoPromptOptions.customStyle = vpo.customStyle || ''
+      store.videoPromptOptions.customAmbiance = vpo.customAmbiance || ''
+      store.videoPromptOptions.customAction = vpo.customAction || ''
+      store.videoPromptOptions.customNegative = vpo.customNegative || ''
+      store.videoPromptOptions.composition = vpo.composition || ''
+      store.videoPromptOptions.dialogue = vpo.dialogue || ''
+      store.videoPromptOptions.soundEffects = vpo.soundEffects || ''
+      store.videoPromptOptions.ambientSound = vpo.ambientSound || ''
+    }
   }
 }
 
@@ -184,6 +223,39 @@ const closeLightbox = () => {
   lightboxMetadata.value = []
   lightboxHistoryId.value = null
   lightboxItemMode.value = ''
+}
+
+// Open video lightbox
+const openVideoLightbox = async (item, event) => {
+  event.stopPropagation()
+
+  if (!item.video) return
+
+  isLoadingVideo.value = true
+
+  try {
+    // Load video from OPFS
+    const loadedVideo = await videoStorage.loadHistoryVideo(item)
+    if (loadedVideo?.url) {
+      videoUrl.value = loadedVideo.url
+      videoMetadata.value = {
+        ...item.video,
+        historyId: item.id,
+        prompt: item.prompt,
+      }
+      showVideoLightbox.value = true
+    }
+  } catch (err) {
+    console.error('Failed to load video:', err)
+  } finally {
+    isLoadingVideo.value = false
+  }
+}
+
+const closeVideoLightbox = () => {
+  showVideoLightbox.value = false
+  videoUrl.value = null
+  videoMetadata.value = null
 }
 
 // History transfer (export/import)
@@ -261,9 +333,33 @@ const handleImported = async () => {
         class="history-item group"
       >
         <div class="flex items-start gap-3">
-          <!-- Thumbnail (if images exist) -->
+          <!-- Video Thumbnail -->
           <div
-            v-if="item.images && item.images.length > 0"
+            v-if="item.video && item.video.thumbnail"
+            class="flex-shrink-0 flex flex-col items-center gap-1"
+          >
+            <div
+              @click="openVideoLightbox(item, $event)"
+              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-primary-light transition-all"
+            >
+              <img
+                :src="item.video.thumbnail"
+                :alt="`History video ${item.id}`"
+                class="w-full h-full object-cover"
+              />
+              <!-- Video indicator icon -->
+              <div class="absolute inset-0 flex items-center justify-center bg-black/30">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            </div>
+            <span class="text-xs text-text-muted font-mono">#{{ item.id }}</span>
+          </div>
+
+          <!-- Image Thumbnail (if images exist) -->
+          <div
+            v-else-if="item.images && item.images.length > 0"
             class="flex-shrink-0 flex flex-col items-center gap-1"
           >
             <div
@@ -355,7 +451,7 @@ const handleImported = async () => {
     <!-- Confirm Modal -->
     <ConfirmModal ref="confirmModal" />
 
-    <!-- Loading Overlay -->
+    <!-- Loading Overlay (Images) -->
     <div v-if="isLoadingImages" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
       <div class="flex flex-col items-center gap-3">
         <svg class="w-8 h-8 animate-spin text-mode-generate" fill="none" viewBox="0 0 24 24">
@@ -363,6 +459,17 @@ const handleImported = async () => {
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
         </svg>
         <span class="text-text-primary text-sm">{{ $t('history.loadingImages') }}</span>
+      </div>
+    </div>
+
+    <!-- Loading Overlay (Video) -->
+    <div v-if="isLoadingVideo" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+      <div class="flex flex-col items-center gap-3">
+        <svg class="w-8 h-8 animate-spin text-mode-generate" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <span class="text-text-primary text-sm">{{ $t('history.loadingVideo') }}</span>
       </div>
     </div>
 
@@ -376,6 +483,14 @@ const handleImported = async () => {
       :is-historical="true"
       :is-sticker-mode="lightboxItemMode === 'sticker'"
       @close="closeLightbox"
+    />
+
+    <!-- Video Lightbox -->
+    <VideoLightbox
+      v-model="showVideoLightbox"
+      :video-url="videoUrl"
+      :metadata="videoMetadata"
+      @close="closeVideoLightbox"
     />
 
     <!-- History Transfer (Export/Import) -->

@@ -76,6 +76,8 @@ export default {
     modeGenerateMuted: 'rgba(167, 192, 128, 0.2)',
     modeGenerateSolid: '#a7c080', // = brandPrimary
     modeGenerateHover: 'rgba(167, 192, 128, 0.3)',
+    modeVideo: '#d699b6', // 影片模式 - Purple (Everforest)
+    modeVideoMuted: 'rgba(214, 153, 182, 0.2)',
 
     // ========================================
     // 控制元件狀態

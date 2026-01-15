@@ -35,9 +35,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['banana.webp', 'nbp-title.webp'],
       manifest: {
-        name: 'Nano Banana Pro Web Gen',
-        short_name: 'NBP Web Gen',
-        description: 'AI-powered image generation with Google Gemini',
+        name: 'Mediator - AI Image & Video Generator',
+        short_name: 'Mediator',
+        description: 'Media + Creator = Mediator. AI-powered image & video generation with Gemini & Veo 3.1',
         theme_color: '#111827',
         background_color: '#1f2937',
         display: 'standalone',

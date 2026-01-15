@@ -3,8 +3,9 @@ import { defineStore } from 'pinia'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useImageStorage } from '@/composables/useImageStorage'
+import { useVideoStorage } from '@/composables/useVideoStorage'
 import { useCharacterStorage } from '@/composables/useCharacterStorage'
-import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions } from '@/constants'
+import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions, DEFAULT_VIDEO_PROMPT_OPTIONS } from '@/constants'
 import { useThemeName, toggleTheme as themeToggle, setTheme as themeSet } from '@/theme'
 
 export const useGeneratorStore = defineStore('generator', () => {
@@ -20,6 +21,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   } = useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
   const imageStorage = useImageStorage()
+  const videoStorage = useVideoStorage()
   const characterStorage = useCharacterStorage()
 
   // Flag to prevent saving during initialization
@@ -37,7 +39,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const theme = useThemeName()
 
   // Current mode
-  const currentMode = ref('generate') // generate, edit, story, diagram, sticker
+  const currentMode = ref('generate') // generate, edit, story, diagram, sticker, video
 
   // Prompt
   const prompt = ref('')
@@ -53,6 +55,8 @@ export const useGeneratorStore = defineStore('generator', () => {
   const storyOptions = ref(getDefaultOptions('story'))
   const diagramOptions = ref(getDefaultOptions('diagram'))
   const stickerOptions = ref(getDefaultOptions('sticker'))
+  const videoOptions = ref(getDefaultOptions('video'))
+  const videoPromptOptions = ref(JSON.parse(JSON.stringify(DEFAULT_VIDEO_PROMPT_OPTIONS)))
 
   // Reference images (shared across all modes, max 5)
   const referenceImages = ref([])
@@ -64,6 +68,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const isGenerating = ref(false)
   const generationError = ref(null)
   const generatedImages = ref([])
+  const generatedVideo = ref(null) // For video mode preview
 
   // Generation timing
   const generationStartTime = ref(null)
@@ -92,6 +97,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     story: storyOptions,
     diagram: diagramOptions,
     sticker: stickerOptions,
+    video: videoOptions,
   }
 
   // ============================================================================
@@ -115,7 +121,14 @@ export const useGeneratorStore = defineStore('generator', () => {
     if (savedSeed !== null) seed.value = savedSeed
 
     // Load mode-specific options
-    const modeOptionsToLoad = ['generateOptions', 'storyOptions', 'diagramOptions', 'stickerOptions']
+    const modeOptionsToLoad = [
+      'generateOptions',
+      'storyOptions',
+      'diagramOptions',
+      'stickerOptions',
+      'videoOptions',
+      'videoPromptOptions',
+    ]
     modeOptionsToLoad.forEach((optionKey) => {
       const savedOption = getQuickSetting(optionKey)
       if (savedOption) {
@@ -124,6 +137,8 @@ export const useGeneratorStore = defineStore('generator', () => {
           storyOptions,
           diagramOptions,
           stickerOptions,
+          videoOptions,
+          videoPromptOptions,
         }[optionKey]
         if (targetRef) {
           targetRef.value = { ...targetRef.value, ...savedOption }
@@ -191,6 +206,8 @@ export const useGeneratorStore = defineStore('generator', () => {
       ['storyOptions', storyOptions],
       ['diagramOptions', diagramOptions],
       ['stickerOptions', stickerOptions],
+      ['videoOptions', videoOptions],
+      ['videoPromptOptions', videoPromptOptions],
     ]
 
     deepWatchers.forEach(([key, refValue]) => {
@@ -282,6 +299,12 @@ export const useGeneratorStore = defineStore('generator', () => {
     } catch (err) {
       console.error('Failed to delete OPFS images:', err)
     }
+    // Delete OPFS videos
+    try {
+      await videoStorage.deleteHistoryVideo(id)
+    } catch (err) {
+      console.error('Failed to delete OPFS video:', err)
+    }
     // Delete IndexedDB record
     await deleteHistory(id)
     await loadHistory()
@@ -295,6 +318,12 @@ export const useGeneratorStore = defineStore('generator', () => {
       await imageStorage.deleteAllImages()
     } catch (err) {
       console.error('Failed to delete all OPFS images:', err)
+    }
+    // Delete all OPFS videos
+    try {
+      await videoStorage.deleteAllVideos()
+    } catch (err) {
+      console.error('Failed to delete all OPFS videos:', err)
     }
     // Clear IndexedDB history
     await clearAllHistory()
@@ -315,6 +344,14 @@ export const useGeneratorStore = defineStore('generator', () => {
     generatedImages.value = []
   }
 
+  const setGeneratedVideo = (video) => {
+    generatedVideo.value = video
+  }
+
+  const clearGeneratedVideo = () => {
+    generatedVideo.value = null
+  }
+
   const setGeneratedImagesMetadata = (metadata) => {
     generatedImagesMetadata.value = metadata
   }
@@ -329,7 +366,9 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   const updateStorageUsage = async () => {
     try {
-      storageUsage.value = await imageStorage.getStorageUsage()
+      const imageUsage = await imageStorage.getStorageUsage()
+      const videoUsage = await videoStorage.getStorageUsage()
+      storageUsage.value = imageUsage + videoUsage
     } catch (err) {
       console.error('Failed to update storage usage:', err)
     }
@@ -474,11 +513,14 @@ export const useGeneratorStore = defineStore('generator', () => {
     storyOptions,
     diagramOptions,
     stickerOptions,
+    videoOptions,
+    videoPromptOptions,
     referenceImages,
     selectedCharacter,
     isGenerating,
     generationError,
     generatedImages,
+    generatedVideo,
     generationStartTime,
     generationEndTime,
     thinkingProcess,
@@ -504,6 +546,8 @@ export const useGeneratorStore = defineStore('generator', () => {
     clearHistory,
     setGeneratedImages,
     clearGeneratedImages,
+    setGeneratedVideo,
+    clearGeneratedVideo,
     setGeneratedImagesMetadata,
     clearGeneratedImagesMetadata,
     setCurrentHistoryId,
@@ -521,5 +565,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     selectCharacter,
     deselectCharacter,
     imageStorage,
+    videoStorage,
   }
 })

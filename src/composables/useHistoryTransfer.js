@@ -1,15 +1,17 @@
 import { ref } from 'vue'
 import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
+import { useVideoStorage } from './useVideoStorage'
 import { useOPFS } from './useOPFS'
 import { generateUUID } from './useUUID'
 import { generateThumbnailFromBlob } from './useImageCompression'
 
-const EXPORT_VERSION = 1
+const EXPORT_VERSION = 2 // Bumped for video support
 
 export function useHistoryTransfer() {
   const indexedDB = useIndexedDB()
   const imageStorage = useImageStorage()
+  const videoStorage = useVideoStorage()
   const opfs = useOPFS()
 
   const isExporting = ref(false)
@@ -64,6 +66,28 @@ export function useHistoryTransfer() {
                 height: img.height,
                 data: base64,
               })
+            }
+          }
+        }
+
+        // Load video and convert to base64
+        if (record.video && record.video.opfsPath) {
+          const videoBlob = await videoStorage.loadVideoBlob(record.video.opfsPath)
+          if (videoBlob) {
+            const arrayBuffer = await videoBlob.arrayBuffer()
+            const bytes = new Uint8Array(arrayBuffer)
+            let binary = ''
+            for (let j = 0; j < bytes.length; j++) {
+              binary += String.fromCharCode(bytes[j])
+            }
+            const videoBase64 = btoa(binary)
+
+            exportRecord.video = {
+              width: record.video.width,
+              height: record.video.height,
+              size: record.video.size,
+              mimeType: record.video.mimeType || 'video/mp4',
+              data: videoBase64,
             }
           }
         }
@@ -187,6 +211,47 @@ export function useHistoryTransfer() {
 
             // Update history record with image metadata
             await indexedDB.updateHistoryImages(historyId, imageMetadata)
+          }
+
+          // Save video to OPFS
+          if (record.video && record.video.data) {
+            const videoDirPath = `videos/${historyId}`
+            const videoPath = `/${videoDirPath}/video.mp4`
+            const thumbnailPath = `/${videoDirPath}/thumbnail.webp`
+
+            // base64 to Blob
+            const binaryString = atob(record.video.data)
+            const bytes = new Uint8Array(binaryString.length)
+            for (let j = 0; j < binaryString.length; j++) {
+              bytes[j] = binaryString.charCodeAt(j)
+            }
+            const videoBlob = new Blob([bytes], { type: record.video.mimeType || 'video/mp4' })
+
+            // Create directory and save video
+            await opfs.getOrCreateDirectory(videoDirPath)
+            await opfs.writeFile(videoPath, videoBlob)
+
+            // Extract and save thumbnail
+            let thumbnailData = null
+            try {
+              const thumbResult = await videoStorage.extractThumbnail(videoBlob)
+              thumbnailData = thumbResult.thumbnail
+              const thumbnailBlob = await fetch(thumbnailData).then((r) => r.blob())
+              await opfs.writeFile(thumbnailPath, thumbnailBlob)
+            } catch (thumbErr) {
+              console.warn('Failed to extract video thumbnail:', thumbErr)
+            }
+
+            // Update history record with video metadata
+            await indexedDB.updateHistoryVideo(historyId, {
+              opfsPath: videoPath,
+              thumbnailPath,
+              size: videoBlob.size,
+              mimeType: record.video.mimeType || 'video/mp4',
+              width: record.video.width,
+              height: record.video.height,
+              thumbnail: thumbnailData,
+            })
           }
 
           imported++
