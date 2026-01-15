@@ -36,7 +36,10 @@ export function useVideoStorage() {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
 
-      video.preload = 'auto' // Need 'auto' to load actual video frames
+      // Need 'auto' to load actual video frames for reliable thumbnail extraction.
+      // Note: This eagerly loads the video into memory, but the blob URL is revoked
+      // immediately after capture, so memory impact is temporary.
+      video.preload = 'auto'
       video.muted = true
       video.playsInline = true
 

@@ -125,12 +125,12 @@ src/theme/
 - If a needed color token doesn't exist, **add it to the theme files** (`tokens.js` + all `themes/*.js`) first
 - Example tokens: `textOnBrand` (text color for brand-colored buttons - white on blue, black on orange)
 
-**⚠️ CRITICAL - Use Unified Brand Colors for ALL Modes:**
-- **ALL generation modes (generate, sticker, edit, story, diagram, video) MUST use `mode-generate` as the accent color**
-- **NEVER create mode-specific colors** like `mode-video`, `mode-sticker`, etc. for UI elements
-- Selected states, buttons, icons, badges, focus rings → always use `mode-generate`, `mode-generate-muted`, `brand-primary`
-- The `mode-video` and `mode-video-muted` tokens exist in theme files but are **RESERVED for future use** (e.g., if we need to visually distinguish video results in history). Do NOT use them for interactive UI elements.
-- This ensures consistent look across all themes (warm=orange, espresso=coffee, dark=blue, etc.)
+**⚠️ CRITICAL - Use Unified Brand Colors (Video Is the Only Exception):**
+- **ALL non-video generation modes (generate, sticker, edit, story, diagram) MUST use `mode-generate` as the accent color**
+- Video mode uses its own accent tokens: **`mode-video`** and **`mode-video-muted`** for video-specific UI (mode chips, video badges in history).
+- **Do NOT create any additional mode-specific colors** like `mode-sticker`, `mode-story`, etc. The only allowed mode-specific tokens are `mode-video` and `mode-video-muted`.
+- Selected states, buttons, icons, focus rings → use `mode-generate`, `mode-generate-muted`, `brand-primary` (or `mode-video` for video-only interactions).
+- This ensures a consistent look across all themes (warm=orange, espresso=coffee, dark=blue, etc.) while allowing video mode to be visually distinct where needed.
 
 ### User Tour (Onboarding)
 First-time user guidance system:
