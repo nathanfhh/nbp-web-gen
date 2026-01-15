@@ -21,8 +21,9 @@
     "optional": "可選"
   },
   "hero": {
-    "subtitle": "AI 圖像生成工具",
-    "startUsing": "開始使用"
+    "subtitle": "AI 圖像與影片生成工具",
+    "startUsing": "開始使用",
+    "replayAnimation": "點擊重播動畫"
   },
   "theme": {
     "switchToLight": "切換至亮色模式",
@@ -220,6 +221,11 @@
       "fast": "Veo 3.1 Fast",
       "standard": "Veo 3.1"
     },
+    "audio": {
+      "label": "生成音訊",
+      "hint": "關閉可節省至多 50% 費用",
+      "notSupported": "參考圖模式不支援音訊生成"
+    },
     "duration": {
       "label": "影片長度",
       "lockedHint": "此解析度或模式僅支援 8 秒長度"
@@ -238,7 +244,8 @@
       "images": "參考圖片",
       "asset": "主體參考",
       "style": "風格參考",
-      "hint": "點擊標籤切換主體/風格參考"
+      "hint": "點擊標籤切換主體/風格參考",
+      "constraintsNotice": "使用參考圖片時，模型將鎖定為 Veo 3.1、長度鎖定為 8 秒"
     },
     "extend": {
       "selectVideo": "選擇影片",
@@ -259,7 +266,17 @@
       "starting": "準備生成影片...",
       "polling": "影片生成中...",
       "downloading": "下載影片中...",
-      "complete": "影片生成完成"
+      "complete": "影片生成完成",
+      "steps": {
+        "preparing": "準備生成",
+        "generating": "生成中",
+        "downloading": "下載中",
+        "complete": "生成完成"
+      },
+      "preparingDesc": "正在初始化影片生成任務...",
+      "iteration": "第 {n} 次確認（已等待約 {time} 秒）",
+      "downloadingDesc": "影片已生成完成，正在下載至本機。若下載失敗，可複製下方連結手動存取：",
+      "completeDesc": "影片已成功下載並儲存至歷史紀錄。"
     },
     "errors": {
       "noStartFrame": "請上傳起始幀圖片",
@@ -568,7 +585,9 @@
     "generateFailed": "生成失敗，請重試",
     "appUpdated": "應用程式已更新至 v{version}！",
     "videoGenerateSuccess": "影片生成成功",
-    "videoSaveFailed": "影片儲存失敗，但生成已完成"
+    "videoSaveFailed": "影片儲存失敗，但生成已完成",
+    "downloadSuccess": "下載已開始",
+    "downloadFailed": "下載失敗，請重試"
   },
   "errors": {
     "noPrompt": "請輸入 Prompt 描述",
@@ -581,7 +600,7 @@
     "noImageData": "API 回應中沒有圖片數據"
   },
   "footer": {
-    "title": "Nano Banana Pro Image Generator"
+    "title": "Mediator - AI 圖像與影片生成工具"
   },
   "lightbox": {
     "resetZoom": "重置縮放 (按 0)",

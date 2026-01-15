@@ -192,10 +192,10 @@ export function useTour() {
   // ============================================================================
   const autoStartIfNeeded = () => {
     if (!isTourCompleted()) {
-      // 延遲啟動，等待面板動畫完成
+      // 延遲啟動，等待 Hero 動畫完成 (~2.5s) + 面板動畫
       setTimeout(() => {
         start()
-      }, 1500)
+      }, 3500)
     }
   }
 

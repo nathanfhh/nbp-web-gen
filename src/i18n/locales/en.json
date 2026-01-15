@@ -21,8 +21,9 @@
     "optional": "Optional"
   },
   "hero": {
-    "subtitle": "AI Image Generator",
-    "startUsing": "Get Started"
+    "subtitle": "AI Image & Video Generator",
+    "startUsing": "Get Started",
+    "replayAnimation": "Click to replay animation"
   },
   "theme": {
     "switchToLight": "Switch to Light Mode",
@@ -220,6 +221,11 @@
       "fast": "Veo 3.1 Fast",
       "standard": "Veo 3.1"
     },
+    "audio": {
+      "label": "Generate Audio",
+      "hint": "Disable to save up to 50%",
+      "notSupported": "Audio generation not available in References mode"
+    },
     "duration": {
       "label": "Duration",
       "lockedHint": "This resolution or mode only supports 8-second duration"
@@ -238,7 +244,8 @@
       "images": "Reference Images",
       "asset": "Subject",
       "style": "Style",
-      "hint": "Tap label to toggle Subject/Style"
+      "hint": "Tap label to toggle Subject/Style",
+      "constraintsNotice": "Using reference images locks model to Veo 3.1 and duration to 8 seconds"
     },
     "extend": {
       "selectVideo": "Select Video",
@@ -252,13 +259,24 @@
       "notice": "This mode has the following restrictions:",
       "model": "Model locked to {model}",
       "resolution": "Resolution locked to {resolution}",
-      "ratio": "Ratio locked to {ratio}"
+      "ratio": "Ratio locked to {ratio}",
+      "duration": "Duration locked to {duration} seconds"
     },
     "progress": {
       "starting": "Preparing to generate video...",
       "polling": "Generating video...",
       "downloading": "Downloading video...",
-      "complete": "Video generation complete"
+      "complete": "Video generation complete",
+      "steps": {
+        "preparing": "Preparing",
+        "generating": "Generating",
+        "downloading": "Downloading",
+        "complete": "Complete"
+      },
+      "preparingDesc": "Initializing video generation task...",
+      "iteration": "Check #{n} (waited ~{time}s)",
+      "downloadingDesc": "Video generated successfully. Downloading to device. If download fails, copy the link below to access manually:",
+      "completeDesc": "Video downloaded and saved to history."
     },
     "errors": {
       "noStartFrame": "Please upload a start frame image",
@@ -567,7 +585,9 @@
     "generateFailed": "Generation failed, please try again",
     "appUpdated": "App has been updated to v{version}!",
     "videoGenerateSuccess": "Video generated successfully",
-    "videoSaveFailed": "Failed to save video, but generation completed"
+    "videoSaveFailed": "Failed to save video, but generation completed",
+    "downloadSuccess": "Download started",
+    "downloadFailed": "Download failed, please try again"
   },
   "errors": {
     "noPrompt": "Please enter a prompt description",
@@ -580,7 +600,7 @@
     "noImageData": "No image data in API response"
   },
   "footer": {
-    "title": "Nano Banana Pro Image Generator"
+    "title": "Mediator - AI Image & Video Generator"
   },
   "lightbox": {
     "resetZoom": "Reset Zoom (Press 0)",

@@ -17,6 +17,7 @@ import ImagePreview from '@/components/ImagePreview.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import GitHubLink from '@/components/GitHubLink.vue'
 import YouTubeLink from '@/components/YouTubeLink.vue'
+import HeroTitle from '@/components/HeroTitle.vue'
 
 // Lazy loaded: Mode-specific options (only one shown at a time)
 const GenerateOptions = defineAsyncComponent(() => import('@/components/GenerateOptions.vue'))
@@ -175,6 +176,9 @@ const setupIntersectionObserver = () => {
 let intersectionObserver = null
 
 onMounted(() => {
+  // Force scroll to top on page load (before scroll-snap takes over)
+  window.scrollTo({ top: 0, behavior: 'instant' })
+
   intersectionObserver = setupIntersectionObserver()
   checkAppUpdate()
   setupClickOutside()
@@ -385,17 +389,14 @@ const handleAddToReferences = (referenceData) => {
             class="w-40 h-40 lg:w-48 lg:h-48 drop-shadow-2xl hero-float"
           />
         </div>
-        <h1
-          class="text-5xl lg:text-7xl font-bold bg-clip-text text-transparent mb-4 bg-gradient-to-r from-[var(--color-gradient-brand-start)] via-[var(--color-gradient-brand-middle)] to-[var(--color-gradient-brand-end)]"
-          :class="store.theme === 'dark' ? 'glow-text-purple' : ''"
-        >
-          Nano Banana Pro
-        </h1>
+        <HeroTitle />
         <p
-          class="text-2xl lg:text-3xl flex items-center justify-center gap-3 mb-2"
+          class="text-lg lg:text-xl flex items-center justify-center gap-2 mb-2"
           :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
         >
-          {{ $t('hero.subtitle') }}
+          <span class="opacity-60">—</span>
+          <span>Powered by Nano Banana Pro & Veo</span>
+          <span class="opacity-60">—</span>
         </p>
         <div class="flex flex-col items-center gap-2">
           <span class="text-sm px-3 py-1 rounded-full bg-mode-generate-muted text-mode-generate font-mono">
