@@ -101,6 +101,10 @@ export const DEFAULT_SLIDES_OPTIONS = {
   currentPageIndex: -1, // -1 means not started
   totalPages: 0,
 
+  // Progress timing (for ETA calculation)
+  progressStartTime: null, // Timestamp when generation started
+  pageGenerationTimes: [], // Array of ms taken for each completed page
+
   // Style analysis state
   isAnalyzing: false,
   analysisError: null,

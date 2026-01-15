@@ -545,7 +545,7 @@ export function useApi() {
    * Uses streaming with thinking mode for transparency
    * @param {string} fullContent - All pages content combined
    * @param {Object} options - Analysis options
-   * @param {string} options.model - Model to use (default: gemini-2.5-flash-preview-05-20)
+   * @param {string} options.model - Model to use (default: gemini-3-flash-preview)
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
    * @returns {Promise<string>} - AI suggested design style description
    */

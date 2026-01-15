@@ -117,6 +117,35 @@ const progressPercent = computed(() => {
   return Math.round(((options.value.currentPageIndex + 1) / options.value.totalPages) * 100)
 })
 
+// Estimated time remaining (ETA)
+const estimatedTimeRemaining = computed(() => {
+  const times = options.value.pageGenerationTimes
+  if (!times || times.length === 0) return null
+
+  // Calculate average time per page from completed pages
+  const avgTimePerPage = times.reduce((sum, t) => sum + t, 0) / times.length
+  const remainingPages = options.value.totalPages - (options.value.currentPageIndex + 1)
+
+  if (remainingPages <= 0) return null
+
+  const etaMs = avgTimePerPage * remainingPages
+  return formatDuration(etaMs)
+})
+
+// Format duration in human-readable format
+const formatDuration = (ms) => {
+  const seconds = Math.round(ms / 1000)
+  if (seconds < 60) {
+    return `${seconds}s`
+  }
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  if (remainingSeconds === 0) {
+    return `${minutes}m`
+  }
+  return `${minutes}m ${remainingSeconds}s`
+}
+
 // Check if any page has been generated
 const hasGeneratedPages = computed(() => {
   return options.value.pages.some((p) => p.status === 'done' && p.image)
@@ -511,6 +540,37 @@ const removePageReference = (pageIndex, refIndex) => {
       </button>
     </div>
 
+    <!-- Generation Progress Bar -->
+    <div
+      v-if="store.isGenerating && options.currentPageIndex >= 0"
+      class="p-4 rounded-xl bg-mode-generate-muted/30 border border-mode-generate space-y-3"
+    >
+      <!-- Progress Header -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-mode-generate animate-pulse" />
+          <span class="text-sm font-medium text-mode-generate">
+            {{ $t('slides.generatingPage', { current: options.currentPageIndex + 1, total: options.totalPages }) }}
+          </span>
+        </div>
+        <span class="text-sm font-mono text-mode-generate">{{ progressPercent }}%</span>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="h-2 bg-bg-muted rounded-full overflow-hidden">
+        <div
+          class="h-full bg-mode-generate rounded-full transition-all duration-500 ease-out"
+          :style="{ width: `${progressPercent}%` }"
+        />
+      </div>
+
+      <!-- ETA Display -->
+      <div class="flex items-center justify-between text-xs text-text-muted">
+        <span>{{ $t('slides.progressCompleted', { count: options.currentPageIndex }) }}</span>
+        <span v-if="estimatedTimeRemaining">{{ $t('slides.eta', { time: estimatedTimeRemaining }) }}</span>
+      </div>
+    </div>
+
     <!-- Pages List (Vertical Layout) -->
     <div v-if="options.pages.length > 0" class="space-y-4">
       <h4 class="text-sm font-medium text-text-primary">{{ $t('slides.pagesList') }}</h4>
@@ -680,6 +740,7 @@ const removePageReference = (pageIndex, refIndex) => {
     </div>
 
     <!-- Export Buttons (shown when there are generated pages) -->
+    <!-- TODO: Implement ZIP and PDF export functionality in future version -->
     <div v-if="hasGeneratedPages" class="flex gap-3">
       <button class="btn-secondary flex-1 py-2.5 text-sm flex items-center justify-center gap-2" disabled>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

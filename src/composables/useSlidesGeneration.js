@@ -104,9 +104,14 @@ export function useSlidesGeneration() {
     isGenerating.value = true
     const results = []
 
+    // Initialize progress timing
+    store.slidesOptions.progressStartTime = Date.now()
+    store.slidesOptions.pageGenerationTimes = []
+
     try {
       for (let i = 0; i < options.pages.length; i++) {
         const page = options.pages[i]
+        const pageStartTime = Date.now()
 
         // Update status
         store.slidesOptions.currentPageIndex = i
@@ -140,6 +145,10 @@ export function useSlidesGeneration() {
             onThinkingChunk,
           )
 
+          // Record page generation time
+          const pageEndTime = Date.now()
+          store.slidesOptions.pageGenerationTimes.push(pageEndTime - pageStartTime)
+
           // Update page data
           if (result.images && result.images.length > 0) {
             store.slidesOptions.pages[i].image = {
@@ -150,6 +159,10 @@ export function useSlidesGeneration() {
             results.push({ pageNumber: i + 1, success: true, image: result.images[0] })
           }
         } catch (pageErr) {
+          // Still record time even for failed pages (for ETA accuracy)
+          const pageEndTime = Date.now()
+          store.slidesOptions.pageGenerationTimes.push(pageEndTime - pageStartTime)
+
           store.slidesOptions.pages[i].status = 'error'
           store.slidesOptions.pages[i].error = pageErr.message
           results.push({ pageNumber: i + 1, success: false, error: pageErr.message })
@@ -165,6 +178,8 @@ export function useSlidesGeneration() {
     } finally {
       isGenerating.value = false
       store.slidesOptions.currentPageIndex = -1
+      store.slidesOptions.progressStartTime = null
+      store.slidesOptions.pageGenerationTimes = []
     }
   }
 
@@ -243,7 +258,9 @@ export function useSlidesGeneration() {
    * @param {string} rawText - User input with --- separators
    */
   const parsePages = (rawText) => {
-    const pageContents = rawText.split(/\n---\n/).filter((p) => p.trim())
+    // Normalize line endings (Windows CRLF → LF) and handle flexible separators
+    const normalizedText = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const pageContents = normalizedText.split(/\s*---\s*/).filter((p) => p.trim())
     const existingPages = store.slidesOptions.pages
 
     // Create new pages array, preserving existing image data where content matches

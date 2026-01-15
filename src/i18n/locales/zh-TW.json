@@ -238,6 +238,8 @@
     "tooManyPages": "頁數超過上限（最多 30 頁）",
     "pagesList": "頁面列表",
     "generatingPage": "正在生成第 {current}/{total} 頁",
+    "progressCompleted": "已完成 {count} 頁",
+    "eta": "預估剩餘 {time}",
     "status": {
       "pending": "待生成",
       "generating": "生成中",
