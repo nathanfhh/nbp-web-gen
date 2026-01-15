@@ -24,8 +24,14 @@ const flippedLetters = ref(new Set())
 const aiSwapped = ref(false)
 // Track AI highlight state
 const aiHighlight = ref(false)
+// Prevent re-triggering during animation
+const isAnimating = ref(false)
 
 const runAnimation = () => {
+  // Ignore clicks while animation is running
+  if (isAnimating.value) return
+
+  isAnimating.value = true
   animationPhase.value = 0
   showSparks.value = false
   flippedLetters.value = new Set()
@@ -104,6 +110,7 @@ const startFlipSequence = () => {
     setTimeout(() => {
       aiHighlight.value = false
       animationPhase.value = 9
+      isAnimating.value = false
     }, 800)
   }, delay + 300)
 }
