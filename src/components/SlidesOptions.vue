@@ -90,6 +90,24 @@ const thinkingText = computed(() => {
   return analysisThinking.value.map((chunk) => chunk.content).join('')
 })
 
+// Extract hex color codes from analyzed style
+const extractedColors = computed(() => {
+  const style = options.value.analyzedStyle || ''
+  // Match hex colors: #RGB, #RGBA, #RRGGBB, #RRGGBBAA
+  const hexPattern = /#([0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})\b/g
+  const matches = style.match(hexPattern) || []
+  // Remove duplicates and return unique colors
+  return [...new Set(matches.map((c) => c.toUpperCase()))]
+})
+
+// Active color tooltip state
+const activeColorTooltip = ref(null)
+
+// Toggle color tooltip
+const toggleColorTooltip = (color) => {
+  activeColorTooltip.value = activeColorTooltip.value === color ? null : color
+}
+
 // Confirm style
 const confirmStyle = () => {
   store.slidesOptions.styleConfirmed = true
@@ -497,7 +515,33 @@ const togglePageStyle = (pageId) => {
         <!-- AI Suggested Style (editable) -->
         <div v-if="options.analyzedStyle" class="space-y-2">
           <div class="flex items-center justify-between">
-            <label class="block text-xs text-text-muted">{{ $t('slides.suggestedStyle') }}</label>
+            <div class="flex items-center gap-2 flex-wrap">
+              <label class="block text-xs text-text-muted">{{ $t('slides.suggestedStyle') }}</label>
+              <!-- Extracted Color Swatches -->
+              <div v-if="extractedColors.length > 0" class="flex items-center gap-1">
+                <div
+                  v-for="color in extractedColors"
+                  :key="color"
+                  class="relative"
+                >
+                  <button
+                    @click="toggleColorTooltip(color)"
+                    class="w-5 h-5 rounded border border-border-muted shadow-sm cursor-pointer transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                    :style="{ backgroundColor: color }"
+                    :title="color"
+                  />
+                  <!-- Tooltip -->
+                  <Transition name="fade">
+                    <div
+                      v-if="activeColorTooltip === color"
+                      class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded-md glass-strong text-xs font-mono text-text-primary whitespace-nowrap z-10"
+                    >
+                      {{ color }}
+                    </div>
+                  </Transition>
+                </div>
+              </div>
+            </div>
             <button
               v-if="options.styleConfirmed"
               @click="editStyle"
@@ -518,7 +562,33 @@ const togglePageStyle = (pageId) => {
 
       <!-- Manual Mode -->
       <div v-else class="space-y-2">
-        <label class="block text-xs text-text-muted">{{ $t('slides.manualStyleHint') }}</label>
+        <div class="flex items-center gap-2 flex-wrap">
+          <label class="block text-xs text-text-muted">{{ $t('slides.manualStyleHint') }}</label>
+          <!-- Extracted Color Swatches (Manual Mode) -->
+          <div v-if="extractedColors.length > 0" class="flex items-center gap-1">
+            <div
+              v-for="color in extractedColors"
+              :key="color"
+              class="relative"
+            >
+              <button
+                @click="toggleColorTooltip(color)"
+                class="w-5 h-5 rounded border border-border-muted shadow-sm cursor-pointer transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                :style="{ backgroundColor: color }"
+                :title="color"
+              />
+              <!-- Tooltip -->
+              <Transition name="fade">
+                <div
+                  v-if="activeColorTooltip === color"
+                  class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 rounded-md glass-strong text-xs font-mono text-text-primary whitespace-nowrap z-10"
+                >
+                  {{ color }}
+                </div>
+              </Transition>
+            </div>
+          </div>
+        </div>
         <textarea
           v-model="store.slidesOptions.analyzedStyle"
           :placeholder="$t('slides.manualStylePlaceholder')"
@@ -728,3 +798,15 @@ const togglePageStyle = (pageId) => {
     <SlidesContentSplitter ref="contentSplitterRef" />
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
