@@ -74,13 +74,45 @@ export const DEFAULT_VIDEO_OPTIONS = {
   inputVideo: null, // { historyId, uri, thumbnail }
 }
 
+export const DEFAULT_SLIDES_OPTIONS = {
+  // Image settings
+  resolution: '1k', // 1k | 2k | 4k
+  ratio: '16:9', // 16:9 | 4:3 | 1:1
+
+  // Analysis model selection
+  analysisModel: 'gemini-3-flash-preview',
+
+  // User input (separated by ---)
+  pagesRaw: '',
+
+  // Parsed pages array
+  // Each page: { id, pageNumber, content, status, image, error, referenceImages }
+  pages: [],
+
+  // Global reference images (applied to all pages)
+  // Each: { data, preview, mimeType, name }
+  globalReferenceImages: [],
+
+  // AI analyzed style (editable by user)
+  analyzedStyle: '',
+  styleConfirmed: false,
+
+  // Generation progress
+  currentPageIndex: -1, // -1 means not started
+  totalPages: 0,
+
+  // Style analysis state
+  isAnalyzing: false,
+  analysisError: null,
+}
+
 // Common settings defaults
 export const DEFAULT_TEMPERATURE = 1.0
 export const DEFAULT_SEED = ''
 
 /**
  * Get a fresh copy of default options for a mode
- * @param {string} mode - 'generate' | 'edit' | 'story' | 'diagram' | 'sticker' | 'video'
+ * @param {string} mode - 'generate' | 'edit' | 'story' | 'diagram' | 'sticker' | 'video' | 'slides'
  * @returns {Object} Deep copy of default options
  */
 export const getDefaultOptions = (mode) => {
@@ -91,6 +123,7 @@ export const getDefaultOptions = (mode) => {
     diagram: DEFAULT_DIAGRAM_OPTIONS,
     sticker: DEFAULT_STICKER_OPTIONS,
     video: DEFAULT_VIDEO_OPTIONS,
+    slides: DEFAULT_SLIDES_OPTIONS,
   }
 
   const defaultOption = defaults[mode]

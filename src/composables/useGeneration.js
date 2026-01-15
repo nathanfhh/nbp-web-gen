@@ -2,6 +2,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
 import { useVideoApi, buildVideoPrompt, buildVideoNegativePrompt } from './useVideoApi'
+import { useSlidesGeneration } from './useSlidesGeneration'
 import { useToast } from './useToast'
 import { useImageStorage } from './useImageStorage'
 import { useVideoStorage } from './useVideoStorage'
@@ -21,6 +22,7 @@ export function useGeneration() {
   const { updateHistoryImages, updateHistoryVideo } = useIndexedDB()
   const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
   const { generateVideo } = useVideoApi()
+  const { generateAllPages } = useSlidesGeneration()
   const { trackGenerateSuccess, trackGenerateFailed } = useAnalytics()
 
   /**
@@ -35,7 +37,8 @@ export function useGeneration() {
    * @returns {string|null} Error message or null if valid
    */
   const validateGeneration = () => {
-    if (!store.prompt.trim()) {
+    // Slides mode: prompt is optional (global description), content is in pagesRaw
+    if (store.currentMode !== 'slides' && !store.prompt.trim()) {
       return t('errors.noPrompt')
     }
     if (!store.hasApiKey) {
@@ -100,6 +103,12 @@ export function useGeneration() {
           onThinkingChunk(progress.message)
         })
         return videoResult
+      }
+
+      case 'slides': {
+        const result = await generateAllPages(onThinkingChunk)
+        // Images are already collected in generateAllPages
+        return result
       }
 
       default:
@@ -231,6 +240,19 @@ export function useGeneration() {
           referenceImageCount: referenceImages?.length || 0,
           hasInputVideo: !!inputVideo,
           videoPromptOptions: JSON.parse(JSON.stringify(store.videoPromptOptions)),
+        }
+      } else if (store.currentMode === 'slides') {
+        // For slides mode, only keep essential options for history restoration
+        // Exclude: pages (large image data), pagesRaw, currentPageIndex, isAnalyzing, analysisError
+        historyOptions = {
+          resolution: options.resolution,
+          ratio: options.ratio,
+          analysisModel: options.analysisModel,
+          analyzedStyle: options.analyzedStyle,
+          styleConfirmed: options.styleConfirmed,
+          totalPages: options.pages?.length || 0,
+          temperature: options.temperature,
+          seed: options.seed,
         }
       } else {
         historyOptions = { ...options }

@@ -218,6 +218,42 @@ const buildDiagramPrompt = (basePrompt, options) => {
   return `Generate a ${parts.join(', ')} image: ${basePrompt}`
 }
 
+/**
+ * Build prompt for slides mode
+ * Combines the analyzed style guide with page-specific content
+ * @param {string} pageContent - Content for this specific page
+ * @param {Object} options - Options including analyzedStyle, pageNumber, totalPages, globalPrompt
+ */
+const buildSlidesPrompt = (pageContent, options) => {
+  const styleGuide = options.analyzedStyle || 'Professional presentation slide design'
+  const pageNumber = options.pageNumber || 1
+  const totalPages = options.totalPages || 1
+  const globalPrompt = options.globalPrompt || ''
+
+  // Build the slide content section, prepending global prompt if provided
+  const contentSection = globalPrompt.trim()
+    ? `${globalPrompt.trim()}\n\n${pageContent}`
+    : pageContent
+
+  return `Create a presentation slide image for page ${pageNumber} of ${totalPages}.
+
+DESIGN STYLE:
+${styleGuide}
+
+SLIDE CONTENT:
+${contentSection}
+
+REQUIREMENTS:
+- Create a visually appealing slide that clearly communicates the content
+- Maintain consistent style with other slides in the presentation
+- Use appropriate typography hierarchy for titles and body text
+- Include relevant visual elements that enhance understanding
+- Ensure text is readable and well-positioned
+- The slide should look professional and polished
+
+Generate a single slide image that effectively presents this content.`
+}
+
 // Strategy pattern: map mode to prompt builder
 const promptBuilders = {
   generate: buildGeneratePrompt,
@@ -225,6 +261,7 @@ const promptBuilders = {
   edit: buildEditPrompt,
   story: buildStoryPrompt,
   diagram: buildDiagramPrompt,
+  slides: buildSlidesPrompt,
 }
 
 /**
@@ -503,6 +540,86 @@ export function useApi() {
     return generateImageStream(prompt, options, 'diagram', referenceImages, onThinkingChunk)
   }
 
+  /**
+   * Analyze slide content and suggest a cohesive design style
+   * Uses streaming with thinking mode for transparency
+   * @param {string} fullContent - All pages content combined
+   * @param {Object} options - Analysis options
+   * @param {string} options.model - Model to use (default: gemini-2.5-flash-preview-05-20)
+   * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
+   * @returns {Promise<string>} - AI suggested design style description
+   */
+  const analyzeSlideStyle = async (fullContent, options = {}, onThinkingChunk = null) => {
+    const apiKey = getApiKey()
+    if (!apiKey) {
+      throw new Error(t('errors.apiKeyNotSet'))
+    }
+
+    const ai = new GoogleGenAI({ apiKey })
+    const model = options.model || 'gemini-3-flash-preview'
+
+    const analysisPrompt = `You are a presentation design consultant. Analyze the following slide content and suggest a cohesive visual design style.
+
+SLIDE CONTENT:
+${fullContent}
+
+Please provide a design style recommendation that includes:
+1. Overall visual theme (e.g., minimalist, corporate, playful, tech)
+2. Color palette suggestion (describe colors, not hex codes)
+3. Typography style (e.g., modern sans-serif, classic serif)
+4. Layout approach (e.g., centered, asymmetric, grid-based)
+5. Visual elements to include (e.g., icons, illustrations, photos, gradients)
+
+Output your recommendation as a concise paragraph (2-3 sentences) that can be used as a style prompt for image generation. Write in English.
+
+Example output: "Modern minimalist design with a clean white background and bold navy blue accents. Use geometric shapes and subtle gradients. Typography should be contemporary sans-serif with strong hierarchy."`
+
+    try {
+      // Use streaming to capture thinking process
+      const response = await ai.models.generateContentStream({
+        model,
+        contents: [{ role: 'user', parts: [{ text: analysisPrompt }] }],
+        config: {
+          temperature: 0.3, // Low temperature for consistency
+          maxOutputTokens: 500,
+          thinkingConfig: {
+            includeThoughts: true,
+            thinkingBudget: 8192, // Maximum thinking tokens
+          },
+        },
+      })
+
+      // Process stream
+      let textResponse = ''
+
+      for await (const chunk of response) {
+        if (chunk.candidates && chunk.candidates.length > 0) {
+          const candidate = chunk.candidates[0]
+
+          if (candidate.content && candidate.content.parts) {
+            for (const part of candidate.content.parts) {
+              if (part.text) {
+                if (part.thought) {
+                  // Thinking content - stream to callback
+                  if (onThinkingChunk) {
+                    onThinkingChunk(part.text)
+                  }
+                } else {
+                  // Final response text
+                  textResponse += part.text
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return textResponse.trim()
+    } catch (err) {
+      throw new Error(t('slides.analyzeFailed') + ': ' + err.message)
+    }
+  }
+
   return {
     isLoading,
     error,
@@ -510,5 +627,6 @@ export function useApi() {
     generateStory,
     editImage,
     generateDiagram,
+    analyzeSlideStyle,
   }
 }

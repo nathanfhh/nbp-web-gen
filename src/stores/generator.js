@@ -39,7 +39,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const theme = useThemeName()
 
   // Current mode
-  const currentMode = ref('generate') // generate, edit, story, diagram, sticker, video
+  const currentMode = ref('generate') // generate, edit, story, diagram, sticker, video, slides
 
   // Prompt
   const prompt = ref('')
@@ -57,6 +57,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const stickerOptions = ref(getDefaultOptions('sticker'))
   const videoOptions = ref(getDefaultOptions('video'))
   const videoPromptOptions = ref(JSON.parse(JSON.stringify(DEFAULT_VIDEO_PROMPT_OPTIONS)))
+  const slidesOptions = ref(getDefaultOptions('slides'))
 
   // Reference images (shared across all modes, max 5)
   const referenceImages = ref([])
@@ -98,6 +99,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     diagram: diagramOptions,
     sticker: stickerOptions,
     video: videoOptions,
+    slides: slidesOptions,
   }
 
   // ============================================================================
@@ -128,6 +130,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       'stickerOptions',
       'videoOptions',
       'videoPromptOptions',
+      'slidesOptions',
     ]
     modeOptionsToLoad.forEach((optionKey) => {
       const savedOption = getQuickSetting(optionKey)
@@ -139,6 +142,7 @@ export const useGeneratorStore = defineStore('generator', () => {
           stickerOptions,
           videoOptions,
           videoPromptOptions,
+          slidesOptions,
         }[optionKey]
         if (targetRef) {
           targetRef.value = { ...targetRef.value, ...savedOption }
@@ -208,6 +212,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       ['stickerOptions', stickerOptions],
       ['videoOptions', videoOptions],
       ['videoPromptOptions', videoPromptOptions],
+      ['slidesOptions', slidesOptions],
     ]
 
     deepWatchers.forEach(([key, refValue]) => {
@@ -515,6 +520,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     stickerOptions,
     videoOptions,
     videoPromptOptions,
+    slidesOptions,
     referenceImages,
     selectedCharacter,
     isGenerating,

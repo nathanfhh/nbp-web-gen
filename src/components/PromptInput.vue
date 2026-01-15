@@ -12,13 +12,19 @@ const placeholders = computed(() => ({
   edit: t('prompt.placeholders.edit'),
   story: t('prompt.placeholders.story'),
   diagram: t('prompt.placeholders.diagram'),
+  slides: t('prompt.placeholders.slides'),
 }))
+
+// Dynamic label based on mode
+const labelKey = computed(() => {
+  return store.currentMode === 'slides' ? 'prompt.labelSlides' : 'prompt.label'
+})
 </script>
 
 <template>
   <div class="space-y-3">
     <label class="block text-sm font-medium text-text-secondary">
-      {{ $t('prompt.label') }}
+      {{ $t(labelKey) }}
     </label>
     <textarea
       v-model="store.prompt"

@@ -31,7 +31,7 @@ const confirmModal = ref(null)
 
 // Filter state
 const selectedFilter = ref('all')
-const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video']
+const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides']
 
 const filteredHistory = computed(() => {
   if (selectedFilter.value === 'all') {
@@ -64,6 +64,7 @@ const modeLabels = computed(() => ({
   diagram: t('modes.diagram.name'),
   sticker: t('modes.sticker.name'),
   video: t('modes.video.name'),
+  slides: t('modes.slides.name'),
 }))
 
 // Track the current lightbox item's mode
@@ -163,6 +164,14 @@ const loadHistoryItem = async (item) => {
       store.videoPromptOptions.soundEffects = vpo.soundEffects || ''
       store.videoPromptOptions.ambientSound = vpo.ambientSound || ''
     }
+  } else if (item.mode === 'slides' && item.options) {
+    // Restore slides options
+    store.slidesOptions.resolution = item.options.resolution || '1k'
+    store.slidesOptions.ratio = item.options.ratio || '16:9'
+    store.slidesOptions.analysisModel = item.options.analysisModel || 'gemini-3-flash-preview'
+    store.slidesOptions.analyzedStyle = item.options.analyzedStyle || ''
+    // Note: pages and pagesRaw are not restored since they contain generation state
+    // User will need to re-enter content for new generation
   }
 }
 

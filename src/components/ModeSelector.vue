@@ -43,6 +43,12 @@ const modes = computed(() => [
     description: t('modes.video.description'),
     icon: 'video',
   },
+  {
+    id: 'slides',
+    name: t('modes.slides.name'),
+    description: t('modes.slides.description'),
+    icon: 'slides',
+  },
 ])
 
 const selectMode = (mode) => {
@@ -89,6 +95,10 @@ const selectMode = (mode) => {
           <!-- Video -->
           <svg v-else-if="mode.icon === 'video'" class="w-4 h-4" :class="store.currentMode === mode.id ? 'text-mode-generate' : 'text-text-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <!-- Slides (Presentation) -->
+          <svg v-else-if="mode.icon === 'slides'" class="w-4 h-4" :class="store.currentMode === mode.id ? 'text-mode-generate' : 'text-text-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 13v-1m4 1v-3m4 3V8M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
         </div>
 

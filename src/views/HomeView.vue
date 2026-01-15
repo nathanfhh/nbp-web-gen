@@ -27,6 +27,7 @@ const StoryOptions = defineAsyncComponent(() => import('@/components/StoryOption
 const DiagramOptions = defineAsyncComponent(() => import('@/components/DiagramOptions.vue'))
 const VideoOptions = defineAsyncComponent(() => import('@/components/VideoOptions.vue'))
 const VideoPromptBuilder = defineAsyncComponent(() => import('@/components/VideoPromptBuilder.vue'))
+const SlidesOptions = defineAsyncComponent(() => import('@/components/SlidesOptions.vue'))
 
 // Lazy loaded: Heavy components
 const GenerationHistory = defineAsyncComponent(() => import('@/components/GenerationHistory.vue'))
@@ -71,6 +72,11 @@ const themeDropdownRef = ref(null)
 const availableThemes = computed(() => getAvailableThemes())
 const currentTheme = useTheme()
 const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
+
+// Check if slides mode requires style confirmation before generating
+const isSlidesNotReady = computed(() => {
+  return store.currentMode === 'slides' && !store.slidesOptions.styleConfirmed
+})
 
 const closeThemeMenu = () => {
   isThemeMenuOpen.value = false
@@ -506,16 +512,17 @@ const handleAddToReferences = (referenceData) => {
               </svg>
             </router-link>
 
-            <!-- Reference Images (not shown in video mode - VideoOptions has its own upload) -->
-            <div v-if="store.currentMode !== 'video'" class="mt-6">
+            <!-- Reference Images (not shown in video/slides mode - they have their own upload UI) -->
+            <div v-if="store.currentMode !== 'video' && store.currentMode !== 'slides'" class="mt-6">
               <ImageUploader />
             </div>
 
             <!-- Character Carousel -->
             <!-- In video mode: only show for frames-to-video and references-to-video -->
+            <!-- In slides mode: hidden (has its own reference images UI) -->
             <!-- In other modes: always show -->
             <div
-              v-if="store.currentMode !== 'video' || ['frames-to-video', 'references-to-video'].includes(store.videoOptions.subMode)"
+              v-if="store.currentMode !== 'slides' && (store.currentMode !== 'video' || ['frames-to-video', 'references-to-video'].includes(store.videoOptions.subMode))"
               class="mt-6"
             >
               <CharacterCarousel
@@ -536,6 +543,7 @@ const handleAddToReferences = (referenceData) => {
                 <StoryOptions v-else-if="store.currentMode === 'story'" key="story" />
                 <DiagramOptions v-else-if="store.currentMode === 'diagram'" key="diagram" />
                 <VideoOptions v-else-if="store.currentMode === 'video'" key="video" />
+                <SlidesOptions v-else-if="store.currentMode === 'slides'" key="slides" />
               </Transition>
             </div>
 
@@ -578,7 +586,7 @@ const handleAddToReferences = (referenceData) => {
             <div class="mt-8">
               <button
                 @click="handleGenerate"
-                :disabled="store.isGenerating || !store.hasApiKey"
+                :disabled="store.isGenerating || !store.hasApiKey || isSlidesNotReady"
                 data-tour="generate-button"
                 class="btn-premium w-full py-4 text-lg font-semibold flex items-center justify-center gap-3"
               >
