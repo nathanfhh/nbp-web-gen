@@ -261,7 +261,22 @@
     "pageReferences": "此頁參考圖",
     "pageStyleGuide": "此頁風格指引",
     "pageStylePlaceholder": "此頁專屬的設計風格說明（留空則使用全域風格）",
-    "pageStyleHint": "若此頁有特殊內容（圖表、引言等），可指定專屬風格"
+    "pageStyleHint": "若此頁有特殊內容（圖表、引言等），可指定專屬風格",
+    "contentSplitter": {
+      "button": "AI 內容拆分",
+      "title": "AI 內容拆分",
+      "model": "分析模型",
+      "rawMaterial": "原始素材",
+      "rawMaterialPlaceholder": "貼上您的文章、筆記或任何原始內容...",
+      "additionalNotes": "補充說明",
+      "additionalNotesPlaceholder": "任何額外的指示或要求...",
+      "targetPages": "目標頁數",
+      "pages": "頁",
+      "splitButton": "開始拆分",
+      "processing": "AI 正在分析並拆分內容...",
+      "success": "成功拆分為 {count} 頁",
+      "error": "拆分失敗"
+    }
   },
   "video": {
     "subMode": {

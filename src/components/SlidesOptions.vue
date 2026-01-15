@@ -4,12 +4,16 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useSlidesGeneration } from '@/composables/useSlidesGeneration'
 import { useToast } from '@/composables/useToast'
+import SlidesContentSplitter from './SlidesContentSplitter.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
 const toast = useToast()
 const { analyzeStyle, analysisThinking, regeneratePage, reorderPages, parsePages, deletePage } =
   useSlidesGeneration()
+
+// Content splitter modal ref
+const contentSplitterRef = ref(null)
 
 // Thinking panel refs
 const thinkingPanelRef = ref(null)
@@ -153,14 +157,12 @@ const canAddGlobalReference = computed(() => {
 })
 
 // Can add more reference images to a specific page?
+// Per-generation limit: global + page-specific ≤ MAX_REFERENCE_IMAGES
 const canAddPageReference = (pageIndex) => {
   const page = options.value.pages[pageIndex]
   const pageRefCount = page?.referenceImages?.length || 0
-  // Each page can have at most (MAX - globalCount) refs, and total must not exceed MAX
-  return (
-    totalReferenceCount.value < MAX_REFERENCE_IMAGES &&
-    globalReferenceCount.value + pageRefCount < MAX_REFERENCE_IMAGES
-  )
+  // When generating this page, combined count must not exceed limit
+  return globalReferenceCount.value + pageRefCount < MAX_REFERENCE_IMAGES
 }
 
 // Handle global reference image upload
@@ -225,6 +227,20 @@ const togglePageStyle = (pageId) => {
 
 <template>
   <div class="space-y-6">
+    <!-- AI Content Splitter Button -->
+    <div class="flex justify-end">
+      <button
+        @click="contentSplitterRef?.open()"
+        :disabled="store.isGenerating || options.isAnalyzing"
+        class="flex items-center gap-2 py-2 px-3 text-sm rounded-lg font-medium transition-all bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 border border-brand-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        {{ $t('slides.contentSplitter.button') }}
+      </button>
+    </div>
+
     <!-- Resolution & Ratio -->
     <div class="grid grid-cols-2 gap-4">
       <!-- Resolution -->
@@ -701,5 +717,7 @@ const togglePageStyle = (pageId) => {
       </div>
     </div>
 
+    <!-- Content Splitter Modal -->
+    <SlidesContentSplitter ref="contentSplitterRef" />
   </div>
 </template>

@@ -92,7 +92,7 @@
   },
   "prompt": {
     "label": "Prompt Description",
-    "labelSlides": "Global Description (Optional, applied to Each Page)",
+    "labelSlides": "Global Description (Optional, applied to each page)",
     "hint": "Tip: The more detailed your description, the better the results",
     "placeholders": {
       "generate": "Describe the image you want to generate, e.g., a cat under the starry sky...",
@@ -261,7 +261,22 @@
     "pageReferences": "Page References",
     "pageStyleGuide": "Page Style Guide",
     "pageStylePlaceholder": "Page-specific design style (leave empty to use global style)",
-    "pageStyleHint": "Specify custom style for pages with special content (charts, quotes, etc.)"
+    "pageStyleHint": "Specify custom style for pages with special content (charts, quotes, etc.)",
+    "contentSplitter": {
+      "button": "AI Content Split",
+      "title": "AI Content Split",
+      "model": "Model",
+      "rawMaterial": "Raw Material",
+      "rawMaterialPlaceholder": "Paste your article, notes, or any raw content...",
+      "additionalNotes": "Additional Notes",
+      "additionalNotesPlaceholder": "Any additional instructions or requirements...",
+      "targetPages": "Target Pages",
+      "pages": "pages",
+      "splitButton": "Start Splitting",
+      "processing": "AI is analyzing and splitting content...",
+      "success": "Successfully split into {count} pages",
+      "error": "Split failed"
+    }
   },
   "video": {
     "subMode": {

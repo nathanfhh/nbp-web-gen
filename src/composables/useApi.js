@@ -791,6 +791,163 @@ Write all descriptions in English.`
     }
   }
 
+  /**
+   * JSON Schema for content splitting response
+   */
+  const CONTENT_SPLIT_SCHEMA = {
+    type: 'object',
+    properties: {
+      globalDescription: {
+        type: 'string',
+        description: 'Overall presentation description (2-3 sentences summarizing the topic)',
+      },
+      pages: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            pageNumber: {
+              type: 'integer',
+              description: 'Sequential page number starting from 1',
+            },
+            content: {
+              type: 'string',
+              description: 'Content for this specific slide page',
+            },
+          },
+          required: ['pageNumber', 'content'],
+        },
+      },
+    },
+    required: ['globalDescription', 'pages'],
+  }
+
+  /**
+   * Split raw content into presentation pages using AI
+   * Uses JSON mode for structured output with thinking mode for transparency
+   * @param {string} rawContent - Raw material to split
+   * @param {Object} options
+   * @param {string} options.model - Model to use (gemini-3-flash-preview | gemini-3-pro-preview)
+   * @param {number} options.targetPages - Target number of pages (1-30)
+   * @param {string} options.additionalNotes - Additional instructions
+   * @param {Function} onThinkingChunk - Callback for thinking chunks
+   * @returns {Promise<{globalDescription: string, pages: Array<{pageNumber: number, content: string}>}>}
+   */
+  const splitSlidesContent = async (rawContent, options = {}, onThinkingChunk = null) => {
+    const apiKey = getApiKey()
+    if (!apiKey) {
+      throw new Error(t('errors.apiKeyNotSet'))
+    }
+
+    const ai = new GoogleGenAI({ apiKey })
+    const model = options.model || 'gemini-3-flash-preview'
+    const targetPages = options.targetPages || 10
+    const additionalNotes = options.additionalNotes?.trim() || ''
+
+    const additionalSection = additionalNotes
+      ? `
+## ADDITIONAL INSTRUCTIONS
+${additionalNotes}
+`
+      : ''
+
+    const splitPrompt = `# Presentation Content Splitting Task
+
+You are a professional presentation designer and content strategist. Your task is to analyze the raw material below and split it into a well-structured presentation.
+
+---
+
+## INPUT: Raw Material
+
+${rawContent}
+${additionalSection}
+---
+
+## OUTPUT REQUIREMENTS
+
+Create a presentation with **exactly ${targetPages} pages**.
+
+### Global Description
+Write a 2-3 sentence overview that captures:
+- The main topic/theme of the presentation
+- The target audience or purpose
+- The overall tone (professional, educational, casual, etc.)
+
+### Page Content Guidelines
+For each page, create content that:
+1. **Is self-contained** - Each page should make sense on its own
+2. **Follows logical flow** - Pages should progress naturally from introduction to conclusion
+3. **Has clear focus** - Each page addresses ONE main point or concept
+4. **Is presentation-ready** - Content should be suitable for visual slides (not paragraphs of text)
+
+### Content Structure Suggestions
+- **Page 1**: Title/Introduction
+- **Pages 2-${targetPages - 1}**: Main content, key points, examples, data
+- **Page ${targetPages}**: Summary/Conclusion/Call-to-action
+
+### Formatting Guidelines
+- Use bullet points for lists
+- Keep text concise (aim for 3-5 bullet points per page)
+- Include suggestions for visuals where appropriate (e.g., "[Chart: Sales growth]")
+- Avoid long paragraphs
+
+---
+
+Write all content in the same language as the input material.`
+
+    try {
+      const response = await ai.models.generateContentStream({
+        model,
+        contents: [{ role: 'user', parts: [{ text: splitPrompt }] }],
+        config: {
+          temperature: 0.5,
+          responseMimeType: 'application/json',
+          responseSchema: CONTENT_SPLIT_SCHEMA,
+          thinkingConfig: {
+            includeThoughts: true,
+          },
+        },
+      })
+
+      // Process stream
+      let textResponse = ''
+
+      for await (const chunk of response) {
+        if (chunk.candidates?.[0]?.content?.parts) {
+          for (const part of chunk.candidates[0].content.parts) {
+            if (part.text) {
+              if (part.thought) {
+                // Thinking content - stream to callback
+                if (onThinkingChunk) {
+                  onThinkingChunk(part.text)
+                }
+              } else {
+                // Final response text (JSON)
+                textResponse += part.text
+              }
+            }
+          }
+        }
+      }
+
+      // Parse JSON response
+      try {
+        const parsed = JSON.parse(textResponse.trim())
+        // Validate structure
+        if (!parsed.globalDescription || !Array.isArray(parsed.pages)) {
+          throw new Error('Invalid response structure')
+        }
+        return parsed
+      } catch (parseErr) {
+        console.warn('JSON parse failed in splitSlidesContent:', parseErr)
+        throw new Error(t('slides.contentSplitter.error'))
+      }
+    } catch (err) {
+      // Avoid duplicating i18n messages if err.message is already localized
+      throw new Error(err.message || t('slides.contentSplitter.error'))
+    }
+  }
+
   return {
     isLoading,
     error,
@@ -799,5 +956,6 @@ Write all descriptions in English.`
     editImage,
     generateDiagram,
     analyzeSlideStyle,
+    splitSlidesContent,
   }
 }
