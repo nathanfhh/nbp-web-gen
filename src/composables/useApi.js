@@ -220,38 +220,97 @@ const buildDiagramPrompt = (basePrompt, options) => {
 
 /**
  * Build prompt for slides mode
- * Combines the analyzed style guide with page-specific content
+ * Uses Markdown structure to clearly separate semantic sections for LLM understanding
+ * Style is additive: globalStyle + pageStyleGuide (composition, not replacement)
  * @param {string} pageContent - Content for this specific page
- * @param {Object} options - Options including analyzedStyle, pageNumber, totalPages, globalPrompt
+ * @param {Object} options - Options including analyzedStyle, pageStyleGuide, pageNumber, totalPages, globalPrompt
  */
 const buildSlidesPrompt = (pageContent, options) => {
-  const styleGuide = options.analyzedStyle || 'Professional presentation slide design'
+  // Build style guide: combine global + page-specific (additive/composition)
+  const globalStyle = options.analyzedStyle || 'Professional presentation slide design'
+  const pageStyle = options.pageStyleGuide?.trim()
+
   const pageNumber = options.pageNumber || 1
   const totalPages = options.totalPages || 1
-  const globalPrompt = options.globalPrompt || ''
+  const globalPrompt = options.globalPrompt?.trim() || ''
 
-  // Build the slide content section, prepending global prompt if provided
-  const contentSection = globalPrompt.trim()
-    ? `${globalPrompt.trim()}\n\n${pageContent}`
-    : pageContent
+  // Build presentation overview section (independent from slide content)
+  const overviewSection = globalPrompt
+    ? `
+## PRESENTATION OVERVIEW
+> This section provides background context about the entire presentation.
+> Use this information to understand the topic, audience, and purpose - but DO NOT display this text on the slide.
 
-  return `Create a presentation slide image for page ${pageNumber} of ${totalPages}.
+${globalPrompt}
 
-DESIGN STYLE:
-${styleGuide}
+---
+`
+    : ''
 
-SLIDE CONTENT:
-${contentSection}
+  // Build page-specific style section (if provided)
+  const pageStyleSection = pageStyle
+    ? `
+### Page-Specific Adjustments
+> Additional styling requirements for THIS specific page (additive to global style):
 
-REQUIREMENTS:
+${pageStyle}
+`
+    : ''
+
+  return `# Slide Generation Task
+
+Generate a presentation slide image for **Page ${pageNumber} of ${totalPages}**.
+${overviewSection}
+## DESIGN STYLE GUIDE
+> This section defines the visual design language. Apply these styles consistently across all slides.
+
+### Global Style
+${globalStyle}
+${pageStyleSection}
+---
+
+## SLIDE CONTENT
+> This is the ACTUAL TEXT and information to display on this slide.
+> Render this content visually on the slide image.
+
+${pageContent}
+
+---
+
+## DESIGN REQUIREMENTS
+
+### Visual Design
 - Create a visually appealing slide that clearly communicates the content
-- Maintain consistent style with other slides in the presentation
-- Use appropriate typography hierarchy for titles and body text
-- Include relevant visual elements that enhance understanding
-- Ensure text is readable and well-positioned
-- The slide should look professional and polished
+- Use appropriate typography hierarchy (large titles, readable body text)
+- Include relevant visual elements (icons, shapes, illustrations) that enhance understanding
+- Ensure sufficient contrast and readability
+- Apply professional, polished finishing
 
-Generate a single slide image that effectively presents this content.`
+### Consistency Rules
+- **Color Palette**: Use the EXACT SAME colors specified in the style guide for all similar elements
+- **Typography**: Use consistent fonts, sizes, and weights across all slides
+- **Layout**: Maintain consistent margins, spacing, and alignment patterns
+- **Visual Elements**: Use the same icon style, shape language, and decorative patterns
+
+---
+
+## STRICT CONSTRAINTS (MUST FOLLOW)
+
+⛔ **DO NOT** add any of the following:
+- Page numbers, slide numbers, or any numbering
+- Headers or footers
+- Company logos (unless specified in content)
+- Decorative elements not directly related to the content
+- Any text not specified in SLIDE CONTENT section
+
+✅ **ALWAYS** ensure:
+- The slide looks like it belongs to a cohesive presentation set
+- Colors match exactly across all slides in the series
+- Typography is consistent with the style guide
+
+---
+
+Generate a single, professional slide image that effectively presents the content above.`
 }
 
 // Strategy pattern: map mode to prompt builder
@@ -541,15 +600,48 @@ export function useApi() {
   }
 
   /**
-   * Analyze slide content and suggest a cohesive design style
-   * Uses streaming with thinking mode for transparency
-   * @param {string} fullContent - All pages content combined
+   * JSON Schema for slide style analysis response
+   */
+  const SLIDE_STYLE_SCHEMA = {
+    type: 'object',
+    properties: {
+      globalStyle: {
+        type: 'string',
+        description:
+          'Overall design style recommendation for the entire presentation (2-3 sentences)',
+      },
+      pageStyles: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            pageId: {
+              type: 'string',
+              description: 'The unique identifier of the page',
+            },
+            styleGuide: {
+              type: 'string',
+              description:
+                'Page-specific style recommendation (1-2 sentences), or empty string if global style is sufficient',
+            },
+          },
+          required: ['pageId', 'styleGuide'],
+        },
+      },
+    },
+    required: ['globalStyle', 'pageStyles'],
+  }
+
+  /**
+   * Analyze slide content and suggest design styles (global + per-page)
+   * Uses JSON mode for structured output with thinking mode for transparency
+   * @param {Array<{id: string, pageNumber: number, content: string}>} pages - Pages with ID and content
    * @param {Object} options - Analysis options
    * @param {string} options.model - Model to use (default: gemini-3-flash-preview)
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
-   * @returns {Promise<string>} - AI suggested design style description
+   * @returns {Promise<{globalStyle: string, pageStyles: Array<{pageId: string, styleGuide: string}>}>}
    */
-  const analyzeSlideStyle = async (fullContent, options = {}, onThinkingChunk = null) => {
+  const analyzeSlideStyle = async (pages, options = {}, onThinkingChunk = null) => {
     const apiKey = getApiKey()
     if (!apiKey) {
       throw new Error(t('errors.apiKeyNotSet'))
@@ -558,21 +650,89 @@ export function useApi() {
     const ai = new GoogleGenAI({ apiKey })
     const model = options.model || 'gemini-3-flash-preview'
 
-    const analysisPrompt = `You are a presentation design consultant. Analyze the following slide content and suggest a cohesive visual design style.
+    // Build content with page IDs
+    const pagesContent = pages
+      .map((p) => `[Page ID: ${p.id}]\nPage ${p.pageNumber}:\n${p.content}`)
+      .join('\n\n---\n\n')
 
-SLIDE CONTENT:
-${fullContent}
+    const analysisPrompt = `# Presentation Design Analysis Task
 
-Please provide a design style recommendation that includes:
-1. Overall visual theme (e.g., minimalist, corporate, playful, tech)
-2. Color palette suggestion (describe colors, not hex codes)
-3. Typography style (e.g., modern sans-serif, classic serif)
-4. Layout approach (e.g., centered, asymmetric, grid-based)
-5. Visual elements to include (e.g., icons, illustrations, photos, gradients)
+You are a senior presentation design consultant. Analyze the slide content below and create a comprehensive design system.
 
-Output your recommendation as a concise paragraph (2-3 sentences) that can be used as a style prompt for image generation. Write in English.
+---
 
-Example output: "Modern minimalist design with a clean white background and bold navy blue accents. Use geometric shapes and subtle gradients. Typography should be contemporary sans-serif with strong hierarchy."`
+## INPUT: Slide Content
+
+${pagesContent}
+
+---
+
+## OUTPUT REQUIREMENTS
+
+### 1. Global Style Guide (\`globalStyle\`)
+
+Create a detailed design system (4-6 sentences) that ensures visual consistency across ALL slides. Include:
+
+**Color System:**
+- Primary background color (e.g., "clean white #FFFFFF" or "soft cream #F5F5F0")
+- Primary accent color with hex code (e.g., "deep navy blue #1a365d")
+- Secondary accent color with hex code (e.g., "warm coral #ff6b6b")
+- Text colors (heading color, body text color)
+
+**Typography System:**
+- Heading font family and weight (e.g., "Inter Bold" or "Montserrat SemiBold")
+- Body text font family (e.g., "Open Sans Regular")
+- Size hierarchy description (e.g., "large bold titles, medium subheadings, readable body")
+
+**Visual Language:**
+- Layout approach (e.g., "left-aligned with generous whitespace", "centered symmetric")
+- Shape language (e.g., "rounded corners", "sharp geometric", "organic curves")
+- Decorative elements (e.g., "subtle gradients", "line accents", "geometric patterns")
+- Icon style if applicable (e.g., "outline icons", "filled minimal icons")
+
+### 2. Page-Specific Styles (\`pageStyles\`)
+
+For EACH page, determine if it needs additional styling:
+
+- **Title slides**: May need larger, bolder treatment
+- **Content slides with lists**: Standard styling usually sufficient
+- **Chart/Data slides**: Specify data visualization colors and style
+- **Quote slides**: May need special typography treatment
+- **Image-heavy slides**: Layout considerations for image placement
+
+Return an EMPTY string ("") for \`styleGuide\` if global style is sufficient.
+
+---
+
+## STRICT CONSTRAINTS
+
+⛔ Your style recommendations must NEVER include:
+- Page numbers or slide numbers
+- Headers or footers
+- Date/time stamps
+- Company logos (unless content specifically mentions one)
+
+✅ Your style recommendations MUST ensure:
+- **Exact color consistency** - same hex codes reused across all slides
+- **Typography consistency** - same fonts for same content types
+- **Visual coherence** - slides look like they belong together
+
+---
+
+## OUTPUT FORMAT
+
+Return valid JSON matching this structure:
+\`\`\`json
+{
+  "globalStyle": "Detailed 4-6 sentence design system description...",
+  "pageStyles": [
+    { "pageId": "uuid-1", "styleGuide": "" },
+    { "pageId": "uuid-2", "styleGuide": "Special styling for this page..." }
+  ]
+}
+\`\`\`
+
+Write all descriptions in English.`
 
     try {
       // Use streaming to capture thinking process
@@ -581,10 +741,10 @@ Example output: "Modern minimalist design with a clean white background and bold
         contents: [{ role: 'user', parts: [{ text: analysisPrompt }] }],
         config: {
           temperature: 0.3, // Low temperature for consistency
-          maxOutputTokens: 500,
+          responseMimeType: 'application/json',
+          responseSchema: SLIDE_STYLE_SCHEMA,
           thinkingConfig: {
             includeThoughts: true,
-            thinkingBudget: 8192, // Maximum thinking tokens
           },
         },
       })
@@ -593,28 +753,39 @@ Example output: "Modern minimalist design with a clean white background and bold
       let textResponse = ''
 
       for await (const chunk of response) {
-        if (chunk.candidates && chunk.candidates.length > 0) {
-          const candidate = chunk.candidates[0]
-
-          if (candidate.content && candidate.content.parts) {
-            for (const part of candidate.content.parts) {
-              if (part.text) {
-                if (part.thought) {
-                  // Thinking content - stream to callback
-                  if (onThinkingChunk) {
-                    onThinkingChunk(part.text)
-                  }
-                } else {
-                  // Final response text
-                  textResponse += part.text
+        if (chunk.candidates?.[0]?.content?.parts) {
+          for (const part of chunk.candidates[0].content.parts) {
+            if (part.text) {
+              if (part.thought) {
+                // Thinking content - stream to callback
+                if (onThinkingChunk) {
+                  onThinkingChunk(part.text)
                 }
+              } else {
+                // Final response text (JSON)
+                textResponse += part.text
               }
             }
           }
         }
       }
 
-      return textResponse.trim()
+      // Parse JSON response
+      try {
+        const parsed = JSON.parse(textResponse.trim())
+        // Validate structure
+        if (!parsed.globalStyle || !Array.isArray(parsed.pageStyles)) {
+          throw new Error('Invalid response structure')
+        }
+        return parsed
+      } catch (parseErr) {
+        // Fallback: if JSON parsing fails, use raw text as global style
+        console.warn('JSON parse failed, using fallback:', parseErr)
+        return {
+          globalStyle: textResponse.trim() || 'Professional presentation design',
+          pageStyles: pages.map((p) => ({ pageId: p.id, styleGuide: '' })),
+        }
+      }
     } catch (err) {
       throw new Error(t('slides.analyzeFailed') + ': ' + err.message)
     }

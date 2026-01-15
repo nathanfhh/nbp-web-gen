@@ -35,7 +35,7 @@ export function useSlidesGeneration() {
   }
 
   /**
-   * Analyze all pages content and suggest a design style
+   * Analyze all pages content and suggest design styles (global + per-page)
    * @param {Function} onThinkingChunk - Optional callback for thinking chunks
    */
   const analyzeStyle = async (onThinkingChunk = null) => {
@@ -59,18 +59,32 @@ export function useSlidesGeneration() {
     }
 
     try {
-      // Combine all page contents
-      const fullContent = options.pages
-        .map((p, i) => `Page ${i + 1}:\n${p.content}`)
-        .join('\n\n---\n\n')
+      // Prepare pages data with IDs for JSON mode
+      const pagesForAnalysis = options.pages.map((p) => ({
+        id: p.id,
+        pageNumber: p.pageNumber,
+        content: p.content,
+      }))
 
-      const style = await apiAnalyzeSlideStyle(
-        fullContent,
+      const result = await apiAnalyzeSlideStyle(
+        pagesForAnalysis,
         { model: options.analysisModel },
         handleThinkingChunk,
       )
-      store.slidesOptions.analyzedStyle = style
+
+      // Update global style
+      store.slidesOptions.analyzedStyle = result.globalStyle
       store.slidesOptions.styleConfirmed = false
+
+      // Update per-page styles by matching pageId
+      if (result.pageStyles && result.pageStyles.length > 0) {
+        for (const pageStyle of result.pageStyles) {
+          const pageIndex = store.slidesOptions.pages.findIndex((p) => p.id === pageStyle.pageId)
+          if (pageIndex !== -1) {
+            store.slidesOptions.pages[pageIndex].styleGuide = pageStyle.styleGuide || ''
+          }
+        }
+      }
 
       toast.success(t('slides.analyzeSuccess'))
     } catch (err) {
@@ -131,7 +145,7 @@ export function useSlidesGeneration() {
             page.referenceImages,
           )
 
-          // Generate single page
+          // Generate single page with per-page style support
           const result = await generateImageStream(
             page.content,
             {
@@ -139,6 +153,7 @@ export function useSlidesGeneration() {
               pageNumber: page.pageNumber,
               totalPages: options.totalPages,
               globalPrompt: store.prompt, // Prepend to each page content
+              pageStyleGuide: page.styleGuide, // Per-page style (priority over global)
             },
             'slides',
             refImages,
@@ -214,6 +229,7 @@ export function useSlidesGeneration() {
           pageNumber: page.pageNumber,
           totalPages: options.totalPages,
           globalPrompt: store.prompt, // Prepend to each page content
+          pageStyleGuide: page.styleGuide, // Per-page style (priority over global)
         },
         'slides',
         refImages,
@@ -285,6 +301,7 @@ export function useSlidesGeneration() {
         image: null,
         error: null,
         referenceImages: existingPage?.referenceImages || [],
+        styleGuide: existingPage?.styleGuide || '', // Per-page style guide
       }
     })
 

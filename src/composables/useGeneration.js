@@ -242,17 +242,24 @@ export function useGeneration() {
           videoPromptOptions: JSON.parse(JSON.stringify(store.videoPromptOptions)),
         }
       } else if (store.currentMode === 'slides') {
-        // For slides mode, only keep essential options for history restoration
-        // Exclude: pages (large image data), pagesRaw, currentPageIndex, isAnalyzing, analysisError
+        // For slides mode, save content and styles but exclude large binary data
+        // Exclude: pages[].image (large image data), currentPageIndex, isAnalyzing, analysisError
+        // Include: pagesRaw, analyzedStyle, styleConfirmed, per-page styleGuides
+        const pageStyleGuides = options.pages
+          ?.filter((p) => p.styleGuide?.trim())
+          .map((p) => ({ pageNumber: p.pageNumber, styleGuide: p.styleGuide }))
+
         historyOptions = {
           resolution: options.resolution,
           ratio: options.ratio,
           analysisModel: options.analysisModel,
           analyzedStyle: options.analyzedStyle,
           styleConfirmed: options.styleConfirmed,
-          totalPages: options.pages?.length || 0,
           temperature: options.temperature,
           seed: options.seed,
+          // Content and per-page styles
+          pagesRaw: options.pagesRaw || '',
+          pageStyleGuides: pageStyleGuides?.length > 0 ? pageStyleGuides : undefined,
         }
       } else {
         historyOptions = { ...options }

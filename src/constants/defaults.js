@@ -86,7 +86,7 @@ export const DEFAULT_SLIDES_OPTIONS = {
   pagesRaw: '',
 
   // Parsed pages array
-  // Each page: { id, pageNumber, content, status, image, error, referenceImages }
+  // Each page: { id, pageNumber, content, status, image, error, referenceImages, styleGuide }
   pages: [],
 
   // Global reference images (applied to all pages)

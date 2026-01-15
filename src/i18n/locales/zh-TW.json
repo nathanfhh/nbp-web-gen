@@ -235,7 +235,7 @@
     "confirmStyle": "確認並使用此風格",
     "styleNotConfirmed": "請先確認設計風格",
     "noPages": "請輸入簡報內容",
-    "tooManyPages": "頁數超過上限（最多 30 頁）",
+    "tooManyPages": "頁數超過上限（最多 {max} 頁）",
     "pagesList": "頁面列表",
     "generatingPage": "正在生成第 {current}/{total} 頁",
     "progressCompleted": "已完成 {count} 頁",
@@ -258,7 +258,10 @@
     "globalReferences": "全域參考圖",
     "globalReferencesHint": "這些圖片會套用到所有頁面的生成",
     "globalBadge": "全域",
-    "pageReferences": "此頁參考圖"
+    "pageReferences": "此頁參考圖",
+    "pageStyleGuide": "此頁風格指引",
+    "pageStylePlaceholder": "此頁專屬的設計風格說明（留空則使用全域風格）",
+    "pageStyleHint": "若此頁有特殊內容（圖表、引言等），可指定專屬風格"
   },
   "video": {
     "subMode": {

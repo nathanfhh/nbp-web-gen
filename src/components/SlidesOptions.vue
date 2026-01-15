@@ -3,9 +3,11 @@ import { computed, watch, ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useSlidesGeneration } from '@/composables/useSlidesGeneration'
+import { useToast } from '@/composables/useToast'
 
-useI18n()
+const { t } = useI18n()
 const store = useGeneratorStore()
+const toast = useToast()
 const { analyzeStyle, analysisThinking, regeneratePage, reorderPages, parsePages, deletePage } =
   useSlidesGeneration()
 
@@ -15,6 +17,12 @@ const isThinkingExpanded = ref(false)
 
 // Style mode: 'ai' = AI analyzes, 'manual' = user inputs directly
 const styleMode = ref('ai')
+
+// Track which pages have their style guide expanded
+const expandedPageStyles = ref({})
+
+// Page limit constant
+const MAX_PAGES = 30
 
 // Reference images constants and refs
 const MAX_REFERENCE_IMAGES = 5
@@ -27,6 +35,9 @@ const analysisModels = [
 ]
 
 const options = computed(() => store.slidesOptions)
+
+// Check if page count exceeds limit
+const isPageLimitExceeded = computed(() => options.value.totalPages > MAX_PAGES)
 
 const resolutions = [
   { value: '1k', label: '1K' },
@@ -48,6 +59,13 @@ watch(
   },
   { immediate: true },
 )
+
+// Watch for page limit exceeded and show error
+watch(isPageLimitExceeded, (exceeded) => {
+  if (exceeded) {
+    toast.error(t('slides.tooManyPages', { max: MAX_PAGES }))
+  }
+})
 
 // Analyze style button handler
 const handleAnalyzeStyle = async () => {
@@ -111,45 +129,6 @@ const getStatusClass = (status) => {
   }
 }
 
-// Progress percentage
-const progressPercent = computed(() => {
-  if (options.value.currentPageIndex < 0 || options.value.totalPages === 0) return 0
-  return Math.round(((options.value.currentPageIndex + 1) / options.value.totalPages) * 100)
-})
-
-// Estimated time remaining (ETA)
-const estimatedTimeRemaining = computed(() => {
-  const times = options.value.pageGenerationTimes
-  if (!times || times.length === 0) return null
-
-  // Calculate average time per page from completed pages
-  const avgTimePerPage = times.reduce((sum, t) => sum + t, 0) / times.length
-  const remainingPages = options.value.totalPages - (options.value.currentPageIndex + 1)
-
-  if (remainingPages <= 0) return null
-
-  const etaMs = avgTimePerPage * remainingPages
-  return formatDuration(etaMs)
-})
-
-// Format duration in human-readable format
-const formatDuration = (ms) => {
-  const seconds = Math.round(ms / 1000)
-  if (seconds < 60) {
-    return `${seconds}s`
-  }
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
-  if (remainingSeconds === 0) {
-    return `${minutes}m`
-  }
-  return `${minutes}m ${remainingSeconds}s`
-}
-
-// Check if any page has been generated
-const hasGeneratedPages = computed(() => {
-  return options.value.pages.some((p) => p.status === 'done' && p.image)
-})
 
 // ===== Reference Images Logic =====
 
@@ -236,6 +215,11 @@ const handlePageReferenceUpload = (event, pageIndex) => {
 // Remove page-specific reference image
 const removePageReference = (pageIndex, refIndex) => {
   store.slidesOptions.pages[pageIndex].referenceImages.splice(refIndex, 1)
+}
+
+// Toggle page style guide expansion
+const togglePageStyle = (pageId) => {
+  expandedPageStyles.value[pageId] = !expandedPageStyles.value[pageId]
 }
 </script>
 
@@ -357,7 +341,7 @@ const removePageReference = (pageIndex, refIndex) => {
         v-model="store.slidesOptions.pagesRaw"
         :placeholder="$t('slides.pagesPlaceholder')"
         class="input-premium min-h-[160px] resize-y font-mono text-sm"
-        :disabled="store.isGenerating"
+        :disabled="store.isGenerating || options.isAnalyzing"
       />
       <p class="text-xs text-text-muted">{{ $t('slides.pagesHint') }}</p>
     </div>
@@ -433,7 +417,7 @@ const removePageReference = (pageIndex, refIndex) => {
         <!-- Analyze Button -->
         <button
           @click="handleAnalyzeStyle"
-          :disabled="options.totalPages === 0 || options.isAnalyzing || store.isGenerating"
+          :disabled="options.totalPages === 0 || isPageLimitExceeded || options.isAnalyzing || store.isGenerating"
           class="w-full py-2.5 text-sm flex items-center justify-center gap-2 rounded-lg font-medium transition-all bg-brand-primary/20 text-brand-primary hover:bg-brand-primary/30 border border-brand-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg
@@ -540,37 +524,6 @@ const removePageReference = (pageIndex, refIndex) => {
       </button>
     </div>
 
-    <!-- Generation Progress Bar -->
-    <div
-      v-if="store.isGenerating && options.currentPageIndex >= 0"
-      class="p-4 rounded-xl bg-mode-generate-muted/30 border border-mode-generate space-y-3"
-    >
-      <!-- Progress Header -->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-mode-generate animate-pulse" />
-          <span class="text-sm font-medium text-mode-generate">
-            {{ $t('slides.generatingPage', { current: options.currentPageIndex + 1, total: options.totalPages }) }}
-          </span>
-        </div>
-        <span class="text-sm font-mono text-mode-generate">{{ progressPercent }}%</span>
-      </div>
-
-      <!-- Progress Bar -->
-      <div class="h-2 bg-bg-muted rounded-full overflow-hidden">
-        <div
-          class="h-full bg-mode-generate rounded-full transition-all duration-500 ease-out"
-          :style="{ width: `${progressPercent}%` }"
-        />
-      </div>
-
-      <!-- ETA Display -->
-      <div class="flex items-center justify-between text-xs text-text-muted">
-        <span>{{ $t('slides.progressCompleted', { count: options.currentPageIndex }) }}</span>
-        <span v-if="estimatedTimeRemaining">{{ $t('slides.eta', { time: estimatedTimeRemaining }) }}</span>
-      </div>
-    </div>
-
     <!-- Pages List (Vertical Layout) -->
     <div v-if="options.pages.length > 0" class="space-y-4">
       <h4 class="text-sm font-medium text-text-primary">{{ $t('slides.pagesList') }}</h4>
@@ -647,6 +600,36 @@ const removePageReference = (pageIndex, refIndex) => {
           <!-- Page Content Preview -->
           <p class="text-sm text-text-secondary line-clamp-2">{{ page.content }}</p>
 
+          <!-- Per-page Style Guide (collapsible) -->
+          <div class="mt-3 pt-3 border-t border-border-muted/50">
+            <button
+              @click="togglePageStyle(page.id)"
+              class="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors w-full"
+            >
+              <svg
+                class="w-3 h-3 transition-transform"
+                :class="{ 'rotate-90': expandedPageStyles[page.id] }"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+              <span>{{ $t('slides.pageStyleGuide') }}</span>
+              <span v-if="page.styleGuide" class="text-mode-generate">●</span>
+            </button>
+
+            <div v-show="expandedPageStyles[page.id]" class="mt-2 space-y-2">
+              <textarea
+                v-model="store.slidesOptions.pages[index].styleGuide"
+                :placeholder="$t('slides.pageStylePlaceholder')"
+                class="input-premium min-h-[60px] text-xs"
+                :disabled="store.isGenerating || options.isAnalyzing"
+              />
+              <p class="text-xs text-text-muted">{{ $t('slides.pageStyleHint') }}</p>
+            </div>
+          </div>
+
           <!-- Thumbnail Preview (if generated) -->
           <div v-if="page.image?.data" class="mt-3">
             <img
@@ -718,42 +701,5 @@ const removePageReference = (pageIndex, refIndex) => {
       </div>
     </div>
 
-    <!-- Progress Indicator -->
-    <div v-if="options.currentPageIndex >= 0" class="space-y-2">
-      <div class="flex items-center justify-between text-sm">
-        <span class="text-text-secondary">
-          {{
-            $t('slides.generatingPage', {
-              current: options.currentPageIndex + 1,
-              total: options.totalPages,
-            })
-          }}
-        </span>
-        <span class="text-mode-generate font-mono">{{ progressPercent }}%</span>
-      </div>
-      <div class="w-full h-2 bg-bg-muted rounded-full overflow-hidden">
-        <div
-          class="h-full bg-mode-generate transition-all duration-300"
-          :style="{ width: `${progressPercent}%` }"
-        />
-      </div>
-    </div>
-
-    <!-- Export Buttons (shown when there are generated pages) -->
-    <!-- TODO: Implement ZIP and PDF export functionality in future version -->
-    <div v-if="hasGeneratedPages" class="flex gap-3">
-      <button class="btn-secondary flex-1 py-2.5 text-sm flex items-center justify-center gap-2" disabled>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        {{ $t('slides.exportZip') }}
-      </button>
-      <button class="btn-secondary flex-1 py-2.5 text-sm flex items-center justify-center gap-2" disabled>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-        {{ $t('slides.exportPdf') }}
-      </button>
-    </div>
   </div>
 </template>

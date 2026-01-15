@@ -73,9 +73,92 @@ const availableThemes = computed(() => getAvailableThemes())
 const currentTheme = useTheme()
 const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
 
-// Check if slides mode requires style confirmation before generating
+// Check if slides mode requires style confirmation before generating or has too many pages
+const MAX_SLIDES_PAGES = 30
 const isSlidesNotReady = computed(() => {
-  return store.currentMode === 'slides' && !store.slidesOptions.styleConfirmed
+  if (store.currentMode !== 'slides') return false
+  // Check style confirmation and page limit
+  return !store.slidesOptions.styleConfirmed || store.slidesOptions.totalPages > MAX_SLIDES_PAGES
+})
+
+// ============================================================================
+// Slides Progress Bar (shown above Generate button during slides generation)
+// ============================================================================
+const slidesEtaMs = ref(0)
+let slidesEtaIntervalId = null
+
+// Progress percentage: completed pages / total pages
+// currentPageIndex is 0-based and represents the page currently being generated
+// So completed pages = currentPageIndex (pages 0 to currentPageIndex-1 are done)
+const slidesProgressPercent = computed(() => {
+  const opts = store.slidesOptions
+  if (opts.currentPageIndex < 0 || opts.totalPages === 0) return 0
+  // When generating page N (0-indexed), N pages are completed (0 to N-1)
+  return Math.round((opts.currentPageIndex / opts.totalPages) * 100)
+})
+
+// Calculate ETA based on completed page times
+const calculateSlidesEta = () => {
+  const opts = store.slidesOptions
+  const times = opts.pageGenerationTimes
+  if (!times || times.length === 0) return 0
+
+  const avgTimePerPage = times.reduce((sum, t) => sum + t, 0) / times.length
+  // Remaining pages = total - completed = total - currentPageIndex
+  // Plus 1 for the current page being generated
+  const remainingPages = opts.totalPages - opts.currentPageIndex
+  if (remainingPages <= 0) return 0
+  return avgTimePerPage * remainingPages
+}
+
+// Formatted ETA display
+const slidesEtaFormatted = computed(() => {
+  if (slidesEtaMs.value <= 0) return null
+  const seconds = Math.round(slidesEtaMs.value / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  if (remainingSeconds === 0) return `${minutes}m`
+  return `${minutes}m ${remainingSeconds}s`
+})
+
+// Watch for page completion to recalculate ETA
+watch(
+  () => store.slidesOptions.pageGenerationTimes?.length,
+  () => {
+    if (store.isGenerating && store.currentMode === 'slides') {
+      slidesEtaMs.value = calculateSlidesEta()
+    }
+  },
+)
+
+// Start/stop countdown timer based on generation state
+watch(
+  () => store.isGenerating,
+  (isGenerating) => {
+    if (isGenerating && store.currentMode === 'slides') {
+      // Start countdown interval
+      slidesEtaIntervalId = setInterval(() => {
+        if (slidesEtaMs.value > 1000) {
+          slidesEtaMs.value -= 1000
+        }
+      }, 1000)
+    } else {
+      // Stop countdown and reset
+      if (slidesEtaIntervalId) {
+        clearInterval(slidesEtaIntervalId)
+        slidesEtaIntervalId = null
+      }
+      slidesEtaMs.value = 0
+    }
+  },
+)
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (slidesEtaIntervalId) {
+    clearInterval(slidesEtaIntervalId)
+  }
 })
 
 const closeThemeMenu = () => {
@@ -579,6 +662,37 @@ const handleAddToReferences = (referenceData) => {
                   />
                 </svg>
                 <p class="text-status-error text-sm">{{ store.generationError }}</p>
+              </div>
+            </div>
+
+            <!-- Slides Generation Progress Bar -->
+            <div
+              v-if="store.currentMode === 'slides' && store.isGenerating && store.slidesOptions.currentPageIndex >= 0"
+              class="mt-6 p-4 rounded-xl bg-mode-generate-muted/30 border border-mode-generate space-y-3"
+            >
+              <!-- Progress Header -->
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 rounded-full bg-mode-generate animate-pulse" />
+                  <span class="text-sm font-medium text-mode-generate">
+                    {{ $t('slides.generatingPage', { current: store.slidesOptions.currentPageIndex + 1, total: store.slidesOptions.totalPages }) }}
+                  </span>
+                </div>
+                <span class="text-sm font-mono text-mode-generate">{{ slidesProgressPercent }}%</span>
+              </div>
+
+              <!-- Progress Bar -->
+              <div class="h-2 bg-bg-muted rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-mode-generate rounded-full transition-all duration-500 ease-out"
+                  :style="{ width: `${slidesProgressPercent}%` }"
+                />
+              </div>
+
+              <!-- ETA Display -->
+              <div class="flex items-center justify-between text-xs text-text-muted">
+                <span>{{ $t('slides.progressCompleted', { count: store.slidesOptions.currentPageIndex }) }}</span>
+                <span v-if="slidesEtaFormatted">{{ $t('slides.eta', { time: slidesEtaFormatted }) }}</span>
               </div>
             </div>
 

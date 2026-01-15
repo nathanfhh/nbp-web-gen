@@ -235,7 +235,7 @@
     "confirmStyle": "Confirm and Use This Style",
     "styleNotConfirmed": "Please confirm the design style first",
     "noPages": "Please enter presentation content",
-    "tooManyPages": "Too many pages (max 30)",
+    "tooManyPages": "Too many pages (max {max})",
     "pagesList": "Page List",
     "generatingPage": "Generating page {current}/{total}",
     "progressCompleted": "{count} pages completed",
@@ -258,7 +258,10 @@
     "globalReferences": "Global References",
     "globalReferencesHint": "These images will be applied to all pages",
     "globalBadge": "Global",
-    "pageReferences": "Page References"
+    "pageReferences": "Page References",
+    "pageStyleGuide": "Page Style Guide",
+    "pageStylePlaceholder": "Page-specific design style (leave empty to use global style)",
+    "pageStyleHint": "Specify custom style for pages with special content (charts, quotes, etc.)"
   },
   "video": {
     "subMode": {
