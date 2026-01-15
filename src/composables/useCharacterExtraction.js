@@ -1,6 +1,6 @@
 import { ref } from 'vue'
+import { GoogleGenAI } from '@google/genai'
 import { useLocalStorage } from './useLocalStorage'
-import { API_BASE_URL } from '@/constants'
 import i18n from '@/i18n'
 
 // Helper to get translated error messages
@@ -93,7 +93,12 @@ export function useCharacterExtraction() {
     extractionError.value = null
 
     try {
-      const requestBody = {
+      // Initialize SDK client
+      const ai = new GoogleGenAI({ apiKey })
+
+      // Make API request using SDK
+      const response = await ai.models.generateContent({
+        model,
         contents: [
           {
             role: 'user',
@@ -108,7 +113,7 @@ export function useCharacterExtraction() {
             ],
           },
         ],
-        generationConfig: {
+        config: {
           responseMimeType: 'application/json',
           responseSchema: EXTRACTION_SCHEMA,
           temperature: 0.2, // Low temperature for consistent extraction
@@ -116,38 +121,14 @@ export function useCharacterExtraction() {
             thinkingLevel: 'HIGH',
           },
         },
-      }
-
-      const url = `${API_BASE_URL}/${model}:generateContent?key=${apiKey}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        let errorMessage = t('errors.apiRequestFailed', { status: response.status })
-        try {
-          const errorData = JSON.parse(errorText)
-          errorMessage = errorData.error?.message || errorMessage
-        } catch {
-          // ignore parse error
-        }
-        throw new Error(errorMessage)
-      }
-
-      const data = await response.json()
-
       // Extract JSON from response
-      if (!data.candidates || data.candidates.length === 0) {
+      if (!response.candidates || response.candidates.length === 0) {
         throw new Error(t('errors.noImageInResponse'))
       }
 
-      const candidate = data.candidates[0]
+      const candidate = response.candidates[0]
       if (!candidate.content || !candidate.content.parts) {
         throw new Error(t('errors.invalidResponseFormat'))
       }

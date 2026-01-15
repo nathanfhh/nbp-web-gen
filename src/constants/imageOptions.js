@@ -1,10 +1,9 @@
 /**
  * Image generation options constants
- * Centralized constants for resolution, aspect ratio, and API configuration
+ * Centralized constants for resolution, aspect ratio, and model configuration
  */
 
-// API Configuration
-export const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+// Model Configuration
 export const DEFAULT_MODEL = 'gemini-3-pro-image-preview'
 
 // Resolution options for UI display
