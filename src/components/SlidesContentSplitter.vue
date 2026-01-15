@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from '@/composables/useApi'
@@ -22,6 +22,7 @@ const selectedModel = ref('gemini-3-flash-preview')
 // Processing state
 const isProcessing = ref(false)
 const thinkingProcess = ref([])
+const thinkingPanelRef = ref(null)
 
 // Model options (same as analysisModels in SlidesOptions)
 const models = [
@@ -54,6 +55,12 @@ const handleThinkingChunk = (chunk) => {
   thinkingProcess.value.push({
     type: 'text',
     content: chunk,
+  })
+  // Auto-scroll to bottom
+  nextTick(() => {
+    if (thinkingPanelRef.value) {
+      thinkingPanelRef.value.scrollTop = thinkingPanelRef.value.scrollHeight
+    }
   })
 }
 
@@ -207,6 +214,7 @@ defineExpose({ open })
           <!-- Thinking Process -->
           <div
             v-if="isProcessing && thinkingProcess.length > 0"
+            ref="thinkingPanelRef"
             class="mb-6 p-4 rounded-xl bg-bg-muted/50 border border-border-muted max-h-[200px] overflow-y-auto"
           >
             <div class="flex items-center gap-2 mb-2">
