@@ -58,7 +58,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'close'])
 
-// Image storage for OPFS access
+// Image storage for OPFS access (used by useLightboxDownload)
 const imageStorage = useImageStorage()
 
 // PDF generator
@@ -416,62 +416,8 @@ const handleExtractCharacter = async () => {
 
 // Navigate to Slide to PPTX tool (for slides mode)
 const goToSlideToPptx = async () => {
-  // Prepare all images for the PPTX tool
-  // Images from history have { url, opfsPath, data: null } structure
-  // Need to convert to base64 for sessionStorage transfer
-  const imagesToExport = []
-
-  for (let index = 0; index < props.images.length; index++) {
-    const img = props.images[index]
-    let base64Data = null
-
-    // Try to get base64 from different sources
-    if (img.data) {
-      // Direct base64 data (fresh generation)
-      base64Data = img.data
-    } else if (img.opfsPath) {
-      // Load from OPFS storage
-      base64Data = await imageStorage.getImageBase64(img.opfsPath)
-    } else if (img.url && img.url.startsWith('blob:')) {
-      // Convert Blob URL to base64
-      try {
-        const response = await fetch(img.url)
-        const blob = await response.blob()
-        base64Data = await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onloadend = () => {
-            const dataUrl = reader.result
-            // Remove data:image/xxx;base64, prefix
-            resolve(dataUrl.split(',')[1])
-          }
-          reader.onerror = reject
-          reader.readAsDataURL(blob)
-        })
-      } catch (err) {
-        console.error(`Failed to convert blob URL for image ${index}:`, err)
-      }
-    }
-
-    if (base64Data) {
-      imagesToExport.push({
-        data: base64Data,
-        mimeType: props.imageMetadata?.[index]?.mimeType || img.mimeType || 'image/webp',
-        index,
-      })
-    }
-  }
-
-  if (imagesToExport.length === 0) {
+  if (!props.historyId) {
     toast.error(t('errors.noImagesLoaded'))
-    return
-  }
-
-  // Store images in sessionStorage
-  try {
-    sessionStorage.setItem('slideToPptxImages', JSON.stringify(imagesToExport))
-  } catch (e) {
-    console.error('Failed to store images in sessionStorage:', e)
-    toast.error(t('errors.storageFailed'))
     return
   }
 
@@ -481,12 +427,18 @@ const goToSlideToPptx = async () => {
   // Clean up history state before navigation
   await cleanupBeforeNavigation()
 
-  // Navigate to slide-to-pptx tool
+  // Navigate to slide-to-pptx tool with history-id
   try {
-    await router.push({ name: 'slide-to-pptx' })
+    await router.push({
+      name: 'slide-to-pptx',
+      query: { 'history-id': props.historyId },
+    })
   } catch (err) {
     console.error('Router push failed, falling back to location assignment:', err)
-    const targetUrl = router.resolve({ name: 'slide-to-pptx' }).href
+    const targetUrl = router.resolve({
+      name: 'slide-to-pptx',
+      query: { 'history-id': props.historyId },
+    }).href
     window.location.href = targetUrl
   }
 }

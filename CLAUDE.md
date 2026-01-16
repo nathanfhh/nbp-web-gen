@@ -122,6 +122,19 @@ scaleX = originalWidth / scaledWidth  // scaledWidth 是實際內容寬度
 ### Web Workers
 - `workers/stickerSegmentation.worker.js` - Client-side sticker sheet segmentation using BFS flood fill and projection-based region detection
 - `workers/pdfGenerator.worker.js` - PDF batch download generation
+- `workers/pdfToImages.worker.js` - PDF to PNG conversion using PDF.js
+- `workers/ocr.worker.js` - OCR text detection using ONNX Runtime and PaddleOCR
+- `workers/inpainting.worker.js` - Text removal using OpenCV.js inpainting
+
+**⚠️ PDF.js Version Matching Rule**
+
+When using `pdfjs-dist`, the CDN worker URL version **MUST exactly match** the installed package version. Use jsdelivr (mirrors npm) instead of cdnjs (may lag behind):
+```javascript
+// In pdfToImages.worker.js - version must match package.json
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs'
+```
+If you update `pdfjs-dist` in package.json, you **MUST** also update the CDN URL in the worker file.
 
 ### Internationalization
 - `i18n/index.js` with locale files in `i18n/locales/`

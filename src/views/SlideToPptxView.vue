@@ -7,6 +7,7 @@ import { useSlideToPptx } from '@/composables/useSlideToPptx'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useImageStorage } from '@/composables/useImageStorage'
 import ImageLightbox from '@/components/ImageLightbox.vue'
+import SlideFileUploader from '@/components/SlideFileUploader.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,11 +19,18 @@ const slideToPptx = useSlideToPptx()
 const indexedDB = useIndexedDB()
 const imageStorage = useImageStorage()
 
+// View mode: 'loading' | 'upload' | 'processing' | 'error'
+const viewMode = ref('loading')
+const historyError = ref(false)
+
 // Image state
 const images = ref([])
 const currentIndex = ref(0)
 const isLoading = ref(true)
 const historyRecord = ref(null)
+
+// Uploaded images (for upload mode)
+const uploadedImages = ref([])
 
 // Log container ref for auto-scroll
 const logContainer = ref(null)
@@ -48,6 +56,9 @@ const selectSlide = (idx) => {
 
 // OCR overlay toggle
 const showOcrOverlay = ref(true)
+
+// OCR JSON overlay (shows raw OCR result data)
+const showOcrJsonOverlay = ref(false)
 
 // Lightbox state
 const lightboxOpen = ref(false)
@@ -120,28 +131,6 @@ const loadFromHistory = async (historyId) => {
   }
 }
 
-/**
- * Load images from sessionStorage (legacy method)
- */
-const loadFromSessionStorage = () => {
-  const storedImages = sessionStorage.getItem('slideToPptxImages')
-  if (!storedImages) return false
-
-  try {
-    const parsed = JSON.parse(storedImages)
-    images.value = parsed.map((img, idx) => ({
-      id: idx,
-      data: img.data,
-      mimeType: img.mimeType || 'image/webp',
-      preview: `data:${img.mimeType || 'image/webp'};base64,${img.data}`,
-    }))
-    sessionStorage.removeItem('slideToPptxImages')
-    return true
-  } catch {
-    return false
-  }
-}
-
 // Load images on mount
 onMounted(async () => {
   try {
@@ -151,23 +140,60 @@ onMounted(async () => {
       // Load from IndexedDB by history_id
       const success = await loadFromHistory(Number(historyId))
       if (!success) {
-        // Try sessionStorage as fallback
-        loadFromSessionStorage()
+        // History not found - show error with option to use file upload
+        historyError.value = true
+        viewMode.value = 'error'
+      } else {
+        viewMode.value = 'processing'
       }
     } else {
-      // Legacy: try sessionStorage
-      if (!loadFromSessionStorage()) {
-        // No images found anywhere
-        toast.error(t('slideToPptx.noImagesFound'))
-      }
+      // No history-id provided - show upload interface
+      viewMode.value = 'upload'
     }
   } catch (e) {
     console.error('Failed to load images:', e)
     toast.error(t('slideToPptx.loadFailed'))
+    historyError.value = true
+    viewMode.value = 'error'
   } finally {
     isLoading.value = false
   }
 })
+
+/**
+ * Handle uploaded images from SlideFileUploader
+ */
+const handleUploadedImages = (newImages) => {
+  uploadedImages.value = newImages
+}
+
+/**
+ * Start processing uploaded images
+ */
+const startProcessingUploaded = () => {
+  if (uploadedImages.value.length === 0) return
+
+  // Convert uploaded images to the format needed by the view
+  images.value = uploadedImages.value.map((img, idx) => ({
+    id: idx,
+    data: img.data,
+    mimeType: img.mimeType,
+    preview: img.preview,
+    opfsPath: null,
+  }))
+
+  viewMode.value = 'processing'
+}
+
+/**
+ * Switch to file upload mode (from error state)
+ */
+const useFileUpload = () => {
+  historyError.value = false
+  // Remove history-id from URL
+  router.replace({ query: {} })
+  viewMode.value = 'upload'
+}
 
 // Prevent accidental page close during processing
 const handleBeforeUnload = (e) => {
@@ -407,7 +433,42 @@ const getSlideStatus = (index) => {
         <div class="animate-spin w-8 h-8 border-2 border-mode-generate border-t-transparent rounded-full"></div>
       </div>
 
-      <!-- No Images State -->
+      <!-- Upload Mode -->
+      <div v-else-if="viewMode === 'upload'" class="max-w-4xl mx-auto">
+        <SlideFileUploader
+          :images="uploadedImages"
+          :max-items="30"
+          @update:images="handleUploadedImages"
+          @start-processing="startProcessingUploaded"
+        />
+      </div>
+
+      <!-- Error State (invalid history-id) -->
+      <div v-else-if="viewMode === 'error'" class="text-center py-16">
+        <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-status-warning-muted flex items-center justify-center">
+          <svg class="w-10 h-10 text-status-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <p class="text-text-primary text-lg font-medium mb-2">{{ $t('slideToPptx.historyNotFound') }}</p>
+        <p class="text-text-muted mb-6">{{ $t('slideToPptx.historyNotFoundDesc') }}</p>
+        <div class="flex items-center justify-center gap-4">
+          <button
+            @click="goBack"
+            class="px-6 py-3 rounded-xl font-medium transition-all border border-border-default text-text-secondary hover:border-mode-generate hover:text-mode-generate"
+          >
+            {{ $t('slideToPptx.backToHome') }}
+          </button>
+          <button
+            @click="useFileUpload"
+            class="px-6 py-3 rounded-xl font-medium transition-all bg-mode-generate hover:bg-mode-generate-hover text-text-on-brand"
+          >
+            {{ $t('slideToPptx.useFileUpload') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- No Images State (legacy) -->
       <div v-else-if="images.length === 0" class="text-center py-16">
         <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-bg-muted flex items-center justify-center">
           <svg class="w-10 h-10 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -415,7 +476,10 @@ const getSlideStatus = (index) => {
           </svg>
         </div>
         <p class="text-text-muted text-lg mb-4">{{ $t('slideToPptx.noImagesFound') }}</p>
-        <button @click="goBack" class="btn-primary">
+        <button
+          @click="goBack"
+          class="px-6 py-3 rounded-xl font-medium transition-all bg-mode-generate hover:bg-mode-generate-hover text-text-on-brand"
+        >
           {{ $t('common.back') }}
         </button>
       </div>
@@ -439,52 +503,76 @@ const getSlideStatus = (index) => {
             </div>
 
             <!-- Image Container - Side by side when processed -->
-            <div v-if="currentSlideState?.cleanImage" class="grid grid-cols-2 gap-4">
-              <!-- Original Image -->
-              <div class="space-y-2">
-                <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.original') }}</h4>
-                <div
-                  class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
-                  @click="currentImage && openLightbox(currentImage.preview)"
-                >
-                  <img
-                    v-if="currentImage"
-                    :src="currentImage.preview"
-                    alt="Original"
-                    class="absolute inset-0 w-full h-full object-contain"
-                  />
-                  <!-- OCR Overlay on original -->
-                  <div v-if="showOcrOverlay && currentOcrResults.length > 0" class="absolute inset-0 pointer-events-none">
-                    <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
-                      <rect
-                        v-for="(result, idx) in currentOcrResults"
-                        :key="idx"
-                        :x="result.bounds.x"
-                        :y="result.bounds.y"
-                        :width="result.bounds.width"
-                        :height="result.bounds.height"
-                        fill="rgba(59, 130, 246, 0.2)"
-                        stroke="rgba(59, 130, 246, 0.8)"
-                        stroke-width="2"
-                      />
-                    </svg>
+            <div v-if="currentSlideState?.cleanImage" class="relative">
+              <div class="grid grid-cols-2 gap-4">
+                <!-- Original Image -->
+                <div class="space-y-2">
+                  <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.original') }}</h4>
+                  <div
+                    class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
+                    @click="currentImage && openLightbox(currentImage.preview)"
+                  >
+                    <img
+                      v-if="currentImage"
+                      :src="currentImage.preview"
+                      alt="Original"
+                      class="absolute inset-0 w-full h-full object-contain"
+                    />
+                    <!-- OCR Overlay on original -->
+                    <div v-if="showOcrOverlay && currentOcrResults.length > 0" class="absolute inset-0 pointer-events-none">
+                      <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
+                        <rect
+                          v-for="(result, idx) in currentOcrResults"
+                          :key="idx"
+                          :x="result.bounds.x"
+                          :y="result.bounds.y"
+                          :width="result.bounds.width"
+                          :height="result.bounds.height"
+                          fill="rgba(59, 130, 246, 0.2)"
+                          stroke="rgba(59, 130, 246, 0.8)"
+                          stroke-width="2"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <!-- Processed Image -->
+                <div class="space-y-2">
+                  <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.processed') }}</h4>
+                  <div
+                    class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
+                    @click="openLightbox(currentSlideState.cleanImage)"
+                  >
+                    <img
+                      :src="currentSlideState.cleanImage"
+                      alt="Processed"
+                      class="absolute inset-0 w-full h-full object-contain"
+                    />
                   </div>
                 </div>
               </div>
-              <!-- Processed Image -->
-              <div class="space-y-2">
-                <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.processed') }}</h4>
-                <div
-                  class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
-                  @click="openLightbox(currentSlideState.cleanImage)"
-                >
-                  <img
-                    :src="currentSlideState.cleanImage"
-                    alt="Processed"
-                    class="absolute inset-0 w-full h-full object-contain"
-                  />
-                </div>
+
+              <!-- OCR JSON Overlay (covers both images in side-by-side mode) -->
+              <div
+                v-if="showOcrJsonOverlay && currentOcrResults.length > 0"
+                class="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-xl overflow-auto p-4 z-10"
+                @click.stop
+              >
+                <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrResults, null, 2) }}</pre>
               </div>
+
+              <!-- OCR JSON Toggle Button (top-right, for side-by-side mode) -->
+              <button
+                v-if="currentOcrResults.length > 0"
+                @click.stop="showOcrJsonOverlay = !showOcrJsonOverlay"
+                class="absolute top-2 right-2 z-20 p-2 rounded-lg transition-colors"
+                :class="showOcrJsonOverlay ? 'bg-mode-generate text-white' : 'bg-black/50 hover:bg-black/70 text-white'"
+                :title="$t('slideToPptx.toggleOcrJson')"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+              </button>
             </div>
 
             <!-- Single Image Container - Before processing -->
@@ -516,6 +604,28 @@ const getSlideStatus = (index) => {
                   />
                 </svg>
               </div>
+
+              <!-- OCR JSON Overlay -->
+              <div
+                v-if="showOcrJsonOverlay && currentOcrResults.length > 0"
+                class="absolute inset-0 bg-black/80 backdrop-blur-sm overflow-auto p-4 z-10"
+                @click.stop
+              >
+                <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrResults, null, 2) }}</pre>
+              </div>
+
+              <!-- OCR JSON Toggle Button (top-right) -->
+              <button
+                v-if="currentOcrResults.length > 0"
+                @click.stop="showOcrJsonOverlay = !showOcrJsonOverlay"
+                class="absolute top-2 right-2 z-20 p-2 rounded-lg transition-colors"
+                :class="showOcrJsonOverlay ? 'bg-mode-generate text-white' : 'bg-black/50 hover:bg-black/70 text-white'"
+                :title="$t('slideToPptx.toggleOcrJson')"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+              </button>
 
               <!-- Navigation Arrows -->
               <button
@@ -557,6 +667,9 @@ const getSlideStatus = (index) => {
                 <div class="w-2 h-2 rounded-full bg-mode-generate animate-pulse"></div>
                 <span class="text-sm text-text-secondary">
                   {{ $t('slideToPptx.processingPage', { current: slideToPptx.currentSlide.value, total: images.length }) }}
+                </span>
+                <span class="text-sm text-text-muted ml-auto font-mono">
+                  {{ slideToPptx.formatElapsedTime(slideToPptx.elapsedTime.value) }}
                 </span>
               </div>
 
@@ -643,7 +756,13 @@ const getSlideStatus = (index) => {
             <div class="mb-4">
               <div class="flex justify-between text-sm text-text-muted mb-2">
                 <span>{{ currentStep ? $t(`slideToPptx.steps.${currentStep}`) : $t('slideToPptx.ready') }}</span>
-                <span>{{ progress }}%</span>
+                <div class="flex items-center gap-3">
+                  <!-- Elapsed time (during or after processing) -->
+                  <span v-if="slideToPptx.elapsedTime.value > 0" class="font-mono text-text-muted">
+                    {{ slideToPptx.formatElapsedTime(slideToPptx.elapsedTime.value) }}
+                  </span>
+                  <span>{{ progress }}%</span>
+                </div>
               </div>
               <div class="h-2 bg-bg-muted rounded-full overflow-hidden">
                 <div

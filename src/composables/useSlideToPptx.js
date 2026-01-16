@@ -61,6 +61,11 @@ export function useSlideToPptx() {
   const progress = ref(0)
   const logs = ref([])
 
+  // Timer state
+  const startTime = ref(null)
+  const elapsedTime = ref(0) // in milliseconds
+  let timerInterval = null
+
   // Setting mode: 'global' = all slides use same settings, 'per-page' = each slide can have custom settings
   const settingMode = ref('global')
 
@@ -114,6 +119,43 @@ export function useSlideToPptx() {
    */
   const clearLogs = () => {
     logs.value = []
+  }
+
+  /**
+   * Start the processing timer
+   */
+  const startTimer = () => {
+    startTime.value = Date.now()
+    elapsedTime.value = 0
+    timerInterval = setInterval(() => {
+      elapsedTime.value = Date.now() - startTime.value
+    }, 100) // Update every 100ms for smooth display
+  }
+
+  /**
+   * Stop the processing timer
+   */
+  const stopTimer = () => {
+    if (timerInterval) {
+      clearInterval(timerInterval)
+      timerInterval = null
+    }
+    if (startTime.value) {
+      elapsedTime.value = Date.now() - startTime.value
+    }
+  }
+
+  /**
+   * Format elapsed time as MM:SS.s
+   * @param {number} ms - Milliseconds
+   * @returns {string} Formatted time
+   */
+  const formatElapsedTime = (ms) => {
+    const totalSeconds = Math.floor(ms / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    const tenths = Math.floor((ms % 1000) / 100)
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${tenths}`
   }
 
   /**
@@ -478,6 +520,7 @@ Output: A single clean image with all text removed.`
     totalSlides.value = images.length
     progress.value = 0
     clearLogs()
+    startTimer()
 
     // Initialize slide states with extended structure
     // IMPORTANT: Preserve existing overrideSettings (per-page settings) and OCR cache
@@ -572,6 +615,7 @@ Output: A single clean image with all text removed.`
       }
       return false
     } finally {
+      stopTimer()
       isProcessing.value = false
       currentStep.value = ''
     }
@@ -704,6 +748,10 @@ Output: A single clean image with all text removed.`
     logs,
     slideStates,
     settings,
+
+    // Timer state
+    elapsedTime,
+    formatElapsedTime,
 
     // Setting mode ('global' | 'per-page')
     settingMode,
