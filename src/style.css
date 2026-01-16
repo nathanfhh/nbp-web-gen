@@ -747,7 +747,7 @@ html {
 /* Note: scroll-snap removed in favor of JS-controlled asymmetric scrolling
    - Scroll down: Easy snap from Hero to Main
    - Scroll up: Requires more effort to return to Hero
-   See HomeView.vue useAsymmetricScroll() for implementation */
+   See HomeView.vue handleAsymmetricScroll() for implementation */
 
 /* ============================================
    Hero Section Animations
