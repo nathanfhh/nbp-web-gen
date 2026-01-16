@@ -54,10 +54,16 @@
   "apiKey": {
     "title": "API Key",
     "subtitle": "Google Gemini API",
+    "paidHint": "For image/video generation (required)",
     "placeholder": "Enter your Gemini API Key...",
     "save": "Save API Key",
     "hint": "API Key is stored locally in your browser and will not be sent to any server.",
-    "getKey": "Get API Key"
+    "getKey": "Get API Key",
+    "freeTierTitle": "Free Tier API Key",
+    "freeTierSubtitle": "For text processing features (optional)",
+    "freeTierPlaceholder": "Enter your Free Tier API Key...",
+    "addFreeTier": "Add Free Tier Key",
+    "freeTierHint": "Free Tier key can be used for character extraction, slide style analysis, and other text processing. When quota is exhausted, it automatically falls back to the main key."
   },
   "modes": {
     "title": "Generation Mode",
@@ -685,7 +691,8 @@
     "apiRequestFailed": "API request failed: {status}",
     "noImageInResponse": "No image in API response",
     "invalidResponseFormat": "Invalid API response format",
-    "noImageData": "No image data in API response"
+    "noImageData": "No image data in API response",
+    "noImagesLoaded": "Failed to load image data"
   },
   "footer": {
     "title": "Mediator - AI Image & Video Generator"
@@ -707,7 +714,8 @@
     "allImages": "All ({count} images)",
     "exportAs": "Export As",
     "pdfError": "Failed to generate PDF",
-    "zipError": "Failed to generate ZIP"
+    "zipError": "Failed to generate ZIP",
+    "convertToPptx": "Convert to PPTX"
   },
   "stickerCropper": {
     "title": "Sticker Cropper Tool",
@@ -803,10 +811,12 @@
     "back": "Back to Home",
     "uploadImage": "Upload Image",
     "dragDrop": "Drag & drop or click to select",
+    "extractionSettings": "Extraction Settings",
     "apiSettings": "API Settings",
     "useNbpKey": "Use NBP Key",
     "useAlternateKey": "Use Alternate Key",
     "enterApiKey": "Enter your Gemini API Key",
+    "noApiKeyWarning": "Please set up your API key on the home page first",
     "model": "Model",
     "extract": "Extract Character",
     "save": "Save Character",
@@ -1002,6 +1012,54 @@
     },
     "toast": {
       "notFullyCompliant": "Note: Your stickers are not fully compliant with LINE specifications"
+    }
+  },
+  "slideToPptx": {
+    "title": "Slide to PPTX Converter",
+    "preview": "Image Preview",
+    "settings": "Settings",
+    "noImagesFound": "No images found",
+    "historyNotFound": "History record not found",
+    "noImagesInHistory": "No images in this history record",
+    "loadFailed": "Failed to load images",
+    "noImages": "Please select images to convert",
+    "showOcrResult": "Show OCR Result",
+    "inpaintMethod": "Text Removal Method",
+    "free": "Free",
+    "paid": "Paid",
+    "opencvDesc": "Runs locally using OpenCV.js, no API quota consumed",
+    "geminiDesc": "Uses Gemini API, better quality but consumes quota",
+    "algorithm": "Algorithm",
+    "teleaHint": "TELEA: Best for small areas with clear edges",
+    "nsHint": "NS: Best for large areas needing smooth transitions",
+    "advancedSettings": "Advanced Settings",
+    "inpaintRadius": "Inpaint Radius",
+    "maskPadding": "Mask Padding",
+    "slideRatio": "Slide Ratio",
+    "autoDetect": "Auto Detect",
+    "progress": "Progress",
+    "ready": "Ready",
+    "infoText": "This tool uses OCR to detect text positions, removes text from the background, then generates an editable PPTX file. Text will be overlaid as separate text boxes on the background image.",
+    "partialSuccess": "Conversion partially complete: {success} succeeded, {failed} failed",
+    "steps": {
+      "ocr": "Text Recognition (OCR)",
+      "mask": "Generating Mask",
+      "inpaint": "Removing Text",
+      "pptx": "Generating PPTX"
+    },
+    "actions": {
+      "start": "Start Conversion",
+      "processing": "Processing...",
+      "cancel": "Cancel"
+    },
+    "success": {
+      "complete": "Conversion complete! PPTX downloaded."
+    },
+    "errors": {
+      "ocrFailed": "OCR failed for page {page}",
+      "inpaintFailed": "Text removal failed for page {page}",
+      "pptxFailed": "PPTX generation failed",
+      "storageFailed": "Failed to store images"
     }
   },
   "tour": {

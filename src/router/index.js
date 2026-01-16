@@ -16,6 +16,11 @@ const routes = [
     name: 'line-sticker-tool',
     component: () => import('@/views/LineStickerToolView.vue'),
   },
+  {
+    path: '/slide-to-pptx',
+    name: 'slide-to-pptx',
+    component: () => import('@/views/SlideToPptxView.vue'),
+  },
 ]
 
 // Get base URL safely - handle cases where BASE_URL might be undefined or string "undefined"

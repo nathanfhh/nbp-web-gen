@@ -556,6 +556,7 @@ const handleImported = async () => {
       :history-id="lightboxHistoryId"
       :is-historical="true"
       :is-sticker-mode="lightboxItemMode === 'sticker'"
+      :is-slides-mode="lightboxItemMode === 'slides'"
       @close="closeLightbox"
     />
 

@@ -44,6 +44,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Is this from slides mode (show PPTX button)
+  isSlidesMode: {
+    type: Boolean,
+    default: false,
+  },
   // History ID for unique sticker naming
   historyId: {
     type: Number,
@@ -408,6 +413,83 @@ const handleExtractCharacter = async () => {
     window.location.href = targetUrl
   }
 }
+
+// Navigate to Slide to PPTX tool (for slides mode)
+const goToSlideToPptx = async () => {
+  // Prepare all images for the PPTX tool
+  // Images from history have { url, opfsPath, data: null } structure
+  // Need to convert to base64 for sessionStorage transfer
+  const imagesToExport = []
+
+  for (let index = 0; index < props.images.length; index++) {
+    const img = props.images[index]
+    let base64Data = null
+
+    // Try to get base64 from different sources
+    if (img.data) {
+      // Direct base64 data (fresh generation)
+      base64Data = img.data
+    } else if (img.opfsPath) {
+      // Load from OPFS storage
+      base64Data = await imageStorage.getImageBase64(img.opfsPath)
+    } else if (img.url && img.url.startsWith('blob:')) {
+      // Convert Blob URL to base64
+      try {
+        const response = await fetch(img.url)
+        const blob = await response.blob()
+        base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            const dataUrl = reader.result
+            // Remove data:image/xxx;base64, prefix
+            resolve(dataUrl.split(',')[1])
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+      } catch (err) {
+        console.error(`Failed to convert blob URL for image ${index}:`, err)
+      }
+    }
+
+    if (base64Data) {
+      imagesToExport.push({
+        data: base64Data,
+        mimeType: props.imageMetadata?.[index]?.mimeType || img.mimeType || 'image/webp',
+        index,
+      })
+    }
+  }
+
+  if (imagesToExport.length === 0) {
+    toast.error(t('errors.noImagesLoaded'))
+    return
+  }
+
+  // Store images in sessionStorage
+  try {
+    sessionStorage.setItem('slideToPptxImages', JSON.stringify(imagesToExport))
+  } catch (e) {
+    console.error('Failed to store images in sessionStorage:', e)
+    toast.error(t('errors.storageFailed'))
+    return
+  }
+
+  // Clean up body overflow
+  document.body.style.overflow = ''
+
+  // Clean up history state before navigation
+  await cleanupBeforeNavigation()
+
+  // Navigate to slide-to-pptx tool
+  try {
+    await router.push({ name: 'slide-to-pptx' })
+  } catch (err) {
+    console.error('Router push failed, falling back to location assignment:', err)
+    const targetUrl = router.resolve({ name: 'slide-to-pptx' }).href
+    window.location.href = targetUrl
+  }
+}
 </script>
 
 <template>
@@ -440,9 +522,22 @@ const handleExtractCharacter = async () => {
             :title="$t('lightbox.cropSticker')"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <span class="text-xs font-medium">{{ $t('lightbox.crop') }}</span>
+          </button>
+
+          <!-- PPTX button (only for slides mode) -->
+          <button
+            v-if="isSlidesMode"
+            @click="goToSlideToPptx"
+            class="lightbox-btn flex items-center gap-2"
+            :title="$t('lightbox.convertToPptx')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="text-xs font-medium">PPTX</span>
           </button>
 
           <!-- Unified download button -->
