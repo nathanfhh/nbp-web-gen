@@ -180,19 +180,70 @@ export function usePptxExport() {
             const w = pxToInches(region.bounds.width, slideData.width, slideSize.width)
             const h = pxToInches(region.bounds.height, slideData.height, slideSize.height)
 
-            // Estimate font size based on text box height
-            // Approximate: 1 inch ≈ 72 points, line height ≈ 1.2
-            const estimatedFontSize = Math.max(8, Math.min(48, Math.round(h * 72 / 1.2)))
+            // Calculate Font Size (Refined Algorithm)
+            let fontSize = 12
+            
+            // 1. Width-Based Estimation (User Request):
+            // Estimate based on the width of the longest line and its character count
+            let widthBasedSize = 0
+            const lines = region.text.split('\n')
+            let maxLineWeight = 0
+            
+            for (const line of lines) {
+              let weight = 0
+              for (const char of line) {
+                // Heuristic weights for Arial-like fonts
+                if (/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/.test(char)) weight += 1.0 // CJK (Wide)
+                else if (/[A-Z]/.test(char)) weight += 0.7 // Uppercase
+                else if (/[a-z0-9]/.test(char)) weight += 0.55 // Lowercase & Numbers
+                else weight += 0.3 // Punctuation/Space
+              }
+              maxLineWeight = Math.max(maxLineWeight, weight)
+            }
+
+            if (maxLineWeight > 0) {
+              // Font Size (pt) ≈ (Width (inch) / WeightedCharCount) * 72 (points per inch)
+              widthBasedSize = (w / maxLineWeight) * 72
+            }
+
+            // 2. Height-Based Estimation (OCR Metadata):
+            let heightBasedSize = 0
+            if (region.fontSize) {
+               // Convert pixel height to points
+               heightBasedSize = (region.fontSize / slideData.width) * slideSize.width * 72
+            }
+
+            // 3. Selection Logic
+            if (widthBasedSize > 0) {
+               // Use width-based size to ensure text fits horizontally
+               fontSize = widthBasedSize
+               
+               // Sanity check: if width-based is significantly larger than height-based (e.g. > 1.5x),
+               // it might mean the text box is very wide but text is short. 
+               // In that case, cap it closer to height-based to avoid huge text.
+               if (heightBasedSize > 0 && widthBasedSize > heightBasedSize * 1.5) {
+                 fontSize = heightBasedSize * 1.2
+               }
+            } else if (heightBasedSize > 0) {
+               fontSize = heightBasedSize
+            } else {
+               // Fallback: Estimate from box height (assuming single line)
+               fontSize = h * 72 / 1.2
+            }
+
+            // Clamp font size
+            fontSize = Math.max(8, Math.min(120, Math.round(fontSize)))
 
             slide.addText(region.text, {
               x,
               y,
               w,
               h,
-              fontSize: estimatedFontSize,
+              fontSize,
               fontFace: 'Arial',
               color: '000000',
-              valign: 'middle',
+              align: region.alignment || 'left', // Use inferred alignment
+              valign: 'top', // Align text to top of box (important for multi-line)
               wrap: true,
               // Make text box transparent so background shows through
               fill: { type: 'none' },

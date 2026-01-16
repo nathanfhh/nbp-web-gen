@@ -12,11 +12,11 @@
 
 import { ref } from 'vue'
 
-// Development: Use local models from public folder
-// Production: Can switch to remote CDN if needed
-const USE_LOCAL_MODELS = true
+// Use HuggingFace CDN for model downloads
+// Models are cached in OPFS after first download for fast subsequent loads
+const USE_LOCAL_MODELS = false
 
-// Local model paths (in public folder)
+// Local model paths (in public folder) - for development fallback
 const LOCAL_MODELS = {
   detection: {
     filename: 'PP-OCRv5_server_det_infer.onnx',
@@ -35,30 +35,31 @@ const LOCAL_MODELS = {
   },
 }
 
-// Remote model URLs (ModelScope - for production fallback)
-const MODELSCOPE_BASE = 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx'
+// HuggingFace CDN URLs for PaddleOCR v5 models
+const HF_BASE = 'https://huggingface.co/marsena/paddleocr-onnx-models/resolve/main'
 const REMOTE_MODELS = {
   detection: {
-    filename: 'ch_PP-OCRv4_det_infer.onnx',
-    url: `${MODELSCOPE_BASE}/PP-OCRv4/det/ch_PP-OCRv4_det_infer.onnx`,
-    size: 4_600_000,
+    filename: 'PP-OCRv5_server_det_infer.onnx',
+    url: `${HF_BASE}/PP-OCRv5_server_det_infer.onnx`,
+    size: 88_000_000, // ~88MB
   },
   recognition: {
-    filename: 'ch_PP-OCRv4_rec_infer.onnx',
-    url: `${MODELSCOPE_BASE}/PP-OCRv4/rec/ch_PP-OCRv4_rec_infer.onnx`,
-    size: 10_500_000,
+    filename: 'PP-OCRv5_server_rec_infer.onnx',
+    url: `${HF_BASE}/PP-OCRv5_server_rec_infer.onnx`,
+    size: 84_000_000, // ~84MB
   },
   dictionary: {
-    filename: 'ppocr_keys_v1.txt',
-    url: 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.3.0/paddle/PP-OCRv4/rec/ch_PP-OCRv4_rec_infer/ppocr_keys_v1.txt',
-    size: 200_000,
+    filename: 'ppocrv5_dict.txt',
+    url: `${HF_BASE}/ppocrv5_dict.txt`,
+    size: 74_000, // ~74KB
   },
 }
 
 // Select which models to use
 const MODELS = USE_LOCAL_MODELS ? LOCAL_MODELS : REMOTE_MODELS
 
-// Fallback URLs (not used when local)
+// Fallback URLs (ModelScope - for users in China)
+const MODELSCOPE_BASE = 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx'
 const FALLBACK_MODEL_URLS = {
   detection: `${MODELSCOPE_BASE}/PP-OCRv5/det/ch_PP-OCRv5_mobile_det.onnx`,
   recognition: `${MODELSCOPE_BASE}/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile_infer.onnx`,

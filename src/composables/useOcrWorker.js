@@ -557,6 +557,145 @@ export function useOcrWorker() {
   }
 
   /**
+   * Calculate standard deviation of an array of numbers
+   * @param {number[]} arr
+   * @returns {number}
+   */
+  const getStandardDeviation = (arr) => {
+    if (arr.length <= 1) return 0
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length
+    const variance = arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length
+    return Math.sqrt(variance)
+  }
+
+  /**
+   * Infer alignment of a group of text lines
+   * @param {Array} lines
+   * @returns {'left'|'center'|'right'}
+   */
+  const inferAlignment = (lines) => {
+    if (lines.length <= 1) return 'left'
+
+    const lefts = lines.map((l) => l.bounds.x)
+    const centers = lines.map((l) => l.bounds.x + l.bounds.width / 2)
+    const rights = lines.map((l) => l.bounds.x + l.bounds.width)
+
+    const leftStd = getStandardDeviation(lefts)
+    const centerStd = getStandardDeviation(centers)
+    const rightStd = getStandardDeviation(rights)
+
+    // Heuristics:
+    // If center variation is significantly smaller than others -> Center
+    // If right variation is very small -> Right
+    // Default -> Left
+
+    // Give slight bias to left alignment as it's most common
+    if (centerStd < leftStd * 0.8 && centerStd < rightStd * 0.8) return 'center'
+    if (rightStd < leftStd * 0.8 && rightStd < centerStd) return 'right'
+
+    return 'left'
+  }
+
+  /**
+   * Merge separate text lines into paragraphs/blocks
+   * @param {OcrResult[]} rawResults
+   * @returns {OcrResult[]}
+   */
+  const mergeTextRegions = (rawResults) => {
+    if (rawResults.length === 0) return []
+
+    // 1. Sort by Y coordinate (Top to Bottom)
+    const sorted = [...rawResults].sort((a, b) => a.bounds.y - b.bounds.y)
+
+    const groups = []
+
+    // 2. Clustering
+    for (const line of sorted) {
+      let added = false
+
+      // Try to add to existing groups (look at the last added group mostly)
+      // We iterate backwards to find the closest vertical neighbor
+      for (let i = groups.length - 1; i >= 0; i--) {
+        const group = groups[i]
+        const lastLine = group.lines[group.lines.length - 1]
+
+        // Logic Criteria:
+        // A. Vertical Proximity: Distance is less than N * LineHeight
+        const verticalDist = line.bounds.y - (lastLine.bounds.y + lastLine.bounds.height)
+        const avgHeight = (line.bounds.height + lastLine.bounds.height) / 2
+        // Allow gap up to 1.0x line height (standard paragraph spacing)
+        const isCloseVertically = verticalDist < avgHeight * 1.2 && verticalDist > -avgHeight * 0.5
+
+        // B. Font Size Similarity: Height diff < 25%
+        const heightDiffRatio = Math.abs(line.bounds.height - lastLine.bounds.height) / Math.max(line.bounds.height, lastLine.bounds.height)
+        const isSimilarSize = heightDiffRatio < 0.25
+
+        // C. Horizontal Overlap: They must align somewhat (prevent merging 2 columns)
+        const l1 = lastLine.bounds.x
+        const r1 = lastLine.bounds.x + lastLine.bounds.width
+        const l2 = line.bounds.x
+        const r2 = line.bounds.x + line.bounds.width
+        const overlap = Math.max(0, Math.min(r1, r2) - Math.max(l1, l2))
+        const minWidth = Math.min(lastLine.bounds.width, line.bounds.width)
+        // Overlap must be at least 30% of the smaller line's width, or they are essentially centered/aligned
+        const isHorizontallyAligned = overlap > minWidth * 0.3 ||
+          (Math.abs((l1 + r1) / 2 - (l2 + r2) / 2) < minWidth * 0.5) // Centers are close
+
+        if (isCloseVertically && isSimilarSize && isHorizontallyAligned) {
+          group.lines.push(line)
+          added = true
+          break // Found a home for this line, stop searching
+        }
+      }
+
+      if (!added) {
+        groups.push({ lines: [line] })
+      }
+    }
+
+    // 3. Convert groups back to OcrResult format with inferred properties
+    return groups.map(group => {
+      const lines = group.lines
+
+      // Calculate bounding box union
+      const minX = Math.min(...lines.map(l => l.bounds.x))
+      const minY = Math.min(...lines.map(l => l.bounds.y))
+      const maxX = Math.max(...lines.map(l => l.bounds.x + l.bounds.width))
+      const maxY = Math.max(...lines.map(l => l.bounds.y + l.bounds.height))
+
+      // Join text with newlines
+      const text = lines.map(l => l.text).join('\n')
+
+      // Average confidence
+      const confidence = lines.reduce((sum, l) => sum + l.confidence, 0) / lines.length
+
+      // Infer Alignment
+      const alignment = inferAlignment(lines)
+
+      return {
+        text,
+        confidence,
+        bounds: {
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY
+        },
+        // We keep the polygon of the bounding box union (approximate)
+        polygon: [
+          [minX, minY],
+          [maxX, minY],
+          [maxX, maxY],
+          [minX, maxY]
+        ],
+        // Additional metadata for PPTX generation
+        alignment,
+        fontSize: lines.reduce((sum, l) => sum + l.bounds.height, 0) / lines.length // Average height as font size
+      }
+    })
+  }
+
+  /**
    * Recognize text in an image
    * @param {string|Blob|File|HTMLImageElement} image
    * @returns {Promise<OcrResult[]>}
@@ -614,7 +753,7 @@ export function useOcrWorker() {
       status.value = `Recognizing ${detectedBoxes.length} text regions...`
 
       // Recognition
-      const results = []
+      const rawResults = []
       for (let i = 0; i < detectedBoxes.length; i++) {
         const { box } = detectedBoxes[i]
 
@@ -631,7 +770,7 @@ export function useOcrWorker() {
           const xs = box.map((p) => p[0])
           const ys = box.map((p) => p[1])
 
-          results.push({
+          rawResults.push({
             text: text.trim(),
             confidence,
             bounds: {
@@ -647,16 +786,18 @@ export function useOcrWorker() {
         progress.value = 50 + Math.round((i / detectedBoxes.length) * 45)
       }
 
-      // Sort by vertical position, then horizontal
-      results.sort((a, b) => {
-        const yDiff = a.bounds.y - b.bounds.y
-        if (Math.abs(yDiff) > 10) return yDiff
-        return a.bounds.x - b.bounds.x
-      })
+      // Merge text regions (Layout Analysis)
+      status.value = 'Analyzing layout...'
+      const mergedResults = mergeTextRegions(rawResults)
 
-      status.value = `Found ${results.length} text regions`
+      status.value = `Found ${mergedResults.length} text blocks (${rawResults.length} lines)`
       progress.value = 100
-      return results
+      
+      // Return both merged (for PPTX) and raw (for Inpainting) results
+      return {
+        regions: mergedResults,
+        rawRegions: rawResults
+      }
     } catch (err) {
       console.error('OCR recognition failed:', err)
       error.value = err.message
