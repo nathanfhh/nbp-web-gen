@@ -1047,6 +1047,10 @@
   },
   "slideToPptx": {
     "title": "簡報轉 PPTX",
+    "entry": {
+      "title": "PPTX 轉換工具",
+      "desc": "上傳簡報圖片或 PDF，轉換為可編輯的 PPTX"
+    },
     "preview": "圖片預覽",
     "settings": "設定",
     "noImagesFound": "找不到圖片",

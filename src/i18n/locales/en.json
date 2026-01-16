@@ -1017,6 +1017,10 @@
   },
   "slideToPptx": {
     "title": "Slide to PPTX Converter",
+    "entry": {
+      "title": "PPTX Converter Tool",
+      "desc": "Upload slide images or PDF, convert to editable PPTX"
+    },
     "preview": "Image Preview",
     "settings": "Settings",
     "noImagesFound": "No images found",
