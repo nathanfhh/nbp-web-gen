@@ -744,11 +744,17 @@ Return valid JSON matching this structure:
 {
   "globalStyle": "Detailed 4-6 sentence design system description...",
   "pageStyles": [
-    { "pageId": "uuid-1", "styleGuide": "" },
-    { "pageId": "uuid-2", "styleGuide": "Special styling for this page..." }
+    { "pageId": "ab12", "styleGuide": "" },
+    { "pageId": "xy9k", "styleGuide": "Special styling for this page..." }
   ]
 }
 \`\`\`
+
+⚠️ **CRITICAL - Page ID Verification:**
+- Each page has a unique 4-character ID shown as \`[Page ID: xxxx]\` in the input
+- You MUST copy the **EXACT** page ID character-by-character into your response
+- **Before finalizing**, verify each \`pageId\` in your output matches the corresponding \`[Page ID: xxxx]\` from input
+- A single wrong character will cause the style to be lost for that page
 
 Write all descriptions in English.`
 

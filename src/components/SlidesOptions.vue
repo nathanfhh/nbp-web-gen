@@ -5,6 +5,7 @@ import { useGeneratorStore } from '@/stores/generator'
 import { useSlidesGeneration } from '@/composables/useSlidesGeneration'
 import { useToast } from '@/composables/useToast'
 import SlidesContentSplitter from './SlidesContentSplitter.vue'
+import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -488,12 +489,11 @@ const resetSlidesOptions = () => {
         <!-- Style Guidance (Free Typing) -->
         <div class="space-y-2">
           <label class="block text-xs text-text-muted">{{ $t('slides.styleGuidance') }}</label>
-          <textarea
+          <ColorPreviewTextarea
             v-model="store.slidesOptions.styleGuidance"
             :placeholder="$t('slides.styleGuidancePlaceholder')"
             :disabled="store.isGenerating || options.isAnalyzing"
-            rows="4"
-            class="input-premium text-sm resize-y"
+            :rows="4"
           />
           <p class="text-xs text-text-muted">{{ $t('slides.styleGuidanceHint') }}</p>
         </div>
@@ -594,10 +594,10 @@ const resetSlidesOptions = () => {
               {{ $t('common.edit') }}
             </button>
           </div>
-          <textarea
+          <ColorPreviewTextarea
             v-model="store.slidesOptions.analyzedStyle"
             :disabled="options.styleConfirmed || store.isGenerating"
-            class="input-premium min-h-[80px] text-sm"
+            :rows="5"
             :class="{ 'opacity-75 cursor-not-allowed': options.styleConfirmed }"
           />
         </div>
@@ -632,11 +632,11 @@ const resetSlidesOptions = () => {
             </div>
           </div>
         </div>
-        <textarea
+        <ColorPreviewTextarea
           v-model="store.slidesOptions.analyzedStyle"
           :placeholder="$t('slides.manualStylePlaceholder')"
           :disabled="options.styleConfirmed || store.isGenerating"
-          class="input-premium min-h-[100px] text-sm"
+          :rows="5"
           :class="{ 'opacity-75 cursor-not-allowed': options.styleConfirmed }"
         />
         <button

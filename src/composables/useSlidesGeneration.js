@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
 import { useToast } from './useToast'
-import { generateUUID } from './useUUID'
+import { generateShortId } from './useUUID'
 
 /**
  * Composable for handling slides generation logic
@@ -296,6 +296,9 @@ export function useSlidesGeneration() {
     const pageContents = normalizedText.split(/\n\s*---\s*\n/).filter((p) => p.trim())
     const existingPages = store.slidesOptions.pages
 
+    // Collect existing IDs for uniqueness check when generating new short IDs
+    const usedIds = existingPages.map((p) => p.id).filter(Boolean)
+
     // Create new pages array, preserving existing image data where content matches
     const newPages = pageContents.map((content, index) => {
       const trimmedContent = content.trim()
@@ -309,9 +312,16 @@ export function useSlidesGeneration() {
         }
       }
 
+      // Generate new short ID if needed, ensuring uniqueness
+      let newId = existingPage?.id
+      if (!newId) {
+        newId = generateShortId(usedIds)
+        usedIds.push(newId) // Track newly generated ID for subsequent pages
+      }
+
       // New or modified page
       return {
-        id: existingPage?.id || generateUUID(),
+        id: newId,
         pageNumber: index + 1,
         content: trimmedContent,
         status: 'pending',
