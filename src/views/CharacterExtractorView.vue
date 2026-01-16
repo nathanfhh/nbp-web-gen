@@ -2,9 +2,9 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useGeneratorStore } from '@/stores/generator'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
+import { useApiKeyManager } from '@/composables/useApiKeyManager'
 import { useCharacterExtraction, EXTRACTION_MODELS } from '@/composables/useCharacterExtraction'
 import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { useToast } from '@/composables/useToast'
@@ -12,10 +12,10 @@ import { useToast } from '@/composables/useToast'
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
-const store = useGeneratorStore()
 const toast = useToast()
 const { addCharacter, getCharacterById, updateCharacter } = useIndexedDB()
 const { getQuickSetting, updateQuickSetting } = useLocalStorage()
+const { hasApiKeyFor } = useApiKeyManager()
 const { isExtracting, extractCharacter, generateThumbnail } = useCharacterExtraction()
 const { saveCharacterImage, loadCharacterImageWithFallback } = useCharacterStorage()
 
@@ -30,17 +30,10 @@ const imageMimeType = ref('image/png')
 const fileInput = ref(null)
 const isDragging = ref(false)
 
-// API settings (persisted via useLocalStorage)
-const savedApiKey = getQuickSetting('extractionApiKey', '')
-const useNbpKey = ref(!savedApiKey) // Default to alternate key if one is saved
-const customApiKey = ref(savedApiKey)
+// Model settings (persisted via useLocalStorage)
 const selectedModel = ref(getQuickSetting('extractionModel', EXTRACTION_MODELS[0].id))
 
 // Save settings when changed
-watch(customApiKey, (newVal) => {
-  updateQuickSetting('extractionApiKey', newVal || '')
-})
-
 watch(selectedModel, (newVal) => {
   updateQuickSetting('extractionModel', newVal)
 })
@@ -164,8 +157,6 @@ const handleExtract = async () => {
       imageData: imageData.value,
       mimeType: imageMimeType.value,
       model: selectedModel.value,
-      useNbpKey: useNbpKey.value,
-      customApiKey: customApiKey.value,
     })
 
     extractedData.value = result
@@ -247,9 +238,10 @@ const removeFeature = (index) => {
   }
 }
 
-const hasNbpKey = computed(() => store.hasApiKey)
+// Check if any API key is available for text processing
+const hasAnyApiKey = computed(() => hasApiKeyFor('text'))
 const canExtract = computed(() => {
-  return imageData.value && (useNbpKey.value ? hasNbpKey.value : customApiKey.value)
+  return imageData.value && hasAnyApiKey.value
 })
 const canSave = computed(() => {
   return extractedData.value && characterName.value.trim()
@@ -335,56 +327,25 @@ const canSave = computed(() => {
             />
           </div>
 
-          <!-- API Settings -->
+          <!-- Extraction Settings -->
           <div class="glass p-6">
             <h2 class="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
               <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              {{ $t('characterExtractor.apiSettings') }}
+              {{ $t('characterExtractor.extractionSettings') }}
             </h2>
 
-            <!-- API Key Selection -->
-            <div class="space-y-3">
-              <label class="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  :value="true"
-                  v-model="useNbpKey"
-                  class="w-4 h-4 text-brand-primary bg-bg-interactive border-white/30 focus:ring-brand-primary"
-                />
-                <span class="text-text-secondary group-hover:text-text-primary transition-colors">
-                  {{ $t('characterExtractor.useNbpKey') }}
-                  <span v-if="!hasNbpKey" class="text-status-error text-sm ml-2">({{ $t('errors.noApiKey') }})</span>
-                </span>
-              </label>
-
-              <label class="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="radio"
-                  :value="false"
-                  v-model="useNbpKey"
-                  class="w-4 h-4 text-brand-primary bg-bg-interactive border-white/30 focus:ring-brand-primary"
-                />
-                <span class="text-text-secondary group-hover:text-text-primary transition-colors">
-                  {{ $t('characterExtractor.useAlternateKey') }}
-                </span>
-              </label>
-
-              <!-- Custom API Key Input -->
-              <div v-if="!useNbpKey" class="mt-3">
-                <input
-                  v-model="customApiKey"
-                  type="password"
-                  :placeholder="$t('characterExtractor.enterApiKey')"
-                  class="w-full px-4 py-3 rounded-xl bg-bg-muted border border-border-muted text-text-primary placeholder-gray-500 focus:outline-none focus:border-brand-primary transition-colors"
-                />
-              </div>
+            <!-- API Key Warning -->
+            <div v-if="!hasAnyApiKey" class="mb-4 p-3 rounded-lg bg-status-warning/10 border border-status-warning/30">
+              <p class="text-sm text-status-warning">
+                {{ $t('characterExtractor.noApiKeyWarning') }}
+              </p>
             </div>
 
             <!-- Model Selection -->
-            <div class="mt-6">
+            <div>
               <label class="block text-sm text-text-muted mb-2">{{ $t('characterExtractor.model') }}</label>
               <select
                 v-model="selectedModel"
@@ -407,7 +368,7 @@ const canSave = computed(() => {
               :disabled="!canExtract || isExtracting"
               class="mt-6 w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
               :class="canExtract && !isExtracting
-                ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-primary'
+                ? 'bg-brand-primary hover:bg-brand-primary-hover text-text-on-brand'
                 : 'bg-bg-interactive text-text-muted cursor-not-allowed'"
             >
               <svg v-if="isExtracting" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">

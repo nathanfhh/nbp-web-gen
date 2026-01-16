@@ -39,3 +39,4 @@ __screenshots__/
 .playwright-mcp/
 .gemini-clipboard/
 __pycache__/
+*.onnx

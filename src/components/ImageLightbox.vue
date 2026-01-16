@@ -44,6 +44,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Is this from slides mode (show PPTX button)
+  isSlidesMode: {
+    type: Boolean,
+    default: false,
+  },
   // History ID for unique sticker naming
   historyId: {
     type: Number,
@@ -53,7 +58,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'close'])
 
-// Image storage for OPFS access
+// Image storage for OPFS access (used by useLightboxDownload)
 const imageStorage = useImageStorage()
 
 // PDF generator
@@ -408,6 +413,35 @@ const handleExtractCharacter = async () => {
     window.location.href = targetUrl
   }
 }
+
+// Navigate to Slide to PPTX tool (for slides mode)
+const goToSlideToPptx = async () => {
+  if (!props.historyId) {
+    toast.error(t('errors.noImagesLoaded'))
+    return
+  }
+
+  // Clean up body overflow
+  document.body.style.overflow = ''
+
+  // Clean up history state before navigation
+  await cleanupBeforeNavigation()
+
+  // Navigate to slide-to-pptx tool with history-id
+  try {
+    await router.push({
+      name: 'slide-to-pptx',
+      query: { 'history-id': props.historyId },
+    })
+  } catch (err) {
+    console.error('Router push failed, falling back to location assignment:', err)
+    const targetUrl = router.resolve({
+      name: 'slide-to-pptx',
+      query: { 'history-id': props.historyId },
+    }).href
+    window.location.href = targetUrl
+  }
+}
 </script>
 
 <template>
@@ -440,9 +474,22 @@ const handleExtractCharacter = async () => {
             :title="$t('lightbox.cropSticker')"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <span class="text-xs font-medium">{{ $t('lightbox.crop') }}</span>
+          </button>
+
+          <!-- PPTX button (only for slides mode) -->
+          <button
+            v-if="isSlidesMode"
+            @click="goToSlideToPptx"
+            class="lightbox-btn flex items-center gap-2"
+            :title="$t('lightbox.convertToPptx')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="text-xs font-medium">PPTX</span>
           </button>
 
           <!-- Unified download button -->

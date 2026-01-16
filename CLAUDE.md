@@ -62,6 +62,51 @@ Since this project runs 100% client-side in browser, we cannot use Vertex AI.
 - Uncomment the Audio Toggle UI (unless switching to Vertex AI)
 - Use `noAudio` pricing (Gemini API always generates audio)
 
+### OCR Implementation (PaddleOCR + ONNX Runtime)
+
+**⚠️ CRITICAL: DBNet + CTC 後處理的三大陷阱**
+
+使用 ONNX Runtime Web 搭配 PaddleOCR 模型時，以下三個錯誤會導致「框不準」和「字全錯」：
+
+#### 1. 字典解析 - 不可使用 trim() 或 filter()
+```javascript
+// ❌ 錯誤 - 會刪除空白字元，導致索引位移
+dictionary = text.split('\n').filter(line => line.trim())
+
+// ✅ 正確 - 只移除檔案末尾的空行
+dictionary = text.split(/\r?\n/)
+if (dictionary[dictionary.length - 1] === '') dictionary.pop()
+dictionary.unshift('blank') // CTC blank token
+```
+**原因**: PaddleOCR 字典靠行號對應字元，字典中包含有效的空白字元（如 U+3000 全形空白）。使用 trim/filter 會刪除這些行，導致後續所有索引向前位移，識別結果全錯。
+
+#### 2. DBNet Unclip - 必須膨脹預測框
+```javascript
+// DBNet 輸出的是「縮小的核心區域」，不是完整文字框
+// 需要使用 Vatti Clipping 公式膨脹回原始大小
+const area = component.length
+const perimeter = 2 * (boxWidth + boxHeight)
+const unclipRatio = 1.6 // 標準 DBNet 膨脹比例
+const offset = (area * unclipRatio) / perimeter
+
+expandedMinX = minX - offset
+expandedMinY = minY - offset
+expandedMaxX = maxX + offset
+expandedMaxY = maxY + offset
+```
+**原因**: DBNet 設計上會預測比實際文字更小的區域（約小 40%），用於區分相鄰文字行。直接使用會切掉文字頭尾。
+
+#### 3. 座標縮放 - 使用縮放後尺寸，非補白後尺寸
+```javascript
+// 預處理時：原圖 → 縮放 → 補白到 32 倍數
+// ❌ 錯誤 - 使用補白後的尺寸
+scaleX = originalWidth / paddedWidth  // paddedWidth 包含白邊
+
+// ✅ 正確 - 使用縮放後、補白前的尺寸
+scaleX = originalWidth / scaledWidth  // scaledWidth 是實際內容寬度
+```
+**原因**: 補白區域（padding）不包含內容，但錯誤的縮放比例會假設內容填滿整個 canvas，導致座標偏移（越靠右下角偏移越大）。
+
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.
 
@@ -77,6 +122,19 @@ Since this project runs 100% client-side in browser, we cannot use Vertex AI.
 ### Web Workers
 - `workers/stickerSegmentation.worker.js` - Client-side sticker sheet segmentation using BFS flood fill and projection-based region detection
 - `workers/pdfGenerator.worker.js` - PDF batch download generation
+- `workers/pdfToImages.worker.js` - PDF to PNG conversion using PDF.js
+- `workers/ocr.worker.js` - OCR text detection using ONNX Runtime and PaddleOCR
+- `workers/inpainting.worker.js` - Text removal using OpenCV.js inpainting
+
+**⚠️ PDF.js Version Matching Rule**
+
+When using `pdfjs-dist`, the CDN worker URL version **MUST exactly match** the installed package version. Use jsdelivr (mirrors npm) instead of cdnjs (may lag behind):
+```javascript
+// In pdfToImages.worker.js - version must match package.json
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs'
+```
+If you update `pdfjs-dist` in package.json, you **MUST** also update the CDN URL in the worker file.
 
 ### Internationalization
 - `i18n/index.js` with locale files in `i18n/locales/`
@@ -154,6 +212,51 @@ First-time user guidance system:
 - `useToast.js` - Toast notifications
 - `useStyleOptions.js` - Style/variation option definitions
 - `useTour.js` - User tour/onboarding state (Singleton pattern, localStorage persistence)
+- `useApiKeyManager.js` - Dual API key management with automatic fallback
+
+### API Key 分流機制
+
+本專案使用雙 API Key 架構來優化 API 使用成本：
+
+**儲存位置：**
+| Key Type | localStorage Key | 用途 |
+|----------|------------------|------|
+| 付費金鑰 (Primary) | `nanobanana-api-key` | 圖片/影片生成（強制使用） |
+| Free Tier 金鑰 (Secondary) | `nanobanana-free-tier-api-key` | 文字處理（優先使用） |
+
+**使用情境分類：**
+| 功能 | Usage Type | 優先金鑰 | Fallback |
+|------|------------|----------|----------|
+| 圖片生成 | `image` | 付費 | ❌ 無 |
+| 影片生成 | `image` | 付費 | ❌ 無 |
+| 角色萃取 | `text` | Free Tier | ✅ 付費 |
+| 簡報風格分析 | `text` | Free Tier | ✅ 付費 |
+| 其他文字處理 | `text` | Free Tier | ✅ 付費 |
+
+**使用方式：**
+```javascript
+import { useApiKeyManager } from '@/composables/useApiKeyManager'
+
+const { getApiKey, callWithFallback, hasApiKeyFor } = useApiKeyManager()
+
+// 圖片生成：強制付費金鑰
+const imageKey = getApiKey('image')
+
+// 文字處理：自動 fallback (Free Tier → 付費)
+const result = await callWithFallback(async (apiKey) => {
+  const ai = new GoogleGenAI({ apiKey })
+  return await ai.models.generateContent(...)
+}, 'text')
+
+// 檢查是否有可用金鑰
+if (hasApiKeyFor('text')) { ... }
+```
+
+**注意事項：**
+- 圖片/影片生成必須使用 `usage='image'`
+- 文字處理使用 `usage='text'` 或 `callWithFallback`
+- Free Tier 額度耗盡時（429 錯誤）會自動切換到付費金鑰
+- 額度狀態會在 1 小時後自動重置
 
 ### Constants
 - `constants/defaults.js` - Default options per mode (`getDefaultOptions()`)

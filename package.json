@@ -1,6 +1,6 @@
 {
   "name": "nbp-web-gen",
-  "version": "0.19.0",
+  "version": "0.20.2",
   "private": true,
   "type": "module",
   "engines": {
@@ -18,9 +18,12 @@
     "dayjs": "^1.11.19",
     "image-q": "^4.0.0",
     "jszip": "^3.10.1",
+    "onnxruntime-web": "^1.23.2",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "5.4.530",
     "peerjs": "^1.5.5",
     "pinia": "^3.0.4",
+    "pptxgenjs": "^4.0.1",
     "vue": "^3.5.26",
     "vue-gtag": "^3.6.3",
     "vue-i18n": "^11.2.8",

@@ -871,3 +871,25 @@ html {
   }
 }
 
+/* =====================================================
+   Form Controls - Themed Checkbox & Radio
+   ===================================================== */
+
+/* Checkbox and Radio accent color */
+input[type="checkbox"].accent-mode-generate,
+input[type="radio"].accent-mode-generate {
+  accent-color: var(--color-mode-generate);
+}
+
+/* Focus ring for form controls */
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+  outline: 2px solid var(--color-mode-generate);
+  outline-offset: 2px;
+}
+
+/* Slider/Range accent color */
+input[type="range"].accent-mode-generate {
+  accent-color: var(--color-mode-generate);
+}
+
