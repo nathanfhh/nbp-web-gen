@@ -76,9 +76,11 @@ export function useSlideToPptx() {
     maskPadding: 5,
     slideRatio: 'auto',
     // Gemini model for text removal
-    // '2.0' = gemini-2.0-flash-exp (can use free tier)
+    // '2.0' = gemini-2.5-flash-image (can use free tier)
     // '3.0' = gemini-3-pro-image-preview (paid only)
     geminiModel: '2.0',
+    // Image quality for 3.0 model output (1k, 2k, 4k)
+    imageQuality: '2k',
   })
 
   // Slide states
@@ -135,10 +137,10 @@ export function useSlideToPptx() {
   /**
    * Convert image source to ImageData
    * @param {string} src - Image source (data URL or plain base64)
-   * @returns {Promise<{imageData: ImageData, width: number, height: number}>}
+   * @returns {Promise<{imageData: ImageData, width: number, height: number, dataUrl: string}>}
    */
   const loadImage = async (src) => {
-    const dataUrl = toDataUrl(src)
+    const inputUrl = toDataUrl(src)
     return new Promise((resolve, reject) => {
       const img = new Image()
       img.onload = () => {
@@ -147,14 +149,17 @@ export function useSlideToPptx() {
         canvas.height = img.height
         const ctx = canvas.getContext('2d')
         ctx.drawImage(img, 0, 0)
+        // Always export as PNG data URL to ensure valid format for Gemini API
+        const dataUrl = canvas.toDataURL('image/png')
         resolve({
           imageData: ctx.getImageData(0, 0, img.width, img.height),
           width: img.width,
           height: img.height,
+          dataUrl,
         })
       }
       img.onerror = () => reject(new Error('Failed to load image'))
-      img.src = dataUrl
+      img.src = inputUrl
     })
   }
 
@@ -168,11 +173,15 @@ export function useSlideToPptx() {
   const removeTextWithGeminiWithSettings = async (imageDataUrl, ocrResults, effectiveSettings) => {
     // Determine model and API key usage based on settings
     const modelId = effectiveSettings.geminiModel === '2.0'
-      ? 'gemini-2.0-flash-exp'
+      ? 'gemini-2.5-flash-image'
       : 'gemini-3-pro-image-preview'
 
-    // For 2.0 model, try free tier first; for 3.0, use paid key directly
+    // For 2.5 model, try free tier first; for 3.0, use paid key directly
     const usage = effectiveSettings.geminiModel === '2.0' ? 'text' : 'image'
+
+    // Image quality mapping for 3.0 model
+    const imageQualityMap = { '1k': '1K', '2k': '2K', '4k': '4K' }
+    const imageSize = imageQualityMap[effectiveSettings.imageQuality] || '2K'
 
     const apiKey = getApiKey(usage)
     if (!apiKey) {
@@ -199,6 +208,14 @@ Output: A single clean image with all text removed.`
 
     const ai = new GoogleGenAI({ apiKey })
 
+    // Build config - add imageSize only for 3.0 model
+    const config = {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+    }
+    if (effectiveSettings.geminiModel === '3.0') {
+      config.imageSize = imageSize
+    }
+
     try {
       const response = await ai.models.generateContent({
         model: modelId,
@@ -216,9 +233,7 @@ Output: A single clean image with all text removed.`
             ],
           },
         ],
-        config: {
-          responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
+        config,
       })
 
       // Extract image from response
@@ -268,9 +283,7 @@ Output: A single clean image with all text removed.`
               ],
             },
           ],
-          config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-          },
+          config,  // Reuse the same config with imageSize
         })
 
         const retryCandidate = retryResponse.candidates?.[0]
@@ -325,12 +338,6 @@ Output: A single clean image with all text removed.`
   const processSlide = async (index, imageSrc) => {
     const state = slideStates.value[index]
 
-    // Convert to data URL once at the start
-    const imageDataUrl = toDataUrl(imageSrc)
-
-    // Save original image for comparison
-    state.originalImage = imageDataUrl
-
     // Get effective settings (per-page override or global)
     const effectiveSettings = getEffectiveSettings(index)
 
@@ -341,32 +348,50 @@ Output: A single clean image with all text removed.`
     }
 
     try {
-      // Step 1: Load image
+      // Step 1: Load image and get proper data URL
+      // This ensures blob: and http: URLs are converted to valid data URLs for Gemini API
       addLog(t('slideToPptx.logs.loadingImage', { slide: index + 1 }))
-      const { imageData, width, height } = await loadImage(imageDataUrl)
+      const { imageData, width, height, dataUrl: imageDataUrl } = await loadImage(imageSrc)
       state.width = width
       state.height = height
 
-      // Step 2: OCR
+      // Save original image for comparison (now guaranteed to be valid data URL)
+      state.originalImage = imageDataUrl
+
+      // Step 2: OCR (with caching - skip if results exist for same image)
       currentStep.value = 'ocr'
       state.status = 'ocr'
-      addLog(t('slideToPptx.logs.runningOcr', { slide: index + 1 }))
 
-      // Now returns { regions, rawRegions }
-      const ocrResult = await ocr.recognize(imageDataUrl)
-      
-      // Handle both old and new format for backward compatibility
-      if (Array.isArray(ocrResult)) {
-        state.regions = ocrResult
-        state.rawRegions = ocrResult
+      // Check if we can use cached OCR results
+      const hasCachedOcr = state.rawRegions?.length > 0 &&
+                           state.cachedImageUrl === imageDataUrl
+
+      if (hasCachedOcr) {
+        addLog(t('slideToPptx.logs.usingCachedOcr', { slide: index + 1, count: state.regions.length }), 'info')
+        // Ensure ocrResults is set for PPTX export (may have been cleared)
+        state.ocrResults = state.regions
       } else {
-        state.regions = ocrResult.regions
-        state.rawRegions = ocrResult.rawRegions
+        addLog(t('slideToPptx.logs.runningOcr', { slide: index + 1 }))
+
+        // Now returns { regions, rawRegions }
+        const ocrResult = await ocr.recognize(imageDataUrl)
+
+        // Handle both old and new format for backward compatibility
+        if (Array.isArray(ocrResult)) {
+          state.regions = ocrResult
+          state.rawRegions = ocrResult
+        } else {
+          state.regions = ocrResult.regions
+          state.rawRegions = ocrResult.rawRegions
+        }
+
+        // Cache the image URL for future comparisons
+        state.cachedImageUrl = imageDataUrl
+
+        // Also store in ocrResults for PPTX export compatibility (using merged regions)
+        state.ocrResults = state.regions
+        addLog(t('slideToPptx.logs.foundTextBlocks', { slide: index + 1, count: state.regions.length }), 'success')
       }
-      
-      // Also store in ocrResults for PPTX export compatibility (using merged regions)
-      state.ocrResults = state.regions
-      addLog(t('slideToPptx.logs.foundTextBlocks', { slide: index + 1, count: state.regions.length }), 'success')
 
       if (isCancelled.value) {
         state.status = 'error'
@@ -455,14 +480,16 @@ Output: A single clean image with all text removed.`
     clearLogs()
 
     // Initialize slide states with extended structure
-    // IMPORTANT: Preserve existing overrideSettings (per-page settings)
+    // IMPORTANT: Preserve existing overrideSettings (per-page settings) and OCR cache
     slideStates.value = images.map((_, index) => {
       const existingState = slideStates.value[index]
       return {
         status: 'pending',
         ocrResults: [],
-        regions: [],
-        rawRegions: [],
+        // Preserve OCR cache to skip re-running OCR when only settings changed
+        regions: existingState?.regions || [],
+        rawRegions: existingState?.rawRegions || [],
+        cachedImageUrl: existingState?.cachedImageUrl || null,
         mask: null,
         cleanImage: null,
         originalImage: null,
