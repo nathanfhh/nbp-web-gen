@@ -55,7 +55,7 @@ export default {
     // 狀態色
     // ========================================
     statusSuccess: '#2E7D4A', // Green-700
-    statusSuccessMuted: 'rgba(46, 125, 74, 0.12)',
+    statusSuccessMuted: 'rgba(16, 185, 129, 0.12)', // emerald-500
     statusSuccessSolid: '#3D9A5C', // Green-600
     statusSuccessHover: '#1F5C35',
     statusError: '#C53030', // Red-700
@@ -124,7 +124,7 @@ export default {
 
   shadows: {
     glowPrimary: '0 4px 20px rgba(236, 140, 168, 0.2)', // Sakura glow
-    glowSuccess: '0 4px 16px rgba(46, 125, 74, 0.2)', // Green glow
+    glowSuccess: '0 4px 16px rgba(16, 185, 129, 0.2)', // emerald-500
     glowGold: '0 4px 20px rgba(168, 213, 186, 0.2)', // Mint glow
     stepActive: '0 0 20px rgba(168, 213, 186, 0.4)', // Mint glow
     card: '0 4px 24px rgba(0, 0, 0, 0.06)', // Light mode 卡片陰影

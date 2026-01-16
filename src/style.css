@@ -462,8 +462,8 @@ body {
 }
 
 .mode-card.active {
-  border-color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-primary), transparent 90%);
+  border-color: var(--color-mode-generate);
+  background: var(--color-mode-generate-muted);
 }
 
 .mode-card.active::after {
