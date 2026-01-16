@@ -19,13 +19,13 @@ const USE_LOCAL_MODELS = false
 // Local model paths (in public folder) - for development fallback
 const LOCAL_MODELS = {
   detection: {
-    filename: 'PP-OCRv5_server_det_infer.onnx',
-    url: '/PP-OCRv5_server_det_infer.onnx',
+    filename: 'PP-OCRv5_server_det.onnx',
+    url: '/PP-OCRv5_server_det.onnx',
     size: 88_000_000, // ~88MB
   },
   recognition: {
-    filename: 'PP-OCRv5_server_rec_infer.onnx',
-    url: '/PP-OCRv5_server_rec_infer.onnx',
+    filename: 'PP-OCRv5_server_rec.onnx',
+    url: '/PP-OCRv5_server_rec.onnx',
     size: 84_000_000, // ~84MB
   },
   dictionary: {
@@ -36,16 +36,16 @@ const LOCAL_MODELS = {
 }
 
 // HuggingFace CDN URLs for PaddleOCR v5 models
-const HF_BASE = 'https://huggingface.co/marsena/paddleocr-onnx-models/resolve/main'
+const HF_BASE = 'https://huggingface.co/nathanfhh/PaddleOCR-ONNX/resolve/main'
 const REMOTE_MODELS = {
   detection: {
-    filename: 'PP-OCRv5_server_det_infer.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_det_infer.onnx`,
+    filename: 'PP-OCRv5_server_det.onnx',
+    url: `${HF_BASE}/PP-OCRv5_server_det.onnx`,
     size: 88_000_000, // ~88MB
   },
   recognition: {
-    filename: 'PP-OCRv5_server_rec_infer.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_rec_infer.onnx`,
+    filename: 'PP-OCRv5_server_rec.onnx',
+    url: `${HF_BASE}/PP-OCRv5_server_rec.onnx`,
     size: 84_000_000, // ~84MB
   },
   dictionary: {
@@ -57,14 +57,6 @@ const REMOTE_MODELS = {
 
 // Select which models to use
 const MODELS = USE_LOCAL_MODELS ? LOCAL_MODELS : REMOTE_MODELS
-
-// Fallback URLs (ModelScope - for users in China)
-const MODELSCOPE_BASE = 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx'
-const FALLBACK_MODEL_URLS = {
-  detection: `${MODELSCOPE_BASE}/PP-OCRv5/det/ch_PP-OCRv5_mobile_det.onnx`,
-  recognition: `${MODELSCOPE_BASE}/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile_infer.onnx`,
-  dictionary: 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.3.0/paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile_infer/ppocrv5_dict.txt',
-}
 
 const OPFS_DIR = 'ocr-models'
 
@@ -228,20 +220,7 @@ export function useOcrModelCache() {
 
     // Download and cache to OPFS
     status.value = `Downloading ${model.filename}...`
-    let data
-
-    try {
-      data = await downloadModel(model.url, model.filename, model.size)
-    } catch (e) {
-      // Try fallback URL
-      console.warn(`Primary URL failed, trying fallback for ${modelType}:`, e.message)
-      const fallbackUrl = FALLBACK_MODEL_URLS[modelType]
-      if (fallbackUrl) {
-        data = await downloadModel(fallbackUrl, model.filename, model.size)
-      } else {
-        throw e
-      }
-    }
+    const data = await downloadModel(model.url, model.filename, model.size)
 
     // Cache remote models to OPFS
     await writeModel(model.filename, data)

@@ -16,16 +16,16 @@ ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/di
 // Model Configuration (copied from useOcrModelCache.js)
 // ============================================================================
 
-const HF_BASE = 'https://huggingface.co/marsena/paddleocr-onnx-models/resolve/main'
+const HF_BASE = 'https://huggingface.co/nathanfhh/PaddleOCR-ONNX/resolve/main'
 const MODELS = {
   detection: {
-    filename: 'PP-OCRv5_server_det_infer.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_det_infer.onnx`,
+    filename: 'PP-OCRv5_server_det.onnx',
+    url: `${HF_BASE}/PP-OCRv5_server_det.onnx`,
     size: 88_000_000,
   },
   recognition: {
-    filename: 'PP-OCRv5_server_rec_infer.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_rec_infer.onnx`,
+    filename: 'PP-OCRv5_server_rec.onnx',
+    url: `${HF_BASE}/PP-OCRv5_server_rec.onnx`,
     size: 84_000_000,
   },
   dictionary: {
@@ -35,13 +35,6 @@ const MODELS = {
   },
 }
 
-// Fallback URLs (ModelScope - for users in China)
-const MODELSCOPE_BASE = 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/master/onnx'
-const FALLBACK_MODEL_URLS = {
-  detection: `${MODELSCOPE_BASE}/PP-OCRv5/det/ch_PP-OCRv5_mobile_det.onnx`,
-  recognition: `${MODELSCOPE_BASE}/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile_infer.onnx`,
-  dictionary: 'https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.3.0/paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile_infer/ppocrv5_dict.txt',
-}
 
 const OPFS_DIR = 'ocr-models'
 
@@ -117,7 +110,8 @@ async function downloadModel(url, filename, expectedSize) {
     received += value.length
 
     const fileProgress = Math.min(100, Math.round((received / total) * 100))
-    reportProgress('model', fileProgress, `Downloading ${filename}... ${fileProgress}%`)
+    const sizeMB = Math.round(received / 1024 / 1024)
+    reportProgress('model', fileProgress, `下載中 ${sizeMB}MB... ${fileProgress}%`)
   }
 
   const data = new Uint8Array(received)
@@ -130,45 +124,49 @@ async function downloadModel(url, filename, expectedSize) {
   return filename.endsWith('.txt') ? new TextDecoder().decode(data) : data.buffer
 }
 
-async function getModel(modelType) {
+async function getModel(modelType, statusMessage) {
   const model = MODELS[modelType]
   if (!model) throw new Error(`Unknown model type: ${modelType}`)
 
   // Check OPFS cache first
   if (await modelExists(model.filename)) {
-    reportProgress('model', 0, `Loading ${model.filename} from cache...`)
-    return await readModel(model.filename)
+    reportProgress('model', 0, statusMessage)
+    return { data: await readModel(model.filename), fromCache: true }
   }
 
   // Download and cache to OPFS
-  let data
-  try {
-    data = await downloadModel(model.url, model.filename, model.size)
-  } catch (e) {
-    console.warn(`Primary URL failed, trying fallback for ${modelType}:`, e.message)
-    const fallbackUrl = FALLBACK_MODEL_URLS[modelType]
-    if (fallbackUrl) {
-      data = await downloadModel(fallbackUrl, model.filename, model.size)
-    } else {
-      throw e
-    }
-  }
-
+  const data = await downloadModel(model.url, model.filename, model.size)
   await writeModel(model.filename, data)
-  return data
+  return { data, fromCache: false }
 }
 
 async function loadAllModels() {
-  reportProgress('model', 0, 'Loading OCR models...')
+  // Check which models are cached
+  const detCached = await modelExists(MODELS.detection.filename)
+  const recCached = await modelExists(MODELS.recognition.filename)
+  const dictCached = await modelExists(MODELS.dictionary.filename)
+  const allCached = detCached && recCached && dictCached
+  const modelsToDownload = [!detCached, !recCached].filter(Boolean).length
 
-  const detection = await getModel('detection')
-  reportProgress('model', 25, 'Detection model loaded')
+  if (allCached) {
+    reportProgress('model', 0, '快速載入模型（從快取讀取）...')
+  } else if (modelsToDownload > 0) {
+    reportProgress('model', 0, `正在下載 ${modelsToDownload} 個模型（首次使用需下載約 170MB）...`)
+  }
 
-  const recognition = await getModel('recognition')
-  reportProgress('model', 65, 'Recognition model loaded')
+  // Load detection model
+  const detStatus = detCached ? '載入偵測模型...' : '下載偵測模型 (1/2)...'
+  const { data: detection } = await getModel('detection', detStatus)
+  reportProgress('model', 33, detCached ? '偵測模型已載入' : '偵測模型下載完成')
 
-  const dictText = await getModel('dictionary')
-  reportProgress('model', 90, 'Dictionary loaded')
+  // Load recognition model
+  const recStatus = recCached ? '載入辨識模型...' : `下載辨識模型 (${detCached ? '1' : '2'}/2)...`
+  const { data: recognition } = await getModel('recognition', recStatus)
+  reportProgress('model', 66, recCached ? '辨識模型已載入' : '辨識模型下載完成')
+
+  // Load dictionary
+  const { data: dictText } = await getModel('dictionary', '載入字典...')
+  reportProgress('model', 90, '字典已載入')
 
   return { detection, recognition, dictionary: dictText }
 }
@@ -578,20 +576,19 @@ async function initialize() {
   }
 
   try {
-    reportProgress('model', 0, 'Loading OCR models...')
     const models = await loadAllModels()
 
-    reportProgress('model', 92, 'Creating detection session...')
+    reportProgress('model', 92, '初始化偵測引擎...')
     const sessionOptions = {
       executionProviders: ['wasm'],
       graphOptimizationLevel: 'all',
     }
 
     detSession = await ort.InferenceSession.create(models.detection, sessionOptions)
-    reportProgress('model', 96, 'Creating recognition session...')
+    reportProgress('model', 96, '初始化辨識引擎...')
 
     recSession = await ort.InferenceSession.create(models.recognition, sessionOptions)
-    reportProgress('model', 99, 'Parsing dictionary...')
+    reportProgress('model', 99, '解析字典...')
 
     // Parse dictionary
     dictionary = models.dictionary.split(/\r?\n/)
@@ -601,7 +598,7 @@ async function initialize() {
     dictionary.unshift('blank')
 
     isInitialized = true
-    reportProgress('model', 100, 'OCR engine ready')
+    reportProgress('model', 100, 'OCR 引擎就緒')
     self.postMessage({ type: 'ready' })
   } catch (error) {
     self.postMessage({ type: 'error', message: error.message })

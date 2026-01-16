@@ -42,6 +42,7 @@ export function useOcrWorker() {
   let initPromise = null
   let initResolve = null
   let initReject = null
+  let initOnProgress = null
 
   /**
    * Handle messages from Worker
@@ -65,6 +66,10 @@ export function useOcrWorker() {
       case 'progress':
         progress.value = value
         status.value = message || ''
+        // Notify initialization progress callback
+        if (stage === 'model' && initOnProgress) {
+          initOnProgress(value, message)
+        }
         // Also notify specific request's progress callback
         if (requestId && pendingRequests.has(requestId)) {
           const request = pendingRequests.get(requestId)
@@ -104,8 +109,9 @@ export function useOcrWorker() {
 
   /**
    * Initialize OCR Worker and load models
+   * @param {function} onProgress - Optional progress callback (value, message)
    */
-  const initialize = async () => {
+  const initialize = async (onProgress) => {
     // Already ready
     if (isReady.value && worker) {
       return
@@ -120,6 +126,7 @@ export function useOcrWorker() {
     status.value = 'Initializing OCR engine...'
     error.value = null
     progress.value = 0
+    initOnProgress = onProgress || null
 
     initPromise = new Promise((resolve, reject) => {
       initResolve = resolve
@@ -158,6 +165,7 @@ export function useOcrWorker() {
       await initPromise
     } finally {
       initPromise = null
+      initOnProgress = null
     }
   }
 

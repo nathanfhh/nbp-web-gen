@@ -476,9 +476,15 @@ Output: A single clean image with all text removed.`
     addLog(t('slideToPptx.logs.startingProcessing', { count: images.length }))
 
     try {
-      // Initialize workers
-      addLog(t('slideToPptx.logs.initializingOcr'))
-      await ocr.initialize()
+      // Initialize workers with progress logging
+      let lastOcrLog = ''
+      await ocr.initialize((progress, message) => {
+        // Only log significant status changes (avoid spam)
+        if (message && message !== lastOcrLog && !message.includes('%')) {
+          addLog(message)
+          lastOcrLog = message
+        }
+      })
 
       addLog(t('slideToPptx.logs.initializingInpainting'))
       await inpainting.initialize()
