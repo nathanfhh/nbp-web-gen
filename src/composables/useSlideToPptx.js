@@ -263,7 +263,7 @@ Output: A single clean image with all text removed.`
         // Retry with paid key
         const paidKey = getApiKey('image')
         if (!paidKey) {
-          throw new Error('付費金鑰未設定，無法繼續')
+          throw new Error(t('errors.paidApiKeyRequired'))
         }
 
         const paidAi = new GoogleGenAI({ apiKey: paidKey })
@@ -404,7 +404,7 @@ Output: A single clean image with all text removed.`
       state.status = 'mask'
       addLog(t('slideToPptx.logs.generatingMask', { slide: index + 1 }))
 
-      const mask = ocr.generateMask(width, height, state.rawRegions, settings.maskPadding)
+      const mask = ocr.generateMask(width, height, state.rawRegions, effectiveSettings.maskPadding)
       state.mask = mask
 
       if (isCancelled.value) {

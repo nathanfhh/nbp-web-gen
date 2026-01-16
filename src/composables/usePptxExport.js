@@ -129,7 +129,7 @@ export function usePptxExport() {
 
       // Set metadata
       pptx.title = options.title || 'Presentation'
-      pptx.author = options.author || 'Nano Banana Pro'
+      pptx.author = options.author || 'Mediator'
       pptx.subject = 'Generated from slide images'
 
       // Determine layout from first slide
@@ -181,7 +181,7 @@ export function usePptxExport() {
             const h = pxToInches(region.bounds.height, slideData.height, slideSize.height)
 
             // Calculate Font Size (Refined Algorithm)
-            let fontSize = 12
+            let fontSize
             
             // 1. Width-Based Estimation (User Request):
             // Estimate based on the width of the longest line and its character count
@@ -209,8 +209,8 @@ export function usePptxExport() {
             // 2. Height-Based Estimation (OCR Metadata):
             let heightBasedSize = 0
             if (region.fontSize) {
-               // Convert pixel height to points
-               heightBasedSize = (region.fontSize / slideData.width) * slideSize.width * 72
+               // Convert pixel height to points (use height ratio for vertical scaling)
+               heightBasedSize = (region.fontSize / slideData.height) * slideSize.height * 72
             }
 
             // 3. Selection Logic

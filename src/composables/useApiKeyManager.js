@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useLocalStorage } from './useLocalStorage'
 
 /**
@@ -21,6 +22,7 @@ export function useApiKeyManager() {
     setFreeTierApiKey,
     hasFreeTierApiKey,
   } = useLocalStorage()
+  const { t } = useI18n()
 
   // 追蹤 Free Tier 額度狀態（session-level）
   const freeTierExhausted = ref(false)
@@ -96,7 +98,7 @@ export function useApiKeyManager() {
     const primaryKey = getApiKey(usage)
 
     if (!primaryKey) {
-      throw new Error('API Key 未設定')
+      throw new Error(t('errors.apiKeyNotSet'))
     }
 
     try {

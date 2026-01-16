@@ -688,6 +688,7 @@
     "noApiKey": "請先設定 API Key",
     "noEditImage": "請先上傳要編輯的圖片",
     "apiKeyNotSet": "API Key 未設定",
+    "paidApiKeyRequired": "付費金鑰未設定，無法繼續",
     "apiRequestFailed": "API 請求失敗: {status}",
     "noImageInResponse": "API 回應中沒有圖片",
     "invalidResponseFormat": "無效的 API 回應格式",

@@ -191,9 +191,8 @@ function preprocessForDetection(bitmap) {
   let width = bitmap.width
   let height = bitmap.height
 
-  let scale = 1
   if (Math.max(width, height) > maxSideLen) {
-    scale = maxSideLen / Math.max(width, height)
+    const scale = maxSideLen / Math.max(width, height)
     width = Math.round(width * scale)
     height = Math.round(height * scale)
   }

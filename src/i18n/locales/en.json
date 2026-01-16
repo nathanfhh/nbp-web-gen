@@ -688,6 +688,7 @@
     "noApiKey": "Please set up your API Key first",
     "noEditImage": "Please upload an image to edit first",
     "apiKeyNotSet": "API Key not set",
+    "paidApiKeyRequired": "Paid API key not set, cannot continue",
     "apiRequestFailed": "API request failed: {status}",
     "noImageInResponse": "No image in API response",
     "invalidResponseFormat": "Invalid API response format",

@@ -5,7 +5,10 @@
 
 /* global cv, importScripts */
 
-// OpenCV.js CDN URL
+// OpenCV.js CDN URL (official OpenCV distribution)
+// Note: Using external CDN without SRI. For production, consider:
+// 1. Self-hosting opencv.js (~8MB) for supply chain security
+// 2. Adding SRI hash verification if available
 const OPENCV_CDN_URL = 'https://docs.opencv.org/4.9.0/opencv.js'
 
 let cvReady = false
