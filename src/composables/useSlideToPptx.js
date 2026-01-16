@@ -10,9 +10,15 @@
  */
 
 import { ref, reactive, computed, onUnmounted } from 'vue'
+import { GoogleGenAI, Modality } from '@google/genai'
 import { useOcrWorker } from './useOcrWorker'
 import { useInpaintingWorker } from './useInpaintingWorker'
 import { usePptxExport } from './usePptxExport'
+import { useApiKeyManager } from './useApiKeyManager'
+import i18n from '@/i18n'
+
+// Helper for i18n translation in composable
+const t = (key, params) => i18n.global.t(key, params)
 
 /**
  * @typedef {Object} ProcessingSettings
@@ -29,7 +35,11 @@ import { usePptxExport } from './usePptxExport'
  * @property {Array} ocrResults - OCR detection results
  * @property {ImageData} mask - Generated mask
  * @property {string} cleanImage - Text-removed image data URL
+ * @property {string} originalImage - Original image data URL (for comparison)
+ * @property {number} width - Image width
+ * @property {number} height - Image height
  * @property {string} error - Error message if failed
+ * @property {Object|null} overrideSettings - Per-page settings override (null = use global)
  */
 
 /**
@@ -40,6 +50,7 @@ export function useSlideToPptx() {
   const ocr = useOcrWorker()
   const inpainting = useInpaintingWorker()
   const pptx = usePptxExport()
+  const { getApiKey } = useApiKeyManager()
 
   // State
   const isProcessing = ref(false)
@@ -50,13 +61,24 @@ export function useSlideToPptx() {
   const progress = ref(0)
   const logs = ref([])
 
+  // Setting mode: 'global' = all slides use same settings, 'per-page' = each slide can have custom settings
+  const settingMode = ref('global')
+
+  // Preview mode: after processing, show comparison before download
+  const isPreviewMode = ref(false)
+  const previewIndex = ref(0)
+
   // Settings
   const settings = reactive({
     inpaintMethod: 'opencv',
-    opencvAlgorithm: 'TELEA',
+    opencvAlgorithm: 'NS', // Navier-Stokes is better for larger regions
     inpaintRadius: 3,
     maskPadding: 5,
     slideRatio: 'auto',
+    // Gemini model for text removal
+    // '2.0' = gemini-2.0-flash-exp (can use free tier)
+    // '3.0' = gemini-3-pro-image-preview (paid only)
+    geminiModel: '2.0',
   })
 
   // Slide states
@@ -137,16 +159,180 @@ export function useSlideToPptx() {
   }
 
   /**
+   * Remove text from image using Gemini API
+   * @param {string} imageDataUrl - Image data URL
+   * @param {Array} ocrResults - OCR detection results (for context)
+   * @param {Object} effectiveSettings - Settings to use (per-page or global)
+   * @returns {Promise<string>} - Clean image data URL
+   */
+  const removeTextWithGeminiWithSettings = async (imageDataUrl, ocrResults, effectiveSettings) => {
+    // Determine model and API key usage based on settings
+    const modelId = effectiveSettings.geminiModel === '2.0'
+      ? 'gemini-2.0-flash-exp'
+      : 'gemini-3-pro-image-preview'
+
+    // For 2.0 model, try free tier first; for 3.0, use paid key directly
+    const usage = effectiveSettings.geminiModel === '2.0' ? 'text' : 'image'
+
+    const apiKey = getApiKey(usage)
+    if (!apiKey) {
+      throw new Error('API Key 未設定')
+    }
+
+    // Extract base64 data from data URL
+    const base64Data = imageDataUrl.split(',')[1]
+    const mimeType = imageDataUrl.split(';')[0].split(':')[1] || 'image/png'
+
+    // Build prompt describing what text to remove
+    const textDescriptions = ocrResults.slice(0, 10).map(r => r.text).join(', ')
+    const prompt = `Remove ALL text from this slide image completely. The image contains text like: "${textDescriptions}".
+
+IMPORTANT REQUIREMENTS:
+1. Remove every piece of text, including titles, subtitles, body text, labels, and captions
+2. Fill in the removed text areas with appropriate background content that matches the surrounding area
+3. Preserve all non-text elements: images, shapes, icons, charts, graphs, decorative elements
+4. Maintain the exact same image dimensions and aspect ratio
+5. The result should look like a clean slide background template ready for new text overlay
+6. Do NOT add any new text or watermarks
+
+Output: A single clean image with all text removed.`
+
+    const ai = new GoogleGenAI({ apiKey })
+
+    try {
+      const response = await ai.models.generateContent({
+        model: modelId,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType,
+                  data: base64Data,
+                },
+              },
+            ],
+          },
+        ],
+        config: {
+          responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+      })
+
+      // Extract image from response
+      if (!response.candidates || response.candidates.length === 0) {
+        throw new Error('No response from Gemini')
+      }
+
+      const candidate = response.candidates[0]
+      if (!candidate.content || !candidate.content.parts) {
+        throw new Error('Invalid response format')
+      }
+
+      // Find the image part
+      for (const part of candidate.content.parts) {
+        if (part.inlineData) {
+          const resultMimeType = part.inlineData.mimeType || 'image/png'
+          return `data:${resultMimeType};base64,${part.inlineData.data}`
+        }
+      }
+
+      throw new Error('No image in Gemini response')
+    } catch (error) {
+      // Check if it's a quota error and we're using free tier
+      if (usage === 'text' && isQuotaError(error)) {
+        addLog(t('slideToPptx.logs.freeTierQuotaExceeded'), 'warning')
+
+        // Retry with paid key
+        const paidKey = getApiKey('image')
+        if (!paidKey) {
+          throw new Error('付費金鑰未設定，無法繼續')
+        }
+
+        const paidAi = new GoogleGenAI({ apiKey: paidKey })
+        const retryResponse = await paidAi.models.generateContent({
+          model: modelId,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    mimeType,
+                    data: base64Data,
+                  },
+                },
+              ],
+            },
+          ],
+          config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+          },
+        })
+
+        const retryCandidate = retryResponse.candidates?.[0]
+        if (retryCandidate?.content?.parts) {
+          for (const part of retryCandidate.content.parts) {
+            if (part.inlineData) {
+              const resultMimeType = part.inlineData.mimeType || 'image/png'
+              return `data:${resultMimeType};base64,${part.inlineData.data}`
+            }
+          }
+        }
+        throw new Error('No image in Gemini response after retry')
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Check if error is a quota/rate limit error
+   */
+  const isQuotaError = (error) => {
+    if (error?.status === 429 || error?.code === 429) return true
+    const message = (error?.message || '').toLowerCase()
+    return (
+      message.includes('quota') ||
+      message.includes('rate limit') ||
+      message.includes('exhausted') ||
+      message.includes('exceeded') ||
+      message.includes('too many requests')
+    )
+  }
+
+  /**
    * Process a single slide
    * @param {number} index - Slide index
    * @param {string} imageSrc - Image data URL
    * @returns {Promise<SlideProcessingState>}
    */
+  /**
+   * Get effective settings for a slide (per-page override or global)
+   * @param {number} index - Slide index
+   * @returns {Object} Effective settings
+   */
+  const getEffectiveSettings = (index) => {
+    const state = slideStates.value[index]
+    if (state?.overrideSettings) {
+      return { ...settings, ...state.overrideSettings }
+    }
+    return settings
+  }
+
   const processSlide = async (index, imageSrc) => {
     const state = slideStates.value[index]
 
     // Convert to data URL once at the start
     const imageDataUrl = toDataUrl(imageSrc)
+
+    // Save original image for comparison
+    state.originalImage = imageDataUrl
+
+    // Get effective settings (per-page override or global)
+    const effectiveSettings = getEffectiveSettings(index)
 
     if (isCancelled.value) {
       state.status = 'error'
@@ -156,7 +342,7 @@ export function useSlideToPptx() {
 
     try {
       // Step 1: Load image
-      addLog(`Slide ${index + 1}: Loading image...`)
+      addLog(t('slideToPptx.logs.loadingImage', { slide: index + 1 }))
       const { imageData, width, height } = await loadImage(imageDataUrl)
       state.width = width
       state.height = height
@@ -164,11 +350,23 @@ export function useSlideToPptx() {
       // Step 2: OCR
       currentStep.value = 'ocr'
       state.status = 'ocr'
-      addLog(`Slide ${index + 1}: Running OCR...`)
+      addLog(t('slideToPptx.logs.runningOcr', { slide: index + 1 }))
 
-      const ocrResults = await ocr.recognize(imageDataUrl)
-      state.ocrResults = ocrResults
-      addLog(`Slide ${index + 1}: Found ${ocrResults.length} text regions`, 'success')
+      // Now returns { regions, rawRegions }
+      const ocrResult = await ocr.recognize(imageDataUrl)
+      
+      // Handle both old and new format for backward compatibility
+      if (Array.isArray(ocrResult)) {
+        state.regions = ocrResult
+        state.rawRegions = ocrResult
+      } else {
+        state.regions = ocrResult.regions
+        state.rawRegions = ocrResult.rawRegions
+      }
+      
+      // Also store in ocrResults for PPTX export compatibility
+      state.ocrResults = state.regions
+      addLog(t('slideToPptx.logs.foundTextBlocks', { slide: index + 1, count: state.regions.length }), 'success')
 
       if (isCancelled.value) {
         state.status = 'error'
@@ -176,12 +374,12 @@ export function useSlideToPptx() {
         return state
       }
 
-      // Step 3: Generate mask
+      // Step 3: Generate mask (Use rawRegions for precise inpainting!)
       currentStep.value = 'mask'
       state.status = 'mask'
-      addLog(`Slide ${index + 1}: Generating mask...`)
+      addLog(t('slideToPptx.logs.generatingMask', { slide: index + 1 }))
 
-      const mask = ocr.generateMask(width, height, ocrResults, settings.maskPadding)
+      const mask = ocr.generateMask(width, height, state.rawRegions, settings.maskPadding)
       state.mask = mask
 
       if (isCancelled.value) {
@@ -193,33 +391,49 @@ export function useSlideToPptx() {
       // Step 4: Inpaint (remove text)
       currentStep.value = 'inpaint'
       state.status = 'inpaint'
-      addLog(`Slide ${index + 1}: Removing text (${settings.inpaintMethod})...`)
+      addLog(t('slideToPptx.logs.removingText', { slide: index + 1, method: effectiveSettings.inpaintMethod }))
 
-      if (settings.inpaintMethod === 'opencv') {
+      if (effectiveSettings.inpaintMethod === 'opencv') {
         const inpaintedData = await inpainting.inpaint(imageData, mask, {
-          algorithm: settings.opencvAlgorithm,
-          radius: settings.inpaintRadius,
+          algorithm: effectiveSettings.opencvAlgorithm,
+          radius: effectiveSettings.inpaintRadius,
           dilateMask: true,
-          dilateIterations: Math.ceil(settings.maskPadding / 2),
+          dilateIterations: Math.ceil(effectiveSettings.maskPadding / 2),
         })
 
         // Convert ImageData to data URL
         state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
       } else {
-        // Gemini API method - to be implemented
-        // For now, just use the original image
-        addLog(`Slide ${index + 1}: Gemini API not yet implemented, using original`, 'warning')
-        state.cleanImage = imageDataUrl
+        // Gemini API method with fallback to OpenCV
+        const modelName = effectiveSettings.geminiModel === '2.0' ? 'Nano Banana (2.0)' : 'Nano Banana Pro (3.0)'
+        addLog(t('slideToPptx.logs.usingGeminiModel', { slide: index + 1, model: modelName }))
+
+        try {
+          state.cleanImage = await removeTextWithGeminiWithSettings(imageDataUrl, state.regions, effectiveSettings)
+        } catch (geminiError) {
+          // Fallback to OpenCV when Gemini fails (RECITATION, quota, etc.)
+          addLog(t('slideToPptx.logs.geminiFailed', { slide: index + 1, error: geminiError.message }), 'warning')
+
+          const inpaintedData = await inpainting.inpaint(imageData, mask, {
+            algorithm: 'NS', // Use NS algorithm for fallback (better for larger regions)
+            radius: effectiveSettings.inpaintRadius || 3,
+            dilateMask: true,
+            dilateIterations: Math.ceil((effectiveSettings.maskPadding || 5) / 2),
+          })
+
+          state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
+          addLog(t('slideToPptx.logs.opencvFallbackComplete', { slide: index + 1 }), 'success')
+        }
       }
 
-      addLog(`Slide ${index + 1}: Text removal complete`, 'success')
+      addLog(t('slideToPptx.logs.textRemovalComplete', { slide: index + 1 }), 'success')
 
       state.status = 'done'
       return state
     } catch (error) {
       state.status = 'error'
       state.error = error.message
-      addLog(`Slide ${index + 1}: Error - ${error.message}`, 'error')
+      addLog(t('slideToPptx.logs.slideError', { slide: index + 1, error: error.message }), 'error')
       return state
     }
   }
@@ -240,25 +454,28 @@ export function useSlideToPptx() {
     progress.value = 0
     clearLogs()
 
-    // Initialize slide states
-    slideStates.value = images.map(() => ({
+    // Initialize slide states with extended structure
+    // IMPORTANT: Preserve existing overrideSettings (per-page settings)
+    slideStates.value = images.map((_, index) => ({
       status: 'pending',
       ocrResults: [],
       mask: null,
       cleanImage: null,
+      originalImage: null,
       width: 0,
       height: 0,
       error: null,
+      overrideSettings: slideStates.value[index]?.overrideSettings || null,
     }))
 
-    addLog(`Starting processing of ${images.length} slides...`)
+    addLog(t('slideToPptx.logs.startingProcessing', { count: images.length }))
 
     try {
       // Initialize workers
-      addLog('Initializing OCR engine...')
+      addLog(t('slideToPptx.logs.initializingOcr'))
       await ocr.initialize()
 
-      addLog('Initializing inpainting engine...')
+      addLog(t('slideToPptx.logs.initializingInpainting'))
       await inpainting.initialize()
 
       // Process each slide
@@ -280,7 +497,7 @@ export function useSlideToPptx() {
       }
 
       if (isCancelled.value) {
-        addLog('Processing cancelled', 'warning')
+        addLog(t('slideToPptx.logs.processingCancelled'), 'warning')
         return false
       }
 
@@ -289,30 +506,21 @@ export function useSlideToPptx() {
       const failCount = slideStates.value.filter((s) => s.status === 'error').length
 
       if (successCount === 0) {
-        addLog('All slides failed to process', 'error')
+        addLog(t('slideToPptx.logs.allSlidesFailed'), 'error')
         return false
       }
 
       if (failCount > 0) {
-        addLog(`${failCount} slides failed, continuing with ${successCount} successful slides`, 'warning')
+        addLog(t('slideToPptx.logs.someSlidesFailed', { failCount, successCount }), 'warning')
       }
 
-      // Generate PPTX
-      currentStep.value = 'pptx'
-      progress.value = 85
-      addLog('Generating PPTX file...')
-
-      const successfulSlides = slideStates.value
-        .filter((s) => s.status === 'done')
-        .map((s) => pptx.createSlideData(s.cleanImage, s.ocrResults, s.width, s.height))
-
-      await pptx.downloadPptx(successfulSlides, {
-        ratio: settings.slideRatio,
-        title: 'Converted Presentation',
-      })
-
+      // Enter preview mode instead of auto-download
       progress.value = 100
-      addLog('PPTX download complete!', 'success')
+      addLog(t('slideToPptx.logs.processingComplete'), 'success')
+
+      // Enter preview mode for user to review before download
+      isPreviewMode.value = true
+      previewIndex.value = 0
 
       if (callbacks.onComplete) {
         callbacks.onComplete(successCount, failCount)
@@ -320,7 +528,7 @@ export function useSlideToPptx() {
 
       return true
     } catch (error) {
-      addLog(`Processing failed: ${error.message}`, 'error')
+      addLog(t('slideToPptx.logs.processingFailed', { error: error.message }), 'error')
       if (callbacks.onError) {
         callbacks.onError(error)
       }
@@ -337,7 +545,7 @@ export function useSlideToPptx() {
   const cancel = () => {
     if (isProcessing.value) {
       isCancelled.value = true
-      addLog('Cancellation requested...', 'warning')
+      addLog(t('slideToPptx.logs.cancellationRequested'), 'warning')
     }
   }
 
@@ -352,7 +560,85 @@ export function useSlideToPptx() {
     totalSlides.value = 0
     progress.value = 0
     slideStates.value = []
+    isPreviewMode.value = false
+    previewIndex.value = 0
     clearLogs()
+  }
+
+  /**
+   * Download PPTX file (called after preview confirmation)
+   * @returns {Promise<boolean>} Success status
+   */
+  const downloadPptx = async () => {
+    const successfulSlides = slideStates.value
+      .filter((s) => s.status === 'done')
+      .map((s) => pptx.createSlideData(s.cleanImage, s.ocrResults, s.width, s.height))
+
+    if (successfulSlides.length === 0) {
+      addLog(t('slideToPptx.logs.noSlidesToDownload'), 'error')
+      return false
+    }
+
+    addLog(t('slideToPptx.logs.generatingPptx'))
+
+    try {
+      await pptx.downloadPptx(successfulSlides, {
+        ratio: settings.slideRatio,
+        title: 'Converted Presentation',
+      })
+
+      addLog(t('slideToPptx.logs.downloadComplete'), 'success')
+      isPreviewMode.value = false
+      return true
+    } catch (error) {
+      addLog(t('slideToPptx.logs.pptxGenerationFailed', { error: error.message }), 'error')
+      return false
+    }
+  }
+
+  /**
+   * Close preview mode without downloading
+   */
+  const closePreview = () => {
+    isPreviewMode.value = false
+  }
+
+  /**
+   * Initialize slide states for per-page settings (call after images are loaded)
+   * @param {number} count - Number of slides
+   */
+  const initSlideStates = (count) => {
+    // Only initialize if not already done or count changed
+    if (slideStates.value.length !== count) {
+      slideStates.value = Array.from({ length: count }, () => ({
+        status: 'pending',
+        ocrResults: [],
+        mask: null,
+        cleanImage: null,
+        originalImage: null,
+        width: 0,
+        height: 0,
+        error: null,
+        overrideSettings: null,
+      }))
+    }
+  }
+
+  /**
+   * Set override settings for a specific slide
+   * @param {number} index - Slide index
+   * @param {Object|null} overrideSettings - Settings to override (null to use global)
+   */
+  const setSlideSettings = (index, overrideSettings) => {
+    // Initialize if needed
+    if (!slideStates.value[index]) {
+      return
+    }
+    // Create a new object to ensure Vue detects the change
+    slideStates.value[index] = {
+      ...slideStates.value[index],
+      overrideSettings,
+    }
   }
 
   /**
@@ -381,6 +667,13 @@ export function useSlideToPptx() {
     slideStates,
     settings,
 
+    // Setting mode ('global' | 'per-page')
+    settingMode,
+
+    // Preview mode state
+    isPreviewMode,
+    previewIndex,
+
     // Sub-composable status
     ocrStatus: ocr.status,
     ocrProgress: ocr.progress,
@@ -394,5 +687,14 @@ export function useSlideToPptx() {
     cleanup,
     addLog,
     clearLogs,
+
+    // Preview methods
+    downloadPptx,
+    closePreview,
+
+    // Per-page settings methods
+    initSlideStates,
+    setSlideSettings,
+    getEffectiveSettings,
   }
 }

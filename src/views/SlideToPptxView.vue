@@ -26,6 +26,25 @@ const historyRecord = ref(null)
 // Log container ref for auto-scroll
 const logContainer = ref(null)
 
+// Thumbnail refs for auto-scroll
+const thumbnailContainer = ref(null)
+const thumbnailRefs = ref({})
+
+// Select slide and scroll to center
+const selectSlide = (idx) => {
+  currentIndex.value = idx
+  nextTick(() => {
+    const thumbnail = thumbnailRefs.value[idx]
+    if (thumbnail && thumbnailContainer.value) {
+      thumbnail.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      })
+    }
+  })
+}
+
 // OCR overlay toggle
 const showOcrOverlay = ref(true)
 
@@ -145,7 +164,98 @@ const isProcessing = computed(() => slideToPptx.isProcessing.value)
 const currentStep = computed(() => slideToPptx.currentStep.value)
 const progress = computed(() => slideToPptx.progress.value)
 const logs = computed(() => slideToPptx.logs.value)
-const slideStates = computed(() => slideToPptx.slideStates.value)
+const slideStates = slideToPptx.slideStates
+
+// Setting mode and preview mode from composable
+const settingMode = computed({
+  get: () => slideToPptx.settingMode.value,
+  set: (v) => { slideToPptx.settingMode.value = v },
+})
+const isPreviewMode = computed(() => slideToPptx.isPreviewMode.value)
+const previewIndex = computed({
+  get: () => slideToPptx.previewIndex.value,
+  set: (v) => { slideToPptx.previewIndex.value = v },
+})
+
+// Check if a slide has custom settings
+const hasCustomSettings = (index) => {
+  return slideStates.value[index]?.overrideSettings !== null
+}
+
+// Check if current page has custom settings
+const currentPageHasCustomSettings = computed(() => {
+  return hasCustomSettings(currentIndex.value)
+})
+
+// Update a setting - handles both global and per-page modes
+const updateSetting = (key, value) => {
+  if (settingMode.value === 'global') {
+    // Update global settings
+    settings[key] = value
+  } else {
+    // Per-page mode: create/update override for current page
+    const currentOverride = slideStates.value[currentIndex.value]?.overrideSettings || {}
+    slideToPptx.setSlideSettings(currentIndex.value, {
+      ...currentOverride,
+      [key]: value,
+    })
+  }
+}
+
+// Reset current page to use global settings
+const resetToGlobalSettings = () => {
+  slideToPptx.setSlideSettings(currentIndex.value, null)
+}
+
+// Get the display value for a setting (respects per-page mode)
+const getSettingValue = (key) => {
+  if (settingMode.value === 'per-page') {
+    const override = slideStates.value[currentIndex.value]?.overrideSettings
+    if (override && key in override) {
+      return override[key]
+    }
+  }
+  return settings[key]
+}
+
+// Preview navigation
+const prevPreview = () => {
+  if (previewIndex.value > 0) {
+    previewIndex.value--
+  }
+}
+
+const nextPreview = () => {
+  const maxIndex = slideStates.value.filter(s => s.status === 'done').length - 1
+  if (previewIndex.value < maxIndex) {
+    previewIndex.value++
+  }
+}
+
+// Get successful slides for preview
+const successfulSlides = computed(() => {
+  return slideStates.value
+    .map((state, idx) => ({ ...state, originalIndex: idx }))
+    .filter(s => s.status === 'done')
+})
+
+// Current preview slide
+const currentPreviewSlide = computed(() => {
+  return successfulSlides.value[previewIndex.value] || null
+})
+
+// Download PPTX
+const downloadPptx = async () => {
+  const success = await slideToPptx.downloadPptx()
+  if (success) {
+    toast.success(t('slideToPptx.downloadSuccess'))
+  }
+}
+
+// Close preview without download
+const closePreview = () => {
+  slideToPptx.closePreview()
+}
 
 // Current slide's OCR results
 const currentOcrResults = computed(() => {
@@ -163,6 +273,17 @@ watch(logs, () => {
     }
   })
 }, { deep: true })
+
+// Initialize slideStates when images are loaded (for per-page settings)
+watch(
+  () => images.value.length,
+  (count) => {
+    if (count > 0) {
+      slideToPptx.initSlideStates(count)
+    }
+  },
+  { immediate: true }
+)
 
 // Prepare images for processing (load from OPFS if needed)
 const prepareImagesForProcessing = async () => {
@@ -363,7 +484,7 @@ const getSlideStatus = (index) => {
             </div>
 
             <!-- OCR Toggle -->
-            <div class="flex items-center justify-between mt-4">
+            <div class="mt-4">
               <label class="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -372,27 +493,83 @@ const getSlideStatus = (index) => {
                 />
                 <span class="text-sm text-text-secondary">{{ $t('slideToPptx.showOcrResult') }}</span>
               </label>
+            </div>
 
-              <!-- Thumbnail Strip -->
-              <div class="flex gap-2 overflow-x-auto max-w-[50%]">
+            <!-- Thumbnail Strip - Full Width Below -->
+            <div class="mt-4 -mx-2">
+              <!-- Processing indicator (shows during processing) -->
+              <div v-if="isProcessing" class="px-2 mb-2 flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-mode-generate animate-pulse"></div>
+                <span class="text-sm text-text-secondary">
+                  {{ $t('slideToPptx.processingPage', { current: slideToPptx.currentSlide.value, total: images.length }) }}
+                </span>
+              </div>
+
+              <!-- Thumbnails with hidden scrollbar -->
+              <div
+                ref="thumbnailContainer"
+                class="flex gap-3 overflow-x-auto px-2 py-2 thumbnail-scroll-hidden"
+              >
                 <button
                   v-for="(img, idx) in images"
                   :key="img.id"
-                  @click="currentIndex = idx"
-                  class="relative flex-shrink-0 w-12 h-8 rounded border-2 overflow-hidden transition-colors"
-                  :class="idx === currentIndex ? 'border-mode-generate' : 'border-transparent hover:border-border-muted'"
+                  :ref="el => { if (el) thumbnailRefs[idx] = el }"
+                  @click="selectSlide(idx)"
+                  class="relative flex-shrink-0 group"
                 >
-                  <img :src="img.preview" alt="" class="w-full h-full object-cover" />
-                  <!-- Status indicator -->
+                  <!-- Thumbnail with page number -->
                   <div
-                    v-if="getSlideStatus(idx) !== 'pending'"
-                    class="absolute bottom-0 right-0 w-3 h-3 rounded-tl"
-                    :class="{
-                      'bg-status-success': getSlideStatus(idx) === 'done',
-                      'bg-status-error': getSlideStatus(idx) === 'error',
-                      'bg-mode-generate animate-pulse': ['ocr', 'mask', 'inpaint'].includes(getSlideStatus(idx)),
-                    }"
-                  ></div>
+                    class="relative w-20 h-12 rounded-lg overflow-hidden transition-all duration-200"
+                    :class="idx === currentIndex
+                      ? 'ring-2 ring-mode-generate ring-offset-2 ring-offset-bg-elevated scale-105 shadow-lg'
+                      : 'opacity-70 hover:opacity-100 hover:scale-102'"
+                  >
+                    <img :src="img.preview" alt="" class="w-full h-full object-cover" />
+
+                    <!-- Page number badge -->
+                    <div class="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      :class="idx === currentIndex
+                        ? 'bg-mode-generate text-white'
+                        : 'bg-black/50 text-white'">
+                      {{ idx + 1 }}
+                    </div>
+
+                    <!-- Status indicator (larger, more visible) -->
+                    <div
+                      v-if="getSlideStatus(idx) !== 'pending'"
+                      class="absolute bottom-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                      :class="{
+                        'bg-status-success': getSlideStatus(idx) === 'done',
+                        'bg-status-error': getSlideStatus(idx) === 'error',
+                        'bg-mode-generate': ['ocr', 'mask', 'inpaint'].includes(getSlideStatus(idx)),
+                      }"
+                    >
+                      <!-- Check icon for done -->
+                      <svg v-if="getSlideStatus(idx) === 'done'" class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                      </svg>
+                      <!-- X icon for error -->
+                      <svg v-else-if="getSlideStatus(idx) === 'error'" class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                      <!-- Spinner for processing -->
+                      <svg v-else class="w-2.5 h-2.5 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <!-- Custom settings indicator (only in per-page mode) -->
+                  <div
+                    v-if="settingMode === 'per-page' && hasCustomSettings(idx)"
+                    class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-status-warning flex items-center justify-center shadow"
+                    :title="$t('slideToPptx.hasCustomSettings')"
+                  >
+                    <svg class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
                 </button>
               </div>
             </div>
@@ -443,24 +620,84 @@ const getSlideStatus = (index) => {
         <!-- Right: Settings -->
         <div class="space-y-4">
           <div class="glass p-6">
-            <h2 class="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
-              <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {{ $t('slideToPptx.settings') }}
-            </h2>
+            <!-- Settings Header - changes based on mode -->
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold text-text-primary flex items-center gap-2">
+                <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span v-if="settingMode === 'global'">{{ $t('slideToPptx.settings') }}</span>
+                <span v-else>{{ $t('slideToPptx.slideSettings', { index: currentIndex + 1 }) }}</span>
+              </h2>
+              <!-- Reset to global button (only in per-page mode when has custom settings) -->
+              <button
+                v-if="settingMode === 'per-page' && currentPageHasCustomSettings"
+                @click="resetToGlobalSettings"
+                class="text-xs px-2 py-1 rounded-lg text-status-warning hover:bg-status-warning-muted transition-colors"
+              >
+                {{ $t('slideToPptx.resetToGlobal') }}
+              </button>
+            </div>
+
+            <!-- Setting Mode Toggle -->
+            <div class="mb-6">
+              <label class="block text-sm text-text-muted mb-2">{{ $t('slideToPptx.settingMode') }}</label>
+              <div class="flex rounded-xl bg-bg-muted p-1">
+                <button
+                  @click="settingMode = 'global'"
+                  class="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  :class="settingMode === 'global'
+                    ? 'bg-brand-primary text-text-on-brand'
+                    : 'text-text-muted hover:text-text-primary'"
+                >
+                  {{ $t('slideToPptx.globalMode') }}
+                </button>
+                <button
+                  @click="settingMode = 'per-page'"
+                  class="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  :class="settingMode === 'per-page'
+                    ? 'bg-brand-primary text-text-on-brand'
+                    : 'text-text-muted hover:text-text-primary'"
+                >
+                  {{ $t('slideToPptx.perPageMode') }}
+                </button>
+              </div>
+              <p class="text-xs text-text-muted mt-2">
+                {{ settingMode === 'global'
+                  ? $t('slideToPptx.globalModeDesc')
+                  : $t('slideToPptx.perPageModeDesc') }}
+              </p>
+            </div>
+
+            <!-- Per-page mode: current page indicator -->
+            <div v-if="settingMode === 'per-page'" class="mb-6 p-3 rounded-lg border border-mode-generate/30"
+              :class="currentPageHasCustomSettings ? 'bg-status-warning-muted/30' : 'bg-mode-generate-muted/30'">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-text-primary">
+                  {{ $t('slideToPptx.editingPage', { index: currentIndex + 1, total: images.length }) }}
+                </span>
+                <span v-if="currentPageHasCustomSettings" class="px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning font-medium">
+                  {{ $t('slideToPptx.customized') }}
+                </span>
+                <span v-else class="px-2 py-0.5 text-xs rounded-full bg-bg-muted text-text-muted">
+                  {{ $t('slideToPptx.usingGlobal') }}
+                </span>
+              </div>
+            </div>
 
             <!-- Inpaint Method -->
             <div class="space-y-3 mb-6">
               <label class="block text-sm text-text-muted">{{ $t('slideToPptx.inpaintMethod') }}</label>
 
               <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
-                :class="{ 'border-mode-generate bg-mode-generate-muted/30': settings.inpaintMethod === 'opencv' }">
+                :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('inpaintMethod') === 'opencv' }">
                 <input
                   type="radio"
+                  name="inpaintMethod"
                   value="opencv"
-                  v-model="settings.inpaintMethod"
+                  :checked="getSettingValue('inpaintMethod') === 'opencv'"
+                  @change="updateSetting('inpaintMethod', 'opencv')"
                   class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
@@ -471,11 +708,13 @@ const getSlideStatus = (index) => {
               </label>
 
               <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
-                :class="{ 'border-mode-generate bg-mode-generate-muted/30': settings.inpaintMethod === 'gemini' }">
+                :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('inpaintMethod') === 'gemini' }">
                 <input
                   type="radio"
+                  name="inpaintMethod"
                   value="gemini"
-                  v-model="settings.inpaintMethod"
+                  :checked="getSettingValue('inpaintMethod') === 'gemini'"
+                  @change="updateSetting('inpaintMethod', 'gemini')"
                   class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
@@ -487,39 +726,82 @@ const getSlideStatus = (index) => {
             </div>
 
             <!-- OpenCV Algorithm (only when opencv selected) -->
-            <div v-if="settings.inpaintMethod === 'opencv'" class="space-y-3 mb-6">
+            <div v-if="getSettingValue('inpaintMethod') === 'opencv'" class="space-y-3 mb-6">
               <label class="block text-sm text-text-muted">{{ $t('slideToPptx.algorithm') }}</label>
 
               <div class="grid grid-cols-2 gap-2">
                 <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
-                  :class="{ 'border-mode-generate bg-mode-generate-muted/30': settings.opencvAlgorithm === 'TELEA' }">
+                  :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('opencvAlgorithm') === 'NS' }">
                   <input
                     type="radio"
-                    value="TELEA"
-                    v-model="settings.opencvAlgorithm"
-                    class="w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
-                  />
-                  <span class="text-sm text-text-primary">TELEA</span>
-                </label>
-
-                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
-                  :class="{ 'border-mode-generate bg-mode-generate-muted/30': settings.opencvAlgorithm === 'NS' }">
-                  <input
-                    type="radio"
+                    name="opencvAlgorithm"
                     value="NS"
-                    v-model="settings.opencvAlgorithm"
+                    :checked="getSettingValue('opencvAlgorithm') === 'NS'"
+                    @change="updateSetting('opencvAlgorithm', 'NS')"
                     class="w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
                   />
                   <span class="text-sm text-text-primary">NS</span>
                 </label>
+
+                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
+                  :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('opencvAlgorithm') === 'TELEA' }">
+                  <input
+                    type="radio"
+                    name="opencvAlgorithm"
+                    value="TELEA"
+                    :checked="getSettingValue('opencvAlgorithm') === 'TELEA'"
+                    @change="updateSetting('opencvAlgorithm', 'TELEA')"
+                    class="w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                  />
+                  <span class="text-sm text-text-primary">TELEA</span>
+                </label>
               </div>
               <p class="text-xs text-text-muted">
-                {{ settings.opencvAlgorithm === 'TELEA' ? $t('slideToPptx.teleaHint') : $t('slideToPptx.nsHint') }}
+                {{ getSettingValue('opencvAlgorithm') === 'NS' ? $t('slideToPptx.nsHint') : $t('slideToPptx.teleaHint') }}
               </p>
             </div>
 
-            <!-- Advanced Settings -->
-            <details v-if="settings.inpaintMethod === 'opencv'" class="mb-6">
+            <!-- Gemini Model (only when gemini selected) -->
+            <div v-if="getSettingValue('inpaintMethod') === 'gemini'" class="space-y-3 mb-6">
+              <label class="block text-sm text-text-muted">{{ $t('slideToPptx.geminiModel') }}</label>
+
+              <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
+                :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('geminiModel') === '2.0' }">
+                <input
+                  type="radio"
+                  name="geminiModel"
+                  value="2.0"
+                  :checked="getSettingValue('geminiModel') === '2.0'"
+                  @change="updateSetting('geminiModel', '2.0')"
+                  class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                />
+                <div>
+                  <span class="text-text-primary font-medium">Nano Banana (2.0)</span>
+                  <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-success-muted text-status-success">{{ $t('slideToPptx.freeTierAvailable') }}</span>
+                  <p class="text-xs text-text-muted mt-1">{{ $t('slideToPptx.gemini20Desc') }}</p>
+                </div>
+              </label>
+
+              <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
+                :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('geminiModel') === '3.0' }">
+                <input
+                  type="radio"
+                  name="geminiModel"
+                  value="3.0"
+                  :checked="getSettingValue('geminiModel') === '3.0'"
+                  @change="updateSetting('geminiModel', '3.0')"
+                  class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                />
+                <div>
+                  <span class="text-text-primary font-medium">Nano Banana Pro (3.0)</span>
+                  <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
+                  <p class="text-xs text-text-muted mt-1">{{ $t('slideToPptx.gemini30Desc') }}</p>
+                </div>
+              </label>
+            </div>
+
+            <!-- Advanced Settings (only in global mode, for simplicity) -->
+            <details v-if="settingMode === 'global' && settings.inpaintMethod === 'opencv'" class="mb-6">
               <summary class="text-sm text-text-muted cursor-pointer hover:text-text-primary">
                 {{ $t('slideToPptx.advancedSettings') }}
               </summary>
@@ -601,6 +883,30 @@ const getSlideStatus = (index) => {
                 </svg>
                 {{ $t('slideToPptx.actions.cancel') }}
               </button>
+
+              <!-- Download PPTX Button (shows after processing complete) -->
+              <button
+                v-if="!isProcessing && successfulSlides.length > 0"
+                @click="downloadPptx"
+                class="w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 bg-status-success hover:bg-status-success/80 text-white"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {{ $t('slideToPptx.downloadPptx') }} ({{ successfulSlides.length }})
+              </button>
+            </div>
+          </div>
+
+          <!-- Tip: Clean backgrounds -->
+          <div class="glass p-4 border-l-4 border-status-success">
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-status-success flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <p class="text-xs text-text-secondary">
+                {{ $t('slideToPptx.cleanBackgroundTip') }}
+              </p>
             </div>
           </div>
 
@@ -618,5 +924,126 @@ const getSlideStatus = (index) => {
         </div>
       </div>
     </main>
+
+    <!-- Preview Modal -->
+    <Teleport to="body">
+      <div
+        v-if="isPreviewMode"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      >
+        <!-- No @click.self - user must use X button or download to close -->
+        <div class="w-full max-w-5xl bg-bg-elevated rounded-2xl shadow-2xl overflow-hidden">
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+            <h3 class="text-lg font-semibold text-text-primary">
+              {{ $t('slideToPptx.compareResult') }}
+            </h3>
+            <div class="flex items-center gap-4">
+              <span class="text-sm text-text-muted">
+                {{ previewIndex + 1 }} / {{ successfulSlides.length }}
+              </span>
+              <button
+                @click="closePreview"
+                class="p-2 rounded-lg hover:bg-bg-muted transition-colors text-text-muted hover:text-text-primary"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Modal Body: Image Comparison -->
+          <div class="p-6">
+            <div v-if="currentPreviewSlide" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Original Image -->
+              <div class="space-y-2">
+                <h4 class="text-sm font-medium text-text-secondary text-center">
+                  {{ $t('slideToPptx.original') }}
+                </h4>
+                <div class="aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+                  <img
+                    :src="currentPreviewSlide.originalImage"
+                    alt="Original"
+                    class="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+
+              <!-- Processed Image -->
+              <div class="space-y-2">
+                <h4 class="text-sm font-medium text-text-secondary text-center">
+                  {{ $t('slideToPptx.processed') }}
+                </h4>
+                <div class="aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+                  <img
+                    :src="currentPreviewSlide.cleanImage"
+                    alt="Processed"
+                    class="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer: Navigation & Download -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-border-subtle bg-bg-muted">
+            <!-- Navigation -->
+            <div class="flex items-center gap-2">
+              <button
+                @click="prevPreview"
+                :disabled="previewIndex === 0"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                :class="previewIndex === 0
+                  ? 'text-text-muted cursor-not-allowed'
+                  : 'text-text-primary hover:bg-bg-elevated'"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                {{ $t('slideToPptx.prevPage') }}
+              </button>
+              <button
+                @click="nextPreview"
+                :disabled="previewIndex >= successfulSlides.length - 1"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                :class="previewIndex >= successfulSlides.length - 1
+                  ? 'text-text-muted cursor-not-allowed'
+                  : 'text-text-primary hover:bg-bg-elevated'"
+              >
+                {{ $t('slideToPptx.nextPage') }}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Download Button -->
+            <button
+              @click="downloadPptx"
+              class="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-hover text-text-on-brand"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              {{ $t('slideToPptx.downloadPptx') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </div>
 </template>
+
+<style scoped>
+/* Hide scrollbar while maintaining scroll functionality */
+.thumbnail-scroll-hidden {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.thumbnail-scroll-hidden::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+</style>
