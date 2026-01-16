@@ -222,6 +222,7 @@ const changeTheme = async (themeName, event) => {
 const appVersion = __APP_VERSION__
 
 // Scroll to panels
+const heroRef = ref(null)
 const panelsRef = ref(null)
 const thinkingRef = ref(null)
 
@@ -231,6 +232,88 @@ const scrollToContent = () => {
 
 const scrollToThinking = () => {
   thinkingRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// ============================================
+// Asymmetric Scroll Behavior
+// - Scroll down: Easy snap from Hero to Main (20% threshold)
+// - Scroll up: Requires scrolling near top to return to Hero
+// ============================================
+const isInMainSection = ref(false)
+const isScrollLocked = ref(false)
+let lastScrollY = 0
+let scrollVelocity = 0
+let lastScrollTime = 0
+
+const handleAsymmetricScroll = () => {
+  if (isScrollLocked.value) return
+
+  const currentScrollY = window.scrollY
+  const currentTime = Date.now()
+  const heroHeight = heroRef.value?.offsetHeight || window.innerHeight
+
+  // Calculate scroll velocity (px/ms)
+  const timeDelta = currentTime - lastScrollTime
+  if (timeDelta > 0) {
+    scrollVelocity = (currentScrollY - lastScrollY) / timeDelta
+  }
+
+  const scrollDirection = currentScrollY > lastScrollY ? 'down' : 'up'
+
+  // Scroll DOWN: Easy snap to Main Section
+  if (scrollDirection === 'down' && !isInMainSection.value) {
+    // Snap when scrolled past 20% of hero height
+    if (currentScrollY > heroHeight * 0.2) {
+      snapToMain()
+    }
+  }
+
+  // Scroll UP: Requires more effort to return to Hero
+  if (scrollDirection === 'up' && isInMainSection.value) {
+    // Option 1: Scrolled very close to top (< 80px)
+    // Option 2: Fast upward scroll velocity (> 1.5 px/ms) near top area
+    const nearTop = currentScrollY < 80
+    const fastScrollNearTop = currentScrollY < heroHeight * 0.5 && scrollVelocity < -1.5
+
+    if (nearTop || fastScrollNearTop) {
+      snapToHero()
+    }
+  }
+
+  lastScrollY = currentScrollY
+  lastScrollTime = currentTime
+}
+
+const snapToMain = () => {
+  isScrollLocked.value = true
+  isInMainSection.value = true
+  panelsRef.value?.scrollIntoView({ behavior: 'smooth' })
+  // Unlock after animation completes
+  setTimeout(() => {
+    isScrollLocked.value = false
+    lastScrollY = window.scrollY
+  }, 600)
+}
+
+const snapToHero = () => {
+  isScrollLocked.value = true
+  isInMainSection.value = false
+  heroRef.value?.scrollIntoView({ behavior: 'smooth' })
+  // Unlock after animation completes
+  setTimeout(() => {
+    isScrollLocked.value = false
+    lastScrollY = window.scrollY
+  }, 600)
+}
+
+// Throttle scroll handler for performance
+let scrollThrottleTimer = null
+const throttledScrollHandler = () => {
+  if (scrollThrottleTimer) return
+  scrollThrottleTimer = setTimeout(() => {
+    handleAsymmetricScroll()
+    scrollThrottleTimer = null
+  }, 50)
 }
 
 // Intersection observer for panel animations
@@ -265,8 +348,11 @@ const setupIntersectionObserver = () => {
 let intersectionObserver = null
 
 onMounted(() => {
-  // Force scroll to top on page load (before scroll-snap takes over)
+  // Force scroll to top on page load
   window.scrollTo({ top: 0, behavior: 'instant' })
+
+  // Setup asymmetric scroll behavior
+  window.addEventListener('scroll', throttledScrollHandler, { passive: true })
 
   intersectionObserver = setupIntersectionObserver()
   checkAppUpdate()
@@ -275,6 +361,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('scroll', throttledScrollHandler)
+  if (scrollThrottleTimer) {
+    clearTimeout(scrollThrottleTimer)
+    scrollThrottleTimer = null
+  }
   intersectionObserver?.disconnect()
 })
 
@@ -316,7 +407,7 @@ const handleAddToReferences = (referenceData) => {
 <template>
   <div>
     <!-- Hero Section - Full Screen -->
-    <section class="relative z-10 h-dvh flex flex-col items-center justify-center scroll-section">
+    <section ref="heroRef" class="relative z-10 h-dvh flex flex-col items-center justify-center">
       <!-- Top Right Controls -->
       <div class="absolute right-4 top-4 flex items-center gap-2">
         <!-- Tour Help Button -->
@@ -520,7 +611,7 @@ const handleAddToReferences = (referenceData) => {
     <!-- Main Content -->
     <section
       ref="panelsRef"
-      class="relative z-10 container mx-auto px-4 pt-6 pb-6 lg:pt-8 lg:pb-8 scroll-section min-h-dvh"
+      class="relative z-10 container mx-auto px-4 pt-6 pb-6 lg:pt-8 lg:pb-8 min-h-dvh"
     >
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <!-- Left Column - Settings -->

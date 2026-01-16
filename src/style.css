@@ -737,18 +737,17 @@ body {
 }
 
 /* ============================================
-   Scroll Snap Container
+   Smooth Scroll Behavior
    ============================================ */
 
 html {
-  scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
 }
 
-.scroll-section {
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
+/* Note: scroll-snap removed in favor of JS-controlled asymmetric scrolling
+   - Scroll down: Easy snap from Hero to Main
+   - Scroll up: Requires more effort to return to Hero
+   See HomeView.vue useAsymmetricScroll() for implementation */
 
 /* ============================================
    Hero Section Animations
