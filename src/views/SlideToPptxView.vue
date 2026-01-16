@@ -51,8 +51,9 @@ const showOcrOverlay = ref(true)
 // Sync settings with composable
 const settings = slideToPptx.settings
 
-// Current image
+// Current image and slide state
 const currentImage = computed(() => images.value[currentIndex.value])
+const currentSlideState = computed(() => slideStates.value[currentIndex.value])
 
 // Navigation
 const hasPrev = computed(() => currentIndex.value > 0)
@@ -155,6 +156,23 @@ onMounted(async () => {
   }
 })
 
+// Prevent accidental page close during processing
+const handleBeforeUnload = (e) => {
+  if (slideToPptx.isProcessing.value) {
+    e.preventDefault()
+    e.returnValue = t('slideToPptx.confirmLeave')
+    return e.returnValue
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
 const goBack = () => {
   router.push('/')
 }
@@ -170,11 +188,6 @@ const slideStates = slideToPptx.slideStates
 const settingMode = computed({
   get: () => slideToPptx.settingMode.value,
   set: (v) => { slideToPptx.settingMode.value = v },
-})
-const isPreviewMode = computed(() => slideToPptx.isPreviewMode.value)
-const previewIndex = computed({
-  get: () => slideToPptx.previewIndex.value,
-  set: (v) => { slideToPptx.previewIndex.value = v },
 })
 
 // Check if a slide has custom settings
@@ -218,30 +231,11 @@ const getSettingValue = (key) => {
   return settings[key]
 }
 
-// Preview navigation
-const prevPreview = () => {
-  if (previewIndex.value > 0) {
-    previewIndex.value--
-  }
-}
-
-const nextPreview = () => {
-  const maxIndex = slideStates.value.filter(s => s.status === 'done').length - 1
-  if (previewIndex.value < maxIndex) {
-    previewIndex.value++
-  }
-}
-
-// Get successful slides for preview
+// Get successful slides for download
 const successfulSlides = computed(() => {
   return slideStates.value
     .map((state, idx) => ({ ...state, originalIndex: idx }))
     .filter(s => s.status === 'done')
-})
-
-// Current preview slide
-const currentPreviewSlide = computed(() => {
-  return successfulSlides.value[previewIndex.value] || null
 })
 
 // Download PPTX
@@ -250,11 +244,6 @@ const downloadPptx = async () => {
   if (success) {
     toast.success(t('slideToPptx.downloadSuccess'))
   }
-}
-
-// Close preview without download
-const closePreview = () => {
-  slideToPptx.closePreview()
 }
 
 // Current slide's OCR results
@@ -436,8 +425,51 @@ const getSlideStatus = (index) => {
               </span>
             </div>
 
-            <!-- Image Container -->
-            <div class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+            <!-- Image Container - Side by side when processed -->
+            <div v-if="currentSlideState?.cleanImage" class="grid grid-cols-2 gap-4">
+              <!-- Original Image -->
+              <div class="space-y-2">
+                <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.original') }}</h4>
+                <div class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+                  <img
+                    v-if="currentImage"
+                    :src="currentImage.preview"
+                    alt="Original"
+                    class="absolute inset-0 w-full h-full object-contain"
+                  />
+                  <!-- OCR Overlay on original -->
+                  <div v-if="showOcrOverlay && currentOcrResults.length > 0" class="absolute inset-0 pointer-events-none">
+                    <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
+                      <rect
+                        v-for="(result, idx) in currentOcrResults"
+                        :key="idx"
+                        :x="result.bounds.x"
+                        :y="result.bounds.y"
+                        :width="result.bounds.width"
+                        :height="result.bounds.height"
+                        fill="rgba(59, 130, 246, 0.2)"
+                        stroke="rgba(59, 130, 246, 0.8)"
+                        stroke-width="2"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <!-- Processed Image -->
+              <div class="space-y-2">
+                <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.processed') }}</h4>
+                <div class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+                  <img
+                    :src="currentSlideState.cleanImage"
+                    alt="Processed"
+                    class="absolute inset-0 w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Single Image Container - Before processing -->
+            <div v-else class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
               <img
                 v-if="currentImage"
                 :src="currentImage.preview"
@@ -489,7 +521,7 @@ const getSlideStatus = (index) => {
                 <input
                   type="checkbox"
                   v-model="showOcrOverlay"
-                  class="w-4 h-4 rounded border-border-muted text-mode-generate focus:ring-mode-generate"
+                  class="w-4 h-4 rounded border-border-muted accent-mode-generate focus:ring-mode-generate"
                 />
                 <span class="text-sm text-text-secondary">{{ $t('slideToPptx.showOcrResult') }}</span>
               </label>
@@ -698,7 +730,7 @@ const getSlideStatus = (index) => {
                   value="opencv"
                   :checked="getSettingValue('inpaintMethod') === 'opencv'"
                   @change="updateSetting('inpaintMethod', 'opencv')"
-                  class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                  class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
                   <span class="text-text-primary font-medium">OpenCV.js</span>
@@ -715,7 +747,7 @@ const getSlideStatus = (index) => {
                   value="gemini"
                   :checked="getSettingValue('inpaintMethod') === 'gemini'"
                   @change="updateSetting('inpaintMethod', 'gemini')"
-                  class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                  class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
                   <span class="text-text-primary font-medium">Gemini API</span>
@@ -738,7 +770,7 @@ const getSlideStatus = (index) => {
                     value="NS"
                     :checked="getSettingValue('opencvAlgorithm') === 'NS'"
                     @change="updateSetting('opencvAlgorithm', 'NS')"
-                    class="w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                    class="w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                   />
                   <span class="text-sm text-text-primary">NS</span>
                 </label>
@@ -751,7 +783,7 @@ const getSlideStatus = (index) => {
                     value="TELEA"
                     :checked="getSettingValue('opencvAlgorithm') === 'TELEA'"
                     @change="updateSetting('opencvAlgorithm', 'TELEA')"
-                    class="w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                    class="w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                   />
                   <span class="text-sm text-text-primary">TELEA</span>
                 </label>
@@ -773,7 +805,7 @@ const getSlideStatus = (index) => {
                   value="2.0"
                   :checked="getSettingValue('geminiModel') === '2.0'"
                   @change="updateSetting('geminiModel', '2.0')"
-                  class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                  class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
                   <span class="text-text-primary font-medium">Nano Banana (2.0)</span>
@@ -790,7 +822,7 @@ const getSlideStatus = (index) => {
                   value="3.0"
                   :checked="getSettingValue('geminiModel') === '3.0'"
                   @change="updateSetting('geminiModel', '3.0')"
-                  class="mt-0.5 w-4 h-4 text-mode-generate border-border-muted focus:ring-mode-generate"
+                  class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
                   <span class="text-text-primary font-medium">Nano Banana Pro (3.0)</span>
@@ -924,114 +956,6 @@ const getSlideStatus = (index) => {
         </div>
       </div>
     </main>
-
-    <!-- Preview Modal -->
-    <Teleport to="body">
-      <div
-        v-if="isPreviewMode"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-      >
-        <!-- No @click.self - user must use X button or download to close -->
-        <div class="w-full max-w-5xl bg-bg-elevated rounded-2xl shadow-2xl overflow-hidden">
-          <!-- Modal Header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
-            <h3 class="text-lg font-semibold text-text-primary">
-              {{ $t('slideToPptx.compareResult') }}
-            </h3>
-            <div class="flex items-center gap-4">
-              <span class="text-sm text-text-muted">
-                {{ previewIndex + 1 }} / {{ successfulSlides.length }}
-              </span>
-              <button
-                @click="closePreview"
-                class="p-2 rounded-lg hover:bg-bg-muted transition-colors text-text-muted hover:text-text-primary"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Modal Body: Image Comparison -->
-          <div class="p-6">
-            <div v-if="currentPreviewSlide" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <!-- Original Image -->
-              <div class="space-y-2">
-                <h4 class="text-sm font-medium text-text-secondary text-center">
-                  {{ $t('slideToPptx.original') }}
-                </h4>
-                <div class="aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
-                  <img
-                    :src="currentPreviewSlide.originalImage"
-                    alt="Original"
-                    class="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-
-              <!-- Processed Image -->
-              <div class="space-y-2">
-                <h4 class="text-sm font-medium text-text-secondary text-center">
-                  {{ $t('slideToPptx.processed') }}
-                </h4>
-                <div class="aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
-                  <img
-                    :src="currentPreviewSlide.cleanImage"
-                    alt="Processed"
-                    class="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Footer: Navigation & Download -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-border-subtle bg-bg-muted">
-            <!-- Navigation -->
-            <div class="flex items-center gap-2">
-              <button
-                @click="prevPreview"
-                :disabled="previewIndex === 0"
-                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                :class="previewIndex === 0
-                  ? 'text-text-muted cursor-not-allowed'
-                  : 'text-text-primary hover:bg-bg-elevated'"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-                {{ $t('slideToPptx.prevPage') }}
-              </button>
-              <button
-                @click="nextPreview"
-                :disabled="previewIndex >= successfulSlides.length - 1"
-                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                :class="previewIndex >= successfulSlides.length - 1
-                  ? 'text-text-muted cursor-not-allowed'
-                  : 'text-text-primary hover:bg-bg-elevated'"
-              >
-                {{ $t('slideToPptx.nextPage') }}
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Download Button -->
-            <button
-              @click="downloadPptx"
-              class="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-hover text-text-on-brand"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              {{ $t('slideToPptx.downloadPptx') }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
 
   </div>
 </template>

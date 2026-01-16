@@ -1052,6 +1052,7 @@
     "historyNotFound": "找不到指定的歷史紀錄",
     "noImagesInHistory": "該歷史紀錄沒有圖片",
     "loadFailed": "載入圖片失敗",
+    "confirmLeave": "正在轉換中，確定要離開嗎？",
     "noImages": "請選擇要轉換的圖片",
     "showOcrResult": "顯示 OCR 結果",
     "inpaintMethod": "文字移除方式",
