@@ -151,7 +151,7 @@ defineExpose({ open })
                 class="py-2 px-3 rounded-lg text-sm font-medium transition-all"
                 :class="
                   selectedModel === model.value
-                    ? 'bg-brand-primary/20 border border-brand-primary text-brand-primary'
+                    ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
                     : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'
                 "
               >

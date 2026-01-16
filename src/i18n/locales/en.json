@@ -266,9 +266,11 @@
     "pageStylePlaceholder": "Page-specific design style (leave empty to use global style)",
     "pageStyleHint": "Specify custom style for pages with special content (charts, quotes, etc.)",
     "imageLoadError": "Failed to load image",
+    "reset": "Reset All",
+    "resetSuccess": "All slides settings have been reset",
     "contentSplitter": {
-      "button": "AI Content Split",
-      "title": "AI Content Split",
+      "button": "AI Planning",
+      "title": "AI Slides Planning",
       "model": "Model",
       "rawMaterial": "Raw Material",
       "rawMaterialPlaceholder": "Paste your article, notes, or any raw content...",
@@ -276,10 +278,10 @@
       "additionalNotesPlaceholder": "Any additional instructions or requirements...",
       "targetPages": "Target Pages",
       "pages": "pages",
-      "splitButton": "Start Splitting",
-      "processing": "AI is analyzing and splitting content...",
-      "success": "Successfully split into {count} pages",
-      "error": "Split failed"
+      "splitButton": "Start Planning",
+      "processing": "AI is analyzing and planning slides...",
+      "success": "Successfully planned into {count} pages",
+      "error": "Planning failed"
     }
   },
   "video": {

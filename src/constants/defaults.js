@@ -76,7 +76,7 @@ export const DEFAULT_VIDEO_OPTIONS = {
 
 export const DEFAULT_SLIDES_OPTIONS = {
   // Image settings
-  resolution: '1k', // 1k | 2k | 4k
+  resolution: '2k', // 1k | 2k | 4k
   ratio: '16:9', // 16:9 | 4:3 | 1:1
 
   // Analysis model selection

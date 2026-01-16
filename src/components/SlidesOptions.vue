@@ -253,21 +253,33 @@ const removePageReference = (pageIndex, refIndex) => {
 const togglePageStyle = (pageId) => {
   expandedPageStyles.value[pageId] = !expandedPageStyles.value[pageId]
 }
+
+// Reset all slides options to defaults
+const resetSlidesOptions = () => {
+  store.resetCurrentOptions()
+  // Also clear the main prompt (used as global description in slides mode)
+  store.prompt = ''
+  // Reset local UI state
+  styleMode.value = 'ai'
+  isThinkingExpanded.value = false
+  expandedPageStyles.value = {}
+  toast.success(t('slides.resetSuccess'))
+}
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- AI Content Splitter Button -->
+    <!-- Reset Button -->
     <div class="flex justify-end">
       <button
-        @click="contentSplitterRef?.open()"
+        @click="resetSlidesOptions"
         :disabled="store.isGenerating || options.isAnalyzing"
-        class="flex items-center gap-2 py-2 px-3 text-sm rounded-lg font-medium transition-all bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 border border-brand-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="flex items-center gap-1.5 py-1.5 px-3 text-xs rounded-lg font-medium transition-all text-text-muted hover:text-status-error hover:bg-status-error/10 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        {{ $t('slides.contentSplitter.button') }}
+        {{ $t('slides.reset') }}
       </button>
     </div>
 
@@ -380,13 +392,26 @@ const togglePageStyle = (pageId) => {
 
     <!-- Pages Input -->
     <div class="space-y-3">
-      <label class="block text-sm font-medium text-text-secondary">{{
-        $t('slides.pagesInput')
-      }}</label>
+      <div class="flex items-center justify-between">
+        <label class="text-sm font-medium text-text-secondary">{{
+          $t('slides.pagesInput')
+        }}</label>
+        <button
+          @click="contentSplitterRef?.open()"
+          :disabled="store.isGenerating || options.isAnalyzing"
+          class="flex items-center gap-1.5 py-1 px-2.5 text-xs rounded-md font-medium transition-all text-brand-primary hover:bg-brand-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          {{ $t('slides.contentSplitter.button') }}
+        </button>
+      </div>
       <textarea
         v-model="store.slidesOptions.pagesRaw"
         :placeholder="$t('slides.pagesPlaceholder')"
-        class="input-premium min-h-[160px] resize-y font-mono text-sm"
+        rows="10"
+        class="input-premium resize-y font-mono text-sm"
         :disabled="store.isGenerating || options.isAnalyzing"
       />
       <p class="text-xs text-text-muted">{{ $t('slides.pagesHint') }}</p>
@@ -450,7 +475,7 @@ const togglePageStyle = (pageId) => {
               class="py-2 px-3 rounded-lg text-sm font-medium transition-all"
               :class="
                 store.slidesOptions.analysisModel === model.value
-                  ? 'bg-brand-primary/20 border border-brand-primary text-brand-primary'
+                  ? 'bg-mode-generate-muted border border-mode-generate text-mode-generate'
                   : 'bg-bg-muted border border-transparent text-text-muted hover:bg-bg-interactive'
               "
               :disabled="store.isGenerating || options.isAnalyzing"
@@ -467,7 +492,8 @@ const togglePageStyle = (pageId) => {
             v-model="store.slidesOptions.styleGuidance"
             :placeholder="$t('slides.styleGuidancePlaceholder')"
             :disabled="store.isGenerating || options.isAnalyzing"
-            class="input-premium min-h-[60px] text-sm resize-y"
+            rows="4"
+            class="input-premium text-sm resize-y"
           />
           <p class="text-xs text-text-muted">{{ $t('slides.styleGuidanceHint') }}</p>
         </div>
