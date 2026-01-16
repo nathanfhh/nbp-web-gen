@@ -10,8 +10,16 @@ import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 const { t } = useI18n()
 const store = useGeneratorStore()
 const toast = useToast()
-const { analyzeStyle, analysisThinking, regeneratePage, reorderPages, parsePages, deletePage } =
-  useSlidesGeneration()
+const {
+  analyzeStyle,
+  analysisThinking,
+  regeneratePage,
+  confirmRegeneration,
+  cancelRegeneration,
+  reorderPages,
+  parsePages,
+  deletePage,
+} = useSlidesGeneration()
 
 // Content splitter modal ref
 const contentSplitterRef = ref(null)
@@ -127,6 +135,31 @@ const editStyle = () => {
 // Single page regenerate
 const handleRegeneratePage = async (pageId) => {
   await regeneratePage(pageId)
+}
+
+// Find page in 'comparing' status (for modal)
+const comparingPage = computed(() => {
+  return store.slidesOptions.pages.find((p) => p.status === 'comparing')
+})
+
+// Comparison modal selection state ('original' or 'new')
+const comparisonChoice = ref('new')
+
+// Reset choice when comparing page changes
+watch(comparingPage, (newVal) => {
+  if (newVal) {
+    comparisonChoice.value = 'new' // Default to new image
+  }
+})
+
+// Confirm the selected choice
+const handleConfirmChoice = async () => {
+  if (!comparingPage.value) return
+  if (comparisonChoice.value === 'new') {
+    await confirmRegeneration(comparingPage.value.id)
+  } else {
+    cancelRegeneration(comparingPage.value.id)
+  }
 }
 
 // Move page
@@ -589,14 +622,14 @@ const resetSlidesOptions = () => {
               v-if="options.styleConfirmed"
               @click="editStyle"
               class="text-xs text-mode-generate hover:underline"
-              :disabled="store.isGenerating"
+              :disabled="store.isGenerating || options.isAnalyzing || comparingPage"
             >
               {{ $t('common.edit') }}
             </button>
           </div>
           <ColorPreviewTextarea
             v-model="store.slidesOptions.analyzedStyle"
-            :disabled="options.styleConfirmed || store.isGenerating"
+            :disabled="options.styleConfirmed || store.isGenerating || options.isAnalyzing || comparingPage"
             :rows="5"
             :class="{ 'opacity-75 cursor-not-allowed': options.styleConfirmed }"
           />
@@ -635,7 +668,7 @@ const resetSlidesOptions = () => {
         <ColorPreviewTextarea
           v-model="store.slidesOptions.analyzedStyle"
           :placeholder="$t('slides.manualStylePlaceholder')"
-          :disabled="options.styleConfirmed || store.isGenerating"
+          :disabled="options.styleConfirmed || store.isGenerating || options.isAnalyzing || comparingPage"
           :rows="5"
           :class="{ 'opacity-75 cursor-not-allowed': options.styleConfirmed }"
         />
@@ -643,10 +676,20 @@ const resetSlidesOptions = () => {
           v-if="options.styleConfirmed"
           @click="editStyle"
           class="text-xs text-mode-generate hover:underline"
-          :disabled="store.isGenerating"
+          :disabled="store.isGenerating || options.isAnalyzing || comparingPage"
         >
           {{ $t('common.edit') }}
         </button>
+      </div>
+
+      <!-- Style Confirmed Indicator (shared for both modes) -->
+      <div v-if="options.styleConfirmed" class="flex justify-center">
+        <div class="flex items-center gap-1.5 text-status-success text-xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{{ $t('slides.styleApplied') }}</span>
+        </div>
       </div>
 
       <!-- Confirm style button (shared for both modes) -->
@@ -654,7 +697,7 @@ const resetSlidesOptions = () => {
         v-if="!options.styleConfirmed && options.analyzedStyle"
         @click="confirmStyle"
         class="w-full py-2.5 text-sm rounded-lg font-medium transition-all bg-mode-generate text-text-on-brand hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="store.isGenerating || !options.analyzedStyle.trim()"
+        :disabled="store.isGenerating || options.isAnalyzing || comparingPage || !options.analyzedStyle.trim()"
       >
         {{ $t('slides.confirmStyle') }}
       </button>
@@ -713,7 +756,7 @@ const resetSlidesOptions = () => {
                 @click="handleRegeneratePage(page.id)"
                 class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors"
                 :title="$t('slides.regenerate')"
-                :disabled="store.isGenerating"
+                :disabled="store.isGenerating || comparingPage"
               >
                 <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -724,7 +767,7 @@ const resetSlidesOptions = () => {
                 @click="handleDeletePage(page.id)"
                 class="p-1.5 rounded-lg hover:bg-status-error-muted transition-colors"
                 :title="$t('common.delete')"
-                :disabled="store.isGenerating"
+                :disabled="store.isGenerating || comparingPage"
               >
                 <svg class="w-4 h-4 text-text-muted hover:text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -839,6 +882,77 @@ const resetSlidesOptions = () => {
 
     <!-- Content Splitter Modal -->
     <SlidesContentSplitter ref="contentSplitterRef" />
+
+    <!-- Image Comparison Modal (for regeneration) -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="comparingPage"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay"
+        >
+          <div class="bg-bg-card rounded-2xl shadow-2xl max-w-4xl w-full mx-4 overflow-hidden">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-border-default">
+              <h3 class="text-lg font-semibold text-text-primary">
+                {{ $t('slides.compareImages') }}
+              </h3>
+              <p class="text-sm text-text-muted mt-1">
+                {{ $t('slides.compareImagesHint', { page: comparingPage.pageNumber }) }}
+              </p>
+            </div>
+
+            <!-- Image Comparison -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <!-- Original Image -->
+              <div class="space-y-3">
+                <div class="text-sm font-medium text-text-secondary text-center">
+                  {{ $t('slides.originalImage') }}
+                </div>
+                <div
+                  class="aspect-video bg-bg-muted rounded-xl overflow-hidden cursor-pointer ring-2 transition-all"
+                  :class="comparisonChoice === 'original' ? 'ring-brand-primary' : 'ring-transparent hover:ring-border-default'"
+                  @click="comparisonChoice = 'original'"
+                >
+                  <img
+                    v-if="comparingPage.image"
+                    :src="`data:${comparingPage.image.mimeType};base64,${comparingPage.image.data}`"
+                    class="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+
+              <!-- New Image -->
+              <div class="space-y-3">
+                <div class="text-sm font-medium text-text-secondary text-center">
+                  {{ $t('slides.newImage') }}
+                </div>
+                <div
+                  class="aspect-video bg-bg-muted rounded-xl overflow-hidden cursor-pointer ring-2 transition-all"
+                  :class="comparisonChoice === 'new' ? 'ring-mode-generate' : 'ring-transparent hover:ring-border-default'"
+                  @click="comparisonChoice = 'new'"
+                >
+                  <img
+                    v-if="comparingPage.pendingImage"
+                    :src="`data:${comparingPage.pendingImage.mimeType};base64,${comparingPage.pendingImage.data}`"
+                    class="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer with Confirm Button -->
+            <div class="px-6 py-4 border-t border-border-default">
+              <button
+                @click="handleConfirmChoice"
+                class="w-full py-2.5 rounded-xl bg-mode-generate text-text-on-brand hover:opacity-90 transition-colors text-sm font-medium"
+              >
+                {{ comparisonChoice === 'new' ? $t('slides.useNew') : $t('slides.keepOriginal') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -850,6 +964,28 @@ const resetSlidesOptions = () => {
 
 .fade-enter-from,
 .fade-leave-to {
+  opacity: 0;
+}
+
+/* Modal transition */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active > div,
+.modal-leave-active > div {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.modal-enter-from > div,
+.modal-leave-to > div {
+  transform: scale(0.95);
   opacity: 0;
 }
 </style>

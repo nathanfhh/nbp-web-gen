@@ -81,6 +81,18 @@ const isSlidesNotReady = computed(() => {
   return !store.slidesOptions.styleConfirmed || store.slidesOptions.totalPages > MAX_SLIDES_PAGES
 })
 
+// Check if any single page is being regenerated (to disable main Generate button)
+const isAnyPageGenerating = computed(() => {
+  if (store.currentMode !== 'slides') return false
+  return store.slidesOptions.pages.some((p) => p.status === 'generating')
+})
+
+// Check if slides style is being analyzed
+const isSlidesAnalyzing = computed(() => {
+  if (store.currentMode !== 'slides') return false
+  return store.slidesOptions.isAnalyzing
+})
+
 // ============================================================================
 // Slides Progress Bar (shown above Generate button during slides generation)
 // ============================================================================
@@ -791,7 +803,7 @@ const handleAddToReferences = (referenceData) => {
             <div class="mt-8">
               <button
                 @click="handleGenerate"
-                :disabled="store.isGenerating || !store.hasApiKey || isSlidesNotReady"
+                :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey || isSlidesNotReady"
                 data-tour="generate-button"
                 class="btn-premium w-full py-4 text-lg font-semibold flex items-center justify-center gap-3"
               >

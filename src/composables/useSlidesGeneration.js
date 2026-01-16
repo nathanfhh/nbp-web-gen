@@ -4,6 +4,8 @@ import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
 import { useToast } from './useToast'
 import { generateShortId } from './useUUID'
+import { useImageStorage } from './useImageStorage'
+import { useIndexedDB } from './useIndexedDB'
 
 /**
  * Composable for handling slides generation logic
@@ -14,6 +16,8 @@ export function useSlidesGeneration() {
   const toast = useToast()
   const { t } = useI18n()
   const { generateImageStream, analyzeSlideStyle: apiAnalyzeSlideStyle } = useApi()
+  const imageStorage = useImageStorage()
+  const { updateHistoryImages, getRecord } = useIndexedDB()
 
   const isGenerating = ref(false)
 
@@ -121,6 +125,14 @@ export function useSlidesGeneration() {
 
     isGenerating.value = true
     const results = []
+
+    // Reset any stuck page statuses before starting
+    store.slidesOptions.pages.forEach((page) => {
+      if (page.status === 'generating' || page.status === 'comparing') {
+        page.status = 'pending'
+        page.pendingImage = null
+      }
+    })
 
     // Initialize progress timing
     store.slidesOptions.progressStartTime = Date.now()
@@ -254,18 +266,102 @@ export function useSlidesGeneration() {
       )
 
       if (result.images && result.images.length > 0) {
-        store.slidesOptions.pages[pageIndex].image = {
+        // Store new image in pendingImage for comparison (don't overwrite original)
+        store.slidesOptions.pages[pageIndex].pendingImage = {
           data: result.images[0].data,
           mimeType: result.images[0].mimeType,
         }
-        store.slidesOptions.pages[pageIndex].status = 'done'
-        toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
+        store.slidesOptions.pages[pageIndex].status = 'comparing'
+        // Don't show toast yet - wait for user to confirm/cancel
       }
     } catch (err) {
       store.slidesOptions.pages[pageIndex].status = 'error'
       store.slidesOptions.pages[pageIndex].error = err.message
       toast.error(t('slides.regenerateFailed'))
     }
+  }
+
+  /**
+   * Confirm regeneration - use the new image
+   * Updates: pages state, generatedImages, OPFS, and IndexedDB history
+   * @param {string} pageId - UUID of the page
+   */
+  const confirmRegeneration = async (pageId) => {
+    const pageIndex = store.slidesOptions.pages.findIndex((p) => p.id === pageId)
+    if (pageIndex === -1) return
+
+    const page = store.slidesOptions.pages[pageIndex]
+    if (!page.pendingImage) return
+
+    const newImage = { ...page.pendingImage, pageNumber: page.pageNumber }
+
+    // 1. Update pages state
+    store.slidesOptions.pages[pageIndex].image = { ...page.pendingImage }
+    store.slidesOptions.pages[pageIndex].pendingImage = null
+    store.slidesOptions.pages[pageIndex].status = 'done'
+
+    // 2. Update generatedImages in store (for Generated Resources display)
+    const generatedImages = [...store.generatedImages]
+    const imageIndex = generatedImages.findIndex((img) => img.pageNumber === page.pageNumber)
+    if (imageIndex !== -1) {
+      generatedImages[imageIndex] = newImage
+      store.setGeneratedImages(generatedImages)
+    }
+
+    // 3. Update OPFS and IndexedDB if we have a history record
+    const historyId = store.currentHistoryId
+    if (historyId) {
+      try {
+        // Get current history record to find image metadata
+        const record = await getRecord(historyId)
+        if (record?.images && record.images.length > 0) {
+          // Find the image index by pageNumber
+          const storageIndex = record.images.findIndex((img) => img.pageNumber === page.pageNumber)
+          if (storageIndex !== -1) {
+            // Re-save all images with the updated one
+            // We need to rebuild the images array with the new image data
+            const updatedImages = store.slidesOptions.pages
+              .filter((p) => p.image)
+              .map((p) => ({
+                data: p.image.data,
+                mimeType: p.image.mimeType,
+                pageNumber: p.pageNumber,
+              }))
+
+            // Save to OPFS and get new metadata
+            const metadata = await imageStorage.saveGeneratedImages(historyId, updatedImages)
+
+            // Update IndexedDB with new metadata
+            await updateHistoryImages(historyId, metadata)
+
+            // Update store metadata
+            store.setGeneratedImagesMetadata(metadata)
+
+            // Reload history to reflect changes
+            await store.loadHistory()
+          }
+        }
+      } catch (err) {
+        console.error('Failed to update image in storage:', err)
+        // Don't fail the operation - pages state is already updated
+      }
+    }
+
+    toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
+  }
+
+  /**
+   * Cancel regeneration - keep the original image
+   * @param {string} pageId - UUID of the page
+   */
+  const cancelRegeneration = (pageId) => {
+    const pageIndex = store.slidesOptions.pages.findIndex((p) => p.id === pageId)
+    if (pageIndex === -1) return
+
+    // Discard new image, keep original
+    store.slidesOptions.pages[pageIndex].pendingImage = null
+    store.slidesOptions.pages[pageIndex].status = 'done'
+    toast.info(t('slides.regenerateCancelled'))
   }
 
   /**
@@ -326,6 +422,7 @@ export function useSlidesGeneration() {
         content: trimmedContent,
         status: 'pending',
         image: null,
+        pendingImage: null, // For regeneration comparison
         error: null,
         referenceImages: existingPage?.referenceImages || [],
         styleGuide: existingPage?.styleGuide || '', // Per-page style guide
@@ -362,6 +459,7 @@ export function useSlidesGeneration() {
     store.slidesOptions.pages.forEach((page) => {
       page.status = 'pending'
       page.image = null
+      page.pendingImage = null
       page.error = null
     })
     store.slidesOptions.currentPageIndex = -1
@@ -373,6 +471,8 @@ export function useSlidesGeneration() {
     analyzeStyle,
     generateAllPages,
     regeneratePage,
+    confirmRegeneration,
+    cancelRegeneration,
     reorderPages,
     parsePages,
     deletePage,

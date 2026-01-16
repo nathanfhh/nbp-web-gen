@@ -150,6 +150,17 @@ export const useGeneratorStore = defineStore('generator', () => {
       }
     })
 
+    // Reset transient page states for slides (status, error, pendingImage are not meant to persist)
+    if (slidesOptions.value.pages && slidesOptions.value.pages.length > 0) {
+      slidesOptions.value.pages.forEach((page) => {
+        if (page.status === 'generating' || page.status === 'comparing') {
+          page.status = page.image ? 'done' : 'pending'
+        }
+        page.pendingImage = null
+        page.error = null
+      })
+    }
+
     // Load edit options (only resolution, not images)
     const savedEditOptions = getQuickSetting('editOptions')
     if (savedEditOptions) {
