@@ -199,6 +199,33 @@ export const useGeneratorStore = defineStore('generator', () => {
   // Watchers Setup (Simplified with loop)
   // ============================================================================
 
+  /**
+   * Sanitize slidesOptions for localStorage persistence
+   * Removes large image data that shouldn't be persisted:
+   * - globalReferenceImages (user preference: no persistence)
+   * - pages[].image (generated slide images)
+   * - pages[].referenceImages (per-page reference images)
+   * - pages[].pendingImage (temporary comparison images)
+   */
+  const sanitizeSlidesOptionsForStorage = (options) => {
+    const sanitized = { ...options }
+
+    // Remove global reference images entirely
+    sanitized.globalReferenceImages = []
+
+    // Sanitize pages array - keep structure but remove image data
+    if (sanitized.pages && Array.isArray(sanitized.pages)) {
+      sanitized.pages = sanitized.pages.map((page) => ({
+        ...page,
+        image: null,
+        referenceImages: [],
+        pendingImage: null,
+      }))
+    }
+
+    return sanitized
+  }
+
   const setupWatchers = () => {
     // Simple value watchers
     const simpleWatchers = [
@@ -215,7 +242,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       })
     })
 
-    // Deep watchers for options objects
+    // Deep watchers for options objects (excluding slidesOptions which needs special handling)
     const deepWatchers = [
       ['generateOptions', generateOptions],
       ['storyOptions', storyOptions],
@@ -223,7 +250,6 @@ export const useGeneratorStore = defineStore('generator', () => {
       ['stickerOptions', stickerOptions],
       ['videoOptions', videoOptions],
       ['videoPromptOptions', videoPromptOptions],
-      ['slidesOptions', slidesOptions],
     ]
 
     deepWatchers.forEach(([key, refValue]) => {
@@ -237,6 +263,17 @@ export const useGeneratorStore = defineStore('generator', () => {
         { deep: true },
       )
     })
+
+    // Special watcher for slidesOptions - sanitize before saving
+    watch(
+      slidesOptions,
+      (newVal) => {
+        if (isInitialized) {
+          updateQuickSetting('slidesOptions', sanitizeSlidesOptionsForStorage(newVal))
+        }
+      },
+      { deep: true },
+    )
 
     // Special watcher for edit options (only resolution)
     watch(
