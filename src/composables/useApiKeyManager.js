@@ -27,6 +27,9 @@ export function useApiKeyManager() {
   // 追蹤 Free Tier 額度狀態（session-level）
   const freeTierExhausted = ref(false)
 
+  // Timeout ID for auto-reset (to prevent memory leaks)
+  let resetTimeoutId = null
+
   // 追蹤當前正在使用的 key 類型（用於 UI 顯示）
   const lastUsedKeyType = ref(null) // 'paid' | 'freeTier' | null
 
@@ -75,9 +78,14 @@ export function useApiKeyManager() {
    */
   const markFreeTierExhausted = () => {
     freeTierExhausted.value = true
+    // Clear any existing timeout to avoid duplicates
+    if (resetTimeoutId) {
+      clearTimeout(resetTimeoutId)
+    }
     // 1 小時後自動重試（Free Tier 通常每分鐘/每小時重置）
-    setTimeout(() => {
+    resetTimeoutId = setTimeout(() => {
       freeTierExhausted.value = false
+      resetTimeoutId = null
     }, 60 * 60 * 1000)
   }
 
@@ -85,6 +93,10 @@ export function useApiKeyManager() {
    * 重置 Free Tier 額度狀態（手動重試時使用）
    */
   const resetFreeTierStatus = () => {
+    if (resetTimeoutId) {
+      clearTimeout(resetTimeoutId)
+      resetTimeoutId = null
+    }
     freeTierExhausted.value = false
   }
 

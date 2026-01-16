@@ -10,6 +10,10 @@
 import * as ort from 'onnxruntime-web'
 
 // Configure ONNX Runtime WASM paths (must be set before any session creation)
+// Note: Using external CDN without SRI. For production, consider:
+// 1. Self-hosting WASM files for supply chain security
+// 2. Adding SRI hash verification if available
+// Version must match the installed onnxruntime-web package version
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/'
 
 // ============================================================================

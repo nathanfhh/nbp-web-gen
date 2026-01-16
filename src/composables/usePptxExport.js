@@ -188,15 +188,34 @@ export function usePptxExport() {
             let widthBasedSize = 0
             const lines = region.text.split('\n')
             let maxLineWeight = 0
-            
+
+            // Character weight function using charCodeAt for performance (O(1) vs regex O(n))
+            const getCharWeight = (char) => {
+              const code = char.charCodeAt(0)
+              // CJK (Wide): \u4e00-\u9fa5, \u3000-\u303f, \uff00-\uffef
+              if (
+                (code >= 0x4e00 && code <= 0x9fa5) ||
+                (code >= 0x3000 && code <= 0x303f) ||
+                (code >= 0xff00 && code <= 0xffef)
+              ) {
+                return 1.0
+              }
+              // Uppercase A-Z
+              if (code >= 0x41 && code <= 0x5a) {
+                return 0.7
+              }
+              // Lowercase a-z or digits 0-9
+              if ((code >= 0x61 && code <= 0x7a) || (code >= 0x30 && code <= 0x39)) {
+                return 0.55
+              }
+              // Punctuation/Space/Other
+              return 0.3
+            }
+
             for (const line of lines) {
               let weight = 0
               for (const char of line) {
-                // Heuristic weights for Arial-like fonts
-                if (/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/.test(char)) weight += 1.0 // CJK (Wide)
-                else if (/[A-Z]/.test(char)) weight += 0.7 // Uppercase
-                else if (/[a-z0-9]/.test(char)) weight += 0.55 // Lowercase & Numbers
-                else weight += 0.3 // Punctuation/Space
+                weight += getCharWeight(char)
               }
               maxLineWeight = Math.max(maxLineWeight, weight)
             }
