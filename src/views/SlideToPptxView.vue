@@ -6,6 +6,7 @@ import { useToast } from '@/composables/useToast'
 import { useSlideToPptx } from '@/composables/useSlideToPptx'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useImageStorage } from '@/composables/useImageStorage'
+import ImageLightbox from '@/components/ImageLightbox.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -47,6 +48,18 @@ const selectSlide = (idx) => {
 
 // OCR overlay toggle
 const showOcrOverlay = ref(true)
+
+// Lightbox state
+const lightboxOpen = ref(false)
+const lightboxImages = ref([])
+const lightboxIndex = ref(0)
+
+const openLightbox = (imageUrl, index = 0) => {
+  // ImageLightbox expects objects with url or data+mimeType
+  lightboxImages.value = [{ url: imageUrl }]
+  lightboxIndex.value = index
+  lightboxOpen.value = true
+}
 
 // Sync settings with composable
 const settings = slideToPptx.settings
@@ -430,7 +443,10 @@ const getSlideStatus = (index) => {
               <!-- Original Image -->
               <div class="space-y-2">
                 <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.original') }}</h4>
-                <div class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+                <div
+                  class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
+                  @click="currentImage && openLightbox(currentImage.preview)"
+                >
                   <img
                     v-if="currentImage"
                     :src="currentImage.preview"
@@ -458,7 +474,10 @@ const getSlideStatus = (index) => {
               <!-- Processed Image -->
               <div class="space-y-2">
                 <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.processed') }}</h4>
-                <div class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+                <div
+                  class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
+                  @click="openLightbox(currentSlideState.cleanImage)"
+                >
                   <img
                     :src="currentSlideState.cleanImage"
                     alt="Processed"
@@ -469,7 +488,11 @@ const getSlideStatus = (index) => {
             </div>
 
             <!-- Single Image Container - Before processing -->
-            <div v-else class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted">
+            <div
+              v-else
+              class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
+              @click="currentImage && openLightbox(currentImage.preview)"
+            >
               <img
                 v-if="currentImage"
                 :src="currentImage.preview"
@@ -830,6 +853,25 @@ const getSlideStatus = (index) => {
                   <p class="text-xs text-text-muted mt-1">{{ $t('slideToPptx.gemini30Desc') }}</p>
                 </div>
               </label>
+
+              <!-- Image Quality (only for 3.0 model) -->
+              <div v-if="getSettingValue('geminiModel') === '3.0'" class="mt-4">
+                <label class="block text-sm text-text-muted mb-2">{{ $t('slideToPptx.imageQuality') }}</label>
+                <div class="flex gap-2">
+                  <button
+                    v-for="quality in ['1k', '2k', '4k']"
+                    :key="quality"
+                    @click="updateSetting('imageQuality', quality)"
+                    class="flex-1 py-2 text-sm rounded-lg border transition-colors"
+                    :class="getSettingValue('imageQuality') === quality
+                      ? 'border-mode-generate bg-mode-generate-muted/30 text-text-primary'
+                      : 'border-border-muted text-text-muted hover:border-mode-generate'"
+                  >
+                    {{ quality.toUpperCase() }}
+                  </button>
+                </div>
+                <p class="text-xs text-text-muted mt-2">{{ $t('slideToPptx.imageQualityDesc') }}</p>
+              </div>
             </div>
 
             <!-- Advanced Settings (only in global mode, for simplicity) -->
@@ -957,6 +999,12 @@ const getSlideStatus = (index) => {
       </div>
     </main>
 
+    <!-- Lightbox for image preview -->
+    <ImageLightbox
+      v-model="lightboxOpen"
+      :images="lightboxImages"
+      :initial-index="lightboxIndex"
+    />
   </div>
 </template>
 
