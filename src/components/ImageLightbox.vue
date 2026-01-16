@@ -214,10 +214,12 @@ const handleKeydown = (e) => {
 
   switch (e.key) {
     case 'ArrowLeft':
+    case 'ArrowUp':
       e.preventDefault()
       goToPrev()
       break
     case 'ArrowRight':
+    case 'ArrowDown':
       e.preventDefault()
       goToNext()
       break
