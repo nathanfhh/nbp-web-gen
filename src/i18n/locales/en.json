@@ -590,6 +590,7 @@
     "loadingVideo": "Loading video...",
     "status": {
       "success": "Success",
+      "partial": "Partial",
       "failed": "Failed"
     },
     "filter": {
@@ -661,7 +662,10 @@
     "videoGenerateSuccess": "Video generated successfully",
     "videoSaveFailed": "Failed to save video, but generation completed",
     "downloadSuccess": "Download started",
-    "downloadFailed": "Download failed, please try again"
+    "downloadFailed": "Download failed, please try again",
+    "slidesSuccess": "Successfully generated {count} slides",
+    "slidesPartialSuccess": "Slides partially generated: {success} succeeded, {failed} failed",
+    "slidesAllFailed": "Slides generation failed, all {count} pages failed"
   },
   "errors": {
     "noPrompt": "Please enter a prompt description",

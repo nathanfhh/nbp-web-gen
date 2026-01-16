@@ -62,6 +62,8 @@ export function useHistoryTransfer() {
             if (base64) {
               exportRecord.images.push({
                 index: img.index,
+                // Preserve pageNumber for slides mode
+                ...(img.pageNumber !== undefined && { pageNumber: img.pageNumber }),
                 width: img.width,
                 height: img.height,
                 data: base64,
@@ -198,6 +200,8 @@ export function useHistoryTransfer() {
 
               imageMetadata.push({
                 index: img.index,
+                // Restore pageNumber for slides mode
+                ...(img.pageNumber !== undefined && { pageNumber: img.pageNumber }),
                 width: img.width,
                 height: img.height,
                 opfsPath,

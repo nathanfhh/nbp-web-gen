@@ -65,6 +65,8 @@ export function useImageStorage() {
         // Build metadata
         savedImages.push({
           index: i,
+          // Preserve pageNumber for slides mode (if present)
+          ...(image.pageNumber !== undefined && { pageNumber: image.pageNumber }),
           originalSize: compressed.originalSize,
           compressedSize: compressed.compressedSize,
           originalFormat: image.mimeType,

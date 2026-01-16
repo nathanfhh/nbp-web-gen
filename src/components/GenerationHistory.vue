@@ -114,6 +114,18 @@ const getItemSize = (item) => {
   return `${Math.round(kb)} KB`
 }
 
+const getStatusClass = (status) => {
+  switch (status) {
+    case 'success':
+      return 'bg-status-success-muted text-status-success'
+    case 'partial':
+      return 'bg-status-warning-muted text-status-warning'
+    case 'failed':
+    default:
+      return 'bg-status-error-muted text-status-error'
+  }
+}
+
 const truncatePrompt = (prompt, maxLength = 60) => {
   if (prompt.length <= maxLength) return prompt
   return prompt.slice(0, maxLength) + '...'
@@ -467,9 +479,9 @@ const handleImported = async () => {
             <div v-if="item.status" class="mt-2 flex items-center justify-between">
               <span
                 class="text-xs px-2 py-0.5 rounded-md"
-                :class="item.status === 'success' ? 'bg-status-success-muted text-status-success' : 'bg-status-error-muted text-status-error'"
+                :class="getStatusClass(item.status)"
               >
-                {{ item.status === 'success' ? $t('history.status.success') : $t('history.status.failed') }}
+                {{ $t(`history.status.${item.status}`) }}
               </span>
               <span v-if="getItemSize(item)" class="text-xs text-text-muted font-mono">
                 {{ getItemSize(item) }}

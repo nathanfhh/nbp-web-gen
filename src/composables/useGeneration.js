@@ -205,8 +205,33 @@ export function useGeneration() {
           hasReferenceImages: refImages.length > 0,
           options,
         })
+      } else if (store.currentMode === 'slides' && result) {
+        // Slides mode result - handle partial success
+        const { successCount = 0, failedCount = 0, totalPages = 0 } = result
+        if (result.images && result.images.length > 0) {
+          store.setGeneratedImages(result.images)
+        }
+
+        // Show appropriate toast based on success/failure
+        if (successCount > 0 && failedCount === 0) {
+          toast.success(t('toast.slidesSuccess', { count: successCount }))
+        } else if (successCount > 0 && failedCount > 0) {
+          toast.warning(t('toast.slidesPartialSuccess', { success: successCount, failed: failedCount }))
+        } else {
+          toast.error(t('toast.slidesAllFailed', { count: totalPages }))
+        }
+
+        // Track GA4 event - only if at least one page succeeded
+        if (successCount > 0) {
+          trackGenerateSuccess({
+            mode: store.currentMode,
+            imageCount: successCount,
+            hasReferenceImages: refImages.length > 0,
+            options,
+          })
+        }
       } else if (result?.images) {
-        // Image mode result
+        // Other image mode result
         store.setGeneratedImages(result.images)
         const imageCount = result.images.length
         toast.success(t('toast.generateSuccess', { count: imageCount }))
@@ -265,11 +290,23 @@ export function useGeneration() {
         historyOptions = { ...options }
       }
 
+      // Determine status for history record
+      // Slides mode: check partial success; other modes: always 'success' in try block
+      let historyStatus = 'success'
+      if (store.currentMode === 'slides' && result) {
+        const { successCount = 0, failedCount = 0 } = result
+        if (successCount === 0) {
+          historyStatus = 'failed'
+        } else if (failedCount > 0) {
+          historyStatus = 'partial'
+        }
+      }
+
       const historyId = await store.addToHistory({
         prompt: store.prompt,
         mode: store.currentMode,
         options: historyOptions,
-        status: 'success',
+        status: historyStatus,
         thinkingText:
           thinkingText ||
           store.thinkingProcess

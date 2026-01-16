@@ -190,12 +190,22 @@ export function useSlidesGeneration() {
 
       // Determine overall success: true only if all pages succeeded
       const allSucceeded = results.every((r) => r.success)
+      const successCount = results.filter((r) => r.success).length
+      const failedCount = results.length - successCount
 
       return {
         success: allSucceeded,
         results,
         totalPages: options.totalPages,
-        images: results.filter((r) => r.success).map((r) => r.image),
+        successCount,
+        failedCount,
+        // Include pageNumber in each image for history tracking
+        images: results
+          .filter((r) => r.success)
+          .map((r) => ({
+            ...r.image,
+            pageNumber: r.pageNumber,
+          })),
       }
     } finally {
       isGenerating.value = false
