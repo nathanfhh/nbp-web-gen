@@ -291,9 +291,9 @@ export function useSlidesGeneration() {
    * @param {string} rawText - User input with --- separators
    */
   const parsePages = (rawText) => {
-    // Normalize line endings (Windows CRLF → LF) and handle flexible separators
+    // Normalize line endings (Windows CRLF → LF) and split on --- that's on its own line
     const normalizedText = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-    const pageContents = normalizedText.split(/\s*---\s*/).filter((p) => p.trim())
+    const pageContents = normalizedText.split(/\n\s*---\s*\n/).filter((p) => p.trim())
     const existingPages = store.slidesOptions.pages
 
     // Create new pages array, preserving existing image data where content matches

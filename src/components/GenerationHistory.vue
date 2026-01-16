@@ -121,8 +121,10 @@ const getStatusClass = (status) => {
     case 'partial':
       return 'bg-status-warning-muted text-status-warning'
     case 'failed':
-    default:
       return 'bg-status-error-muted text-status-error'
+    default:
+      console.warn('Unknown history status:', status)
+      return 'bg-bg-muted text-text-muted'
   }
 }
 
