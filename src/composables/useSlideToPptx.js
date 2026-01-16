@@ -364,7 +364,7 @@ Output: A single clean image with all text removed.`
         state.rawRegions = ocrResult.rawRegions
       }
       
-      // Also store in ocrResults for PPTX export compatibility
+      // Also store in ocrResults for PPTX export compatibility (using merged regions)
       state.ocrResults = state.regions
       addLog(t('slideToPptx.logs.foundTextBlocks', { slide: index + 1, count: state.regions.length }), 'success')
 
@@ -456,17 +456,22 @@ Output: A single clean image with all text removed.`
 
     // Initialize slide states with extended structure
     // IMPORTANT: Preserve existing overrideSettings (per-page settings)
-    slideStates.value = images.map((_, index) => ({
-      status: 'pending',
-      ocrResults: [],
-      mask: null,
-      cleanImage: null,
-      originalImage: null,
-      width: 0,
-      height: 0,
-      error: null,
-      overrideSettings: slideStates.value[index]?.overrideSettings || null,
-    }))
+    slideStates.value = images.map((_, index) => {
+      const existingState = slideStates.value[index]
+      return {
+        status: 'pending',
+        ocrResults: [],
+        regions: [],
+        rawRegions: [],
+        mask: null,
+        cleanImage: null,
+        originalImage: null,
+        width: 0,
+        height: 0,
+        error: null,
+        overrideSettings: existingState?.overrideSettings || null,
+      }
+    })
 
     addLog(t('slideToPptx.logs.startingProcessing', { count: images.length }))
 
