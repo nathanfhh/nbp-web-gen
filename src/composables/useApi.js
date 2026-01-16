@@ -751,7 +751,7 @@ Return valid JSON matching this structure:
 \`\`\`
 
 ⚠️ **CRITICAL - Page ID Verification:**
-- Each page has a unique 4-character ID shown as \`[Page ID: xxxx]\` in the input
+- Each page has a unique ID shown as \`[Page ID: xxxx]\` in the input (typically 4 characters)
 - You MUST copy the **EXACT** page ID character-by-character into your response
 - **Before finalizing**, verify each \`pageId\` in your output matches the corresponding \`[Page ID: xxxx]\` from input
 - A single wrong character will cause the style to be lost for that page
