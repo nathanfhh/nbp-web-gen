@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 
 const API_KEY_STORAGE_KEY = 'nanobanana-api-key'
+const FREE_TIER_API_KEY_STORAGE_KEY = 'nanobanana-free-tier-api-key'
 const SETTINGS_STORAGE_KEY = 'nanobanana-settings'
 
 export function useLocalStorage() {
@@ -28,6 +29,32 @@ export function useLocalStorage() {
 
   const hasApiKey = () => {
     return !!getApiKey()
+  }
+
+  // Free Tier API Key management
+  const getFreeTierApiKey = () => {
+    try {
+      return localStorage.getItem(FREE_TIER_API_KEY_STORAGE_KEY) || ''
+    } catch {
+      return ''
+    }
+  }
+
+  const setFreeTierApiKey = (key) => {
+    try {
+      if (key) {
+        localStorage.setItem(FREE_TIER_API_KEY_STORAGE_KEY, key)
+      } else {
+        localStorage.removeItem(FREE_TIER_API_KEY_STORAGE_KEY)
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const hasFreeTierApiKey = () => {
+    return !!getFreeTierApiKey()
   }
 
   // Quick settings (for UI state that doesn't need IndexedDB)
@@ -77,9 +104,15 @@ export function useLocalStorage() {
   }
 
   return {
+    // Primary API Key (paid)
     getApiKey,
     setApiKey,
     hasApiKey,
+    // Free Tier API Key
+    getFreeTierApiKey,
+    setFreeTierApiKey,
+    hasFreeTierApiKey,
+    // Quick settings
     getQuickSettings,
     setQuickSettings,
     updateQuickSetting,

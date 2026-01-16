@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { GoogleGenAI } from '@google/genai'
-import { useLocalStorage } from './useLocalStorage'
+import { useApiKeyManager } from './useApiKeyManager'
 import i18n from '@/i18n'
 
 // Helper to get translated error messages
@@ -59,29 +59,23 @@ const EXTRACTION_SCHEMA = {
 export function useCharacterExtraction() {
   const isExtracting = ref(false)
   const extractionError = ref(null)
-  const { getApiKey } = useLocalStorage()
+  const { callWithFallback, hasApiKeyFor } = useApiKeyManager()
 
   /**
    * Extract character features from an image
+   * Uses global API key management with automatic fallback (Free Tier → Paid)
    * @param {Object} options
    * @param {string} options.imageData - Base64 encoded image data
    * @param {string} options.mimeType - Image mime type
    * @param {string} options.model - Model to use for extraction
-   * @param {boolean} options.useNbpKey - Whether to use the NBP API key
-   * @param {string} options.customApiKey - Custom API key (if not using NBP key)
    * @returns {Promise<Object>} - Extracted character data
    */
   const extractCharacter = async ({
     imageData,
     mimeType = 'image/png',
     model = 'gemini-3-flash-preview',
-    useNbpKey = true,
-    customApiKey = '',
   }) => {
-    // Determine which API key to use
-    const apiKey = useNbpKey ? getApiKey() : customApiKey
-
-    if (!apiKey) {
+    if (!hasApiKeyFor('text')) {
       throw new Error(t('errors.apiKeyNotSet'))
     }
 
@@ -93,35 +87,36 @@ export function useCharacterExtraction() {
     extractionError.value = null
 
     try {
-      // Initialize SDK client
-      const ai = new GoogleGenAI({ apiKey })
+      // Use callWithFallback for automatic Free Tier → Paid fallback
+      const response = await callWithFallback(async (apiKey) => {
+        const ai = new GoogleGenAI({ apiKey })
 
-      // Make API request using SDK
-      const response = await ai.models.generateContent({
-        model,
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: EXTRACTION_PROMPT },
-              {
-                inlineData: {
-                  mimeType,
-                  data: imageData,
+        return await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: EXTRACTION_PROMPT },
+                {
+                  inlineData: {
+                    mimeType,
+                    data: imageData,
+                  },
                 },
-              },
-            ],
+              ],
+            },
+          ],
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: EXTRACTION_SCHEMA,
+            temperature: 0.2, // Low temperature for consistent extraction
+            thinkingConfig: {
+              thinkingLevel: 'HIGH',
+            },
           },
-        ],
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: EXTRACTION_SCHEMA,
-          temperature: 0.2, // Low temperature for consistent extraction
-          thinkingConfig: {
-            thinkingLevel: 'HIGH',
-          },
-        },
-      })
+        })
+      }, 'text')
 
       // Extract JSON from response
       if (!response.candidates || response.candidates.length === 0) {
