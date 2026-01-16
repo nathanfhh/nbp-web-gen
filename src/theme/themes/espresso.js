@@ -55,7 +55,7 @@ export default {
     // 狀態色 - Warm Traffic Lights
     // ========================================
     statusSuccess: '#2E7D32', // Green-800
-    statusSuccessMuted: 'rgba(46, 125, 50, 0.12)',
+    statusSuccessMuted: 'rgba(16, 185, 129, 0.12)', // emerald-500
     statusSuccessSolid: '#43A047', // Green-600
     statusSuccessHover: '#1B5E20',
     statusError: '#C62828', // Red-800
@@ -124,7 +124,7 @@ export default {
 
   shadows: {
     glowPrimary: '0 4px 20px rgba(93, 64, 55, 0.15)', // Coffee glow
-    glowSuccess: '0 4px 16px rgba(46, 125, 50, 0.2)', // Green glow
+    glowSuccess: '0 4px 16px rgba(16, 185, 129, 0.2)', // emerald-500
     glowGold: '0 4px 20px rgba(255, 143, 0, 0.15)', // Amber glow
     stepActive: '0 0 20px rgba(255, 160, 0, 0.4)', // Amber glow
     card: '0 4px 24px rgba(62, 39, 35, 0.08)', // Coffee shadow

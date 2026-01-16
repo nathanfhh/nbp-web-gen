@@ -55,7 +55,7 @@ export default {
     // 狀態色 - Natural Traffic Lights
     // ========================================
     statusSuccess: '#2E7D32', // Green-800
-    statusSuccessMuted: 'rgba(46, 125, 50, 0.12)',
+    statusSuccessMuted: 'rgba(16, 185, 129, 0.12)', // emerald-500
     statusSuccessSolid: '#43A047', // Green-600
     statusSuccessHover: '#1B5E20',
     statusError: '#C62828', // Red-800
@@ -124,7 +124,7 @@ export default {
 
   shadows: {
     glowPrimary: '0 4px 20px rgba(74, 124, 89, 0.15)', // Matcha glow
-    glowSuccess: '0 4px 16px rgba(46, 125, 50, 0.2)', // Green glow
+    glowSuccess: '0 4px 16px rgba(16, 185, 129, 0.2)', // emerald-500
     glowGold: '0 4px 20px rgba(124, 179, 66, 0.15)', // Light green glow
     stepActive: '0 0 20px rgba(139, 195, 74, 0.4)', // Light green glow
     card: '0 4px 24px rgba(45, 60, 48, 0.08)', // Forest shadow

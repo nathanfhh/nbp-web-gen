@@ -55,7 +55,7 @@ export default {
     // 狀態色（調整對比度以符合亮色背景）
     // ========================================
     statusSuccess: '#047857',
-    statusSuccessMuted: 'rgba(4, 120, 87, 0.12)',
+    statusSuccessMuted: 'rgba(16, 185, 129, 0.12)', // 明亮綠背景 (emerald-500)
     statusSuccessSolid: '#10B981', // 實心背景（需白字）
     statusSuccessHover: '#059669',
     statusError: '#DC2626',
@@ -73,7 +73,7 @@ export default {
     // 模式色（統一品牌色）
     // ========================================
     modeGenerate: '#0D5EAF', // = brandPrimary
-    modeGenerateMuted: 'rgba(13, 94, 175, 0.12)',
+    modeGenerateMuted: 'rgba(14, 165, 233, 0.08)', // 天空藍，更清爽
     modeGenerateSolid: '#0D5EAF', // = brandPrimary
     modeGenerateHover: 'rgba(13, 94, 175, 0.2)',
     modeVideo: '#7C3AED', // 影片模式 - violet-600
@@ -124,7 +124,7 @@ export default {
 
   shadows: {
     glowPrimary: '0 4px 20px rgba(13, 94, 175, 0.12)',
-    glowSuccess: '0 4px 16px rgba(4, 120, 87, 0.2)',
+    glowSuccess: '0 4px 16px rgba(16, 185, 129, 0.2)', // emerald-500
     glowGold: '0 4px 20px rgba(184, 134, 11, 0.12)',
     stepActive: '0 0 20px rgba(8, 145, 178, 0.4)', // 進行中步驟光暈
     card: '0 4px 24px rgba(0, 0, 0, 0.08)', // Light mode 需要卡片陰影

@@ -24,13 +24,14 @@ npm run format   # Prettier formatting for src/
 - `composables/useApi.js` - Gemini API interaction with SSE streaming, prompt building per mode
 
 ### Generation Modes
-Six modes with mode-specific option components and prompt builders:
+Seven modes with mode-specific option components and prompt builders:
 - **generate** - Basic image generation with styles/variations
 - **sticker** - Sticker sheet generation with auto-segmentation
 - **edit** - Image editing with reference images
 - **story** - Multi-step visual storytelling (sequential API calls)
 - **diagram** - Technical diagram generation
 - **video** - AI video generation using Google Veo 3.1 API (REST, not SDK)
+- **slides** - Presentation slide generation with AI style analysis (sequential per-page)
 
 ### Video Generation - API Limitations
 
@@ -63,6 +64,8 @@ Since this project runs 100% client-side in browser, we cannot use Vertex AI.
 
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.
+
+> **Slides Mode**: For detailed prompt structure documentation, see [`docs/prompt-structure-slide.md`](docs/prompt-structure-slide.md)
 
 ### Storage Layers
 - **localStorage** - API key, quick settings (mode, temperature, seed)

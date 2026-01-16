@@ -84,17 +84,23 @@
     "video": {
       "name": "影片",
       "description": "生成 AI 影片"
+    },
+    "slides": {
+      "name": "簡報",
+      "description": "生成簡報投影片"
     }
   },
   "prompt": {
     "label": "Prompt 描述",
+    "labelSlides": "全域說明（非必填，套用到每一頁）",
     "hint": "提示：描述越詳細，生成效果越好",
     "placeholders": {
       "generate": "描述您想要生成的圖片，例如：一隻在星空下的貓咪...",
       "edit": "描述您想要對圖片進行的修改，例如：加上太陽眼鏡...",
       "story": "描述故事的主題，例如：一顆種子成長為大樹的過程...",
       "diagram": "描述圖表的內容，例如：使用者登入的流程圖...",
-      "video": "描述您想要生成的影片，例如：一隻貓咪在草地上奔跑..."
+      "video": "描述您想要生成的影片，例如：一隻貓咪在草地上奔跑...",
+      "slides": "此內容會加到每一頁的開頭，例如：公司年度報告、使用科技感配色..."
     }
   },
   "settings": {
@@ -206,6 +212,84 @@
       "unspecified": "不指定",
       "storyboard": "分鏡板",
       "individual": "單張"
+    }
+  },
+  "slides": {
+    "pagesInput": "簡報內容",
+    "pagesPlaceholder": "第一頁內容\n\n---\n\n第二頁內容\n\n---\n\n第三頁內容",
+    "pagesHint": "使用 --- 分隔每一頁，最多 30 頁",
+    "pageCount": "共 {count} 頁",
+    "designStyle": "設計風格",
+    "styleModeAI": "AI 分析規劃",
+    "styleModeManual": "自行輸入",
+    "analysisModel": "分析模型",
+    "styleGuidance": "風格偏好（選填）",
+    "styleGuidancePlaceholder": "輸入您想要或不想要的設計方向...\n例如：\n✓ 想要：簡約現代風、藍色系配色\n✗ 不要：漸層背景、過多裝飾元素",
+    "styleGuidanceHint": "引導 AI 思考方向，您的偏好會被優先考量",
+    "analyzeAndPlan": "分析並規劃風格",
+    "analyzing": "分析中...",
+    "analyzeSuccess": "風格分析完成",
+    "analyzeFailed": "風格分析失敗",
+    "thinkingProcess": "思考過程",
+    "waitingForThinking": "等待思考中...",
+    "suggestedStyle": "AI 建議風格",
+    "manualStyleHint": "輸入您想要的設計風格描述",
+    "manualStylePlaceholder": "例如：現代簡約風格，使用深藍色和白色配色，無襯線字體，乾淨的版面設計...",
+    "confirmStyle": "確認並使用此風格",
+    "styleApplied": "風格已套用",
+    "styleNotConfirmed": "請先確認設計風格",
+    "noPages": "請輸入簡報內容",
+    "tooManyPages": "頁數超過上限（最多 {max} 頁）",
+    "pagesList": "頁面列表",
+    "generatingPage": "正在生成第 {current}/{total} 頁",
+    "progressCompleted": "已完成 {count} 頁",
+    "eta": "預估剩餘 {time}",
+    "status": {
+      "pending": "待生成",
+      "generating": "生成中",
+      "done": "已完成",
+      "error": "失敗"
+    },
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "regenerate": "重新生成",
+    "regenerateSuccess": "第 {page} 頁已更新為新圖片",
+    "regenerateFailed": "重新生成失敗",
+    "regenerateCancelled": "已取消，保留原始圖片",
+    "compareImages": "比較圖片",
+    "compareImagesHint": "第 {page} 頁已重新生成，請選擇要保留的版本",
+    "originalImage": "原始圖片",
+    "newImage": "新生成圖片",
+    "keepOriginal": "保留原圖",
+    "useNew": "使用新圖",
+    "exportZip": "匯出 ZIP",
+    "exportPdf": "匯出 PDF",
+    "exportSuccess": "匯出成功",
+    "noImagesToExport": "沒有可匯出的圖片",
+    "globalReferences": "全域參考圖",
+    "globalReferencesHint": "這些圖片會套用到所有頁面的生成",
+    "globalBadge": "全域",
+    "pageReferences": "此頁參考圖",
+    "pageStyleGuide": "此頁風格指引",
+    "pageStylePlaceholder": "此頁專屬的設計風格說明（留空則使用全域風格）",
+    "pageStyleHint": "若此頁有特殊內容（圖表、引言等），可指定專屬風格",
+    "imageLoadError": "圖片讀取失敗",
+    "reset": "重設所有設定",
+    "resetSuccess": "已重設所有簡報設定",
+    "contentSplitter": {
+      "button": "AI 幫我規劃",
+      "title": "AI 簡報規劃",
+      "model": "分析模型",
+      "rawMaterial": "原始素材",
+      "rawMaterialPlaceholder": "貼上您的文章、筆記或任何原始內容...",
+      "additionalNotes": "補充說明",
+      "additionalNotesPlaceholder": "任何額外的指示或要求...",
+      "targetPages": "目標頁數",
+      "pages": "頁",
+      "splitButton": "開始規劃",
+      "processing": "AI 正在分析並規劃簡報內容...",
+      "success": "成功規劃為 {count} 頁",
+      "error": "規劃失敗"
     }
   },
   "video": {
@@ -516,6 +600,7 @@
     "loadingVideo": "載入影片中...",
     "status": {
       "success": "成功",
+      "partial": "部分成功",
       "failed": "失敗"
     },
     "filter": {
@@ -587,7 +672,10 @@
     "videoGenerateSuccess": "影片生成成功",
     "videoSaveFailed": "影片儲存失敗，但生成已完成",
     "downloadSuccess": "下載已開始",
-    "downloadFailed": "下載失敗，請重試"
+    "downloadFailed": "下載失敗，請重試",
+    "slidesSuccess": "成功生成 {count} 頁簡報",
+    "slidesPartialSuccess": "簡報生成部分完成：{success} 頁成功，{failed} 頁失敗",
+    "slidesAllFailed": "簡報生成失敗，{count} 頁均未成功"
   },
   "errors": {
     "noPrompt": "請輸入 Prompt 描述",

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watchEffect, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -31,7 +31,7 @@ const confirmModal = ref(null)
 
 // Filter state
 const selectedFilter = ref('all')
-const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video']
+const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides']
 
 const filteredHistory = computed(() => {
   if (selectedFilter.value === 'all') {
@@ -64,6 +64,7 @@ const modeLabels = computed(() => ({
   diagram: t('modes.diagram.name'),
   sticker: t('modes.sticker.name'),
   video: t('modes.video.name'),
+  slides: t('modes.slides.name'),
 }))
 
 // Track the current lightbox item's mode
@@ -83,6 +84,48 @@ const formatTime = (timestamp) => {
 
 const formatFullTime = (timestamp) => {
   return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')
+}
+
+/**
+ * Calculate total size of a history item (images + video)
+ * @param {Object} item - History item
+ * @returns {string} Formatted size string (KB or MB)
+ */
+const getItemSize = (item) => {
+  let totalBytes = 0
+
+  // Sum image sizes (compressedSize)
+  if (item.images?.length > 0) {
+    totalBytes += item.images.reduce((sum, img) => sum + (img.compressedSize || 0), 0)
+  }
+
+  // Add video size
+  if (item.video?.size) {
+    totalBytes += item.video.size
+  }
+
+  if (totalBytes === 0) return null
+
+  const kb = totalBytes / 1024
+  if (kb >= 1000) {
+    const mb = kb / 1024
+    return `${mb.toFixed(2)} MB`
+  }
+  return `${Math.round(kb)} KB`
+}
+
+const getStatusClass = (status) => {
+  switch (status) {
+    case 'success':
+      return 'bg-status-success-muted text-status-success'
+    case 'partial':
+      return 'bg-status-warning-muted text-status-warning'
+    case 'failed':
+      return 'bg-status-error-muted text-status-error'
+    default:
+      console.warn('Unknown history status:', status)
+      return 'bg-bg-muted text-text-muted'
+  }
 }
 
 const truncatePrompt = (prompt, maxLength = 60) => {
@@ -162,6 +205,34 @@ const loadHistoryItem = async (item) => {
       store.videoPromptOptions.dialogue = vpo.dialogue || ''
       store.videoPromptOptions.soundEffects = vpo.soundEffects || ''
       store.videoPromptOptions.ambientSound = vpo.ambientSound || ''
+    }
+  } else if (item.mode === 'slides' && item.options) {
+    // Restore slides options
+    store.slidesOptions.resolution = item.options.resolution || '1k'
+    store.slidesOptions.ratio = item.options.ratio || '16:9'
+    store.slidesOptions.analysisModel = item.options.analysisModel || 'gemini-3-flash-preview'
+    store.slidesOptions.analyzedStyle = item.options.analyzedStyle || ''
+    store.slidesOptions.styleConfirmed = item.options.styleConfirmed || false
+    // Note: temperature and seed are already restored at store level (line 134-135)
+
+    // Restore pagesRaw (this will trigger parsePages via watch)
+    if (item.options.pagesRaw) {
+      store.slidesOptions.pagesRaw = item.options.pagesRaw
+
+      // Restore per-page styleGuides after pages are parsed
+      // Use nextTick to ensure parsePages has completed via watch
+      if (item.options.pageStyleGuides?.length > 0) {
+        nextTick(() => {
+          for (const psg of item.options.pageStyleGuides) {
+            const pageIndex = store.slidesOptions.pages.findIndex(
+              (p) => p.pageNumber === psg.pageNumber,
+            )
+            if (pageIndex !== -1) {
+              store.slidesOptions.pages[pageIndex].styleGuide = psg.styleGuide
+            }
+          }
+        })
+      }
     }
   }
 }
@@ -407,12 +478,15 @@ const handleImported = async () => {
             <p class="text-sm text-text-secondary truncate">
               {{ truncatePrompt(item.prompt) }}
             </p>
-            <div v-if="item.status" class="mt-2">
+            <div v-if="item.status" class="mt-2 flex items-center justify-between">
               <span
                 class="text-xs px-2 py-0.5 rounded-md"
-                :class="item.status === 'success' ? 'bg-status-success-muted text-status-success' : 'bg-status-error-muted text-status-error'"
+                :class="getStatusClass(item.status)"
               >
-                {{ item.status === 'success' ? $t('history.status.success') : $t('history.status.failed') }}
+                {{ $t(`history.status.${item.status}`) }}
+              </span>
+              <span v-if="getItemSize(item)" class="text-xs text-text-muted font-mono">
+                {{ getItemSize(item) }}
               </span>
             </div>
           </div>

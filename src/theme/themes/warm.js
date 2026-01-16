@@ -55,7 +55,7 @@ export default {
     // 狀態色 - Warm Traffic Lights
     // ========================================
     statusSuccess: '#15803D', // Green-700
-    statusSuccessMuted: 'rgba(21, 128, 61, 0.12)',
+    statusSuccessMuted: 'rgba(16, 185, 129, 0.12)', // emerald-500
     statusSuccessSolid: '#16A34A', // Green-600
     statusSuccessHover: '#14532D',
     statusError: '#B91C1C', // Red-700
@@ -124,7 +124,7 @@ export default {
 
   shadows: {
     glowPrimary: '0 4px 20px rgba(194, 65, 12, 0.15)', // Orange glow
-    glowSuccess: '0 4px 16px rgba(21, 128, 61, 0.2)', // Green glow
+    glowSuccess: '0 4px 16px rgba(16, 185, 129, 0.2)', // emerald-500
     glowGold: '0 4px 20px rgba(217, 119, 6, 0.15)', // Amber glow
     stepActive: '0 0 20px rgba(217, 119, 6, 0.4)', // Amber glow
     card: '0 4px 24px rgba(0, 0, 0, 0.06)', // Warm light mode 卡片陰影

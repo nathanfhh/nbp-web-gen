@@ -84,17 +84,23 @@
     "video": {
       "name": "Video",
       "description": "Generate AI videos"
+    },
+    "slides": {
+      "name": "Slides",
+      "description": "Generate presentation slides"
     }
   },
   "prompt": {
     "label": "Prompt Description",
+    "labelSlides": "Global Description (Optional, applied to each page)",
     "hint": "Tip: The more detailed your description, the better the results",
     "placeholders": {
       "generate": "Describe the image you want to generate, e.g., a cat under the starry sky...",
       "edit": "Describe the changes you want to make, e.g., add sunglasses...",
       "story": "Describe the story theme, e.g., a seed growing into a tree...",
       "diagram": "Describe the diagram content, e.g., user login flowchart...",
-      "video": "Describe the video you want to generate, e.g., a cat running in a meadow..."
+      "video": "Describe the video you want to generate, e.g., a cat running in a meadow...",
+      "slides": "This content will be prepended to each page, e.g., Company annual report, use tech-style colors..."
     }
   },
   "settings": {
@@ -206,6 +212,84 @@
       "unspecified": "Unspecified",
       "storyboard": "Storyboard",
       "individual": "Individual"
+    }
+  },
+  "slides": {
+    "pagesInput": "Presentation Content",
+    "pagesPlaceholder": "Page 1 content\n\n---\n\nPage 2 content\n\n---\n\nPage 3 content",
+    "pagesHint": "Use --- to separate pages, max 30 pages",
+    "pageCount": "{count} pages",
+    "designStyle": "Design Style",
+    "styleModeAI": "AI Analysis",
+    "styleModeManual": "Manual Input",
+    "analysisModel": "Analysis Model",
+    "styleGuidance": "Style Preferences (Optional)",
+    "styleGuidancePlaceholder": "Enter your design preferences...\nExample:\n✓ Want: minimalist modern, blue color scheme\n✗ Avoid: gradient backgrounds, excessive decorations",
+    "styleGuidanceHint": "Guide AI's thinking direction - your preferences will be prioritized",
+    "analyzeAndPlan": "Analyze & Plan Style",
+    "analyzing": "Analyzing...",
+    "analyzeSuccess": "Style analysis complete",
+    "analyzeFailed": "Style analysis failed",
+    "thinkingProcess": "Thinking Process",
+    "waitingForThinking": "Waiting for analysis...",
+    "suggestedStyle": "AI Suggested Style",
+    "manualStyleHint": "Enter your desired design style description",
+    "manualStylePlaceholder": "e.g., Modern minimalist style with navy blue and white colors, sans-serif fonts, clean layout...",
+    "confirmStyle": "Confirm and Use This Style",
+    "styleApplied": "Style Applied",
+    "styleNotConfirmed": "Please confirm the design style first",
+    "noPages": "Please enter presentation content",
+    "tooManyPages": "Too many pages (max {max})",
+    "pagesList": "Page List",
+    "generatingPage": "Generating page {current}/{total}",
+    "progressCompleted": "{count} pages completed",
+    "eta": "ETA: {time}",
+    "status": {
+      "pending": "Pending",
+      "generating": "Generating",
+      "done": "Done",
+      "error": "Error"
+    },
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "regenerate": "Regenerate",
+    "regenerateSuccess": "Page {page} updated with new image",
+    "regenerateFailed": "Regeneration failed",
+    "regenerateCancelled": "Cancelled, keeping original image",
+    "compareImages": "Compare Images",
+    "compareImagesHint": "Page {page} has been regenerated. Choose which version to keep.",
+    "originalImage": "Original",
+    "newImage": "New Generation",
+    "keepOriginal": "Keep Original",
+    "useNew": "Use New",
+    "exportZip": "Export ZIP",
+    "exportPdf": "Export PDF",
+    "exportSuccess": "Export successful",
+    "noImagesToExport": "No images to export",
+    "globalReferences": "Global References",
+    "globalReferencesHint": "These images will be applied to all pages",
+    "globalBadge": "Global",
+    "pageReferences": "Page References",
+    "pageStyleGuide": "Page Style Guide",
+    "pageStylePlaceholder": "Page-specific design style (leave empty to use global style)",
+    "pageStyleHint": "Specify custom style for pages with special content (charts, quotes, etc.)",
+    "imageLoadError": "Failed to load image",
+    "reset": "Reset All",
+    "resetSuccess": "All slides settings have been reset",
+    "contentSplitter": {
+      "button": "AI Planning",
+      "title": "AI Slides Planning",
+      "model": "Model",
+      "rawMaterial": "Raw Material",
+      "rawMaterialPlaceholder": "Paste your article, notes, or any raw content...",
+      "additionalNotes": "Additional Notes",
+      "additionalNotesPlaceholder": "Any additional instructions or requirements...",
+      "targetPages": "Target Pages",
+      "pages": "pages",
+      "splitButton": "Start Planning",
+      "processing": "AI is analyzing and planning slides...",
+      "success": "Successfully planned into {count} pages",
+      "error": "Planning failed"
     }
   },
   "video": {
@@ -516,6 +600,7 @@
     "loadingVideo": "Loading video...",
     "status": {
       "success": "Success",
+      "partial": "Partial",
       "failed": "Failed"
     },
     "filter": {
@@ -587,7 +672,10 @@
     "videoGenerateSuccess": "Video generated successfully",
     "videoSaveFailed": "Failed to save video, but generation completed",
     "downloadSuccess": "Download started",
-    "downloadFailed": "Download failed, please try again"
+    "downloadFailed": "Download failed, please try again",
+    "slidesSuccess": "Successfully generated {count} slides",
+    "slidesPartialSuccess": "Slides partially generated: {success} succeeded, {failed} failed",
+    "slidesAllFailed": "Slides generation failed, all {count} pages failed"
   },
   "errors": {
     "noPrompt": "Please enter a prompt description",

@@ -22,3 +22,43 @@ export function isValidUUID(uuid) {
   if (!uuid || typeof uuid !== 'string') return false
   return /^nbp-[a-z0-9]+-[a-z0-9]+$/.test(uuid)
 }
+
+/**
+ * Generate a short unique ID (4 characters)
+ * Format: 4 alphanumeric characters (lowercase + digits)
+ * Ensures uniqueness within a given collection of existing IDs
+ * @param {string[]} existingIds - Array of existing IDs to avoid collision
+ * @param {number} maxAttempts - Maximum attempts before falling back to longer ID
+ * @returns {string}
+ */
+export function generateShortId(existingIds = [], maxAttempts = 100) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  const existingSet = new Set(existingIds)
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let id = ''
+    for (let i = 0; i < 4; i++) {
+      id += chars[Math.floor(Math.random() * chars.length)]
+    }
+    if (!existingSet.has(id)) {
+      return id
+    }
+  }
+
+  // Fallback: use 6 characters if 4-char space is exhausted (unlikely for < 1000 pages)
+  let id = ''
+  for (let i = 0; i < 6; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return id
+}
+
+/**
+ * Validate if a string is a valid short ID format
+ * @param {string} id
+ * @returns {boolean}
+ */
+export function isValidShortId(id) {
+  if (!id || typeof id !== 'string') return false
+  return /^[a-z0-9]{4,6}$/.test(id)
+}

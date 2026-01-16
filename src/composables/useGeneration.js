@@ -2,6 +2,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
 import { useVideoApi, buildVideoPrompt, buildVideoNegativePrompt } from './useVideoApi'
+import { useSlidesGeneration } from './useSlidesGeneration'
 import { useToast } from './useToast'
 import { useImageStorage } from './useImageStorage'
 import { useVideoStorage } from './useVideoStorage'
@@ -21,6 +22,7 @@ export function useGeneration() {
   const { updateHistoryImages, updateHistoryVideo } = useIndexedDB()
   const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
   const { generateVideo } = useVideoApi()
+  const { generateAllPages } = useSlidesGeneration()
   const { trackGenerateSuccess, trackGenerateFailed } = useAnalytics()
 
   /**
@@ -35,7 +37,8 @@ export function useGeneration() {
    * @returns {string|null} Error message or null if valid
    */
   const validateGeneration = () => {
-    if (!store.prompt.trim()) {
+    // Slides mode: prompt is optional (global description), content is in pagesRaw
+    if (store.currentMode !== 'slides' && !store.prompt.trim()) {
       return t('errors.noPrompt')
     }
     if (!store.hasApiKey) {
@@ -100,6 +103,12 @@ export function useGeneration() {
           onThinkingChunk(progress.message)
         })
         return videoResult
+      }
+
+      case 'slides': {
+        const result = await generateAllPages(onThinkingChunk)
+        // Images are already collected in generateAllPages
+        return result
       }
 
       default:
@@ -196,8 +205,33 @@ export function useGeneration() {
           hasReferenceImages: refImages.length > 0,
           options,
         })
+      } else if (store.currentMode === 'slides' && result) {
+        // Slides mode result - handle partial success
+        const { successCount = 0, failedCount = 0, totalPages = 0 } = result
+        if (result.images && result.images.length > 0) {
+          store.setGeneratedImages(result.images)
+        }
+
+        // Show appropriate toast based on success/failure
+        if (successCount > 0 && failedCount === 0) {
+          toast.success(t('toast.slidesSuccess', { count: successCount }))
+        } else if (successCount > 0 && failedCount > 0) {
+          toast.warning(t('toast.slidesPartialSuccess', { success: successCount, failed: failedCount }))
+        } else {
+          toast.error(t('toast.slidesAllFailed', { count: totalPages }))
+        }
+
+        // Track GA4 event - only if at least one page succeeded
+        if (successCount > 0) {
+          trackGenerateSuccess({
+            mode: store.currentMode,
+            imageCount: successCount,
+            hasReferenceImages: refImages.length > 0,
+            options,
+          })
+        }
       } else if (result?.images) {
-        // Image mode result
+        // Other image mode result
         store.setGeneratedImages(result.images)
         const imageCount = result.images.length
         toast.success(t('toast.generateSuccess', { count: imageCount }))
@@ -232,15 +266,47 @@ export function useGeneration() {
           hasInputVideo: !!inputVideo,
           videoPromptOptions: JSON.parse(JSON.stringify(store.videoPromptOptions)),
         }
+      } else if (store.currentMode === 'slides') {
+        // For slides mode, save content and styles but exclude large binary data
+        // Exclude: pages[].image (large image data), currentPageIndex, isAnalyzing, analysisError
+        // Include: pagesRaw, analyzedStyle, styleConfirmed, per-page styleGuides
+        const pageStyleGuides = options.pages
+          ?.filter((p) => p.styleGuide?.trim())
+          .map((p) => ({ pageNumber: p.pageNumber, styleGuide: p.styleGuide }))
+
+        historyOptions = {
+          resolution: options.resolution,
+          ratio: options.ratio,
+          analysisModel: options.analysisModel,
+          analyzedStyle: options.analyzedStyle,
+          styleConfirmed: options.styleConfirmed,
+          temperature: options.temperature,
+          seed: options.seed,
+          // Content and per-page styles
+          pagesRaw: options.pagesRaw || '',
+          pageStyleGuides: pageStyleGuides?.length > 0 ? pageStyleGuides : undefined,
+        }
       } else {
         historyOptions = { ...options }
+      }
+
+      // Determine status for history record
+      // Slides mode: check partial success; other modes: always 'success' in try block
+      let historyStatus = 'success'
+      if (store.currentMode === 'slides' && result) {
+        const { successCount = 0, failedCount = 0 } = result
+        if (successCount === 0) {
+          historyStatus = 'failed'
+        } else if (failedCount > 0) {
+          historyStatus = 'partial'
+        }
       }
 
       const historyId = await store.addToHistory({
         prompt: store.prompt,
         mode: store.currentMode,
         options: historyOptions,
-        status: 'success',
+        status: historyStatus,
         thinkingText:
           thinkingText ||
           store.thinkingProcess

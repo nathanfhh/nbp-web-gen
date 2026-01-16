@@ -462,8 +462,8 @@ body {
 }
 
 .mode-card.active {
-  border-color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-primary), transparent 90%);
+  border-color: var(--color-mode-generate);
+  background: var(--color-mode-generate-muted);
 }
 
 .mode-card.active::after {
@@ -737,18 +737,17 @@ body {
 }
 
 /* ============================================
-   Scroll Snap Container
+   Smooth Scroll Behavior
    ============================================ */
 
 html {
-  scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
 }
 
-.scroll-section {
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
+/* Note: scroll-snap removed in favor of JS-controlled asymmetric scrolling
+   - Scroll down: Easy snap from Hero to Main
+   - Scroll up: Requires more effort to return to Hero
+   See HomeView.vue handleAsymmetricScroll() for implementation */
 
 /* ============================================
    Hero Section Animations
