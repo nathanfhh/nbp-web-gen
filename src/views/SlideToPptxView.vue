@@ -109,6 +109,7 @@ const openLightboxForEdit = () => {
 
 const exitEditMode = async () => {
   isRegionEditMode.value = false
+  lightboxOpen.value = false // Close lightbox when finishing edits
 
   // Check if regions were edited and reprocess if needed
   const state = slideStates.value[currentIndex.value]
@@ -665,12 +666,19 @@ const getSlideStatus = (index) => {
               </span>
             </div>
 
-            <!-- Image Container - Side by side when processed -->
-            <div v-if="currentSlideState?.cleanImage" class="relative">
-              <div class="grid grid-cols-2 gap-4">
-                <!-- Original Image -->
-                <div class="space-y-2">
-                  <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.original') }}</h4>
+            <!-- Image Container - Unified Animated Layout -->
+            <div class="relative">
+              <div class="flex transition-all duration-500 ease-in-out">
+                <!-- Left: Original Image -->
+                <div class="flex-1 min-w-0 transition-all duration-500">
+                  <!-- Label (Animate height/opacity) -->
+                  <div 
+                    class="transition-all duration-500 overflow-hidden"
+                    :class="currentSlideState?.cleanImage ? 'h-6 mb-2 opacity-100' : 'h-0 mb-0 opacity-0'"
+                  >
+                    <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.original') }}</h4>
+                  </div>
+
                   <div
                     class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
                     @click="currentImage && openLightbox(currentImage.preview)"
@@ -681,7 +689,8 @@ const getSlideStatus = (index) => {
                       alt="Original"
                       class="absolute inset-0 w-full h-full object-contain"
                     />
-                    <!-- OCR Overlay on original -->
+                    
+                    <!-- OCR Overlay -->
                     <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0)" class="absolute inset-0 pointer-events-none">
                       <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
                         <!-- Merged Regions (Blue) -->
@@ -713,7 +722,7 @@ const getSlideStatus = (index) => {
                             stroke-dasharray="4"
                           />
                         </template>
-                        <!-- Failed Regions (Red Dashed) - Detection succeeded but Recognition failed -->
+                        <!-- Failed Regions (Red Dashed) -->
                         <template v-if="showFailedRegions">
                           <rect
                             v-for="(result, idx) in currentOcrRegions.failed"
@@ -730,149 +739,79 @@ const getSlideStatus = (index) => {
                         </template>
                       </svg>
                     </div>
+
+                    <!-- Navigation Arrows (Only when NOT split) -->
+                    <template v-if="!currentSlideState?.cleanImage">
+                      <button
+                        v-if="hasPrev"
+                        @click.stop="goToPrev"
+                        class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
+                      >
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        v-if="hasNext"
+                        @click.stop="goToNext"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
+                      >
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </template>
                   </div>
                 </div>
-                <!-- Processed Image -->
-                <div class="space-y-2">
-                  <h4 class="text-xs font-medium text-text-muted text-center">{{ $t('slideToPptx.processed') }}</h4>
+
+                <!-- Right: Processed Image (Transition Entry) -->
+                <div 
+                  class="transition-all duration-500 ease-in-out flex flex-col overflow-hidden"
+                  :class="currentSlideState?.cleanImage ? 'flex-1 ml-4 opacity-100' : 'w-0 ml-0 opacity-0'"
+                >
+                  <div class="h-6 mb-2 flex-shrink-0">
+                    <h4 class="text-xs font-medium text-text-muted text-center whitespace-nowrap">{{ $t('slideToPptx.processed') }}</h4>
+                  </div>
+                  
                   <div
                     class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
                     @click="openLightbox(currentSlideState.cleanImage)"
                   >
                     <img
+                      v-if="currentSlideState.cleanImage && !isReprocessing"
                       :src="currentSlideState.cleanImage"
                       alt="Processed"
                       class="absolute inset-0 w-full h-full object-contain"
                     />
+                    
+                    <!-- Loading / Settlement Overlay -->
+                    <div v-if="isReprocessing" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-bg-elevated/80 backdrop-blur-sm">
+                      <div class="animate-spin w-8 h-8 border-2 border-mode-generate border-t-transparent rounded-full mb-3"></div>
+                      <span class="text-sm font-medium text-text-primary animate-pulse">{{ $t('slideToPptx.settling') }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- OCR JSON Overlay (covers both images in side-by-side mode) -->
+              <!-- OCR JSON Overlay (Unified) -->
               <div
                 v-if="showOcrJsonOverlay && currentOcrFullData"
-                class="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-xl overflow-auto p-4 z-10"
+                class="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-xl overflow-auto p-4 z-20"
                 @click.stop
               >
                 <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrFullData, null, 2) }}</pre>
               </div>
 
-              <!-- OCR JSON Toggle Button (top-right, for side-by-side mode) -->
+              <!-- OCR JSON Toggle Button (Unified) -->
               <button
                 v-if="currentOcrFullData"
                 @click.stop="showOcrJsonOverlay = !showOcrJsonOverlay"
-                class="absolute top-2 right-2 z-20 p-2 rounded-lg transition-colors"
+                class="absolute top-2 right-2 z-30 p-2 rounded-lg transition-colors"
                 :class="showOcrJsonOverlay ? 'bg-mode-generate text-white' : 'bg-black/50 hover:bg-black/70 text-white'"
                 :title="$t('slideToPptx.toggleOcrJson')"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Single Image Container - Before processing -->
-            <div
-              v-else
-              class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
-              @click="currentImage && openLightbox(currentImage.preview)"
-            >
-              <img
-                v-if="currentImage"
-                :src="currentImage.preview"
-                alt="Slide preview"
-                class="absolute inset-0 w-full h-full object-contain"
-              />
-
-              <!-- OCR Overlay -->
-              <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0)" class="absolute inset-0 pointer-events-none">
-                <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
-                  <!-- Merged Regions (Blue) -->
-                  <template v-if="showMergedRegions">
-                    <rect
-                      v-for="(result, idx) in currentOcrRegions.merged"
-                      :key="`merged-${idx}`"
-                      :x="result.bounds.x"
-                      :y="result.bounds.y"
-                      :width="result.bounds.width"
-                      :height="result.bounds.height"
-                      fill="rgba(59, 130, 246, 0.2)"
-                      stroke="rgba(59, 130, 246, 0.8)"
-                      stroke-width="2"
-                    />
-                  </template>
-                  <!-- Raw Regions (Green Dashed) -->
-                  <template v-if="showRawRegions">
-                    <rect
-                      v-for="(result, idx) in currentOcrRegions.raw"
-                      :key="`raw-${idx}`"
-                      :x="result.bounds.x"
-                      :y="result.bounds.y"
-                      :width="result.bounds.width"
-                      :height="result.bounds.height"
-                      fill="rgba(16, 185, 129, 0.1)"
-                      stroke="rgba(16, 185, 129, 0.8)"
-                      stroke-width="1"
-                      stroke-dasharray="4"
-                    />
-                  </template>
-                  <!-- Failed Regions (Red Dashed) - Detection succeeded but Recognition failed -->
-                  <template v-if="showFailedRegions">
-                    <rect
-                      v-for="(result, idx) in currentOcrRegions.failed"
-                      :key="`failed-${idx}`"
-                      :x="result.bounds.x"
-                      :y="result.bounds.y"
-                      :width="result.bounds.width"
-                      :height="result.bounds.height"
-                      fill="rgba(239, 68, 68, 0.15)"
-                      stroke="rgba(239, 68, 68, 0.9)"
-                      stroke-width="2"
-                      stroke-dasharray="6 3"
-                    />
-                  </template>
-                </svg>
-              </div>
-
-              <!-- OCR JSON Overlay -->
-              <div
-                v-if="showOcrJsonOverlay && currentOcrFullData"
-                class="absolute inset-0 bg-black/80 backdrop-blur-sm overflow-auto p-4 z-10"
-                @click.stop
-              >
-                <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrFullData, null, 2) }}</pre>
-              </div>
-
-              <!-- OCR JSON Toggle Button (top-right) -->
-              <button
-                v-if="currentOcrFullData"
-                @click.stop="showOcrJsonOverlay = !showOcrJsonOverlay"
-                class="absolute top-2 right-2 z-20 p-2 rounded-lg transition-colors"
-                :class="showOcrJsonOverlay ? 'bg-mode-generate text-white' : 'bg-black/50 hover:bg-black/70 text-white'"
-                :title="$t('slideToPptx.toggleOcrJson')"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-              </button>
-
-              <!-- Navigation Arrows -->
-              <button
-                v-if="hasPrev"
-                @click="goToPrev"
-                class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
-              >
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                v-if="hasNext"
-                @click="goToNext"
-                class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
-              >
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             </div>
