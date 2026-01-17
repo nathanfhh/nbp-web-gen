@@ -79,6 +79,16 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  // Edit mode - disables zoom/pan and enables region editing
+  isEditMode: {
+    type: Boolean,
+    default: false,
+  },
+  // Hide file size info (for slides mode)
+  hideFileSize: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])
@@ -265,21 +275,37 @@ const handleKeydown = (e) => {
   }
 }
 
-// Wheel event wrapper
+// Wheel event wrapper - disabled in edit mode
 const handleWheel = (e) => {
+  if (props.isEditMode) return
   zoomHandleWheel(e, props.modelValue)
 }
 
-// Touch event wrappers
+// Mouse down wrapper - disabled in edit mode
+const handleMouseDownWrapper = (e) => {
+  if (props.isEditMode) return
+  handleMouseDown(e)
+}
+
+// Double click wrapper - disabled in edit mode
+const handleDoubleClickWrapper = (e) => {
+  if (props.isEditMode) return
+  handleDoubleClick(e)
+}
+
+// Touch event wrappers - disabled in edit mode
 const handleTouchStart = (e) => {
+  if (props.isEditMode) return
   touchHandleStart(e, props.modelValue)
 }
 
 const handleTouchMove = (e) => {
+  if (props.isEditMode) return
   touchHandleMove(e, props.modelValue)
 }
 
 const handleTouchEnd = (e) => {
+  if (props.isEditMode) return
   touchHandleEnd(e, props.modelValue, {
     close,
     goToPrev,
@@ -617,9 +643,9 @@ const goToSlideToPptx = async () => {
         <div
           class="lightbox-content"
           @wheel.prevent="handleWheel"
-          @mousedown="handleMouseDown"
+          @mousedown="handleMouseDownWrapper"
           @mousemove="handleMouseMove"
-          @dblclick="handleDoubleClick"
+          @dblclick="handleDoubleClickWrapper"
           @touchstart="handleTouchStart"
           @touchmove="handleTouchMove"
           @touchend="handleTouchEnd"
@@ -707,7 +733,18 @@ const goToSlideToPptx = async () => {
                 </template>
               </svg>
 
-                                                  </div>          </div>
+              <!-- Edit Overlay Slot - for custom region editing UI -->
+              <slot
+                name="edit-overlay"
+                :image-dimensions="imageDimensions"
+                :scale="scale"
+                :translate-x="translateX"
+                :translate-y="translateY"
+                :is-edit-mode="isEditMode"
+              />
+
+            </div>
+          </div>
         </div>
 
         <!-- Navigation: Next -->
@@ -763,7 +800,7 @@ const goToSlideToPptx = async () => {
           </div>
 
           <!-- Row 2: Compression info (separate row on mobile) -->
-          <div v-if="hasCompressionInfo" class="lightbox-info-row lightbox-info-compression">
+          <div v-if="hasCompressionInfo && !hideFileSize" class="lightbox-info-row lightbox-info-compression">
             <span class="text-text-muted">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
             <span class="text-text-muted">{{ currentImageInfo.originalSize }}</span>
             <span class="lightbox-info-arrow">→</span>

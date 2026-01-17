@@ -8,6 +8,7 @@ import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useImageStorage } from '@/composables/useImageStorage'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import SlideFileUploader from '@/components/SlideFileUploader.vue'
+import OcrRegionEditor from '@/components/OcrRegionEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -69,12 +70,82 @@ const lightboxOpen = ref(false)
 const lightboxImages = ref([])
 const lightboxIndex = ref(0)
 
+// Region editing mode
+const isRegionEditMode = ref(false)
+const isReprocessing = ref(false)
+
 const openLightbox = (imageUrl, index = 0) => {
   // ImageLightbox expects objects with url or data+mimeType
   lightboxImages.value = [{ url: imageUrl }]
   lightboxIndex.value = index
   lightboxOpen.value = true
 }
+
+const enterEditMode = () => {
+  isRegionEditMode.value = true
+}
+
+// Open lightbox in edit mode
+const openLightboxForEdit = () => {
+  const state = slideStates.value[currentIndex.value]
+  if (!state?.originalImage) return
+
+  // Use original image for editing
+  lightboxImages.value = [{ url: state.originalImage }]
+  lightboxIndex.value = 0
+  lightboxOpen.value = true
+
+  // Enter edit mode after lightbox opens
+  nextTick(() => {
+    enterEditMode()
+  })
+}
+
+const exitEditMode = async () => {
+  isRegionEditMode.value = false
+
+  // Check if regions were edited and reprocess if needed
+  const state = slideStates.value[currentIndex.value]
+  if (state?.isRegionsEdited) {
+    try {
+      isReprocessing.value = true
+      await slideToPptx.reprocessSlide(currentIndex.value)
+      toast.success(t('slideToPptx.regionEditor.reprocessSuccess'))
+    } catch (error) {
+      toast.error(t('slideToPptx.regionEditor.reprocessFailed', { error: error.message }))
+    } finally {
+      isReprocessing.value = false
+    }
+  }
+}
+
+// Region editing event handlers
+const handleDeleteRegion = (index) => {
+  slideToPptx.deleteRegion(currentIndex.value, index)
+}
+
+const handleAddRegion = ({ bounds, text }) => {
+  slideToPptx.addManualRegion(currentIndex.value, bounds, text)
+}
+
+const handleResizeRegion = ({ index, bounds }) => {
+  slideToPptx.resizeRegion(currentIndex.value, index, bounds)
+}
+
+const handleResetRegions = () => {
+  slideToPptx.resetRegions(currentIndex.value)
+}
+
+// Get current editable regions (edited or original)
+const currentEditableRegions = computed(() => {
+  return slideToPptx.getEditableRegions(currentIndex.value)
+})
+
+// Check if current slide has been edited
+const currentSlideIsEdited = computed(() => {
+  const state = slideStates.value[currentIndex.value]
+  return state?.isRegionsEdited || false
+})
 
 // Sync settings with composable
 const settings = slideToPptx.settings
@@ -376,6 +447,13 @@ watch(
   },
   { immediate: true }
 )
+
+// Exit edit mode when lightbox is closed
+watch(lightboxOpen, (isOpen) => {
+  if (!isOpen && isRegionEditMode.value) {
+    exitEditMode()
+  }
+})
 
 // Prepare images for processing (load from OPFS if needed)
 const prepareImagesForProcessing = async () => {
@@ -841,6 +919,20 @@ const getSlideStatus = (index) => {
                 >
                   <span class="w-2 h-2 rounded-full" :class="showFailedRegions ? 'bg-red-500' : 'bg-transparent border border-current'"></span>
                   {{ $t('slideToPptx.overlayMode.failed') }} ({{ currentOcrRegions.failed.length }})
+                </button>
+
+                <!-- Edit Regions Button -->
+                <button
+                  v-if="currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0"
+                  @click="openLightboxForEdit"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5 border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                  :class="{ 'ring-2 ring-amber-500/50': currentSlideIsEdited }"
+                >
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  {{ $t('slideToPptx.regionEditor.editButton') }}
+                  <span v-if="currentSlideIsEdited" class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                 </button>
               </div>
             </div>
@@ -1444,12 +1536,30 @@ const getSlideStatus = (index) => {
       v-model="lightboxOpen"
       :images="lightboxImages"
       :initial-index="lightboxIndex"
-      :show-ocr-overlay="showOcrOverlay"
+      :show-ocr-overlay="showOcrOverlay && !isRegionEditMode"
       :show-merged-regions="showMergedRegions"
       :show-raw-regions="showRawRegions"
       :show-failed-regions="showFailedRegions"
       :ocr-regions="currentOcrRegions"
-    />
+      :is-edit-mode="isRegionEditMode"
+      :hide-file-size="true"
+    >
+      <!-- OCR Region Editor Overlay -->
+      <template #edit-overlay="{ imageDimensions }">
+        <OcrRegionEditor
+          v-if="isRegionEditMode && imageDimensions.width > 0"
+          :regions="currentEditableRegions"
+          :image-dimensions="imageDimensions"
+          :is-edited="currentSlideIsEdited"
+          :is-reprocessing="isReprocessing"
+          @delete-region="handleDeleteRegion"
+          @add-region="handleAddRegion"
+          @resize-region="handleResizeRegion"
+          @reset="handleResetRegions"
+          @done="exitEditMode"
+        />
+      </template>
+    </ImageLightbox>
   </div>
 </template>
 

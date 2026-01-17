@@ -15,6 +15,7 @@ import { useOcr } from './useOcr'
 import { useInpaintingWorker } from './useInpaintingWorker'
 import { usePptxExport } from './usePptxExport'
 import { useApiKeyManager } from './useApiKeyManager'
+import { mergeTextRegions } from '@/utils/ocr-core'
 import i18n from '@/i18n'
 
 // Helper for i18n translation in composable
@@ -44,6 +45,8 @@ const t = (key, params) => i18n.global.t(key, params)
  * @property {number} height - Image height
  * @property {string} error - Error message if failed
  * @property {Object|null} overrideSettings - Per-page settings override (null = use global)
+ * @property {boolean} isRegionsEdited - Flag: user has manually edited regions
+ * @property {Array|null} editedRawRegions - User-modified regions (null = use original rawRegions)
  */
 
 /**
@@ -115,6 +118,20 @@ export function useSlideToPptx() {
     // Keep only last 100 logs
     if (logs.value.length > 100) {
       logs.value.shift()
+    }
+  }
+
+  /**
+   * Update the last log entry (for progress updates without adding new entries)
+   * @param {string} message - Log message
+   * @param {'info'|'success'|'error'|'warning'} type - Log type
+   */
+  const updateLastLog = (message, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString()
+    if (logs.value.length > 0) {
+      logs.value[logs.value.length - 1] = { timestamp, message, type }
+    } else {
+      logs.value.push({ timestamp, message, type })
     }
   }
 
@@ -536,7 +553,7 @@ Output: A single clean image with all text removed.`
     startTimer()
 
     // Initialize slide states with extended structure
-    // IMPORTANT: Preserve existing overrideSettings (per-page settings) and OCR cache
+    // IMPORTANT: Preserve existing overrideSettings (per-page settings), OCR cache, and region edits
     slideStates.value = images.map((_, index) => {
       const existingState = slideStates.value[index]
       return {
@@ -554,6 +571,9 @@ Output: A single clean image with all text removed.`
         height: 0,
         error: null,
         overrideSettings: existingState?.overrideSettings || null,
+        // Preserve region editing state
+        isRegionsEdited: existingState?.isRegionsEdited || false,
+        editedRawRegions: existingState?.editedRawRegions || null,
       }
     })
 
@@ -561,11 +581,13 @@ Output: A single clean image with all text removed.`
 
     try {
       // Initialize workers with progress logging
+      addLog(t('slideToPptx.logs.initializingOcr'))
       let lastOcrLog = ''
       await ocr.initialize((progress, message) => {
         // Only log significant status changes (avoid spam)
-        if (message && message !== lastOcrLog && !message.includes('%')) {
-          addLog(message)
+        // Use updateLastLog to prevent log explosion during model download
+        if (message && message !== lastOcrLog) {
+          updateLastLog(message)
           lastOcrLog = message
         }
       })
@@ -725,6 +747,8 @@ Output: A single clean image with all text removed.`
         height: 0,
         error: null,
         overrideSettings: null,
+        isRegionsEdited: false,
+        editedRawRegions: null,
       }))
     }
   }
@@ -743,6 +767,219 @@ Output: A single clean image with all text removed.`
     slideStates.value[index] = {
       ...slideStates.value[index],
       overrideSettings,
+    }
+  }
+
+  // ============================================================================
+  // Region Editing Methods
+  // ============================================================================
+
+  /**
+   * Get the current editable regions for a slide
+   * Returns editedRawRegions if edited, otherwise rawRegions
+   * @param {number} index - Slide index
+   * @returns {Array} - Current regions
+   */
+  const getEditableRegions = (index) => {
+    const state = slideStates.value[index]
+    if (!state) return []
+    return state.editedRawRegions || state.rawRegions || []
+  }
+
+  /**
+   * Delete a region from a slide
+   * @param {number} slideIndex - Slide index
+   * @param {number} regionIndex - Region index to delete
+   */
+  const deleteRegion = (slideIndex, regionIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    // Create edited regions array if not exists
+    const currentRegions = state.editedRawRegions || [...state.rawRegions]
+    if (regionIndex < 0 || regionIndex >= currentRegions.length) return
+
+    // Remove the region
+    const newRegions = currentRegions.filter((_, i) => i !== regionIndex)
+
+    // Update state
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: newRegions,
+      isRegionsEdited: true,
+    }
+
+    addLog(t('slideToPptx.logs.regionDeleted', { slide: slideIndex + 1 }), 'info')
+  }
+
+  /**
+   * Add a manually drawn region to a slide
+   * @param {number} slideIndex - Slide index
+   * @param {Object} bounds - Region bounds { x, y, width, height }
+   * @param {string} [text] - Optional text content
+   */
+  const addManualRegion = (slideIndex, bounds, text = '') => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    // Create edited regions array if not exists
+    const currentRegions = state.editedRawRegions || [...state.rawRegions]
+
+    // Create manual region object
+    const manualRegion = {
+      text: text || '',
+      confidence: 100,
+      bounds: {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      },
+      polygon: [
+        [bounds.x, bounds.y],
+        [bounds.x + bounds.width, bounds.y],
+        [bounds.x + bounds.width, bounds.y + bounds.height],
+        [bounds.x, bounds.y + bounds.height],
+      ],
+      recognitionFailed: false,
+      recognitionSource: 'manual',
+    }
+
+    // Add to regions
+    const newRegions = [...currentRegions, manualRegion]
+
+    // Update state
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: newRegions,
+      isRegionsEdited: true,
+    }
+
+    addLog(t('slideToPptx.logs.regionAdded', { slide: slideIndex + 1 }), 'info')
+  }
+
+  /**
+   * Reset regions to original OCR results
+   * @param {number} slideIndex - Slide index
+   */
+  const resetRegions = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    // Clear edited regions
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: null,
+      isRegionsEdited: false,
+    }
+
+    addLog(t('slideToPptx.logs.regionsReset', { slide: slideIndex + 1 }), 'info')
+  }
+
+  /**
+   * Resize a region's bounds
+   * @param {number} slideIndex - Slide index
+   * @param {number} regionIndex - Region index to resize
+   * @param {Object} newBounds - New bounds { x, y, width, height }
+   */
+  const resizeRegion = (slideIndex, regionIndex, newBounds) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    // Get current regions (edited or original)
+    const currentRegions = state.editedRawRegions || state.rawRegions || []
+    if (regionIndex < 0 || regionIndex >= currentRegions.length) return
+
+    // Create updated region with new bounds
+    const updatedRegion = {
+      ...currentRegions[regionIndex],
+      bounds: { ...newBounds },
+      polygon: [
+        [newBounds.x, newBounds.y],
+        [newBounds.x + newBounds.width, newBounds.y],
+        [newBounds.x + newBounds.width, newBounds.y + newBounds.height],
+        [newBounds.x, newBounds.y + newBounds.height],
+      ],
+    }
+
+    // Update regions array
+    const newRegions = [...currentRegions]
+    newRegions[regionIndex] = updatedRegion
+
+    // Update state
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: newRegions,
+      isRegionsEdited: true,
+    }
+  }
+
+  /**
+   * Reprocess a single slide with current (possibly edited) regions
+   * Re-runs mask generation and inpainting
+   * @param {number} slideIndex - Slide index
+   * @returns {Promise<void>}
+   */
+  const reprocessSlide = async (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state || !state.originalImage) {
+      throw new Error('Slide not processed yet')
+    }
+
+    const effectiveSettings = getEffectiveSettings(slideIndex)
+
+    // Use edited regions if available, otherwise original
+    const regionsToUse = state.editedRawRegions || state.rawRegions
+
+    addLog(t('slideToPptx.logs.reprocessingSlide', { slide: slideIndex + 1 }), 'info')
+
+    try {
+      // Re-merge for PPTX export
+      const mergedRegions = mergeTextRegions(regionsToUse)
+      state.regions = mergedRegions
+      state.ocrResults = mergedRegions
+
+      // Re-generate mask
+      addLog(t('slideToPptx.logs.generatingMask', { slide: slideIndex + 1 }))
+      state.mask = ocr.generateMask(state.width, state.height, regionsToUse, effectiveSettings.maskPadding)
+
+      // Re-load original image data for inpainting
+      const { imageData } = await loadImage(state.originalImage)
+
+      // Re-inpaint
+      addLog(t('slideToPptx.logs.removingText', { slide: slideIndex + 1, method: effectiveSettings.inpaintMethod }))
+
+      if (effectiveSettings.inpaintMethod === 'opencv') {
+        const inpaintedData = await inpainting.inpaint(imageData, state.mask, {
+          algorithm: effectiveSettings.opencvAlgorithm,
+          radius: effectiveSettings.inpaintRadius,
+          dilateMask: true,
+          dilateIterations: Math.ceil(effectiveSettings.maskPadding / 2),
+        })
+        state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
+      } else {
+        // Gemini API method with fallback to OpenCV
+        try {
+          state.cleanImage = await removeTextWithGeminiWithSettings(state.originalImage, state.regions, effectiveSettings)
+        } catch (geminiError) {
+          addLog(t('slideToPptx.logs.geminiFailed', { slide: slideIndex + 1, error: geminiError.message }), 'warning')
+          const inpaintedData = await inpainting.inpaint(imageData, state.mask, {
+            algorithm: 'NS',
+            radius: effectiveSettings.inpaintRadius || 3,
+            dilateMask: true,
+            dilateIterations: Math.ceil((effectiveSettings.maskPadding || 5) / 2),
+          })
+          state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
+        }
+      }
+
+      addLog(t('slideToPptx.logs.reprocessingComplete', { slide: slideIndex + 1 }), 'success')
+
+      // Trigger reactivity update
+      slideStates.value[slideIndex] = { ...state }
+    } catch (error) {
+      addLog(t('slideToPptx.logs.reprocessingFailed', { slide: slideIndex + 1, error: error.message }), 'error')
+      throw error
     }
   }
 
@@ -814,5 +1051,13 @@ Output: A single clean image with all text removed.`
     initSlideStates,
     setSlideSettings,
     getEffectiveSettings,
+
+    // Region editing methods
+    getEditableRegions,
+    deleteRegion,
+    addManualRegion,
+    resetRegions,
+    resizeRegion,
+    reprocessSlide,
   }
 }
