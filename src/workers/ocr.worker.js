@@ -166,24 +166,24 @@ async function loadAllModels() {
   const modelsToDownload = [!detCached, !recCached].filter(Boolean).length
 
   if (allCached) {
-    reportProgress('model', 0, '快速載入模型（從快取讀取）...')
+    reportProgress('model', 0, 'ocr:loadingModelsFromCache')
   } else if (modelsToDownload > 0) {
-    reportProgress('model', 0, `正在下載 ${modelsToDownload} 個模型（首次使用需下載約 170MB）...`)
+    reportProgress('model', 0, `ocr:downloadingModels:${modelsToDownload}`)
   }
 
   // Load detection model
-  const detStatus = detCached ? '載入偵測模型...' : '下載偵測模型 (1/2)...'
+  const detStatus = detCached ? 'ocr:loadingDetModel' : 'ocr:downloadingDetModel:1:2'
   const { data: detection } = await getModel('detection', detStatus)
-  reportProgress('model', 33, detCached ? '偵測模型已載入' : '偵測模型下載完成')
+  reportProgress('model', 33, 'ocr:loadingDetModel')
 
   // Load recognition model
-  const recStatus = recCached ? '載入辨識模型...' : `下載辨識模型 (${detCached ? '1' : '2'}/2)...`
+  const recStatus = recCached ? 'ocr:loadingRecModel' : `ocr:downloadingRecModel:${detCached ? '1' : '2'}:2`
   const { data: recognition } = await getModel('recognition', recStatus)
-  reportProgress('model', 66, recCached ? '辨識模型已載入' : '辨識模型下載完成')
+  reportProgress('model', 66, 'ocr:loadingRecModel')
 
   // Load dictionary
-  const { data: dictText } = await getModel('dictionary', '載入字典...')
-  reportProgress('model', 90, '字典已載入')
+  const { data: dictText } = await getModel('dictionary', 'ocr:loadingDict')
+  reportProgress('model', 90, 'ocr:loadingDict')
 
   return { detection, recognition, dictionary: dictText }
 }

@@ -10,7 +10,7 @@
 
 import { ref, computed, onUnmounted, shallowRef, getCurrentInstance } from 'vue'
 import { useOcrWorker } from './useOcrWorker'
-import { useOcrMainThread, hasWebGPU, isMobile } from './useOcrMainThread'
+import { useOcrMainThread, hasWebGPU, isMobile, clearModelCache } from './useOcrMainThread'
 
 /**
  * OCR Engine Types
@@ -94,8 +94,8 @@ export function useOcr() {
       return false
     }
 
-    // Auto mode: use WebGPU if available and not mobile
-    return canUseWebGPU.value && !isMobileDevice.value
+    // Auto mode: use WebGPU if available
+    return canUseWebGPU.value
   })
 
   /**
@@ -346,6 +346,7 @@ export function useOcr() {
     terminate,
     setEngine,
     detectCapabilities,
+    clearModelCache,
 
     // Constants
     OCR_ENGINE,

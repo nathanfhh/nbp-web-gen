@@ -1063,7 +1063,10 @@
       "detecting": "Detecting...",
       "webgpuNotSupported": "WebGPU is not supported on this device",
       "currentEngine": "Currently using: {engine}",
-      "description": "WebGPU uses GPU acceleration, Worker runs in background thread"
+      "description": "WebGPU uses GPU acceleration, Worker runs in background thread",
+      "clearCache": "Clear Model Cache",
+      "clearCacheConfirm": "Clear OCR model cache? Models (~170MB) will be re-downloaded on next use.",
+      "cacheCleared": "Model cache cleared"
     },
     "ocrDebug": {
       "title": "OCR Debug Info",
@@ -1163,6 +1166,13 @@
     "settling": "Recalculating...",
     "logs": {
       "freeTierQuotaExceeded": "Free tier quota exceeded, switching to paid key...",
+      "loadingModelsFromCache": "Loading models from cache...",
+      "downloadingModels": "Downloading {count} models (~170MB for first use)...",
+      "loadingDetModel": "Loading detection model...",
+      "loadingRecModel": "Loading recognition model...",
+      "loadingDict": "Loading dictionary...",
+      "downloadingDetModel": "Downloading detection model ({current}/{total})...",
+      "downloadingRecModel": "Downloading recognition model ({current}/{total})...",
       "loadingImage": "Slide {slide}: Loading image...",
       "runningOcr": "Slide {slide}: Running OCR...",
       "usingCachedOcr": "Slide {slide}: Using cached OCR results ({count} text blocks)",

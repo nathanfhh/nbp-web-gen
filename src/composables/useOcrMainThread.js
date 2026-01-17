@@ -107,6 +107,23 @@ async function writeModel(filename, data) {
   await writable.close()
 }
 
+/**
+ * Clear all cached models from OPFS
+ * @returns {Promise<boolean>} - true if cleared successfully
+ */
+async function clearModelCache() {
+  try {
+    const root = await navigator.storage.getDirectory()
+    await root.removeEntry(OPFS_DIR, { recursive: true })
+    return true
+  } catch (e) {
+    // Directory might not exist, which is fine
+    if (e.name === 'NotFoundError') return true
+    console.warn('Failed to clear model cache:', e)
+    return false
+  }
+}
+
 async function downloadModel(url, filename, expectedSize, onProgress) {
   const response = await fetch(url)
   if (!response.ok) {
@@ -610,7 +627,7 @@ export function useOcrMainThread() {
     initPromise = (async () => {
       try {
         // Check WebGPU availability
-        const canUseWebGPU = !isMobile() && (await hasWebGPU())
+        const canUseWebGPU = await hasWebGPU()
 
         // Load ONNX Runtime dynamically (with WASM paths pre-configured)
         const ortModule = await loadOnnxRuntime()
@@ -619,24 +636,24 @@ export function useOcrMainThread() {
         ortModule.env.wasm.numThreads = 1
 
         // Load models in parallel
-        reportProgress(5, '載入模型...')
-        if (onProgress) onProgress(5, '載入模型...')
+        reportProgress(5, 'ocr:loadingModelsFromCache')
+        if (onProgress) onProgress(5, 'ocr:loadingModelsFromCache')
 
         const [detModelResult, recModelResult, dictResult] = await Promise.all([
           getModel('detection', (p) => {
             const prog = 5 + p * 30
-            reportProgress(prog, '載入偵測模型...')
-            if (onProgress) onProgress(prog, '載入偵測模型...')
+            reportProgress(prog, 'ocr:loadingDetModel')
+            if (onProgress) onProgress(prog, 'ocr:loadingDetModel')
           }),
           getModel('recognition', (p) => {
             const prog = 35 + p * 30
-            reportProgress(prog, '載入辨識模型...')
-            if (onProgress) onProgress(prog, '載入辨識模型...')
+            reportProgress(prog, 'ocr:loadingRecModel')
+            if (onProgress) onProgress(prog, 'ocr:loadingRecModel')
           }),
           getModel('dictionary', (p) => {
             const prog = 65 + p * 5
-            reportProgress(prog, '載入字典...')
-            if (onProgress) onProgress(prog, '載入字典...')
+            reportProgress(prog, 'ocr:loadingDict')
+            if (onProgress) onProgress(prog, 'ocr:loadingDict')
           }),
         ])
 
@@ -940,4 +957,4 @@ export function useOcrMainThread() {
 }
 
 // Export for convenience
-export { hasWebGPU, isMobile }
+export { hasWebGPU, isMobile, clearModelCache }

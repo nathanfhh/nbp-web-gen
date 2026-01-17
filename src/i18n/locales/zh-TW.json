@@ -1093,7 +1093,10 @@
       "detecting": "偵測中...",
       "webgpuNotSupported": "此裝置不支援 WebGPU",
       "currentEngine": "目前使用：{engine}",
-      "description": "WebGPU 使用 GPU 加速，Worker 在背景執行緒運作"
+      "description": "WebGPU 使用 GPU 加速，Worker 在背景執行緒運作",
+      "clearCache": "清除模型快取",
+      "clearCacheConfirm": "確定要清除 OCR 模型快取嗎？下次使用時將重新下載模型（約 170MB）。",
+      "cacheCleared": "模型快取已清除"
     },
     "ocrDebug": {
       "title": "OCR Debug 資訊",
@@ -1196,6 +1199,13 @@
     "confirmSplit": "確定要將此段落拆分為原始單行嗎？",
     "logs": {
       "freeTierQuotaExceeded": "Free Tier 配額已用盡，切換至付費金鑰...",
+      "loadingModelsFromCache": "快速載入模型（從快取讀取）...",
+      "downloadingModels": "正在下載 {count} 個模型（首次使用需下載約 170MB）...",
+      "loadingDetModel": "載入偵測模型...",
+      "loadingRecModel": "載入辨識模型...",
+      "loadingDict": "載入字典...",
+      "downloadingDetModel": "下載偵測模型 ({current}/{total})...",
+      "downloadingRecModel": "下載辨識模型 ({current}/{total})...",
       "loadingImage": "第 {slide} 頁：載入圖片...",
       "runningOcr": "第 {slide} 頁：執行 OCR 文字辨識...",
       "usingCachedOcr": "第 {slide} 頁：使用快取的 OCR 結果（{count} 個文字區塊）",

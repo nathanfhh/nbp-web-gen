@@ -21,6 +21,37 @@ import i18n from '@/i18n'
 // Helper for i18n translation in composable
 const t = (key, params) => i18n.global.t(key, params)
 
+// Translate OCR status messages (format: "ocr:key" or "ocr:key:param1:param2")
+const translateOcrMessage = (message) => {
+  if (!message || !message.startsWith('ocr:')) return message
+
+  const parts = message.split(':')
+  const key = parts[1]
+
+  const keyMap = {
+    loadingModelsFromCache: 'slideToPptx.logs.loadingModelsFromCache',
+    downloadingModels: 'slideToPptx.logs.downloadingModels',
+    loadingDetModel: 'slideToPptx.logs.loadingDetModel',
+    loadingRecModel: 'slideToPptx.logs.loadingRecModel',
+    loadingDict: 'slideToPptx.logs.loadingDict',
+    downloadingDetModel: 'slideToPptx.logs.downloadingDetModel',
+    downloadingRecModel: 'slideToPptx.logs.downloadingRecModel',
+  }
+
+  const i18nKey = keyMap[key]
+  if (!i18nKey) return message
+
+  // Parse parameters based on key
+  if (key === 'downloadingModels' && parts[2]) {
+    return t(i18nKey, { count: parts[2] })
+  }
+  if ((key === 'downloadingDetModel' || key === 'downloadingRecModel') && parts[2] && parts[3]) {
+    return t(i18nKey, { current: parts[2], total: parts[3] })
+  }
+
+  return t(i18nKey)
+}
+
 /**
  * @typedef {Object} ProcessingSettings
  * @property {'opencv'|'gemini'} inpaintMethod - Text removal method
@@ -572,7 +603,7 @@ Output: A single clean image with all text removed.`
       await ocr.initialize((progress, message) => {
         // Only log the first message (e.g., "downloading models" or "loading from cache")
         if (!hasLoggedModelStatus && message) {
-          addLog(message)
+          addLog(translateOcrMessage(message))
           hasLoggedModelStatus = true
         }
       })
@@ -1039,6 +1070,7 @@ Output: A single clean image with all text removed.`
     ocrExecutionProvider: ocr.executionProvider,
     setOcrEngine: ocr.setEngine,
     detectOcrCapabilities: ocr.detectCapabilities,
+    clearOcrModelCache: ocr.clearModelCache,
 
     // Methods
     processAll,

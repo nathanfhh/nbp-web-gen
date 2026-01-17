@@ -10,6 +10,7 @@ import { useImageStorage } from '@/composables/useImageStorage'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import SlideFileUploader from '@/components/SlideFileUploader.vue'
 import OcrRegionEditor from '@/components/OcrRegionEditor.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -41,6 +42,7 @@ const uploadedImages = ref([])
 
 // Log container ref for auto-scroll
 const logContainer = ref(null)
+const confirmModalRef = ref(null)
 
 // Thumbnail refs for auto-scroll
 const thumbnailContainer = ref(null)
@@ -358,6 +360,20 @@ const updateSetting = (key, value) => {
 // Reset current page to use global settings
 const resetToGlobalSettings = () => {
   slideToPptx.setSlideSettings(currentIndex.value, null)
+}
+
+// Clear OCR model cache from OPFS
+const clearModelCache = async () => {
+  const confirmed = await confirmModalRef.value?.show({
+    title: t('slideToPptx.ocrEngine.clearCache'),
+    message: t('slideToPptx.ocrEngine.clearCacheConfirm'),
+  })
+  if (!confirmed) return
+
+  const success = await slideToPptx.clearOcrModelCache()
+  if (success) {
+    toast.success(t('slideToPptx.ocrEngine.cacheCleared'))
+  }
 }
 
 // Get the display value for a setting (respects per-page mode)
@@ -1113,7 +1129,19 @@ const getSlideStatus = (index) => {
 
             <!-- OCR Engine Selection (Global setting, independent of settingMode) -->
             <div class="mb-6">
-              <label class="block text-sm text-text-muted mb-2">{{ $t('slideToPptx.ocrEngine.label') }}</label>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm text-text-muted">{{ $t('slideToPptx.ocrEngine.label') }}</label>
+                <button
+                  @click="clearModelCache"
+                  class="text-xs px-2 py-1 rounded-lg text-text-muted hover:text-status-error hover:bg-status-error-muted transition-colors flex items-center gap-1"
+                  :title="$t('slideToPptx.ocrEngine.clearCache')"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  {{ $t('slideToPptx.ocrEngine.clearCache') }}
+                </button>
+              </div>
               <!-- Loading state while detecting -->
               <div v-if="slideToPptx.ocrIsDetecting.value" class="flex items-center gap-2 text-sm text-text-muted py-2">
                 <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1517,6 +1545,9 @@ const getSlideStatus = (index) => {
         />
       </template>
     </ImageLightbox>
+
+    <!-- Confirm Modal -->
+    <ConfirmModal ref="confirmModalRef" />
   </div>
 </template>
 
