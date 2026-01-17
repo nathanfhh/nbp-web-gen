@@ -1052,6 +1052,11 @@
     "noImages": "Please select images to convert",
     "showOcrResult": "Show OCR Result",
     "toggleOcrJson": "Toggle OCR JSON Data",
+    "overlayMode": {
+      "merged": "Merged",
+      "raw": "Raw",
+      "both": "Both"
+    },
     "inpaintMethod": "Text Removal Method",
     "free": "Free",
     "paid": "Paid",

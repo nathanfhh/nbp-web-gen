@@ -1082,6 +1082,11 @@
     "noImages": "請選擇要轉換的圖片",
     "showOcrResult": "顯示 OCR 結果",
     "toggleOcrJson": "顯示/隱藏 OCR JSON 資料",
+    "overlayMode": {
+      "merged": "合併後",
+      "raw": "原始框",
+      "both": "同時顯示"
+    },
     "inpaintMethod": "文字移除方式",
     "free": "免費",
     "paid": "付費",
@@ -1147,6 +1152,9 @@
     "hasCustomSettings": "已設定自訂處理方式",
     "clickToCustomize": "點擊自訂處理方式",
     "processingPage": "正在處理第 {current} / {total} 頁",
+    "clickToSplit": "點擊以拆分此段落",
+    "mergeSelected": "合併選取項目 ({count})",
+    "confirmSplit": "確定要將此段落拆分為原始單行嗎？",
     "logs": {
       "freeTierQuotaExceeded": "Free Tier 配額已用盡，切換至付費金鑰...",
       "loadingImage": "第 {slide} 頁：載入圖片...",

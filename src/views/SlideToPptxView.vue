@@ -56,6 +56,9 @@ const selectSlide = (idx) => {
 
 // OCR overlay toggle
 const showOcrOverlay = ref(true)
+// Separate toggles for merged and raw regions
+const showMergedRegions = ref(true)
+const showRawRegions = ref(true)
 
 // OCR JSON overlay (shows raw OCR result data)
 const showOcrJsonOverlay = ref(false)
@@ -78,6 +81,15 @@ const settings = slideToPptx.settings
 // Current image and slide state
 const currentImage = computed(() => images.value[currentIndex.value])
 const currentSlideState = computed(() => slideStates.value[currentIndex.value])
+
+// Current slide's OCR results based on mode
+const currentOcrRegions = computed(() => {
+  if (!slideStates.value[currentIndex.value]) return { merged: [], raw: [] }
+  return {
+    merged: slideStates.value[currentIndex.value].regions || [],
+    raw: slideStates.value[currentIndex.value].rawRegions || []
+  }
+})
 
 // Navigation
 const hasPrev = computed(() => currentIndex.value > 0)
@@ -519,19 +531,37 @@ const getSlideStatus = (index) => {
                       class="absolute inset-0 w-full h-full object-contain"
                     />
                     <!-- OCR Overlay on original -->
-                    <div v-if="showOcrOverlay && currentOcrResults.length > 0" class="absolute inset-0 pointer-events-none">
+                    <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0)" class="absolute inset-0 pointer-events-none">
                       <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
-                        <rect
-                          v-for="(result, idx) in currentOcrResults"
-                          :key="idx"
-                          :x="result.bounds.x"
-                          :y="result.bounds.y"
-                          :width="result.bounds.width"
-                          :height="result.bounds.height"
-                          fill="rgba(59, 130, 246, 0.2)"
-                          stroke="rgba(59, 130, 246, 0.8)"
-                          stroke-width="2"
-                        />
+                        <!-- Merged Regions (Blue) -->
+                        <template v-if="showMergedRegions">
+                          <rect
+                            v-for="(result, idx) in currentOcrRegions.merged"
+                            :key="`merged-${idx}`"
+                            :x="result.bounds.x"
+                            :y="result.bounds.y"
+                            :width="result.bounds.width"
+                            :height="result.bounds.height"
+                            fill="rgba(59, 130, 246, 0.2)"
+                            stroke="rgba(59, 130, 246, 0.8)"
+                            stroke-width="2"
+                          />
+                        </template>
+                        <!-- Raw Regions (Green Dashed) -->
+                        <template v-if="showRawRegions">
+                          <rect
+                            v-for="(result, idx) in currentOcrRegions.raw"
+                            :key="`raw-${idx}`"
+                            :x="result.bounds.x"
+                            :y="result.bounds.y"
+                            :width="result.bounds.width"
+                            :height="result.bounds.height"
+                            fill="rgba(16, 185, 129, 0.1)"
+                            stroke="rgba(16, 185, 129, 0.8)"
+                            stroke-width="1"
+                            stroke-dasharray="4"
+                          />
+                        </template>
                       </svg>
                     </div>
                   </div>
@@ -589,19 +619,37 @@ const getSlideStatus = (index) => {
               />
 
               <!-- OCR Overlay -->
-              <div v-if="showOcrOverlay && currentOcrResults.length > 0" class="absolute inset-0 pointer-events-none">
+              <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0)" class="absolute inset-0 pointer-events-none">
                 <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
-                  <rect
-                    v-for="(result, idx) in currentOcrResults"
-                    :key="idx"
-                    :x="result.bounds.x"
-                    :y="result.bounds.y"
-                    :width="result.bounds.width"
-                    :height="result.bounds.height"
-                    fill="rgba(59, 130, 246, 0.2)"
-                    stroke="rgba(59, 130, 246, 0.8)"
-                    stroke-width="2"
-                  />
+                  <!-- Merged Regions (Blue) -->
+                  <template v-if="showMergedRegions">
+                    <rect
+                      v-for="(result, idx) in currentOcrRegions.merged"
+                      :key="`merged-${idx}`"
+                      :x="result.bounds.x"
+                      :y="result.bounds.y"
+                      :width="result.bounds.width"
+                      :height="result.bounds.height"
+                      fill="rgba(59, 130, 246, 0.2)"
+                      stroke="rgba(59, 130, 246, 0.8)"
+                      stroke-width="2"
+                    />
+                  </template>
+                  <!-- Raw Regions (Green Dashed) -->
+                  <template v-if="showRawRegions">
+                    <rect
+                      v-for="(result, idx) in currentOcrRegions.raw"
+                      :key="`raw-${idx}`"
+                      :x="result.bounds.x"
+                      :y="result.bounds.y"
+                      :width="result.bounds.width"
+                      :height="result.bounds.height"
+                      fill="rgba(16, 185, 129, 0.1)"
+                      stroke="rgba(16, 185, 129, 0.8)"
+                      stroke-width="1"
+                      stroke-dasharray="4"
+                    />
+                  </template>
                 </svg>
               </div>
 
@@ -648,9 +696,9 @@ const getSlideStatus = (index) => {
               </button>
             </div>
 
-            <!-- OCR Toggle -->
-            <div class="mt-4">
-              <label class="flex items-center gap-2 cursor-pointer">
+            <!-- OCR Toggle Controls -->
+            <div class="mt-4 flex items-center justify-end gap-4">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   v-model="showOcrOverlay"
@@ -658,6 +706,33 @@ const getSlideStatus = (index) => {
                 />
                 <span class="text-sm text-text-secondary">{{ $t('slideToPptx.showOcrResult') }}</span>
               </label>
+
+              <!-- Toggle Buttons (only when enabled) -->
+              <div v-if="showOcrOverlay" class="flex items-center gap-2">
+                <!-- Merged Regions Toggle -->
+                <button
+                  @click="showMergedRegions = !showMergedRegions"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
+                  :class="showMergedRegions
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                    : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
+                >
+                  <span class="w-2 h-2 rounded-full" :class="showMergedRegions ? 'bg-blue-500' : 'bg-transparent border border-current'"></span>
+                  {{ $t('slideToPptx.overlayMode.merged') }}
+                </button>
+
+                <!-- Raw Regions Toggle -->
+                <button
+                  @click="showRawRegions = !showRawRegions"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
+                  :class="showRawRegions
+                    ? 'border-green-500 bg-green-500/10 text-green-400'
+                    : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
+                >
+                  <span class="w-2 h-2 rounded-full" :class="showRawRegions ? 'bg-green-500' : 'bg-transparent border border-current'"></span>
+                  {{ $t('slideToPptx.overlayMode.raw') }}
+                </button>
+              </div>
             </div>
 
             <!-- Thumbnail Strip - Full Width Below -->
@@ -1123,6 +1198,10 @@ const getSlideStatus = (index) => {
       v-model="lightboxOpen"
       :images="lightboxImages"
       :initial-index="lightboxIndex"
+      :show-ocr-overlay="showOcrOverlay"
+      :show-merged-regions="showMergedRegions"
+      :show-raw-regions="showRawRegions"
+      :ocr-regions="currentOcrRegions"
     />
   </div>
 </template>
