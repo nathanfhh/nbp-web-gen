@@ -69,7 +69,20 @@ export function useOcr() {
     isDetecting.value = true
     try {
       isMobileDevice.value = isMobile()
-      canUseWebGPU.value = !isMobileDevice.value && (await hasWebGPU())
+      
+      if (!navigator.gpu) {
+        console.log('[useOcr] WebGPU not supported by browser (navigator.gpu missing)')
+        canUseWebGPU.value = false
+      } else {
+        const adapter = await navigator.gpu.requestAdapter()
+        if (adapter) {
+          console.log('[useOcr] WebGPU detected:', adapter.info)
+          canUseWebGPU.value = true
+        } else {
+          console.warn('[useOcr] WebGPU supported but no adapter found')
+          canUseWebGPU.value = false
+        }
+      }
     } catch (e) {
       console.warn('[useOcr] Error detecting capabilities:', e)
       canUseWebGPU.value = false
