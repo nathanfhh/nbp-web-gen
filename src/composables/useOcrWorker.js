@@ -6,7 +6,7 @@
  * The heavy OCR inference now runs in a Web Worker to avoid blocking UI.
  */
 
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, getCurrentInstance } from 'vue'
 import { useOcrModelCache } from './useOcrModelCache'
 
 /**
@@ -319,10 +319,13 @@ export function useOcrWorker() {
     initReject = null
   }
 
-  // Clean up on unmount
-  onUnmounted(() => {
-    terminate()
-  })
+  // Safe lifecycle registration - only if in component context
+  const instance = getCurrentInstance()
+  if (instance) {
+    onUnmounted(() => {
+      terminate()
+    })
+  }
 
   return {
     // State

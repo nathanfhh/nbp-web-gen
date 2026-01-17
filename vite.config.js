@@ -72,6 +72,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  optimizeDeps: {
+    // Exclude onnxruntime-web from Vite's pre-bundling
+    // This allows the package to load WASM files from CDN correctly
+    exclude: ['onnxruntime-web'],
+  },
   server: {
     host: '0.0.0.0',
   },

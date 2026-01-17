@@ -1,0 +1,356 @@
+/**
+ * OCR Unified Interface
+ *
+ * Automatically selects between:
+ * - WebGPU Main Thread (useOcrMainThread.js) - When WebGPU available, 3-5x faster
+ * - WASM Worker (useOcrWorker.js) - Fallback for non-GPU or mobile devices
+ *
+ * @see docs/ocr-optimization-plan.md for architecture details
+ */
+
+import { ref, computed, onUnmounted, shallowRef, getCurrentInstance } from 'vue'
+import { useOcrWorker } from './useOcrWorker'
+import { useOcrMainThread, hasWebGPU, isMobile } from './useOcrMainThread'
+
+/**
+ * OCR Engine Types
+ */
+export const OCR_ENGINE = {
+  AUTO: 'auto',
+  WEBGPU: 'webgpu',
+  WASM: 'wasm',
+}
+
+/**
+ * Unified OCR Composable
+ *
+ * Provides a single interface that automatically selects the best OCR implementation
+ * based on device capabilities, with manual override option.
+ *
+ * @returns {Object} OCR composable with unified API
+ */
+export function useOcr() {
+  // ============================================================================
+  // Engine Selection State
+  // ============================================================================
+
+  // User preference: 'auto' | 'webgpu' | 'wasm'
+  const preferredEngine = ref(OCR_ENGINE.AUTO)
+
+  // Detected capabilities
+  const canUseWebGPU = ref(false)
+  const isMobileDevice = ref(false)
+  const isDetecting = ref(true)
+
+  // Active engine info
+  const activeEngine = ref(null)
+
+  // ============================================================================
+  // OCR Instance Management
+  // ============================================================================
+
+  // Use shallowRef to hold the OCR instance (avoid deep reactivity)
+  const ocrInstance = shallowRef(null)
+  let instanceType = null // 'webgpu' | 'wasm'
+
+  // Forward state from active instance
+  const isLoading = ref(false)
+  const isReady = ref(false)
+  const progress = ref(0)
+  const status = ref('')
+  const error = ref(null)
+  const executionProvider = ref(null)
+
+  // ============================================================================
+  // Capability Detection
+  // ============================================================================
+
+  async function detectCapabilities() {
+    isDetecting.value = true
+    try {
+      isMobileDevice.value = isMobile()
+      canUseWebGPU.value = !isMobileDevice.value && (await hasWebGPU())
+    } catch (e) {
+      console.warn('[useOcr] Error detecting capabilities:', e)
+      canUseWebGPU.value = false
+    } finally {
+      isDetecting.value = false
+    }
+  }
+
+  // ============================================================================
+  // Engine Selection Logic
+  // ============================================================================
+
+  /**
+   * Determine which engine to use based on preference and capabilities
+   */
+  const shouldUseWebGPU = computed(() => {
+    // Explicit preference
+    if (preferredEngine.value === OCR_ENGINE.WEBGPU) {
+      return canUseWebGPU.value // Only use if available
+    }
+    if (preferredEngine.value === OCR_ENGINE.WASM) {
+      return false
+    }
+
+    // Auto mode: use WebGPU if available and not mobile
+    return canUseWebGPU.value && !isMobileDevice.value
+  })
+
+  /**
+   * Create or switch OCR instance based on current engine selection
+   */
+  function ensureInstance() {
+    const targetType = shouldUseWebGPU.value ? 'webgpu' : 'wasm'
+
+    // Already have correct instance
+    if (ocrInstance.value && instanceType === targetType) {
+      return ocrInstance.value
+    }
+
+    // Terminate previous instance if exists
+    if (ocrInstance.value) {
+      ocrInstance.value.terminate()
+      ocrInstance.value = null
+    }
+
+    // Create new instance
+    if (targetType === 'webgpu') {
+      ocrInstance.value = useOcrMainThread()
+      activeEngine.value = 'webgpu'
+    } else {
+      ocrInstance.value = useOcrWorker()
+      activeEngine.value = 'wasm'
+    }
+    instanceType = targetType
+
+    // Sync state from new instance
+    syncState()
+
+    return ocrInstance.value
+  }
+
+  /**
+   * Sync state refs from active instance
+   */
+  function syncState() {
+    const instance = ocrInstance.value
+    if (!instance) return
+
+    // Create watchers to sync state
+    // Note: We can't use watch() inside a function, so we manually sync
+    isLoading.value = instance.isLoading.value
+    isReady.value = instance.isReady.value
+    progress.value = instance.progress.value
+    status.value = instance.status.value
+    error.value = instance.error.value
+    executionProvider.value = instance.executionProvider?.value || null
+  }
+
+  // ============================================================================
+  // Public API (delegates to active instance)
+  // ============================================================================
+
+  /**
+   * Initialize OCR engine
+   * @param {function} onProgress - Optional progress callback
+   */
+  async function initialize(onProgress) {
+    // Ensure capabilities are detected before selecting engine
+    await ensureCapabilitiesDetected()
+
+    const instance = ensureInstance()
+
+    // Wrap progress callback to sync state
+    const wrappedOnProgress = (value, message) => {
+      progress.value = value
+      status.value = message
+      if (onProgress) onProgress(value, message)
+    }
+
+    try {
+      isLoading.value = true
+      await instance.initialize(wrappedOnProgress)
+      syncState()
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Recognize text in image
+   * @param {string|Blob|File|HTMLImageElement} image
+   * @param {function} onProgress - Optional progress callback
+   * @returns {Promise<{regions: Array, rawRegions: Array}>}
+   */
+  async function recognize(image, onProgress) {
+    // Ensure capabilities are detected before selecting engine
+    await ensureCapabilitiesDetected()
+
+    const instance = ensureInstance()
+
+    // Ensure initialized
+    if (!instance.isReady.value) {
+      await initialize()
+    }
+
+    const wrappedOnProgress = (value, message, stage) => {
+      progress.value = value
+      status.value = message
+      if (onProgress) onProgress(value, message, stage)
+    }
+
+    try {
+      isLoading.value = true
+      const result = await instance.recognize(image, wrappedOnProgress)
+      syncState()
+      return result
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Recognize multiple images
+   * @param {Array} images
+   * @param {function} onProgress - Progress callback (currentIndex, total)
+   * @returns {Promise<Array>}
+   */
+  async function recognizeMultiple(images, onProgress) {
+    // Ensure capabilities are detected before selecting engine
+    await ensureCapabilitiesDetected()
+
+    const instance = ensureInstance()
+
+    // Ensure initialized
+    if (!instance.isReady.value) {
+      await initialize()
+    }
+
+    try {
+      isLoading.value = true
+      const results = await instance.recognizeMultiple(images, onProgress)
+      syncState()
+      return results
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Generate mask from OCR results
+   * @param {number} width
+   * @param {number} height
+   * @param {Array} ocrResults
+   * @param {number} padding
+   * @returns {ImageData}
+   */
+  function generateMask(width, height, ocrResults, padding = 5) {
+    const instance = ensureInstance()
+    return instance.generateMask(width, height, ocrResults, padding)
+  }
+
+  /**
+   * Terminate OCR engine and release resources
+   */
+  function terminate() {
+    if (ocrInstance.value) {
+      ocrInstance.value.terminate()
+      ocrInstance.value = null
+      instanceType = null
+    }
+
+    isReady.value = false
+    isLoading.value = false
+    progress.value = 0
+    status.value = ''
+    error.value = null
+    executionProvider.value = null
+    activeEngine.value = null
+  }
+
+  /**
+   * Switch to specific engine
+   * @param {'auto'|'webgpu'|'wasm'} engine
+   */
+  function setEngine(engine) {
+    if (!Object.values(OCR_ENGINE).includes(engine)) {
+      console.warn(`[useOcr] Invalid engine: ${engine}`)
+      return
+    }
+
+    const wasReady = isReady.value
+    preferredEngine.value = engine
+
+    // If was ready, re-initialize with new engine
+    if (wasReady) {
+      terminate()
+      // Don't auto-reinitialize - let user call initialize() when needed
+    }
+  }
+
+  // ============================================================================
+  // Lifecycle
+  // ============================================================================
+
+  // Track if capabilities have been detected
+  let capabilitiesDetected = false
+
+  /**
+   * Ensure capabilities are detected (call before ensureInstance)
+   */
+  async function ensureCapabilitiesDetected() {
+    if (capabilitiesDetected) return
+    await detectCapabilities()
+    capabilitiesDetected = true
+  }
+
+  // Safe lifecycle registration - only if in component context
+  const instance = getCurrentInstance()
+  if (instance) {
+    onUnmounted(() => {
+      terminate()
+    })
+  }
+
+  // Eagerly detect capabilities so UI can show correct state immediately
+  // This is non-blocking - UI will update reactively when detection completes
+  detectCapabilities()
+
+  // ============================================================================
+  // Export
+  // ============================================================================
+
+  return {
+    // State (reactive)
+    isLoading,
+    isReady,
+    progress,
+    status,
+    error,
+
+    // Engine info (reactive)
+    preferredEngine,
+    activeEngine,
+    executionProvider,
+    canUseWebGPU,
+    isMobileDevice,
+    isDetecting,
+
+    // Methods
+    initialize,
+    recognize,
+    recognizeMultiple,
+    generateMask,
+    terminate,
+    setEngine,
+    detectCapabilities,
+
+    // Constants
+    OCR_ENGINE,
+  }
+}
+
+// Re-export engine constants
+export { OCR_ENGINE as default }
