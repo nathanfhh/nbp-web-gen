@@ -690,10 +690,30 @@ Output: A single clean image with all text removed.`
     addLog(t('slideToPptx.logs.generatingPptx'))
 
     try {
+      // Generate filename based on content
+      // 1. Extract first text from first slide
+      let title = 'Presentation'
+      const firstSlide = slideStates.value.find(s => s.status === 'done')
+      
+      if (firstSlide && firstSlide.ocrResults && firstSlide.ocrResults.length > 0) {
+        const firstText = firstSlide.ocrResults[0].text || ''
+        // Sanitize: remove invalid chars, newlines, and extra spaces
+        const sanitized = firstText.replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
+        if (sanitized.length > 0) {
+          title = sanitized.substring(0, 15)
+        }
+      }
+
+      // 2. Add timestamp (YYYYMMDD-HHMMSS)
+      const now = new Date()
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
+      const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '')
+      const filename = `${title}-${dateStr}-${timeStr}.pptx`
+
       await pptx.downloadPptx(successfulSlides, {
         ratio: settings.slideRatio,
-        title: 'Converted Presentation',
-      })
+        title: title, // Metadata title
+      }, filename) // Actual filename
 
       addLog(t('slideToPptx.logs.downloadComplete'), 'success')
       isPreviewMode.value = false
