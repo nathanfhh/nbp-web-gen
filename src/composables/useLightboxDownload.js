@@ -131,7 +131,19 @@ export function useLightboxDownload(deps) {
         } else {
           // WebP not ready yet, compress on-the-fly
           const { compressToWebP, blobToBase64 } = await import('@/composables/useImageCompression')
-          const compressed = await compressToWebP(currentImage, { quality: 0.85 })
+
+          // Normalize image format for compressToWebP
+          // It expects { data: base64, mimeType: string }, but we might have { url: dataUrl }
+          let imageForCompress = currentImage
+          if (currentImage.url && currentImage.url.startsWith('data:') && !currentImage.data) {
+            // Parse data URL: "data:image/png;base64,xxxx"
+            const match = currentImage.url.match(/^data:([^;]+);base64,(.+)$/)
+            if (match) {
+              imageForCompress = { mimeType: match[1], data: match[2] }
+            }
+          }
+
+          const compressed = await compressToWebP(imageForCompress, { quality: 0.85 })
           const base64 = await blobToBase64(compressed.blob)
           link.href = `data:image/webp;base64,${base64}`
           link.download = `generated-image-${timestamp}-${imageNum}.webp`
