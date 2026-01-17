@@ -1058,6 +1058,13 @@
       "both": "Both",
       "failed": "Failed"
     },
+    "ocrEngine": {
+      "label": "OCR Engine",
+      "detecting": "Detecting...",
+      "webgpuNotSupported": "WebGPU is not supported on this device",
+      "currentEngine": "Currently using: {engine}",
+      "description": "WebGPU uses GPU acceleration, Worker runs in background thread"
+    },
     "ocrDebug": {
       "title": "OCR Debug Info",
       "recognized": "Recognized",
@@ -1065,7 +1072,7 @@
       "noText": "(No text detected)"
     },
     "ocrWarning": {
-      "title": "⚠️ Some text regions failed recognition",
+      "title": "Some text regions failed recognition",
       "pageFailedCount": "Page {page}: {count} region(s) failed"
     },
     "inpaintMethod": "Text Removal Method",
@@ -1158,7 +1165,8 @@
       "noSlidesToDownload": "No slides to download",
       "generatingPptx": "Generating PPTX file...",
       "downloadComplete": "PPTX download complete!",
-      "pptxGenerationFailed": "PPTX generation failed: {error}"
+      "pptxGenerationFailed": "PPTX generation failed: {error}",
+      "ocrEngine": "Using engine: {engine}"
     }
   },
   "tour": {

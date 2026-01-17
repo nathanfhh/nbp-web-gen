@@ -1088,6 +1088,13 @@
       "both": "同時顯示",
       "failed": "識別失敗"
     },
+    "ocrEngine": {
+      "label": "OCR 引擎",
+      "detecting": "偵測中...",
+      "webgpuNotSupported": "此裝置不支援 WebGPU",
+      "currentEngine": "目前使用：{engine}",
+      "description": "WebGPU 使用 GPU 加速，Worker 在背景執行緒運作"
+    },
     "ocrDebug": {
       "title": "OCR Debug 資訊",
       "recognized": "識別成功",
@@ -1095,7 +1102,7 @@
       "noText": "(無法識別文字)"
     },
     "ocrWarning": {
-      "title": "⚠️ 部分文字區域辨識失敗",
+      "title": "部分文字區域辨識失敗",
       "pageFailedCount": "第 {page} 頁：{count} 個區域辨識失敗"
     },
     "inpaintMethod": "文字移除方式",
@@ -1143,7 +1150,7 @@
     },
     "settingMode": "設定模式",
     "globalMode": "全域套用",
-    "perPageMode": "依序設定",
+    "perPageMode": "逐頁設定",
     "globalModeDesc": "所有頁面使用相同的設定",
     "perPageModeDesc": "切換頁面即可編輯該頁的設定",
     "editingPage": "正在編輯：第 {index} / {total} 頁",
@@ -1191,7 +1198,8 @@
       "noSlidesToDownload": "沒有可下載的投影片",
       "generatingPptx": "產生 PPTX 檔案...",
       "downloadComplete": "PPTX 下載完成！",
-      "pptxGenerationFailed": "PPTX 產生失敗：{error}"
+      "pptxGenerationFailed": "PPTX 產生失敗：{error}",
+      "ocrEngine": "使用引擎：{engine}"
     }
   }
 }

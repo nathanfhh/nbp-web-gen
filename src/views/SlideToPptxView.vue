@@ -94,6 +94,14 @@ const currentOcrRegions = computed(() => {
   }
 })
 
+// OCR source statistics (PaddleOCR vs Tesseract)
+const ocrSourceStats = computed(() => {
+  const raw = currentOcrRegions.value.raw
+  const tesseract = raw.filter(r => r.recognitionSource === 'tesseract').length
+  const paddleocr = raw.length - tesseract
+  return { tesseract, paddleocr }
+})
+
 // Navigation
 const hasPrev = computed(() => currentIndex.value > 0)
 const hasNext = computed(() => currentIndex.value < images.value.length - 1)
@@ -301,7 +309,8 @@ const downloadPptx = async () => {
 }
 
 // Current slide's OCR results (for PPTX export - merged only)
-const currentOcrResults = computed(() => {
+// eslint-disable-next-line no-unused-vars
+const _currentOcrResults = computed(() => {
   if (slideStates.value[currentIndex.value]) {
     return slideStates.value[currentIndex.value].ocrResults || []
   }
@@ -976,12 +985,19 @@ const getSlideStatus = (index) => {
             </h2>
 
             <!-- Summary -->
-            <div class="mb-4 flex gap-4 text-sm">
+            <div class="mb-4 flex flex-wrap gap-4 text-sm">
               <span class="text-green-400">
                 ✓ {{ $t('slideToPptx.ocrDebug.recognized') }}: {{ currentOcrRegions.raw.length }}
               </span>
               <span v-if="currentOcrRegions.failed.length > 0" class="text-red-400">
                 ✗ {{ $t('slideToPptx.ocrDebug.failed') }}: {{ currentOcrRegions.failed.length }}
+              </span>
+              <!-- Recognition source breakdown -->
+              <span v-if="ocrSourceStats.tesseract > 0" class="text-yellow-400">
+                🔄 Tesseract: {{ ocrSourceStats.tesseract }}
+              </span>
+              <span v-if="ocrSourceStats.paddleocr > 0" class="text-blue-400">
+                ⚡ PaddleOCR: {{ ocrSourceStats.paddleocr }}
               </span>
             </div>
 
@@ -991,11 +1007,22 @@ const getSlideStatus = (index) => {
               <div
                 v-for="(result, idx) in currentOcrRegions.raw"
                 :key="`debug-raw-${idx}`"
-                class="p-2 rounded-lg bg-green-500/10 border border-green-500/30 text-xs"
+                class="p-2 rounded-lg text-xs"
+                :class="result.recognitionSource === 'tesseract'
+                  ? 'bg-yellow-500/10 border border-yellow-500/30'
+                  : 'bg-green-500/10 border border-green-500/30'"
               >
                 <div class="flex items-start justify-between gap-2">
-                  <span class="text-green-400 font-mono flex-shrink-0">#{{ idx + 1 }}</span>
+                  <span class="font-mono flex-shrink-0" :class="result.recognitionSource === 'tesseract' ? 'text-yellow-400' : 'text-green-400'">#{{ idx + 1 }}</span>
                   <span class="text-text-primary flex-1 break-all">{{ result.text }}</span>
+                  <span
+                    class="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                    :class="result.recognitionSource === 'tesseract'
+                      ? 'bg-yellow-500/20 text-yellow-400'
+                      : 'bg-blue-500/20 text-blue-400'"
+                  >
+                    {{ result.recognitionSource === 'tesseract' ? 'Tesseract' : 'PaddleOCR' }}
+                  </span>
                   <span class="text-text-muted flex-shrink-0">{{ Math.round(result.confidence) }}%</span>
                 </div>
                 <div class="mt-1 text-text-muted text-[10px]">
@@ -1045,6 +1072,67 @@ const getSlideStatus = (index) => {
               >
                 {{ $t('slideToPptx.resetToGlobal') }}
               </button>
+            </div>
+
+            <!-- OCR Engine Selection (Global setting, independent of settingMode) -->
+            <div class="mb-6">
+              <label class="block text-sm text-text-muted mb-2">{{ $t('slideToPptx.ocrEngine.label') }}</label>
+              <!-- Loading state while detecting -->
+              <div v-if="slideToPptx.ocrIsDetecting.value" class="flex items-center gap-2 text-sm text-text-muted py-2">
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {{ $t('slideToPptx.ocrEngine.detecting') }}
+              </div>
+              <!-- Engine toggle buttons -->
+              <div v-else class="flex rounded-xl bg-bg-muted p-1">
+                <button
+                  @click="slideToPptx.setOcrEngine('webgpu')"
+                  :disabled="!slideToPptx.ocrCanUseWebGPU.value || isProcessing"
+                  class="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                  :class="[
+                    (slideToPptx.ocrPreferredEngine.value === 'webgpu' ||
+                     (slideToPptx.ocrPreferredEngine.value === 'auto' && slideToPptx.ocrCanUseWebGPU.value))
+                      ? 'bg-brand-primary text-text-on-brand'
+                      : 'text-text-muted hover:text-text-primary',
+                    (!slideToPptx.ocrCanUseWebGPU.value || isProcessing) && 'opacity-50 cursor-not-allowed'
+                  ]"
+                  :title="!slideToPptx.ocrCanUseWebGPU.value ? $t('slideToPptx.ocrEngine.webgpuNotSupported') : ''"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  WebGPU
+                </button>
+                <button
+                  @click="slideToPptx.setOcrEngine('wasm')"
+                  :disabled="isProcessing"
+                  class="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                  :class="[
+                    (slideToPptx.ocrPreferredEngine.value === 'wasm' ||
+                     (slideToPptx.ocrPreferredEngine.value === 'auto' && !slideToPptx.ocrCanUseWebGPU.value))
+                      ? 'bg-brand-primary text-text-on-brand'
+                      : 'text-text-muted hover:text-text-primary',
+                    isProcessing && 'opacity-50 cursor-not-allowed'
+                  ]"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Worker
+                </button>
+              </div>
+              <p class="text-xs text-text-muted mt-2">
+                <template v-if="slideToPptx.ocrActiveEngine.value">
+                  {{ $t('slideToPptx.ocrEngine.currentEngine', {
+                    engine: slideToPptx.ocrActiveEngine.value === 'webgpu' ? 'WebGPU (GPU)' : 'Worker (CPU)'
+                  }) }}
+                </template>
+                <template v-else>
+                  {{ $t('slideToPptx.ocrEngine.description') }}
+                </template>
+              </p>
             </div>
 
             <!-- Setting Mode Toggle -->

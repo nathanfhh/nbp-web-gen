@@ -11,7 +11,7 @@
 
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import { GoogleGenAI, Modality } from '@google/genai'
-import { useOcrWorker } from './useOcrWorker'
+import { useOcr } from './useOcr'
 import { useInpaintingWorker } from './useInpaintingWorker'
 import { usePptxExport } from './usePptxExport'
 import { useApiKeyManager } from './useApiKeyManager'
@@ -32,7 +32,11 @@ const t = (key, params) => i18n.global.t(key, params)
 /**
  * @typedef {Object} SlideProcessingState
  * @property {'pending'|'ocr'|'mask'|'inpaint'|'done'|'error'} status
- * @property {Array} ocrResults - OCR detection results
+ * @property {Array} ocrResults - OCR detection results (merged regions for PPTX)
+ * @property {Array} regions - Merged OCR regions
+ * @property {Array} rawRegions - Raw OCR regions (unmerged)
+ * @property {string|null} cachedImageUrl - Cached image URL for OCR cache validation
+ * @property {'webgpu'|'wasm'|null} cachedOcrEngine - Cached OCR engine type
  * @property {ImageData} mask - Generated mask
  * @property {string} cleanImage - Text-removed image data URL
  * @property {string} originalImage - Original image data URL (for comparison)
@@ -47,7 +51,7 @@ const t = (key, params) => i18n.global.t(key, params)
  */
 export function useSlideToPptx() {
   // Sub-composables
-  const ocr = useOcrWorker()
+  const ocr = useOcr()
   const inpainting = useInpaintingWorker()
   const pptx = usePptxExport()
   const { getApiKey } = useApiKeyManager()
@@ -405,8 +409,11 @@ Output: A single clean image with all text removed.`
       state.status = 'ocr'
 
       // Check if we can use cached OCR results
+      // Must match: same image URL AND same OCR engine type
+      const currentEngine = ocr.activeEngine?.value || 'wasm'
       const hasCachedOcr = state.rawRegions?.length > 0 &&
-                           state.cachedImageUrl === imageDataUrl
+                           state.cachedImageUrl === imageDataUrl &&
+                           state.cachedOcrEngine === currentEngine
 
       if (hasCachedOcr) {
         addLog(t('slideToPptx.logs.usingCachedOcr', { slide: index + 1, count: state.regions.length }), 'info')
@@ -416,7 +423,12 @@ Output: A single clean image with all text removed.`
         addLog(t('slideToPptx.logs.runningOcr', { slide: index + 1 }))
 
         // Now returns { regions, rawRegions }
-        const ocrResult = await ocr.recognize(imageDataUrl)
+        const ocrResult = await ocr.recognize(imageDataUrl, (value, message, stage) => {
+          // Log Tesseract fallback progress
+          if (stage === 'tesseract') {
+            addLog(message, 'info')
+          }
+        })
 
         // Handle both old and new format for backward compatibility
         if (Array.isArray(ocrResult)) {
@@ -427,8 +439,9 @@ Output: A single clean image with all text removed.`
           state.rawRegions = ocrResult.rawRegions
         }
 
-        // Cache the image URL for future comparisons
+        // Cache the image URL and engine type for future comparisons
         state.cachedImageUrl = imageDataUrl
+        state.cachedOcrEngine = currentEngine
 
         // Also store in ocrResults for PPTX export compatibility (using merged regions)
         state.ocrResults = state.regions
@@ -533,6 +546,7 @@ Output: A single clean image with all text removed.`
         regions: existingState?.regions || [],
         rawRegions: existingState?.rawRegions || [],
         cachedImageUrl: existingState?.cachedImageUrl || null,
+        cachedOcrEngine: existingState?.cachedOcrEngine || null,
         mask: null,
         cleanImage: null,
         originalImage: null,
@@ -555,6 +569,11 @@ Output: A single clean image with all text removed.`
           lastOcrLog = message
         }
       })
+
+      // Log OCR engine info
+      const engineType = ocr.activeEngine?.value === 'webgpu' ? 'Main Thread' : 'Worker'
+      const provider = ocr.executionProvider?.value || 'wasm'
+      addLog(t('slideToPptx.logs.ocrEngine', { engine: `${engineType} + ${provider.toUpperCase()} (PaddleOCR)` }), 'info')
 
       addLog(t('slideToPptx.logs.initializingInpainting'))
       await inpainting.initialize()
@@ -695,6 +714,10 @@ Output: A single clean image with all text removed.`
       slideStates.value = Array.from({ length: count }, () => ({
         status: 'pending',
         ocrResults: [],
+        regions: [],
+        rawRegions: [],
+        cachedImageUrl: null,
+        cachedOcrEngine: null,
         mask: null,
         cleanImage: null,
         originalImage: null,
@@ -765,6 +788,15 @@ Output: A single clean image with all text removed.`
     ocrProgress: ocr.progress,
     inpaintingStatus: inpainting.status,
     pptxStatus: pptx.status,
+
+    // OCR Engine control
+    ocrActiveEngine: ocr.activeEngine,
+    ocrPreferredEngine: ocr.preferredEngine,
+    ocrCanUseWebGPU: ocr.canUseWebGPU,
+    ocrIsDetecting: ocr.isDetecting,
+    ocrExecutionProvider: ocr.executionProvider,
+    setOcrEngine: ocr.setEngine,
+    detectOcrCapabilities: ocr.detectCapabilities,
 
     // Methods
     processAll,
