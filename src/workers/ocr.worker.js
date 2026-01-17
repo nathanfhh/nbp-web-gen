@@ -348,7 +348,7 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
   // Save original mask for scoring
   const rawMask = new Uint8Array(mask)
   
-  mask = dilateMask(mask, actualWidth, actualHeight, 4, 2)
+  mask = dilateMask(mask, actualWidth, actualHeight, 2, 1)
 
   const boxes = []
   const visited = new Set()
