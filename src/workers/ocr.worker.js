@@ -209,9 +209,10 @@ function preprocessForDetection(bitmap) {
   let width = bitmap.width
   let height = bitmap.height
 
-  // Always scale to maxSideLen to ensure consistent detection performance
-  // especially for small images where text might be too small for the model
-  const scale = maxSideLen / Math.max(width, height)
+  // Only downscale if the image is larger than maxSideLen
+  const ratio = maxSideLen / Math.max(width, height)
+  const scale = ratio < 1 ? ratio : 1
+  
   width = Math.round(width * scale)
   height = Math.round(height * scale)
 
