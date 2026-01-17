@@ -523,6 +523,17 @@ const getRegionColor = (region) => {
       </span>
     </div>
 
+    <!-- Hint text -->
+    <div class="edit-hint" v-if="!isDrawModeActive && selectedIndex === null">
+      {{ t('slideToPptx.regionEditor.hint') }}
+    </div>
+    <div class="edit-hint" v-else-if="isDrawModeActive">
+      {{ t('slideToPptx.regionEditor.drawHint') }}
+    </div>
+    <div class="edit-hint" v-else-if="selectedIndex !== null">
+      {{ t('slideToPptx.regionEditor.selectedHint') }}
+    </div>
+
     <!-- SVG Overlay for region editing -->
     <svg
       v-if="hasValidDimensions"
@@ -740,6 +751,23 @@ const getRegionColor = (region) => {
   padding: 0 0.5rem;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+/* Hint text */
+.edit-hint {
+  position: absolute;
+  top: 4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border-radius: 0.5rem;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 /* SVG Overlay */

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
+import { useApiKeyManager } from '@/composables/useApiKeyManager'
 import { useSlideToPptx } from '@/composables/useSlideToPptx'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useImageStorage } from '@/composables/useImageStorage'
@@ -19,6 +20,11 @@ const toast = useToast()
 const slideToPptx = useSlideToPptx()
 const indexedDB = useIndexedDB()
 const imageStorage = useImageStorage()
+const apiKeyManager = useApiKeyManager()
+
+// API Key availability for Gemini options
+const canUseGemini = computed(() => apiKeyManager.hasPaidApiKey() || apiKeyManager.hasFreeTierApiKey())
+const canUseGemini30 = computed(() => apiKeyManager.hasPaidApiKey())
 
 // View mode: 'loading' | 'upload' | 'processing' | 'error'
 const viewMode = ref('loading')
@@ -1294,20 +1300,26 @@ const getSlideStatus = (index) => {
                 </div>
               </label>
 
-              <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
-                :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('inpaintMethod') === 'gemini' }">
+              <label class="flex items-start gap-3 p-3 rounded-lg border border-border-muted transition-colors"
+                :class="[
+                  canUseGemini ? 'cursor-pointer group hover:border-mode-generate' : 'opacity-50 cursor-not-allowed',
+                  { 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('inpaintMethod') === 'gemini' }
+                ]">
                 <input
                   type="radio"
                   name="inpaintMethod"
                   value="gemini"
                   :checked="getSettingValue('inpaintMethod') === 'gemini'"
+                  :disabled="!canUseGemini"
                   @change="updateSetting('inpaintMethod', 'gemini')"
                   class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
                   <span class="text-text-primary font-medium">Gemini API</span>
                   <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
-                  <p class="text-xs text-text-muted mt-1">{{ $t('slideToPptx.geminiDesc') }}</p>
+                  <p class="text-xs text-text-muted mt-1">
+                    {{ canUseGemini ? $t('slideToPptx.geminiDesc') : $t('slideToPptx.geminiNoApiKey') }}
+                  </p>
                 </div>
               </label>
             </div>
@@ -1369,20 +1381,26 @@ const getSlideStatus = (index) => {
                 </div>
               </label>
 
-              <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
-                :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('geminiModel') === '3.0' }">
+              <label class="flex items-start gap-3 p-3 rounded-lg border border-border-muted transition-colors"
+                :class="[
+                  canUseGemini30 ? 'cursor-pointer group hover:border-mode-generate' : 'opacity-50 cursor-not-allowed',
+                  { 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('geminiModel') === '3.0' }
+                ]">
                 <input
                   type="radio"
                   name="geminiModel"
                   value="3.0"
                   :checked="getSettingValue('geminiModel') === '3.0'"
+                  :disabled="!canUseGemini30"
                   @change="updateSetting('geminiModel', '3.0')"
                   class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
                   <span class="text-text-primary font-medium">Nano Banana Pro (3.0)</span>
                   <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
-                  <p class="text-xs text-text-muted mt-1">{{ $t('slideToPptx.gemini30Desc') }}</p>
+                  <p class="text-xs text-text-muted mt-1">
+                    {{ canUseGemini30 ? $t('slideToPptx.gemini30Desc') : $t('slideToPptx.gemini30NoPaidKey') }}
+                  </p>
                 </div>
               </label>
 
