@@ -122,20 +122,6 @@ export function useSlideToPptx() {
   }
 
   /**
-   * Update the last log entry (for progress updates without adding new entries)
-   * @param {string} message - Log message
-   * @param {'info'|'success'|'error'|'warning'} type - Log type
-   */
-  const updateLastLog = (message, type = 'info') => {
-    const timestamp = new Date().toLocaleTimeString()
-    if (logs.value.length > 0) {
-      logs.value[logs.value.length - 1] = { timestamp, message, type }
-    } else {
-      logs.value.push({ timestamp, message, type })
-    }
-  }
-
-  /**
    * Clear logs
    */
   const clearLogs = () => {
@@ -580,15 +566,14 @@ Output: A single clean image with all text removed.`
     addLog(t('slideToPptx.logs.startingProcessing', { count: images.length }))
 
     try {
-      // Initialize workers with progress logging
+      // Initialize workers - only log first progress message (start), then completion
       addLog(t('slideToPptx.logs.initializingOcr'))
-      let lastOcrLog = ''
+      let hasLoggedModelStatus = false
       await ocr.initialize((progress, message) => {
-        // Only log significant status changes (avoid spam)
-        // Use updateLastLog to prevent log explosion during model download
-        if (message && message !== lastOcrLog) {
-          updateLastLog(message)
-          lastOcrLog = message
+        // Only log the first message (e.g., "downloading models" or "loading from cache")
+        if (!hasLoggedModelStatus && message) {
+          addLog(message)
+          hasLoggedModelStatus = true
         }
       })
 
