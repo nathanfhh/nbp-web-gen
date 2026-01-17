@@ -37,8 +37,386 @@ export const DETECTION_BOX_THRESHOLD = 0.5
 export const DETECTION_MIN_AREA = 100
 
 // ============================================================================
-// Text Region Merging
+// Hybrid Layout Analysis Engine
+// Combined Recursive XY-Cut (Macro) + Graph-Based Clustering (Micro)
 // ============================================================================
+
+/**
+ * Merge individual text lines into logical text blocks using a Hybrid approach.
+ *
+ * Phase 1: Macro-Analysis (Relaxed XY-Cut)
+ * Partitions the page into major zones (e.g., columns, headers, footers) based on visual whitespace.
+ * This prevents valid text in different columns from being incorrectly merged.
+ *
+ * Phase 2: Micro-Analysis (Graph Clustering)
+ * Within each zone, builds a graph where nodes are text lines and edges represent "affinity".
+ * Affinity is calculated based on vertical distance, height similarity, and alignment.
+ * Connected components in this graph form the final text blocks.
+ *
+ * @param {Array} rawResults - Array of OCR results with bounds, text, confidence
+ * @returns {Array} - Merged text blocks with combined bounds and inferred alignment
+ */
+export function mergeTextRegions(rawResults) {
+  // 1. Preprocessing: Filter invalid data
+  const validRegions = rawResults.filter((r) => !r.recognitionFailed && r.text.trim().length > 0)
+  if (validRegions.length === 0) return []
+
+  // 2. Phase 1: Macro Partitioning (XY-Cut)
+  // Splits page into independent zones to enforce column separation
+  const zones = performRelaxedXYCut(validRegions)
+
+  let finalBlocks = []
+
+  // 3. Phase 2: Local Clustering
+  // Run graph-based merging independently within each zone
+  for (const zoneRegions of zones) {
+    if (zoneRegions.length === 0) continue
+    const zoneBlocks = performGraphClustering(zoneRegions)
+    finalBlocks = finalBlocks.concat(zoneBlocks)
+  }
+
+  return finalBlocks
+}
+
+// ============================================================================
+// Phase 1: Recursive XY-Cut (Macro Layout Analysis)
+// ============================================================================
+
+
+
+/**
+ * Recursively cuts the document into rectangular zones based on whitespace separators.
+ * "Relaxed" means it tolerates small overlaps to avoid over-segmentation.
+ *
+ * @param {Array} regions - List of text regions
+ * @param {number} depth - Recursion depth limit
+ * @returns {Array<Array>} - Array of region groups (zones)
+ */
+function performRelaxedXYCut(regions, depth = 0) {
+  // Stop recursion if too deep or too few regions
+  if (depth > 10 || regions.length < 2) return [regions]
+
+  const bounds = getGroupBounds(regions)
+  const medianHeight = getMedianLineHeight(regions)
+
+  // 1. Try Vertical Cut (Separating Columns) - Higher Priority
+  // Look for wide vertical gaps in the X-projection
+  // Threshold: 1.5x line height (Columns are usually separated by wide gaps, tightened from 2.0)
+  const verticalCut = findBestCut(regions, bounds, 'x', medianHeight * 1.5)
+  if (verticalCut) {
+    const left = regions.filter((r) => r.bounds.x + r.bounds.width / 2 < verticalCut)
+    const right = regions.filter((r) => r.bounds.x + r.bounds.width / 2 >= verticalCut)
+    return [...performRelaxedXYCut(left, depth + 1), ...performRelaxedXYCut(right, depth + 1)]
+  }
+
+  // 2. Try Horizontal Cut (Separating Sections)
+  // Look for wide horizontal gaps in the Y-projection
+  // Threshold: 0.3x line height (Sections usually have gaps, tightened from 0.5 to catch tighter layouts)
+  const horizontalCut = findBestCut(regions, bounds, 'y', medianHeight * 0.3)
+  if (horizontalCut) {
+    const top = regions.filter((r) => r.bounds.y + r.bounds.height / 2 < horizontalCut)
+    const bottom = regions.filter((r) => r.bounds.y + r.bounds.height / 2 >= horizontalCut)
+    return [...performRelaxedXYCut(top, depth + 1), ...performRelaxedXYCut(bottom, depth + 1)]
+  }
+
+  // No valid cuts found, this is an atomic zone
+  return [regions]
+}
+
+/**
+ * Helper: Calculate median line height of regions
+ * Used as a relative unit for gap thresholds
+ */
+function getMedianLineHeight(regions) {
+  if (regions.length === 0) return 20 // Fallback
+  const heights = regions.map((r) => r.bounds.height).sort((a, b) => a - b)
+  return heights[Math.floor(heights.length / 2)]
+}
+
+/**
+ * Find the best split position along a specific axis
+ * @param {Array} regions
+ * @param {Object} bounds - Bounding box of all regions
+ * @param {'x'|'y'} axis - Axis to project onto
+ * @param {number} minGapSize - Minimum gap size to consider a cut
+ * @returns {number|null} - Cut position or null
+ */
+function findBestCut(regions, bounds, axis, minGapSize) {
+  const isX = axis === 'x'
+  const rangeStart = isX ? bounds.x : bounds.y
+  const rangeEnd = isX ? bounds.x + bounds.width : bounds.y + bounds.height
+  const totalSize = rangeEnd - rangeStart
+
+  // Project regions onto the axis
+  const projection = new Uint8Array(Math.ceil(totalSize) + 1)
+  for (const r of regions) {
+    const start = Math.floor((isX ? r.bounds.x : r.bounds.y) - rangeStart)
+    const end = Math.ceil(
+      (isX ? r.bounds.x + r.bounds.width : r.bounds.y + r.bounds.height) - rangeStart
+    )
+    for (let i = Math.max(0, start); i < Math.min(projection.length, end); i++) {
+      projection[i] = 1
+    }
+  }
+
+  // Find gaps
+  let maxGapSize = 0
+  let bestCut = null
+  let currentGapStart = null
+
+  for (let i = 0; i < projection.length; i++) {
+    if (projection[i] === 0) {
+      if (currentGapStart === null) currentGapStart = i
+    } else {
+      if (currentGapStart !== null) {
+        const gapSize = i - currentGapStart
+        // Use the relative threshold passed in
+        if (gapSize > maxGapSize && gapSize > minGapSize) {
+          maxGapSize = gapSize
+          bestCut = rangeStart + currentGapStart + gapSize / 2
+        }
+        currentGapStart = null
+      }
+    }
+  }
+
+  return bestCut
+}
+
+// ============================================================================
+// Phase 2: Graph-Based Clustering (Micro Merging)
+// ============================================================================
+
+/**
+ * Groups text regions using connected components on an affinity graph.
+ *
+ * @param {Array} regions
+ * @returns {Array} Merged blocks
+ */
+function performGraphClustering(regions) {
+  const n = regions.length
+  if (n === 0) return []
+  if (n === 1) return [createBlockFromRegions(regions)]
+
+  const ds = new DisjointSet(n)
+
+  // Sort by Y position to optimize neighbor search
+  regions.sort((a, b) => a.bounds.y - b.bounds.y)
+
+  // Build Graph Edges
+  // Only check neighbors within a reasonable window to avoid O(N^2)
+  const LOOKBACK_WINDOW = 10
+
+  for (let i = 0; i < n; i++) {
+    const curr = regions[i]
+    const start = Math.max(0, i - LOOKBACK_WINDOW)
+
+    for (let j = start; j < i; j++) {
+      const prev = regions[j]
+      const score = calculateAffinity(prev, curr)
+
+      // Threshold for merging (0.0 - 1.0)
+      // Tightened to 0.80 to prevent loose merging of distinct paragraphs
+      if (score > 0.80) {
+        ds.union(i, j)
+      }
+    }
+  }
+
+  // Group by root representative
+  const groups = {}
+  for (let i = 0; i < n; i++) {
+    const root = ds.find(i)
+    if (!groups[root]) groups[root] = []
+    groups[root].push(regions[i])
+  }
+
+  // Convert groups to blocks
+  return Object.values(groups).map(createBlockFromRegions)
+}
+
+/**
+ * Calculate "Affinity Score" between two text regions.
+ * Higher score means they likely belong to the same paragraph.
+ *
+ * @param {Object} r1 - Region 1 (above)
+ * @param {Object} r2 - Region 2 (below)
+ * @returns {number} Score 0.0 - 1.0
+ */
+function calculateAffinity(r1, r2) {
+  // 1. Font Size VETO (Critical for Title vs Subtitle)
+  // If font size differs by > 10%, they are structurally different elements.
+  // Tightened to 0.9 based on latest feedback to separate similar but distinct headers.
+  const heightRatio = Math.min(r1.bounds.height, r2.bounds.height) / Math.max(r1.bounds.height, r2.bounds.height)
+  if (heightRatio < 0.9) return 0; // Hard stop
+
+  // --- HORIZONTAL REACH VETO ---
+  // Check horizontal relationship. Paragraphs must align vertically.
+  // Calculate horizontal overlap/gap
+  const x1_start = r1.bounds.x;
+  const x1_end = r1.bounds.x + r1.bounds.width;
+  const x2_start = r2.bounds.x;
+  const x2_end = r2.bounds.x + r2.bounds.width;
+  
+  const xOverlap = Math.max(0, Math.min(x1_end, x2_end) - Math.max(x1_start, x2_start));
+  const xGap = Math.max(0, Math.max(x1_start, x2_start) - Math.min(x1_end, x2_end));
+  
+  const avgHeight = (r1.bounds.height + r2.bounds.height) / 2;
+
+  // If no horizontal overlap, they are side-by-side (or diagonal).
+  // We only allow merging if they are VERY close horizontally (like words in a sentence).
+  // If xGap > 0.5 * Height, they are likely separate columns or distinct elements.
+  if (xOverlap === 0 && xGap > avgHeight * 0.5) {
+    return 0; 
+  }
+
+  // 2. Vertical Distance Check
+  const verticalGap = r2.bounds.y - (r1.bounds.y + r1.bounds.height)
+
+  // --- OVERLAP BONUS ---
+  // If regions significantly overlap vertically, they are likely the same block split by OCR.
+  // A negative gap means overlap.
+  let overlapBonus = 0
+  if (verticalGap < 0) {
+    // Calculate overlap ratio relative to the smaller region height
+    const overlapHeight = Math.min(r1.bounds.y + r1.bounds.height, r2.bounds.y + r2.bounds.height) - Math.max(r1.bounds.y, r2.bounds.y)
+    const minHeight = Math.min(r1.bounds.height, r2.bounds.height)
+    
+    // If overlap is significant (> 20% of the smaller height), give a huge bonus
+    if (overlapHeight > minHeight * 0.2) {
+      overlapBonus = 0.4 // Strong incentive to merge
+    }
+  }
+
+  // Too much overlap might be independent floating text (e.g. layers), but usually it's same block.
+  // We allow overlap but rely on the bonus to push score up.
+  // Gap > 0.9 line height usually means new paragraph/section (Tightened from 1.2)
+  if (verticalGap > avgHeight * 0.9) return 0
+
+  // --- SAME-LINE HORIZONTAL GAP CHECK (New) ---
+  // If regions are effectively on the same line (high vertical overlap),
+  // they must be very close horizontally to merge.
+  // Calculate vertical overlap
+  const yOverlap = Math.min(r1.bounds.y + r1.bounds.height, r2.bounds.y + r2.bounds.height) - Math.max(r1.bounds.y, r2.bounds.y)
+  const minH = Math.min(r1.bounds.height, r2.bounds.height)
+  
+  // If they overlap vertically by > 50% of the smaller height, they are on the same "line"
+  if (yOverlap > minH * 0.5) {
+    // Calculate horizontal gap
+    const xGap = Math.max(0, Math.max(r1.bounds.x, r2.bounds.x) - Math.min(r1.bounds.x + r1.bounds.width, r2.bounds.x + r2.bounds.width))
+    
+    // Strict horizontal limit: Gap > 1.5x line height means separate columns/words
+    // (e.g. "Item A      Item B")
+    if (xGap > avgHeight * 1.5) {
+      return 0
+    }
+  }
+
+  // Decay function for distance
+  // If overlapping (gap < 0), use 0 as distance (perfect match)
+  const effectiveGap = Math.max(0, verticalGap)
+  // Steeper decay: score drops faster as gap increases
+  const distanceScore = Math.max(0, 1 - Math.abs(effectiveGap - avgHeight * 0.2) / avgHeight)
+
+  // 3. Horizontal Alignment Score
+  const leftDist = Math.abs(r1.bounds.x - r2.bounds.x)
+  const centerDist = Math.abs(
+    r1.bounds.x + r1.bounds.width / 2 - (r2.bounds.x + r2.bounds.width / 2)
+  )
+  const alignDist = Math.min(leftDist, centerDist)
+  const widthRef = Math.max(r1.bounds.width, r2.bounds.width)
+
+  // Alignment is less strict than distance, but helps confirm relationship
+  const alignScore = Math.max(0, 1 - alignDist / (widthRef * 0.5))
+
+  // Weighted Combination
+  // Distance is king, but alignment boosts confidence. Overlap bonus is added on top.
+  // Cap result at 1.0
+  return Math.min(1.0, distanceScore * 0.7 + alignScore * 0.3 + overlapBonus)
+}
+
+/**
+ * Helper: Create a final merged block from a list of regions
+ */
+function createBlockFromRegions(regions) {
+  // Re-sort lines visually (Top-down, Left-right)
+  regions.sort((a, b) => {
+    if (Math.abs(a.bounds.y - b.bounds.y) > 10) return a.bounds.y - b.bounds.y
+    return a.bounds.x - b.bounds.x
+  })
+
+  const bounds = getGroupBounds(regions)
+  const text = regions.map((r) => r.text).join('\n')
+  const avgConfidence = regions.reduce((sum, r) => sum + r.confidence, 0) / regions.length
+  const avgHeight = regions.reduce((sum, r) => sum + r.bounds.height, 0) / regions.length
+
+  return {
+    text,
+    confidence: avgConfidence,
+    bounds,
+    polygon: [
+      [bounds.x, bounds.y],
+      [bounds.x + bounds.width, bounds.y],
+      [bounds.x + bounds.width, bounds.y + bounds.height],
+      [bounds.x, bounds.y + bounds.height],
+    ],
+    alignment: inferAlignment(regions),
+    fontSize: avgHeight,
+    // Keep original lines for potential detailed editing later
+    lines: regions,
+  }
+}
+
+// ============================================================================
+// Utilities & Data Structures
+// ============================================================================
+
+/**
+ * Union-Find (Disjoint Set) Data Structure for Clustering
+ */
+class DisjointSet {
+  constructor(size) {
+    this.parent = new Int32Array(size).map((_, i) => i)
+  }
+
+  find(i) {
+    if (this.parent[i] === i) return i
+    this.parent[i] = this.find(this.parent[i]) // Path compression
+    return this.parent[i]
+  }
+
+  union(i, j) {
+    const rootI = this.find(i)
+    const rootJ = this.find(j)
+    if (rootI !== rootJ) {
+      this.parent[rootI] = rootJ
+    }
+  }
+}
+
+/**
+ * Get bounding box for a group of regions
+ */
+function getGroupBounds(regions) {
+  let minX = Infinity,
+    minY = Infinity
+  let maxX = -Infinity,
+    maxY = -Infinity
+
+  for (const r of regions) {
+    minX = Math.min(minX, r.bounds.x)
+    minY = Math.min(minY, r.bounds.y)
+    maxX = Math.max(maxX, r.bounds.x + r.bounds.width)
+    maxY = Math.max(maxY, r.bounds.y + r.bounds.height)
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  }
+}
 
 /**
  * Calculate standard deviation of an array
@@ -79,143 +457,8 @@ export function inferAlignment(lines) {
 }
 
 /**
- * Merge individual text lines into logical text blocks
- *
- * Groups lines based on:
- * - Vertical proximity (within 1.2x line height)
- * - Similar font size (within 25% difference)
- * - Horizontal alignment/overlap
- *
- * @param {Array} rawResults - Array of OCR results with bounds, text, confidence
- * @returns {Array} - Merged text blocks with combined bounds and inferred alignment
- */
-export function mergeTextRegions(rawResults) {
-  if (rawResults.length === 0) return []
-
-  // Only merge regions with successful recognition
-  const successfulResults = rawResults.filter((r) => !r.recognitionFailed)
-  if (successfulResults.length === 0) return []
-
-  const sorted = [...successfulResults].sort((a, b) => a.bounds.y - b.bounds.y)
-  const groups = []
-
-  for (const line of sorted) {
-    let added = false
-
-    for (let i = groups.length - 1; i >= 0; i--) {
-      const group = groups[i]
-      const lastLine = group.lines[group.lines.length - 1]
-
-      // Check vertical proximity
-      const verticalDist = line.bounds.y - (lastLine.bounds.y + lastLine.bounds.height)
-      const avgHeight = (line.bounds.height + lastLine.bounds.height) / 2
-      const isCloseVertically = verticalDist < avgHeight * 1.2 && verticalDist > -avgHeight * 0.5
-
-      // Check similar font size
-      const heightDiffRatio =
-        Math.abs(line.bounds.height - lastLine.bounds.height) /
-        Math.max(line.bounds.height, lastLine.bounds.height)
-      const isSimilarSize = heightDiffRatio < 0.25
-
-      // Check horizontal alignment
-      const l1 = lastLine.bounds.x
-      const r1 = lastLine.bounds.x + lastLine.bounds.width
-      const l2 = line.bounds.x
-      const r2 = line.bounds.x + line.bounds.width
-      const overlap = Math.max(0, Math.min(r1, r2) - Math.max(l1, l2))
-      const minWidth = Math.min(lastLine.bounds.width, line.bounds.width)
-      const isHorizontallyAligned =
-        overlap > minWidth * 0.3 || Math.abs((l1 + r1) / 2 - (l2 + r2) / 2) < minWidth * 0.5
-
-      if (isCloseVertically && isSimilarSize && isHorizontallyAligned) {
-        group.lines.push(line)
-        added = true
-        break
-      }
-    }
-
-    if (!added) {
-      groups.push({ lines: [line] })
-    }
-  }
-
-  // Convert groups to merged results
-  return groups.map((group) => {
-    const lines = group.lines
-
-    const minX = Math.min(...lines.map((l) => l.bounds.x))
-    const minY = Math.min(...lines.map((l) => l.bounds.y))
-    const maxX = Math.max(...lines.map((l) => l.bounds.x + l.bounds.width))
-    const maxY = Math.max(...lines.map((l) => l.bounds.y + l.bounds.height))
-
-    const text = lines.map((l) => l.text).join('\n')
-    const confidence = lines.reduce((sum, l) => sum + l.confidence, 0) / lines.length
-    const alignment = inferAlignment(lines)
-
-    return {
-      text,
-      confidence,
-      bounds: {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY,
-      },
-      polygon: [
-        [minX, minY],
-        [maxX, minY],
-        [maxX, maxY],
-        [minX, maxY],
-      ],
-      alignment,
-      fontSize: lines.reduce((sum, l) => sum + l.bounds.height, 0) / lines.length,
-    }
-  })
-}
-
-// ============================================================================
-// Tesseract Fallback - Confidence Threshold
-// ============================================================================
-
-/**
  * Calculate minimum Tesseract confidence threshold
  * Combines text length and character type factors
- *
- * === Research References ===
- *
- * 1. Tesseract Confidence Values (Google Groups)
- *    https://groups.google.com/g/tesseract-ocr/c/SN8L0IA_0D4
- *    - Values < 95% are usually unusable
- *    - Values > 99% are usually correct
- *    - Recommended threshold: 97.5-98.5% for strict use cases
- *    - Note: Confidence is NOT accuracy, but neural network probability
- *
- * 2. Triage of OCR Results Using Confidence Scores (ResearchGate)
- *    https://www.researchgate.net/publication/2855972
- *    - ROC analysis: Can reject 90% of errors while only rejecting 33% correct words
- *    - For isolated digits (short text): 90% error rejection with only 13% false rejection
- *    - Short text confidence is MORE reliable but needs HIGHER threshold
- *
- * 3. TDWI - How Accurate is Your OCR Data?
- *    https://tdwi.org/articles/2018/03/05/diq-all-how-accurate-is-your-data.aspx
- *    - Page-level 99% accuracy ≠ field-level 99%
- *    - Each text region in slides = independent field, needs stricter standard
- *
- * 4. Microsoft Document Intelligence - Confidence Scores
- *    https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/concept/accuracy-confidence
- *    - Recommended threshold: 0.7-0.9 depending on use case strictness
- *
- * === Design Decisions ===
- *
- * Length Factor:
- * - Short text (≤3 chars): Higher threshold (65%) - errors are very obvious (e.g., "5%" → "S%")
- * - Medium-short (4-8 chars): Moderate-high (55%) - common in slides (years, labels)
- * - Medium (9-15 chars): Moderate (45%) - phrases with some context
- * - Long (>15 chars): Lower threshold (35%) - sentences have context for validation
- *
- * Character Type Factor:
- * - High numeric ratio (>50%): +10% - digits are easily confused (0/O, 1/l/I, 5/S, 8/B)
- * - Contains confusing chars in short text: +5% - extra caution for ambiguous cases
  *
  * @param {string} text - The recognized text
  * @returns {number} - Minimum confidence threshold (0-100)

@@ -86,7 +86,7 @@ dictionary.unshift('blank') // CTC blank token
 // 需要使用 Vatti Clipping 公式膨脹回原始大小
 const area = component.length
 const perimeter = 2 * (boxWidth + boxHeight)
-const unclipRatio = 1.6 // 標準 DBNet 膨脹比例
+const unclipRatio = 1.5 // 標準 DBNet 膨脹比例
 const offset = (area * unclipRatio) / perimeter
 
 expandedMinX = minX - offset
@@ -106,6 +106,23 @@ scaleX = originalWidth / paddedWidth  // paddedWidth 包含白邊
 scaleX = originalWidth / scaledWidth  // scaledWidth 是實際內容寬度
 ```
 **原因**: 補白區域（padding）不包含內容，但錯誤的縮放比例會假設內容填滿整個 canvas，導致座標偏移（越靠右下角偏移越大）。
+
+#### 4. Layout Analysis - Text Block Merging
+
+Raw OCR detections (single lines) must be merged into logical paragraphs. This is handled by `mergeTextRegions()` in `ocr-core.js`, using a **Hybrid Layout Analysis** algorithm:
+
+1. **Phase 1 (XY-Cut)**: Recursively partitions the page into independent zones, preventing cross-column merging
+2. **Phase 2 (Graph Clustering)**: Within each zone, merges adjacent lines based on affinity scores
+
+**Key Parameters** (update docs when modifying):
+| Parameter | Location | Description |
+|-----------|----------|-------------|
+| `dilateMask(mask, w, h, 2, 1)` | `ocr.worker.js`, `useOcrMainThread.js` | Morphological dilation, controls box padding |
+| `unclipRatio = 1.5` | Same as above | DBNet box expansion ratio |
+| Affinity threshold `0.80` | `ocr-core.js` | Merge confidence threshold |
+| Size tolerance `0.9` | `ocr-core.js` | Font size tolerance (10% diff) |
+
+> **Algorithm Details**: See [`docs/layout-analysis-algorithm.md`](docs/layout-analysis-algorithm.md)
 
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.
