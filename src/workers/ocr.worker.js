@@ -42,26 +42,26 @@ const MODELS = {
 
 const OPFS_DIR = 'ocr-models'
 
-// ============================================================================
+// ============================================================================ 
 // Singleton State
-// ============================================================================
+// ============================================================================ 
 
 let detSession = null
 let recSession = null
 let dictionary = null
 let isInitialized = false
 
-// ============================================================================
+// ============================================================================ 
 // Progress Reporting
-// ============================================================================
+// ============================================================================ 
 
 const reportProgress = (stage, value, message, requestId = null) => {
   self.postMessage({ type: 'progress', stage, value, message, requestId })
 }
 
-// ============================================================================
+// ============================================================================ 
 // OPFS Model Loading (copied from useOcrModelCache.js, adapted for Worker)
-// ============================================================================
+// ============================================================================ 
 
 async function getModelsDirectory() {
   const root = await navigator.storage.getDirectory()
@@ -175,9 +175,9 @@ async function loadAllModels() {
   return { detection, recognition, dictionary: dictText }
 }
 
-// ============================================================================
+// ============================================================================ 
 // Image Loading (using OffscreenCanvas)
-// ============================================================================
+// ============================================================================ 
 
 async function loadImage(imageDataUrl) {
   const response = await fetch(imageDataUrl)
@@ -186,20 +186,21 @@ async function loadImage(imageDataUrl) {
   return bitmap
 }
 
-// ============================================================================
+// ============================================================================ 
 // OCR Preprocessing (copied from useOcrWorker.js, adapted for Worker)
-// ============================================================================
+// ============================================================================ 
 
 function preprocessForDetection(bitmap) {
+  // Reverted to 1280 to match original implementation baseline
   const maxSideLen = 1280
   let width = bitmap.width
   let height = bitmap.height
 
-  if (Math.max(width, height) > maxSideLen) {
-    const scale = maxSideLen / Math.max(width, height)
-    width = Math.round(width * scale)
-    height = Math.round(height * scale)
-  }
+  // Always scale to maxSideLen to ensure consistent detection performance
+  // especially for small images where text might be too small for the model
+  const scale = maxSideLen / Math.max(width, height)
+  width = Math.round(width * scale)
+  height = Math.round(height * scale)
 
   const newWidth = Math.ceil(width / 32) * 32
   const newHeight = Math.ceil(height / 32) * 32
@@ -241,11 +242,12 @@ function preprocessForDetection(bitmap) {
   }
 }
 
-function dilateMask(mask, width, height, iterations) {
+function dilateMask(mask, width, height, iterationsH = 4, iterationsV = 2) {
   let current = mask
   let next = new Uint8Array(mask.length)
 
-  for (let iter = 0; iter < iterations; iter++) {
+  // 1. Horizontal Dilation (Connect characters in a line)
+  for (let iter = 0; iter < iterationsH; iter++) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = y * width + x
@@ -253,18 +255,42 @@ function dilateMask(mask, width, height, iterations) {
           next[idx] = 255
           if (x > 0) next[idx - 1] = 255
           if (x < width - 1) next[idx + 1] = 255
+        }
+      }
+    }
+    // Swap and clear
+    const temp = current
+    current = next
+    next = temp
+    if (iter < iterationsH - 1) {
+      next.fill(0)
+    }
+  }
+
+  // Reset next buffer for vertical pass (needed if we swapped)
+  next.fill(0)
+
+  // 2. Vertical Dilation (Connect strokes, but less aggressive to avoid merging lines)
+  for (let iter = 0; iter < iterationsV; iter++) {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x
+        if (current[idx] === 255) {
+          next[idx] = 255
           if (y > 0) next[idx - width] = 255
           if (y < height - 1) next[idx + width] = 255
         }
       }
     }
+    // Swap and clear
     const temp = current
     current = next
     next = temp
-    if (iter < iterations - 1) {
+    if (iter < iterationsV - 1) {
       next.fill(0)
     }
   }
+
   return current
 }
 
@@ -272,8 +298,12 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
   let data = output.data
   const outputDims = output.dims
   const threshold = 0.2
+  // Reverted to 0.5 to match original implementation baseline
   const boxThreshold = 0.5
-  const minArea = 10
+  // Original implementation uses minArea = 100
+  // Since we now use aggressive horizontal dilation, small noise will be filtered out naturally
+  // or merged into larger blocks. 100 is safe.
+  const minArea = 100
 
   let outputH, outputW
   if (outputDims.length === 4) {
@@ -298,7 +328,13 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
     mask[i] = data[i] > threshold ? 255 : 0
   }
 
-  mask = dilateMask(mask, actualWidth, actualHeight, 2)
+  // Apply asymmetric dilation: 4x Horizontal, 2x Vertical
+  // This strongly favors merging horizontally (text lines) over vertically
+  
+  // Save original mask for scoring
+  const rawMask = new Uint8Array(mask)
+  
+  mask = dilateMask(mask, actualWidth, actualHeight, 4, 2)
 
   const boxes = []
   const visited = new Set()
@@ -316,11 +352,10 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
         const [cx, cy] = queue.shift()
         component.push([cx, cy])
 
+        // 8-connectivity neighbors (including diagonals)
         const neighbors = [
-          [cx - 1, cy],
-          [cx + 1, cy],
-          [cx, cy - 1],
-          [cx, cy + 1],
+          [cx - 1, cy], [cx + 1, cy], [cx, cy - 1], [cx, cy + 1],
+          [cx - 1, cy - 1], [cx + 1, cy - 1], [cx - 1, cy + 1], [cx + 1, cy + 1]
         ]
 
         for (const [nx, ny] of neighbors) {
@@ -332,22 +367,46 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
         }
       }
 
-      if (component.length < minArea) continue
-
+      // Calculate bounding box dimensions
       let minX = Infinity, maxX = -Infinity
       let minY = Infinity, maxY = -Infinity
+
+      // Variables for scoring based on RAW mask
+      let scoreSum = 0
+      let rawPixelCount = 0
 
       for (const [px, py] of component) {
         minX = Math.min(minX, px)
         maxX = Math.max(maxX, px)
         minY = Math.min(minY, py)
         maxY = Math.max(maxY, py)
+
+        // Only count score if this pixel was in the original detection (undilated)
+        // This prevents dilation from dragging down the average score with background pixels
+        const pIdx = py * actualWidth + px
+        if (rawMask[pIdx] === 255) {
+          scoreSum += data[pIdx]
+          rawPixelCount++
+        }
       }
 
-      const w = maxX - minX + 1
-      const h = maxY - minY + 1
+      // Filter by size constraints (Original: minArea=100, minPixelCount=10)
+      const boxW = maxX - minX + 1
+      const boxH = maxY - minY + 1
+      const boxArea = boxW * boxH
+      
+      // Use rawPixelCount for minPixelCount check (stricter and more accurate)
+      // If we used component.length, dilation would fake pixel count
+      const pixelCount = rawPixelCount
+
+      if (boxArea < 100 || pixelCount < 10) continue
+
+      // Calculate unclip offset (DBNet expansion)
+      // The model outputs a shrunk text region. We need to expand it back to the full text boundary.
+      // offset = Area * unclip_ratio / Perimeter
+      // Note: We use component.length (dilated area) for unclip geometry, as we want the box to cover the dilated region
       const area = component.length
-      const perimeter = 2 * (w + h)
+      const perimeter = 2 * (boxW + boxH)
       const unclipRatio = 1.5
       const offset = (area * unclipRatio) / perimeter
 
@@ -356,11 +415,8 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
       const expandedMaxX = Math.min(actualWidth - 1, maxX + offset)
       const expandedMaxY = Math.min(actualHeight - 1, maxY + offset)
 
-      let scoreSum = 0
-      for (const [px, py] of component) {
-        scoreSum += data[py * actualWidth + px]
-      }
-      const score = scoreSum / component.length
+      // Score is average of RAW pixels
+      const score = rawPixelCount > 0 ? scoreSum / rawPixelCount : 0
 
       if (score < boxThreshold) continue
 
@@ -466,9 +522,9 @@ function decodeRecognition(output) {
   return { text, confidence: Math.min(100, confidence) }
 }
 
-// ============================================================================
+// ============================================================================ 
 // Text Region Merging (copied from useOcrWorker.js)
-// ============================================================================
+// ============================================================================ 
 
 function getStandardDeviation(arr) {
   if (arr.length <= 1) return 0
@@ -568,9 +624,9 @@ function mergeTextRegions(rawResults) {
   })
 }
 
-// ============================================================================
+// ============================================================================ 
 // Main OCR Functions
-// ============================================================================
+// ============================================================================ 
 
 async function initialize() {
   if (isInitialized) {
@@ -678,9 +734,9 @@ async function recognize(imageDataUrl, requestId) {
   }
 }
 
-// ============================================================================
+// ============================================================================ 
 // Message Handler
-// ============================================================================
+// ============================================================================ 
 
 self.onmessage = async (e) => {
   const { type, requestId, image } = e.data

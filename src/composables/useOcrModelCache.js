@@ -19,13 +19,13 @@ const USE_LOCAL_MODELS = false
 // Local model paths (in public folder) - for development fallback
 const LOCAL_MODELS = {
   detection: {
-    filename: 'PP-OCRv5_server_det.onnx',
-    url: '/PP-OCRv5_server_det.onnx',
+    filename: 'PP-OCRv5_server_det_infer.onnx',
+    url: '/PP-OCRv5_server_det_infer.onnx',
     size: 88_000_000, // ~88MB
   },
   recognition: {
-    filename: 'PP-OCRv5_server_rec.onnx',
-    url: '/PP-OCRv5_server_rec.onnx',
+    filename: 'PP-OCRv5_server_rec_infer.onnx',
+    url: '/PP-OCRv5_server_rec_infer.onnx',
     size: 84_000_000, // ~84MB
   },
   dictionary: {
