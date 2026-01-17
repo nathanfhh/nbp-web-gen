@@ -1,6 +1,7 @@
 /**
  * OCR Web Worker
  * Runs ONNX Runtime + PaddleOCR v5 in background thread to avoid blocking UI
+ * With Tesseract.js fallback for failed recognitions
  *
  * Communication Protocol:
  * - Main → Worker: { type: 'init' } | { type: 'recognize', requestId, image } | { type: 'terminate' }
@@ -8,6 +9,14 @@
  */
 
 import * as ort from 'onnxruntime-web'
+import Tesseract from 'tesseract.js'
+
+// Shared OCR utilities (no external dependencies)
+import {
+  mergeTextRegions,
+  getMinTesseractConfidence,
+  cropRegionToDataUrl,
+} from '../utils/ocr-core.js'
 
 // Configure ONNX Runtime WASM paths (must be set before any session creation)
 // Note: Using external CDN without SRI. For production, consider:
@@ -42,14 +51,18 @@ const MODELS = {
 
 const OPFS_DIR = 'ocr-models'
 
-// ============================================================================ 
+// ============================================================================
 // Singleton State
-// ============================================================================ 
+// ============================================================================
 
 let detSession = null
 let recSession = null
 let dictionary = null
 let isInitialized = false
+
+// Tesseract.js state (lazy initialized)
+let tesseractWorker = null
+let tesseractInitPromise = null
 
 // ============================================================================ 
 // Progress Reporting
@@ -522,113 +535,133 @@ function decodeRecognition(output) {
   return { text, confidence: Math.min(100, confidence) }
 }
 
-// ============================================================================ 
-// Text Region Merging (copied from useOcrWorker.js)
-// ============================================================================ 
+// Note: mergeTextRegions is now imported from '../utils/ocr-core.js'
 
-function getStandardDeviation(arr) {
-  if (arr.length <= 1) return 0
-  const mean = arr.reduce((a, b) => a + b, 0) / arr.length
-  const variance = arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length
-  return Math.sqrt(variance)
-}
+// ============================================================================
+// Tesseract.js Fallback (Lazy Initialized)
+// ============================================================================
 
-function inferAlignment(lines) {
-  if (lines.length <= 1) return 'left'
+/**
+ * Initialize Tesseract worker (lazy, only when needed)
+ * Uses English + Traditional Chinese
+ */
+async function initializeTesseract() {
+  if (tesseractWorker) return tesseractWorker
+  if (tesseractInitPromise) return tesseractInitPromise
 
-  const lefts = lines.map((l) => l.bounds.x)
-  const centers = lines.map((l) => l.bounds.x + l.bounds.width / 2)
-  const rights = lines.map((l) => l.bounds.x + l.bounds.width)
+  tesseractInitPromise = (async () => {
+    reportProgress('tesseract', 0, 'Loading Tesseract fallback...')
 
-  const leftStd = getStandardDeviation(lefts)
-  const centerStd = getStandardDeviation(centers)
-  const rightStd = getStandardDeviation(rights)
-
-  if (centerStd < leftStd * 0.8 && centerStd < rightStd * 0.8) return 'center'
-  if (rightStd < leftStd * 0.8 && rightStd < centerStd) return 'right'
-
-  return 'left'
-}
-
-function mergeTextRegions(rawResults) {
-  if (rawResults.length === 0) return []
-
-  // Only merge regions that have successful recognition
-  const successfulResults = rawResults.filter(r => !r.recognitionFailed)
-  if (successfulResults.length === 0) return []
-
-  const sorted = [...successfulResults].sort((a, b) => a.bounds.y - b.bounds.y)
-  const groups = []
-
-  for (const line of sorted) {
-    let added = false
-
-    for (let i = groups.length - 1; i >= 0; i--) {
-      const group = groups[i]
-      const lastLine = group.lines[group.lines.length - 1]
-
-      const verticalDist = line.bounds.y - (lastLine.bounds.y + lastLine.bounds.height)
-      const avgHeight = (line.bounds.height + lastLine.bounds.height) / 2
-      const isCloseVertically = verticalDist < avgHeight * 1.2 && verticalDist > -avgHeight * 0.5
-
-      const heightDiffRatio = Math.abs(line.bounds.height - lastLine.bounds.height) / Math.max(line.bounds.height, lastLine.bounds.height)
-      const isSimilarSize = heightDiffRatio < 0.25
-
-      const l1 = lastLine.bounds.x
-      const r1 = lastLine.bounds.x + lastLine.bounds.width
-      const l2 = line.bounds.x
-      const r2 = line.bounds.x + line.bounds.width
-      const overlap = Math.max(0, Math.min(r1, r2) - Math.max(l1, l2))
-      const minWidth = Math.min(lastLine.bounds.width, line.bounds.width)
-      const isHorizontallyAligned = overlap > minWidth * 0.3 ||
-        (Math.abs((l1 + r1) / 2 - (l2 + r2) / 2) < minWidth * 0.5)
-
-      if (isCloseVertically && isSimilarSize && isHorizontallyAligned) {
-        group.lines.push(line)
-        added = true
-        break
+    // Temporarily suppress console.warn during Tesseract initialization
+    // These warnings come from WASM layer (stderr) and cannot be filtered via errorHandler
+    // e.g., "Parameter not found: language_model_ngram_on"
+    const originalWarn = console.warn
+    console.warn = (...args) => {
+      const message = args[0]?.toString() || ''
+      if (!message.includes('Parameter not found')) {
+        originalWarn.apply(console, args)
       }
     }
 
-    if (!added) {
-      groups.push({ lines: [line] })
+    try {
+      tesseractWorker = await Tesseract.createWorker(['eng', 'chi_tra'], 1, {
+        errorHandler: (err) => {
+          if (!err.message?.includes('Parameter not found')) {
+            console.error('Tesseract error:', err)
+          }
+        },
+      })
+    } finally {
+      console.warn = originalWarn
     }
-  }
 
-  return groups.map(group => {
-    const lines = group.lines
+    reportProgress('tesseract', 100, 'Tesseract ready')
+    return tesseractWorker
+  })()
 
-    const minX = Math.min(...lines.map(l => l.bounds.x))
-    const minY = Math.min(...lines.map(l => l.bounds.y))
-    const maxX = Math.max(...lines.map(l => l.bounds.x + l.bounds.width))
-    const maxY = Math.max(...lines.map(l => l.bounds.y + l.bounds.height))
-
-    const text = lines.map(l => l.text).join('\n')
-    const confidence = lines.reduce((sum, l) => sum + l.confidence, 0) / lines.length
-    const alignment = inferAlignment(lines)
-
-    return {
-      text,
-      confidence,
-      bounds: {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY
-      },
-      polygon: [
-        [minX, minY],
-        [maxX, minY],
-        [maxX, maxY],
-        [minX, maxY]
-      ],
-      alignment,
-      fontSize: lines.reduce((sum, l) => sum + l.bounds.height, 0) / lines.length
-    }
-  })
+  return tesseractInitPromise
 }
 
-// ============================================================================ 
+/**
+ * Recognize a single region with Tesseract
+ * @param {ImageBitmap} bitmap - Source image
+ * @param {Object} region - Region with bounds
+ * @returns {Promise<{text: string, confidence: number} | null>}
+ */
+async function recognizeWithTesseract(bitmap, region) {
+  try {
+    const worker = await initializeTesseract()
+    const croppedDataUrl = await cropRegionToDataUrl(bitmap, region.bounds)
+
+    const result = await worker.recognize(croppedDataUrl)
+    const text = result.data.text.trim()
+    const confidence = result.data.confidence
+
+    const minConfidence = getMinTesseractConfidence(text)
+    if (text && confidence >= minConfidence) {
+      return { text, confidence }
+    }
+    return null
+  } catch (error) {
+    console.warn('Tesseract recognition failed:', error)
+    return null
+  }
+}
+
+/**
+ * Process failed regions with Tesseract fallback
+ * @param {ImageBitmap} bitmap - Source image
+ * @param {Array} rawResults - All OCR results including failed ones
+ * @param {string} requestId - Request ID for progress reporting
+ * @returns {Promise<Array>} - Updated results with Tesseract fallback applied
+ */
+async function applyTesseractFallback(bitmap, rawResults, requestId) {
+  const failedRegions = rawResults.filter((r) => r.recognitionFailed)
+
+  if (failedRegions.length === 0) {
+    return rawResults
+  }
+
+  reportProgress(
+    'tesseract',
+    0,
+    `Trying Tesseract fallback for ${failedRegions.length} region(s)...`,
+    requestId
+  )
+
+  let recoveredCount = 0
+  for (let i = 0; i < failedRegions.length; i++) {
+    const region = failedRegions[i]
+    const tesseractResult = await recognizeWithTesseract(bitmap, region)
+
+    if (tesseractResult) {
+      region.text = tesseractResult.text
+      region.confidence = tesseractResult.confidence
+      region.recognitionFailed = false
+      region.failureReason = null
+      region.recognitionSource = 'tesseract'
+      recoveredCount++
+    }
+
+    const progress = Math.round(((i + 1) / failedRegions.length) * 100)
+    reportProgress('tesseract', progress, `Tesseract: ${i + 1}/${failedRegions.length}`, requestId)
+  }
+
+  if (recoveredCount > 0) {
+    reportProgress(
+      'tesseract',
+      100,
+      `Tesseract recovered ${recoveredCount}/${failedRegions.length} region(s)`,
+      requestId
+    )
+  } else {
+    reportProgress('tesseract', 100, `Tesseract could not recover any regions`, requestId)
+  }
+
+  return rawResults
+}
+
+// ============================================================================
 // Main OCR Functions
 // ============================================================================ 
 
@@ -745,6 +778,9 @@ async function recognize(imageDataUrl, requestId) {
     reportProgress('recognition', recognitionProgress, `Recognizing ${i + 1}/${detectedBoxes.length}...`, requestId)
   }
 
+  // Apply Tesseract fallback for failed recognitions
+  await applyTesseractFallback(bitmap, rawResults, requestId)
+
   reportProgress('merge', 95, 'Analyzing layout...', requestId)
   const mergedResults = mergeTextRegions(rawResults)
 
@@ -783,6 +819,11 @@ self.onmessage = async (e) => {
         if (recSession) {
           recSession.release()
           recSession = null
+        }
+        if (tesseractWorker) {
+          await tesseractWorker.terminate()
+          tesseractWorker = null
+          tesseractInitPromise = null
         }
         dictionary = null
         isInitialized = false
