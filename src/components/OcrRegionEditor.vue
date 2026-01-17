@@ -160,6 +160,9 @@ const toggleDrawMode = () => {
 const onMouseDown = (e) => {
   if (!isDrawModeActive.value) return
 
+  // Prevent event from bubbling to lightbox (stops panning)
+  e.stopPropagation()
+
   const coords = getImageCoords(e)
   drawStart.value = coords
   isDrawing.value = true
@@ -238,6 +241,8 @@ const onTouchStart = (e) => {
   if (e.touches.length !== 1) return // Only single touch for drawing
 
   e.preventDefault()
+  e.stopPropagation() // Stop panning
+  
   const coords = getTouchImageCoords(e.touches[0])
   drawStart.value = coords
   isDrawing.value = true
@@ -443,6 +448,109 @@ onUnmounted(() => {
 })
 
 // ============================================================================
+// Toolbar Dragging
+// ============================================================================
+
+const toolbarRef = ref(null)
+const isToolbarDragging = ref(false)
+const toolbarPos = ref({ x: 0, y: 0 })
+const dragStartPos = ref({ x: 0, y: 0 })
+const hasMoved = ref(false) // Track if user has moved it, to disable auto-centering
+
+// Initialize position centered
+onMounted(() => {
+  if (toolbarRef.value) {
+    const rect = toolbarRef.value.getBoundingClientRect()
+    // Center horizontally, 1rem from top
+    toolbarPos.value = {
+      x: (window.innerWidth - rect.width) / 2,
+      y: 16 // 1rem
+    }
+  }
+  
+  window.addEventListener('mousemove', onWindowMouseMove)
+  window.addEventListener('mouseup', onWindowMouseUp)
+  window.addEventListener('touchmove', onWindowTouchMove, { passive: false })
+  window.addEventListener('touchend', onWindowTouchEnd)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onWindowMouseMove)
+  window.removeEventListener('mouseup', onWindowMouseUp)
+  window.removeEventListener('touchmove', onWindowTouchMove)
+  window.removeEventListener('touchend', onWindowTouchEnd)
+})
+
+const onToolbarMouseDown = (e) => {
+  // Ignore clicks on buttons inside toolbar
+  if (e.target.closest('button')) return
+  
+  isToolbarDragging.value = true
+  hasMoved.value = true
+  dragStartPos.value = {
+    x: e.clientX - toolbarPos.value.x,
+    y: e.clientY - toolbarPos.value.y
+  }
+}
+
+const onWindowMouseMove = (e) => {
+  if (!isToolbarDragging.value) return
+  e.preventDefault()
+  
+  const newX = e.clientX - dragStartPos.value.x
+  const newY = e.clientY - dragStartPos.value.y
+  
+  // Constrain to window
+  const maxX = window.innerWidth - (toolbarRef.value?.offsetWidth || 0)
+  const maxY = window.innerHeight - (toolbarRef.value?.offsetHeight || 0)
+  
+  toolbarPos.value = {
+    x: Math.max(0, Math.min(maxX, newX)),
+    y: Math.max(0, Math.min(maxY, newY))
+  }
+}
+
+const onWindowMouseUp = () => {
+  isToolbarDragging.value = false
+}
+
+// Touch support for toolbar
+const onToolbarTouchStart = (e) => {
+  if (e.target.closest('button')) return
+  if (e.touches.length !== 1) return
+  
+  isToolbarDragging.value = true
+  hasMoved.value = true
+  const touch = e.touches[0]
+  dragStartPos.value = {
+    x: touch.clientX - toolbarPos.value.x,
+    y: touch.clientY - toolbarPos.value.y
+  }
+}
+
+const onWindowTouchMove = (e) => {
+  if (!isToolbarDragging.value) return
+  if (e.touches.length !== 1) return
+  e.preventDefault()
+  
+  const touch = e.touches[0]
+  const newX = touch.clientX - dragStartPos.value.x
+  const newY = touch.clientY - dragStartPos.value.y
+  
+  const maxX = window.innerWidth - (toolbarRef.value?.offsetWidth || 0)
+  const maxY = window.innerHeight - (toolbarRef.value?.offsetHeight || 0)
+  
+  toolbarPos.value = {
+    x: Math.max(0, Math.min(maxX, newX)),
+    y: Math.max(0, Math.min(maxY, newY))
+  }
+}
+
+const onWindowTouchEnd = () => {
+  isToolbarDragging.value = false
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -477,69 +585,82 @@ const getRegionColor = (region) => {
 
 <template>
   <div class="ocr-region-editor">
-    <!-- Editing Toolbar -->
-    <div class="edit-toolbar" :class="{ 'pointer-events-none opacity-70': isReprocessing }">
-      <button
-        @click="onDone"
-        class="toolbar-btn toolbar-btn-primary"
-        :disabled="isReprocessing"
+    <!-- Draggable Toolbar (Teleported to body to escape image transform context) -->
+    <Teleport to="body">
+      <div 
+        v-if="hasValidDimensions"
+        ref="toolbarRef"
+        class="edit-toolbar" 
+        :class="{ 'pointer-events-none opacity-70': isReprocessing }"
+        :style="{ left: `${toolbarPos.x}px`, top: `${toolbarPos.y}px`, transform: 'none' }"
+        @mousedown="onToolbarMouseDown"
+        @touchstart="onToolbarTouchStart"
       >
-        <svg v-if="isReprocessing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-        {{ t('slideToPptx.regionEditor.done') }}
-      </button>
+        <button
+          @click="onDone"
+          class="toolbar-btn toolbar-btn-primary"
+          :disabled="isReprocessing"
+        >
+          <svg v-if="isReprocessing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          {{ t('slideToPptx.regionEditor.done') }}
+        </button>
 
-      <button
-        @click="onReset"
-        class="toolbar-btn"
-        :disabled="!isEdited"
-        :class="{ 'opacity-50 cursor-not-allowed': !isEdited }"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        {{ t('slideToPptx.regionEditor.reset') }}
-      </button>
+        <button
+          @click="onReset"
+          class="toolbar-btn"
+          :disabled="!isEdited"
+          :class="{ 'opacity-50 cursor-not-allowed': !isEdited }"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {{ t('slideToPptx.regionEditor.reset') }}
+        </button>
 
-      <button
-        @click="toggleDrawMode"
-        class="toolbar-btn"
-        :class="{ 'toolbar-btn-active': isDrawModeActive }"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        {{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}
-      </button>
+        <button
+          @click="toggleDrawMode"
+          class="toolbar-btn"
+          :class="{ 'toolbar-btn-active': isDrawModeActive }"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          {{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}
+        </button>
 
-      <!-- Region count indicator -->
-      <span class="region-count">
-        {{ t('slideToPptx.regionEditor.regionCount', { count: regions.length }) }}
-      </span>
-    </div>
+        <!-- Region count indicator -->
+        <span class="region-count">
+          {{ t('slideToPptx.regionEditor.regionCount', { count: regions.length }) }}
+        </span>
 
-    <!-- Hint text -->
-    <div class="edit-hint" v-if="!isDrawModeActive && selectedIndex === null">
-      {{ t('slideToPptx.regionEditor.hint') }}
-    </div>
-    <div class="edit-hint" v-else-if="isDrawModeActive">
-      {{ t('slideToPptx.regionEditor.drawHint') }}
-    </div>
-    <div class="edit-hint" v-else-if="selectedIndex !== null">
-      {{ t('slideToPptx.regionEditor.selectedHint') }}
-    </div>
+        <!-- Hint text (Attached to toolbar) -->
+        <div class="edit-hint" v-if="!isDrawModeActive && selectedIndex === null">
+          {{ t('slideToPptx.regionEditor.hint') }}
+        </div>
+        <div class="edit-hint" v-else-if="isDrawModeActive">
+          {{ t('slideToPptx.regionEditor.drawHint') }}
+        </div>
+        <div class="edit-hint" v-else-if="selectedIndex !== null">
+          {{ t('slideToPptx.regionEditor.selectedHint') }}
+        </div>
+      </div>
+    </Teleport>
 
     <!-- SVG Overlay for region editing -->
     <svg
       v-if="hasValidDimensions"
       ref="svgRef"
       class="edit-overlay-svg"
-      :class="{ 'cursor-crosshair': isDrawModeActive }"
+      :class="{ 
+        'cursor-crosshair pointer-events-auto': isDrawModeActive,
+        'pointer-events-none': !isDrawModeActive 
+      }"
       :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
       preserveAspectRatio="none"
       @click="onBackgroundClick"
@@ -558,6 +679,7 @@ const getRegionColor = (region) => {
         @click.stop="onRegionClick(idx, $event)"
         class="region-group"
         :class="{ 'region-selected': selectedIndex === idx }"
+        pointer-events="auto"
       >
         <!-- Region rectangle -->
         <rect
@@ -574,7 +696,7 @@ const getRegionColor = (region) => {
       </g>
 
       <!-- Selected region controls (rendered on top) -->
-      <g v-if="selectedIndex !== null && regions[selectedIndex] && !isDrawModeActive">
+      <g v-if="selectedIndex !== null && regions[selectedIndex] && !isDrawModeActive" pointer-events="auto">
         <!-- Resize handles at corners -->
         <g
           v-for="(pos, handle) in getResizeHandles(regions[selectedIndex])"
@@ -696,11 +818,8 @@ const getRegionColor = (region) => {
 
 /* Toolbar */
 .edit-toolbar {
-  position: absolute;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
+  position: fixed;
+  z-index: 9999; /* Ensure it's above lightbox */
   display: flex;
   gap: 0.5rem;
   align-items: center;
@@ -709,6 +828,9 @@ const getRegionColor = (region) => {
   backdrop-filter: blur(8px);
   border-radius: 0.75rem;
   pointer-events: auto;
+  cursor: move;
+  user-select: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .toolbar-btn {
@@ -756,10 +878,10 @@ const getRegionColor = (region) => {
 /* Hint text */
 .edit-hint {
   position: absolute;
-  top: 4rem;
+  top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 25;
+  margin-top: 0.5rem;
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
   color: var(--color-text-muted);
@@ -776,6 +898,14 @@ const getRegionColor = (region) => {
   inset: 0;
   width: 100%;
   height: 100%;
+  /* pointer-events controlled by dynamic classes */
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+.pointer-events-auto {
   pointer-events: auto;
 }
 

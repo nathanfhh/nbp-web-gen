@@ -275,15 +275,18 @@ const handleKeydown = (e) => {
   }
 }
 
-// Wheel event wrapper - disabled in edit mode
+// Wheel event wrapper - global listener for robust handling
 const handleWheel = (e) => {
-  if (props.isEditMode) return
+  if (!props.modelValue) return
+  // We need to prevent default behavior (scrolling) when lightbox is open
+  // This is handled by zoomHandleWheel, but checking here explicitly 
+  // ensures we don't interfere when closed.
   zoomHandleWheel(e, props.modelValue)
 }
 
-// Mouse down wrapper - disabled in edit mode
+// Mouse down wrapper - simplified for better UX
+// If event reaches here (passed through SVG background), it's a drag/pan
 const handleMouseDownWrapper = (e) => {
-  if (props.isEditMode) return
   handleMouseDown(e)
 }
 
@@ -293,19 +296,16 @@ const handleDoubleClickWrapper = (e) => {
   handleDoubleClick(e)
 }
 
-// Touch event wrappers - disabled in edit mode
+// Touch event wrappers - enabled in edit mode for panning
 const handleTouchStart = (e) => {
-  if (props.isEditMode) return
   touchHandleStart(e, props.modelValue)
 }
 
 const handleTouchMove = (e) => {
-  if (props.isEditMode) return
   touchHandleMove(e, props.modelValue)
 }
 
 const handleTouchEnd = (e) => {
-  if (props.isEditMode) return
   touchHandleEnd(e, props.modelValue, {
     close,
     goToPrev,
@@ -318,11 +318,14 @@ const handleTouchEnd = (e) => {
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('mouseup', handleGlobalMouseUp)
+  // Use non-passive listener to allow preventing default scroll
+  window.addEventListener('wheel', handleWheel, { passive: false })
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
+  window.removeEventListener('wheel', handleWheel)
   document.body.style.overflow = ''
   // Note: useHistoryState handles its own cleanup in onUnmounted
 })
@@ -642,7 +645,6 @@ const goToSlideToPptx = async () => {
         <!-- Image container -->
         <div
           class="lightbox-content"
-          @wheel.prevent="handleWheel"
           @mousedown="handleMouseDownWrapper"
           @mousemove="handleMouseMove"
           @dblclick="handleDoubleClickWrapper"
