@@ -59,6 +59,7 @@ const showOcrOverlay = ref(true)
 // Separate toggles for merged and raw regions
 const showMergedRegions = ref(true)
 const showRawRegions = ref(true)
+const showFailedRegions = ref(true) // Show regions where recognition failed
 
 // OCR JSON overlay (shows raw OCR result data)
 const showOcrJsonOverlay = ref(false)
@@ -84,10 +85,12 @@ const currentSlideState = computed(() => slideStates.value[currentIndex.value])
 
 // Current slide's OCR results based on mode
 const currentOcrRegions = computed(() => {
-  if (!slideStates.value[currentIndex.value]) return { merged: [], raw: [] }
+  if (!slideStates.value[currentIndex.value]) return { merged: [], raw: [], failed: [] }
+  const rawRegions = slideStates.value[currentIndex.value].rawRegions || []
   return {
     merged: slideStates.value[currentIndex.value].regions || [],
-    raw: slideStates.value[currentIndex.value].rawRegions || []
+    raw: rawRegions.filter(r => !r.recognitionFailed),
+    failed: rawRegions.filter(r => r.recognitionFailed)
   }
 })
 
@@ -297,12 +300,52 @@ const downloadPptx = async () => {
   }
 }
 
-// Current slide's OCR results
+// Current slide's OCR results (for PPTX export - merged only)
 const currentOcrResults = computed(() => {
   if (slideStates.value[currentIndex.value]) {
     return slideStates.value[currentIndex.value].ocrResults || []
   }
   return []
+})
+
+// Full OCR data for JSON overlay (includes raw, failed, polygon, etc.)
+const currentOcrFullData = computed(() => {
+  const state = slideStates.value[currentIndex.value]
+  if (!state) return null
+
+  const rawRegions = state.rawRegions || []
+  const recognized = rawRegions.filter(r => !r.recognitionFailed)
+  const failed = rawRegions.filter(r => r.recognitionFailed)
+  const merged = state.regions || []
+
+  return {
+    summary: {
+      totalDetections: rawRegions.length,
+      recognized: recognized.length,
+      failed: failed.length,
+      mergedBlocks: merged.length,
+    },
+    merged: merged.map(r => ({
+      text: r.text,
+      confidence: Math.round(r.confidence),
+      bounds: r.bounds,
+    })),
+    raw: {
+      recognized: recognized.map(r => ({
+        text: r.text,
+        confidence: Math.round(r.confidence),
+        detectionScore: r.detectionScore ? Math.round(r.detectionScore * 100) / 100 : null,
+        bounds: r.bounds,
+        polygon: r.polygon,
+      })),
+      failed: failed.map(r => ({
+        failureReason: r.failureReason,
+        detectionScore: r.detectionScore ? Math.round(r.detectionScore * 100) / 100 : null,
+        bounds: r.bounds,
+        polygon: r.polygon,
+      })),
+    },
+  }
 })
 
 // Auto-scroll log to bottom when new logs are added
@@ -385,6 +428,21 @@ const startProcessing = async () => {
         toast.success(t('slideToPptx.success.complete'))
       } else {
         toast.warning(t('slideToPptx.partialSuccess', { success: successCount, failed: failCount }))
+      }
+
+      // Check for failed OCR regions and warn user
+      const failedRegionsSummary = slideStates.value
+        .map((state, idx) => {
+          const failedCount = (state.rawRegions || []).filter(r => r.recognitionFailed).length
+          return failedCount > 0 ? { page: idx + 1, count: failedCount } : null
+        })
+        .filter(Boolean)
+
+      if (failedRegionsSummary.length > 0) {
+        const warningMessage = failedRegionsSummary
+          .map(s => t('slideToPptx.ocrWarning.pageFailedCount', { page: s.page, count: s.count }))
+          .join('\n')
+        toast.warning(t('slideToPptx.ocrWarning.title') + '\n' + warningMessage, { duration: 8000 })
       }
     },
     onError: () => {
@@ -531,7 +589,7 @@ const getSlideStatus = (index) => {
                       class="absolute inset-0 w-full h-full object-contain"
                     />
                     <!-- OCR Overlay on original -->
-                    <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0)" class="absolute inset-0 pointer-events-none">
+                    <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0)" class="absolute inset-0 pointer-events-none">
                       <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
                         <!-- Merged Regions (Blue) -->
                         <template v-if="showMergedRegions">
@@ -562,6 +620,21 @@ const getSlideStatus = (index) => {
                             stroke-dasharray="4"
                           />
                         </template>
+                        <!-- Failed Regions (Red Dashed) - Detection succeeded but Recognition failed -->
+                        <template v-if="showFailedRegions">
+                          <rect
+                            v-for="(result, idx) in currentOcrRegions.failed"
+                            :key="`failed-${idx}`"
+                            :x="result.bounds.x"
+                            :y="result.bounds.y"
+                            :width="result.bounds.width"
+                            :height="result.bounds.height"
+                            fill="rgba(239, 68, 68, 0.15)"
+                            stroke="rgba(239, 68, 68, 0.9)"
+                            stroke-width="2"
+                            stroke-dasharray="6 3"
+                          />
+                        </template>
                       </svg>
                     </div>
                   </div>
@@ -584,16 +657,16 @@ const getSlideStatus = (index) => {
 
               <!-- OCR JSON Overlay (covers both images in side-by-side mode) -->
               <div
-                v-if="showOcrJsonOverlay && currentOcrResults.length > 0"
+                v-if="showOcrJsonOverlay && currentOcrFullData"
                 class="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-xl overflow-auto p-4 z-10"
                 @click.stop
               >
-                <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrResults, null, 2) }}</pre>
+                <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrFullData, null, 2) }}</pre>
               </div>
 
               <!-- OCR JSON Toggle Button (top-right, for side-by-side mode) -->
               <button
-                v-if="currentOcrResults.length > 0"
+                v-if="currentOcrFullData"
                 @click.stop="showOcrJsonOverlay = !showOcrJsonOverlay"
                 class="absolute top-2 right-2 z-20 p-2 rounded-lg transition-colors"
                 :class="showOcrJsonOverlay ? 'bg-mode-generate text-white' : 'bg-black/50 hover:bg-black/70 text-white'"
@@ -619,7 +692,7 @@ const getSlideStatus = (index) => {
               />
 
               <!-- OCR Overlay -->
-              <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0)" class="absolute inset-0 pointer-events-none">
+              <div v-if="showOcrOverlay && (currentOcrRegions.merged.length > 0 || currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0)" class="absolute inset-0 pointer-events-none">
                 <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
                   <!-- Merged Regions (Blue) -->
                   <template v-if="showMergedRegions">
@@ -650,21 +723,36 @@ const getSlideStatus = (index) => {
                       stroke-dasharray="4"
                     />
                   </template>
+                  <!-- Failed Regions (Red Dashed) - Detection succeeded but Recognition failed -->
+                  <template v-if="showFailedRegions">
+                    <rect
+                      v-for="(result, idx) in currentOcrRegions.failed"
+                      :key="`failed-${idx}`"
+                      :x="result.bounds.x"
+                      :y="result.bounds.y"
+                      :width="result.bounds.width"
+                      :height="result.bounds.height"
+                      fill="rgba(239, 68, 68, 0.15)"
+                      stroke="rgba(239, 68, 68, 0.9)"
+                      stroke-width="2"
+                      stroke-dasharray="6 3"
+                    />
+                  </template>
                 </svg>
               </div>
 
               <!-- OCR JSON Overlay -->
               <div
-                v-if="showOcrJsonOverlay && currentOcrResults.length > 0"
+                v-if="showOcrJsonOverlay && currentOcrFullData"
                 class="absolute inset-0 bg-black/80 backdrop-blur-sm overflow-auto p-4 z-10"
                 @click.stop
               >
-                <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrResults, null, 2) }}</pre>
+                <pre class="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">{{ JSON.stringify(currentOcrFullData, null, 2) }}</pre>
               </div>
 
               <!-- OCR JSON Toggle Button (top-right) -->
               <button
-                v-if="currentOcrResults.length > 0"
+                v-if="currentOcrFullData"
                 @click.stop="showOcrJsonOverlay = !showOcrJsonOverlay"
                 class="absolute top-2 right-2 z-20 p-2 rounded-lg transition-colors"
                 :class="showOcrJsonOverlay ? 'bg-mode-generate text-white' : 'bg-black/50 hover:bg-black/70 text-white'"
@@ -731,6 +819,19 @@ const getSlideStatus = (index) => {
                 >
                   <span class="w-2 h-2 rounded-full" :class="showRawRegions ? 'bg-green-500' : 'bg-transparent border border-current'"></span>
                   {{ $t('slideToPptx.overlayMode.raw') }}
+                </button>
+
+                <!-- Failed Regions Toggle (Debug) -->
+                <button
+                  v-if="currentOcrRegions.failed.length > 0"
+                  @click="showFailedRegions = !showFailedRegions"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
+                  :class="showFailedRegions
+                    ? 'border-red-500 bg-red-500/10 text-red-400'
+                    : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
+                >
+                  <span class="w-2 h-2 rounded-full" :class="showFailedRegions ? 'bg-red-500' : 'bg-transparent border border-current'"></span>
+                  {{ $t('slideToPptx.overlayMode.failed') }} ({{ currentOcrRegions.failed.length }})
                 </button>
               </div>
             </div>
@@ -861,6 +962,63 @@ const getSlideStatus = (index) => {
               >
                 <span class="text-text-muted">{{ log.timestamp }}</span>
                 <span>{{ log.message }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- OCR Debug Panel -->
+          <div v-if="currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0" class="glass p-6">
+            <h2 class="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              {{ $t('slideToPptx.ocrDebug.title') }}
+            </h2>
+
+            <!-- Summary -->
+            <div class="mb-4 flex gap-4 text-sm">
+              <span class="text-green-400">
+                ✓ {{ $t('slideToPptx.ocrDebug.recognized') }}: {{ currentOcrRegions.raw.length }}
+              </span>
+              <span v-if="currentOcrRegions.failed.length > 0" class="text-red-400">
+                ✗ {{ $t('slideToPptx.ocrDebug.failed') }}: {{ currentOcrRegions.failed.length }}
+              </span>
+            </div>
+
+            <!-- Regions List -->
+            <div class="max-h-60 overflow-y-auto space-y-2">
+              <!-- Successful Regions -->
+              <div
+                v-for="(result, idx) in currentOcrRegions.raw"
+                :key="`debug-raw-${idx}`"
+                class="p-2 rounded-lg bg-green-500/10 border border-green-500/30 text-xs"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <span class="text-green-400 font-mono flex-shrink-0">#{{ idx + 1 }}</span>
+                  <span class="text-text-primary flex-1 break-all">{{ result.text }}</span>
+                  <span class="text-text-muted flex-shrink-0">{{ Math.round(result.confidence) }}%</span>
+                </div>
+                <div class="mt-1 text-text-muted text-[10px]">
+                  {{ result.bounds.width }}×{{ result.bounds.height }} @ ({{ Math.round(result.bounds.x) }}, {{ Math.round(result.bounds.y) }})
+                  <span v-if="result.detectionScore" class="ml-2">det: {{ (result.detectionScore * 100).toFixed(1) }}%</span>
+                </div>
+              </div>
+
+              <!-- Failed Regions -->
+              <div
+                v-for="(result, idx) in currentOcrRegions.failed"
+                :key="`debug-failed-${idx}`"
+                class="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <span class="text-red-400 font-mono flex-shrink-0">#{{ currentOcrRegions.raw.length + idx + 1 }}</span>
+                  <span class="text-red-300 flex-1 italic">{{ $t('slideToPptx.ocrDebug.noText') }}</span>
+                  <span class="text-red-400 flex-shrink-0">{{ result.failureReason }}</span>
+                </div>
+                <div class="mt-1 text-text-muted text-[10px]">
+                  {{ result.bounds.width }}×{{ result.bounds.height }} @ ({{ Math.round(result.bounds.x) }}, {{ Math.round(result.bounds.y) }})
+                  <span v-if="result.detectionScore" class="ml-2">det: {{ (result.detectionScore * 100).toFixed(1) }}%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1201,6 +1359,7 @@ const getSlideStatus = (index) => {
       :show-ocr-overlay="showOcrOverlay"
       :show-merged-regions="showMergedRegions"
       :show-raw-regions="showRawRegions"
+      :show-failed-regions="showFailedRegions"
       :ocr-regions="currentOcrRegions"
     />
   </div>

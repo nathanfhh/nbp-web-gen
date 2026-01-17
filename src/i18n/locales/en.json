@@ -1055,7 +1055,18 @@
     "overlayMode": {
       "merged": "Merged",
       "raw": "Raw",
-      "both": "Both"
+      "both": "Both",
+      "failed": "Failed"
+    },
+    "ocrDebug": {
+      "title": "OCR Debug Info",
+      "recognized": "Recognized",
+      "failed": "Failed",
+      "noText": "(No text detected)"
+    },
+    "ocrWarning": {
+      "title": "⚠️ Some text regions failed recognition",
+      "pageFailedCount": "Page {page}: {count} region(s) failed"
     },
     "inpaintMethod": "Text Removal Method",
     "free": "Free",
@@ -1092,7 +1103,7 @@
       "cancel": "Cancel"
     },
     "success": {
-      "complete": "Conversion complete! PPTX downloaded."
+      "complete": "Conversion complete! Preview the result before downloading PPTX."
     },
     "errors": {
       "ocrFailed": "OCR failed for page {page}",

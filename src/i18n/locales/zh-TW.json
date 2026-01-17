@@ -1085,7 +1085,18 @@
     "overlayMode": {
       "merged": "合併後",
       "raw": "原始框",
-      "both": "同時顯示"
+      "both": "同時顯示",
+      "failed": "識別失敗"
+    },
+    "ocrDebug": {
+      "title": "OCR Debug 資訊",
+      "recognized": "識別成功",
+      "failed": "識別失敗",
+      "noText": "(無法識別文字)"
+    },
+    "ocrWarning": {
+      "title": "⚠️ 部分文字區域辨識失敗",
+      "pageFailedCount": "第 {page} 頁：{count} 個區域辨識失敗"
     },
     "inpaintMethod": "文字移除方式",
     "free": "免費",
@@ -1122,7 +1133,7 @@
       "cancel": "取消"
     },
     "success": {
-      "complete": "轉換完成！PPTX 已下載。"
+      "complete": "轉換完成！請預覽結果後再下載 PPTX。"
     },
     "errors": {
       "ocrFailed": "第 {page} 頁 OCR 失敗",

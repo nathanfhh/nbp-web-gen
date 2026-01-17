@@ -54,10 +54,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
-  // OCR regions for overlay (merged/raw)
+  // OCR regions for overlay (merged/raw/failed)
   ocrRegions: {
     type: Object,
-    default: () => ({ merged: [], raw: [] }),
+    default: () => ({ merged: [], raw: [], failed: [] }),
   },
   // Show OCR overlay
   showOcrOverlay: {
@@ -71,6 +71,11 @@ const props = defineProps({
   },
   // Show raw regions
   showRawRegions: {
+    type: Boolean,
+    default: true,
+  },
+  // Show failed regions (recognition failed)
+  showFailedRegions: {
     type: Boolean,
     default: true,
   },
@@ -645,85 +650,62 @@ const goToSlideToPptx = async () => {
                 @load="onImageLoad"
               />
 
-                                                    <!-- SVG Overlay -->
-
-                                                    <svg
-
-                                                      v-if="showOcrOverlay && imageDimensions.width > 0 && (ocrRegions.merged.length > 0 || ocrRegions.raw.length > 0)"
-
-                                                      class="lightbox-image pointer-events-none"
-
-                                                      style="grid-area: stack; width: 100%; height: 100%;"
-
-                                                      :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
-
-                                                      preserveAspectRatio="none"
-
-                                                    >
-
-                                                      <!-- Merged Regions (Blue) -->
-
-                                                      <template v-if="showMergedRegions">
-
-                                                        <rect
-
-                                                          v-for="(result, idx) in ocrRegions.merged"
-
-                                                          :key="`merged-${idx}`"
-
-                                                          :x="result.bounds.x"
-
-                                                          :y="result.bounds.y"
-
-                                                          :width="result.bounds.width"
-
-                                                          :height="result.bounds.height"
-
-                                                          fill="rgba(59, 130, 246, 0.2)"
-
-                                                          stroke="rgba(59, 130, 246, 0.8)"
-
-                                                          stroke-width="2"
-
-                                                          vector-effect="non-scaling-stroke"
-
-                                                        />
-
-                                                      </template>
-
-                                                      <!-- Raw Regions (Green Dashed) -->
-
-                                                      <template v-if="showRawRegions">
-
-                                                        <rect
-
-                                                          v-for="(result, idx) in ocrRegions.raw"
-
-                                                          :key="`raw-${idx}`"
-
-                                                          :x="result.bounds.x"
-
-                                                          :y="result.bounds.y"
-
-                                                          :width="result.bounds.width"
-
-                                                          :height="result.bounds.height"
-
-                                                          fill="rgba(16, 185, 129, 0.1)"
-
-                                                          stroke="rgba(16, 185, 129, 0.8)"
-
-                                                          stroke-width="1"
-
-                                                          stroke-dasharray="4"
-
-                                                          vector-effect="non-scaling-stroke"
-
-                                                        />
-
-                                                      </template>
-
-                                                    </svg>
+              <!-- SVG Overlay -->
+              <svg
+                v-if="showOcrOverlay && imageDimensions.width > 0 && (ocrRegions.merged.length > 0 || ocrRegions.raw.length > 0 || ocrRegions.failed?.length > 0)"
+                class="lightbox-image pointer-events-none"
+                style="grid-area: stack; width: 100%; height: 100%;"
+                :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
+                preserveAspectRatio="none"
+              >
+                <!-- Merged Regions (Blue) -->
+                <template v-if="showMergedRegions">
+                  <rect
+                    v-for="(result, idx) in ocrRegions.merged"
+                    :key="`merged-${idx}`"
+                    :x="result.bounds.x"
+                    :y="result.bounds.y"
+                    :width="result.bounds.width"
+                    :height="result.bounds.height"
+                    fill="rgba(59, 130, 246, 0.2)"
+                    stroke="rgba(59, 130, 246, 0.8)"
+                    stroke-width="2"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </template>
+                <!-- Raw Regions (Green Dashed) -->
+                <template v-if="showRawRegions">
+                  <rect
+                    v-for="(result, idx) in ocrRegions.raw"
+                    :key="`raw-${idx}`"
+                    :x="result.bounds.x"
+                    :y="result.bounds.y"
+                    :width="result.bounds.width"
+                    :height="result.bounds.height"
+                    fill="rgba(16, 185, 129, 0.1)"
+                    stroke="rgba(16, 185, 129, 0.8)"
+                    stroke-width="1"
+                    stroke-dasharray="4"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </template>
+                <!-- Failed Regions (Red Dashed) -->
+                <template v-if="showFailedRegions && ocrRegions.failed?.length > 0">
+                  <rect
+                    v-for="(result, idx) in ocrRegions.failed"
+                    :key="`failed-${idx}`"
+                    :x="result.bounds.x"
+                    :y="result.bounds.y"
+                    :width="result.bounds.width"
+                    :height="result.bounds.height"
+                    fill="rgba(239, 68, 68, 0.15)"
+                    stroke="rgba(239, 68, 68, 0.9)"
+                    stroke-width="2"
+                    stroke-dasharray="6 3"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </template>
+              </svg>
 
                                                   </div>          </div>
         </div>

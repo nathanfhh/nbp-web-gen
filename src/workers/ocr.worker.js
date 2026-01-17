@@ -553,7 +553,11 @@ function inferAlignment(lines) {
 function mergeTextRegions(rawResults) {
   if (rawResults.length === 0) return []
 
-  const sorted = [...rawResults].sort((a, b) => a.bounds.y - b.bounds.y)
+  // Only merge regions that have successful recognition
+  const successfulResults = rawResults.filter(r => !r.recognitionFailed)
+  if (successfulResults.length === 0) return []
+
+  const sorted = [...successfulResults].sort((a, b) => a.bounds.y - b.bounds.y)
   const groups = []
 
   for (const line of sorted) {
@@ -691,33 +695,51 @@ async function recognize(imageDataUrl, requestId) {
 
   const rawResults = []
   for (let i = 0; i < detectedBoxes.length; i++) {
-    const { box } = detectedBoxes[i]
+    const { box, score: detectionScore } = detectedBoxes[i]
 
     const recTensor = preprocessForRecognition(bitmap, box)
-    if (!recTensor) continue
+
+    // Calculate bounds regardless of recognition result
+    const xs = box.map((p) => p[0])
+    const ys = box.map((p) => p[1])
+    const bounds = {
+      x: Math.min(...xs),
+      y: Math.min(...ys),
+      width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys),
+    }
+
+    // If preprocessing failed, still record the detection
+    if (!recTensor) {
+      rawResults.push({
+        text: '',
+        confidence: 0,
+        bounds,
+        polygon: box,
+        detectionScore,
+        recognitionFailed: true,
+        failureReason: 'preprocessing_failed',
+      })
+      continue
+    }
 
     const recFeeds = { [recSession.inputNames[0]]: recTensor }
     const recResults = await recSession.run(recFeeds)
     const recOutput = recResults[recSession.outputNames[0]]
 
     const { text, confidence } = decodeRecognition(recOutput)
+    const trimmedText = text.trim()
 
-    if (text.trim()) {
-      const xs = box.map((p) => p[0])
-      const ys = box.map((p) => p[1])
-
-      rawResults.push({
-        text: text.trim(),
-        confidence,
-        bounds: {
-          x: Math.min(...xs),
-          y: Math.min(...ys),
-          width: Math.max(...xs) - Math.min(...xs),
-          height: Math.max(...ys) - Math.min(...ys),
-        },
-        polygon: box,
-      })
-    }
+    // Always push the result, marking recognition status
+    rawResults.push({
+      text: trimmedText,
+      confidence,
+      bounds,
+      polygon: box,
+      detectionScore,
+      recognitionFailed: !trimmedText,
+      failureReason: !trimmedText ? 'empty_text' : null,
+    })
 
     const recognitionProgress = 50 + Math.round((i / detectedBoxes.length) * 40)
     reportProgress('recognition', recognitionProgress, `Recognizing ${i + 1}/${detectedBoxes.length}...`, requestId)
