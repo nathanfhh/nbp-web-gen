@@ -11,6 +11,7 @@
  */
 
 import { ref } from 'vue'
+import * as ocrUtils from '@/utils/ocrUtils'
 
 // Use HuggingFace CDN for model downloads
 // Models are cached in OPFS after first download for fast subsequent loads
@@ -58,8 +59,6 @@ const REMOTE_MODELS = {
 // Select which models to use
 const MODELS = USE_LOCAL_MODELS ? LOCAL_MODELS : REMOTE_MODELS
 
-const OPFS_DIR = 'ocr-models'
-
 /**
  * OCR Model Cache Composable
  * @returns {Object} Model cache methods and state
@@ -69,123 +68,6 @@ export function useOcrModelCache() {
   const progress = ref(0)
   const status = ref('')
   const error = ref(null)
-
-  let rootHandle = null
-
-  /**
-   * Initialize OPFS root handle
-   */
-  const initOPFS = async () => {
-    if (rootHandle) return rootHandle
-
-    if (!('storage' in navigator) || !('getDirectory' in navigator.storage)) {
-      throw new Error('OPFS is not supported in this browser')
-    }
-
-    rootHandle = await navigator.storage.getDirectory()
-    return rootHandle
-  }
-
-  /**
-   * Get or create the OCR models directory
-   */
-  const getModelsDirectory = async () => {
-    const root = await initOPFS()
-    return await root.getDirectoryHandle(OPFS_DIR, { create: true })
-  }
-
-  /**
-   * Check if a model file exists in OPFS
-   * @param {string} filename - Model filename
-   * @returns {Promise<boolean>}
-   */
-  const modelExists = async (filename) => {
-    try {
-      const dir = await getModelsDirectory()
-      await dir.getFileHandle(filename, { create: false })
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Read a model file from OPFS
-   * @param {string} filename - Model filename
-   * @returns {Promise<ArrayBuffer|string>} File content
-   */
-  const readModel = async (filename) => {
-    const dir = await getModelsDirectory()
-    const fileHandle = await dir.getFileHandle(filename, { create: false })
-    const file = await fileHandle.getFile()
-
-    // Return text for dictionary, ArrayBuffer for models
-    if (filename.endsWith('.txt')) {
-      return await file.text()
-    }
-    return await file.arrayBuffer()
-  }
-
-  /**
-   * Write a model file to OPFS
-   * @param {string} filename - Model filename
-   * @param {ArrayBuffer|string} data - File content
-   */
-  const writeModel = async (filename, data) => {
-    const dir = await getModelsDirectory()
-    const fileHandle = await dir.getFileHandle(filename, { create: true })
-    const writable = await fileHandle.createWritable()
-    await writable.write(data)
-    await writable.close()
-  }
-
-  /**
-   * Download a model file with progress tracking
-   * @param {string} url - Model URL
-   * @param {string} filename - Filename for cache
-   * @param {number} expectedSize - Expected file size for progress calculation
-   * @returns {Promise<ArrayBuffer|string>}
-   */
-  const downloadModel = async (url, filename, expectedSize) => {
-    const response = await fetch(url)
-
-    if (!response.ok) {
-      throw new Error(`Failed to download ${filename}: ${response.status}`)
-    }
-
-    const contentLength = response.headers.get('content-length')
-    const total = contentLength ? parseInt(contentLength, 10) : expectedSize
-
-    const reader = response.body.getReader()
-    const chunks = []
-    let received = 0
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      chunks.push(value)
-      received += value.length
-
-      // Update progress (weighted by model size)
-      const fileProgress = Math.min(100, Math.round((received / total) * 100))
-      status.value = `Downloading ${filename}... ${fileProgress}%`
-    }
-
-    // Combine chunks
-    const data = new Uint8Array(received)
-    let offset = 0
-    for (const chunk of chunks) {
-      data.set(chunk, offset)
-      offset += chunk.length
-    }
-
-    // Return text for dictionary
-    if (filename.endsWith('.txt')) {
-      return new TextDecoder().decode(data)
-    }
-    return data.buffer
-  }
 
   /**
    * Check if URL is local (from public folder)
@@ -208,22 +90,31 @@ export function useOcrModelCache() {
     // For local models, fetch directly without OPFS caching
     if (isLocalUrl(model.url)) {
       status.value = `Loading ${model.filename}...`
-      const data = await downloadModel(model.url, model.filename, model.size)
-      return data
+      // Direct download without caching for local files
+      const response = await fetch(model.url)
+      if (!response.ok) throw new Error(`Failed to load local model: ${model.filename}`)
+      return model.filename.endsWith('.txt') ? await response.text() : await response.arrayBuffer()
     }
 
     // For remote models, check OPFS cache first
-    if (await modelExists(model.filename)) {
+    if (await ocrUtils.modelExists(model.filename)) {
       status.value = `Loading ${model.filename} from cache...`
-      return await readModel(model.filename)
+      return await ocrUtils.readModel(model.filename)
     }
 
     // Download and cache to OPFS
     status.value = `Downloading ${model.filename}...`
-    const data = await downloadModel(model.url, model.filename, model.size)
+    const data = await ocrUtils.downloadModel(
+      model.url,
+      model.filename,
+      model.size,
+      (pct) => {
+        status.value = `Downloading ${model.filename}... ${pct}%`
+      }
+    )
 
     // Cache remote models to OPFS
-    await writeModel(model.filename, data)
+    await ocrUtils.writeModel(model.filename, data)
     status.value = `Cached ${model.filename}`
 
     return data
@@ -241,9 +132,9 @@ export function useOcrModelCache() {
 
     try {
       // Check what needs to be downloaded
-      const detExists = await modelExists(MODELS.detection.filename)
-      const recExists = await modelExists(MODELS.recognition.filename)
-      const dictExists = await modelExists(MODELS.dictionary.filename)
+      const detExists = await ocrUtils.modelExists(MODELS.detection.filename)
+      const recExists = await ocrUtils.modelExists(MODELS.recognition.filename)
+      const dictExists = await ocrUtils.modelExists(MODELS.dictionary.filename)
 
       const needsDownload = !detExists || !recExists || !dictExists
 
@@ -285,37 +176,8 @@ export function useOcrModelCache() {
    * Clear all cached models
    */
   const clearCache = async () => {
-    try {
-      const root = await initOPFS()
-      await root.removeEntry(OPFS_DIR, { recursive: true })
-      status.value = 'Model cache cleared'
-    } catch (err) {
-      if (err.name !== 'NotFoundError') {
-        throw err
-      }
-    }
-  }
-
-  /**
-   * Get cache size in bytes
-   * @returns {Promise<number>}
-   */
-  const getCacheSize = async () => {
-    try {
-      const dir = await getModelsDirectory()
-      let totalSize = 0
-
-      for await (const [, handle] of dir.entries()) {
-        if (handle.kind === 'file') {
-          const file = await handle.getFile()
-          totalSize += file.size
-        }
-      }
-
-      return totalSize
-    } catch {
-      return 0
-    }
+    await ocrUtils.clearModelCache()
+    status.value = 'Model cache cleared'
   }
 
   /**
@@ -323,9 +185,9 @@ export function useOcrModelCache() {
    * @returns {Promise<boolean>}
    */
   const isFullyCached = async () => {
-    const detExists = await modelExists(MODELS.detection.filename)
-    const recExists = await modelExists(MODELS.recognition.filename)
-    const dictExists = await modelExists(MODELS.dictionary.filename)
+    const detExists = await ocrUtils.modelExists(MODELS.detection.filename)
+    const recExists = await ocrUtils.modelExists(MODELS.recognition.filename)
+    const dictExists = await ocrUtils.modelExists(MODELS.dictionary.filename)
     return detExists && recExists && dictExists
   }
 
@@ -340,9 +202,9 @@ export function useOcrModelCache() {
     loadAllModels,
     getModel,
     clearCache,
-    getCacheSize,
+    getCacheSize: ocrUtils.getModelCacheSize,
     isFullyCached,
-    modelExists,
+    modelExists: ocrUtils.modelExists,
   }
 }
 
