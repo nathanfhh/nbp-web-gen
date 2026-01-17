@@ -840,17 +840,17 @@ const getRegionColor = (region) => {
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.85);
   background: transparent;
-  border: 1px solid var(--color-border-muted);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .toolbar-btn:hover:not(:disabled) {
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .toolbar-btn-primary {
@@ -872,7 +872,7 @@ const getRegionColor = (region) => {
 .region-count {
   padding: 0 0.5rem;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Hint text */
@@ -884,7 +884,7 @@ const getRegionColor = (region) => {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.6);
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   border-radius: 0.5rem;
