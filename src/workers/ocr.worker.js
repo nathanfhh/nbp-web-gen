@@ -399,7 +399,7 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
       // If we used component.length, dilation would fake pixel count
       const pixelCount = rawPixelCount
 
-      if (boxArea < 100 || pixelCount < 10) continue
+      if (boxArea < minArea || pixelCount < 10) continue
 
       // Calculate unclip offset (DBNet expansion)
       // The model outputs a shrunk text region. We need to expand it back to the full text boundary.
