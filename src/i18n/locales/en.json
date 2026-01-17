@@ -1147,7 +1147,7 @@
     "customized": "Customized",
     "usingGlobal": "Using Global",
     "resetToGlobal": "Reset to Global",
-    "cleanBackgroundTip": "For slides with clean backgrounds, OpenCV works great and saves your API quota.",
+    "cleanBackgroundTip": "For slides with clean backgrounds, OpenCV usually works well and saves your API quota.",
     "compareResult": "Compare Results",
     "original": "Original",
     "processed": "Processed",
@@ -1160,6 +1160,7 @@
     "hasCustomSettings": "Custom settings applied",
     "clickToCustomize": "Click to customize",
     "processingPage": "Processing page {current} / {total}",
+    "settling": "Recalculating...",
     "logs": {
       "freeTierQuotaExceeded": "Free tier quota exceeded, switching to paid key...",
       "loadingImage": "Slide {slide}: Loading image...",

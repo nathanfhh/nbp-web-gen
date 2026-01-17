@@ -61,7 +61,7 @@ This project is a testament to the power of AI-assisted development:
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
 *   **Character Extraction:** AI-powered character trait extraction from images. Save and reuse characters across generation modes for consistent character design.
 *   **LINE Sticker Compliance Tool:** Dedicated tool to prepare stickers for LINE Store submission - auto-resize, even dimension enforcement, cover image generation (main.png/tab.png), and batch ZIP export.
-*   **Slide to PPTX Converter:** Inspired by [DeckEdit](https://deckedit.com/), convert slide images or PDFs into editable PowerPoint files - all processing happens in your browser:
+*   **Slide to PPTX Converter:** Inspired by [DeckEdit](https://deckedit.com/), convert slide images or PDFs into editable PowerPoint files - all processing happens in your browser. Unlike purely automated tools that often fail on complex layouts, Mediator provides a "Human-in-the-loop" workflow powered by our **Hybrid Layout Analysis Engine**, allowing precise manual correction of OCR regions before generation.
     *   **Client-Side OCR:** Uses PaddleOCR v5 models running on ONNX Runtime with WebGPU acceleration (falls back to WebAssembly).
     *   **Tesseract.js Fallback:** Automatic fallback for failed text regions using Tesseract.js OCR engine.
     *   **Manual Region Editing:** Manually add, delete, or resize OCR regions in a visual editor to fix detection errors.
@@ -94,6 +94,25 @@ Unlike simple grid chopping, our segmentation engine uses a projection-based app
 3.  **Noise Filtering:** Regions smaller than the threshold (20×20 pixels) are automatically discarded.
 4.  **Web Worker Offloading:** All heavy pixel processing runs in a dedicated Web Worker to keep the UI responsive.
 5.  **Canvas Extraction:** Each validated region is extracted into a new `Canvas` context and exported as an individual transparent PNG, ready for use in messaging apps like Telegram, WhatsApp, or Line.
+
+### 🧠 Advanced Technology: Hybrid Layout Analysis
+
+For the **Slide to PPTX** converter, we developed a sophisticated **Hybrid Layout Analysis Engine** that outperforms standard linear scanning methods used by other tools.
+
+**Why it matters:**
+Traditional OCR tools often merge unrelated text (e.g., left/right columns) or split related text (e.g., titles/subtitles). Our engine solves this with a two-phase approach:
+
+1.  **Phase 1: Macro-Segmentation (Relaxed XY-Cut)**
+    *   Uses recursive projection profiles to identify major layout zones (Columns, Headers, Footers).
+    *   **Benefit:** Prevents content from physically distant columns from ever being merged, solving the "cross-column merge" issue.
+2.  **Phase 2: Micro-Merging (Graph-Based Clustering)**
+    *   Within each zone, text lines are treated as nodes in a graph.
+    *   We calculate an **Affinity Score** based on vertical distance, alignment, and size similarity.
+    *   **Benefit:** Uses a weighted scoring system rather than hard "if-else" rules, allowing for more nuanced decisions.
+3.  **Smart "Settlement" Logic:**
+    *   **Overlap Bonus:** Physically overlapping regions (e.g., from manual user edits) are strongly encouraged to merge.
+    *   **Scale Invariance:** All thresholds are calculated relative to the **Median Line Height**, ensuring consistent performance on both 720p and 4K images.
+    *   **Strict Hierarchy:** Enforces a hard veto on merging text with >10% font size difference, preserving the distinction between Titles and Body Text.
 
 ---
 
@@ -172,7 +191,7 @@ npm run build
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
 *   **角色萃取工具：** AI 驅動的角色特徵萃取功能，可從圖片中提取角色資訊並儲存，跨模式重複使用以維持角色設計一致性。
 *   **LINE 貼圖合規工具：** 專為 LINE 貼圖上架打造的工具，自動調整尺寸、強制偶數尺寸、生成封面圖 (main.png/tab.png)，並批次匯出 ZIP。
-*   **簡報轉 PPTX 工具：** 靈感來自 [DeckEdit](https://deckedit.com/)，將簡報圖片或 PDF 轉換為可編輯的 PowerPoint 檔案，所有處理皆在瀏覽器端完成：
+*   **簡報轉 PPTX 工具：** 靈感來自 [DeckEdit](https://deckedit.com/)，將簡報圖片或 PDF 轉換為可編輯的 PowerPoint 檔案，所有處理皆在瀏覽器端完成。不同於容易在複雜排版中失敗的全自動工具，Mediator 提供「人機協作」工作流，讓您在生成前能精確地手動修正 OCR 區域。
     *   **客戶端 OCR：** 使用 PaddleOCR v5 模型搭配 ONNX Runtime，支援 WebGPU 加速（自動降級至 WebAssembly）。
     *   **Tesseract.js 備援：** 針對辨識失敗的區域，自動使用 Tesseract.js 重新辨識。
     *   **手動編輯區域：** 在視覺化編輯器中手動新增、刪除或調整 OCR 區域，修正偵測錯誤。
@@ -205,6 +224,25 @@ npm run build
 3.  **雜訊過濾：** 自動過濾小於閾值 (20×20 像素) 的區域。
 4.  **Web Worker 卸載：** 所有繁重的像素處理都在專用 Web Worker 中執行，確保 UI 流暢。
 5.  **畫布提取 (Canvas Extraction)：** 將每個驗證後的區域提取到新的 `Canvas` 上下文中，並匯出為獨立的透明背景 PNG 檔案，可直接用於 Telegram、WhatsApp 或 Line 等通訊軟體。
+
+### 🧠 進階技術：混合式版面分析 (Hybrid Layout Analysis)
+
+針對 **簡報轉 PPTX** 功能，我們開發了一套先進的 **混合式版面分析引擎**，超越了其他工具使用的標準線性掃描方法。
+
+**為何這很重要：**
+傳統 OCR 工具常會錯誤合併無關的文字（如左/右欄混雜）或切斷相關的文字（如標題/副標題分離）。我們的引擎透過兩階段方法解決此問題：
+
+1.  **第一階段：宏觀分區 (Relaxed XY-Cut)**
+    *   使用遞迴投影分析來識別主要的版面區域（欄位、頁首、頁尾）。
+    *   **優勢：** 強制將物理上分離的欄位切開，徹底解決「跨欄誤判」問題。
+2.  **第二階段：微觀合併 (Graph-Based Clustering)**
+    *   在每個區域內，將文字行視為圖論中的節點。
+    *   計算基於垂直距離、對齊與大小相似度的 **親密度分數 (Affinity Score)**。
+    *   **優勢：** 使用加權評分系統取代僵硬的「if-else」規則，決策更具彈性。
+3.  **智慧「結算」邏輯：**
+    *   **重疊獎勵 (Overlap Bonus)：** 物理上重疊的區域（例如使用者的手動編輯框）會被強力建議合併。
+    *   **尺度不變性 (Scale Invariance)：** 所有閾值均相對於 **中位數行高** 計算，確保在 720p 與 4K 圖片上表現一致。
+    *   **嚴格層級：** 強制對字體大小差異 >10% 的文字進行否決，保留標題與內文的層級區分。
 
 ---
 
