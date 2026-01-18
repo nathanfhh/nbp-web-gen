@@ -19,11 +19,6 @@ const close = () => {
   isOpen.value = false
 }
 
-const save = () => {
-  // Settings are already saved reactively via updateSetting
-  isOpen.value = false
-}
-
 const handleReset = () => {
   resetToDefaults()
   localSettings.value = { ...settings }
@@ -204,21 +199,13 @@ defineExpose({ open, close })
                 {{ t('ocrSettings.resetToDefaults') }}
               </button>
 
-              <!-- Action Buttons -->
-              <div class="flex gap-3">
-                <button
-                  @click="close"
-                  class="px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-bg-muted border border-border-muted text-text-secondary hover:bg-bg-interactive"
-                >
-                  {{ t('common.cancel') }}
-                </button>
-                <button
-                  @click="save"
-                  class="px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-mode-generate text-text-on-brand hover:opacity-90"
-                >
-                  {{ t('common.confirm') }}
-                </button>
-              </div>
+              <!-- Confirm Button (settings auto-save on change) -->
+              <button
+                @click="close"
+                class="px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-mode-generate text-text-on-brand hover:opacity-90"
+              >
+                {{ t('common.confirm') }}
+              </button>
             </div>
           </div>
         </div>
