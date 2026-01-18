@@ -238,9 +238,10 @@ function preprocessForDetection(bitmap) {
     const g = data[i * 4 + 1] / 255
     const b = data[i * 4 + 2] / 255
 
-    float32Data[i] = (r - mean[0]) / std[0]
+    // BGR Order
+    float32Data[i] = (b - mean[2]) / std[2]
     float32Data[newWidth * newHeight + i] = (g - mean[1]) / std[1]
-    float32Data[2 * newWidth * newHeight + i] = (b - mean[2]) / std[2]
+    float32Data[2 * newWidth * newHeight + i] = (r - mean[0]) / std[0]
   }
 
   const tensor = new ort.Tensor('float32', float32Data, [1, 3, newHeight, newWidth])
@@ -311,9 +312,8 @@ function dilateMask(mask, width, height, iterationsH = 4, iterationsV = 2) {
 function postProcessDetection(output, width, height, scaleX, scaleY, originalWidth, originalHeight) {
   let data = output.data
   const outputDims = output.dims
-  const threshold = 0.2
-  // Reverted to 0.5 to match original implementation baseline
-  const boxThreshold = 0.5
+  const threshold = 0.3
+  const boxThreshold = 0.6
   // Original implementation uses minArea = 100
   // Since we now use aggressive horizontal dilation, small noise will be filtered out naturally
   // or merged into larger blocks. 100 is safe.
@@ -455,7 +455,7 @@ function postProcessDetection(output, width, height, scaleX, scaleY, originalWid
 
 function preprocessForRecognition(bitmap, box) {
   const targetHeight = 48
-  const maxWidth = 320
+  const maxWidth = 1280
 
   const xs = box.map((p) => p[0])
   const ys = box.map((p) => p[1])
@@ -490,9 +490,10 @@ function preprocessForRecognition(bitmap, box) {
     const g = (data[i * 4 + 1] / 255 - 0.5) / 0.5
     const b = (data[i * 4 + 2] / 255 - 0.5) / 0.5
 
-    float32Data[i] = r
+    // BGR Order
+    float32Data[i] = b
     float32Data[targetWidth * targetHeight + i] = g
-    float32Data[2 * targetWidth * targetHeight + i] = b
+    float32Data[2 * targetWidth * targetHeight + i] = r
   }
 
   return new ort.Tensor('float32', float32Data, [1, 3, targetHeight, targetWidth])
@@ -522,7 +523,11 @@ function decodeRecognition(output) {
     }
 
     if (maxIdx !== 0 && maxIdx !== prevIdx) {
-      if (maxIdx < dictionary.length) {
+      if (maxIdx === vocabSize - 1) {
+        text += ' '
+        totalConf += Math.exp(maxVal)
+        charCount++
+      } else if (maxIdx < dictionary.length) {
         text += dictionary[maxIdx]
         totalConf += Math.exp(maxVal)
         charCount++
@@ -762,17 +767,19 @@ async function recognize(imageDataUrl, requestId) {
     const recOutput = recResults[recSession.outputNames[0]]
 
     const { text, confidence } = decodeRecognition(recOutput)
-    const trimmedText = text.trim()
+    // Don't trim! Preserving leading/trailing spaces is crucial for layout analysis.
+    // Also normalize special spaces (full-width, NBSP) to standard space.
+    const rawText = text.replace(/\u3000/g, ' ').replace(/\u00A0/g, ' ')
 
     // Always push the result, marking recognition status
     rawResults.push({
-      text: trimmedText,
+      text: rawText,
       confidence,
       bounds,
       polygon: box,
       detectionScore,
-      recognitionFailed: !trimmedText,
-      failureReason: !trimmedText ? 'empty_text' : null,
+      recognitionFailed: !rawText.trim(),
+      failureReason: !rawText.trim() ? 'empty_text' : null,
     })
 
     const recognitionProgress = 50 + Math.round((i / detectedBoxes.length) * 40)

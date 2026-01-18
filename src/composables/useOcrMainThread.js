@@ -204,9 +204,10 @@ function preprocessForDetection(bitmap, ortModule) {
     const g = data[i * 4 + 1] / 255
     const b = data[i * 4 + 2] / 255
 
-    float32Data[i] = (r - mean[0]) / std[0]
+    // BGR Order
+    float32Data[i] = (b - mean[2]) / std[2]
     float32Data[newWidth * newHeight + i] = (g - mean[1]) / std[1]
-    float32Data[2 * newWidth * newHeight + i] = (b - mean[2]) / std[2]
+    float32Data[2 * newWidth * newHeight + i] = (r - mean[0]) / std[0]
   }
 
   const tensor = new ortModule.Tensor('float32', float32Data, [1, 3, newHeight, newWidth])
@@ -224,7 +225,8 @@ function preprocessForDetection(bitmap, ortModule) {
 
 function preprocessForRecognition(bitmap, box, ortModule) {
   const targetHeight = 48
-  const maxWidth = 320
+  // Increased to 1280 to handle long text lines
+  const maxWidth = 1280
 
   const xs = box.map((p) => p[0])
   const ys = box.map((p) => p[1])
@@ -243,6 +245,7 @@ function preprocessForRecognition(bitmap, box, ortModule) {
   targetWidth = Math.min(targetWidth, maxWidth)
   targetWidth = Math.max(targetWidth, 10)
 
+  // Use OffscreenCanvas (works in main thread too)
   const canvas = new OffscreenCanvas(targetWidth, targetHeight)
   const ctx = canvas.getContext('2d')
 
@@ -259,9 +262,10 @@ function preprocessForRecognition(bitmap, box, ortModule) {
     const g = (data[i * 4 + 1] / 255 - 0.5) / 0.5
     const b = (data[i * 4 + 2] / 255 - 0.5) / 0.5
 
-    float32Data[i] = r
+    // BGR Order
+    float32Data[i] = b
     float32Data[targetWidth * targetHeight + i] = g
-    float32Data[2 * targetWidth * targetHeight + i] = b
+    float32Data[2 * targetWidth * targetHeight + i] = r
   }
 
   return new ortModule.Tensor('float32', float32Data, [1, 3, targetHeight, targetWidth])
@@ -317,8 +321,8 @@ function dilateMask(mask, width, height, iterationsH = 4, iterationsV = 2) {
 function postProcessDetection(output, width, height, scaleX, scaleY, originalWidth, originalHeight) {
   const data = output.data
   const outputDims = output.dims
-  const threshold = 0.2
-  const boxThreshold = 0.5
+  const threshold = 0.3
+  const boxThreshold = 0.6
   const minArea = 100
 
   let outputH, outputW
@@ -456,7 +460,11 @@ function decodeRecognition(output, dictionary) {
     }
 
     if (maxIdx !== 0 && maxIdx !== prevIdx) {
-      if (maxIdx < dictionary.length) {
+      if (maxIdx === vocabSize - 1) {
+        text += ' '
+        totalConf += Math.exp(maxVal)
+        charCount++
+      } else if (maxIdx < dictionary.length) {
         text += dictionary[maxIdx]
         totalConf += Math.exp(maxVal)
         charCount++
@@ -806,9 +814,12 @@ export function useOcrMainThread() {
         const recTensorOutput = recOutput[Object.keys(recOutput)[0]]
         const { text, confidence } = decodeRecognition(recTensorOutput, dictionary)
 
-        const trimmedText = text.trim()
+        // Don't trim! Preserving leading/trailing spaces is crucial for layout analysis.
+        // Also normalize special spaces.
+        const rawText = text.replace(/\u3000/g, ' ').replace(/\u00A0/g, ' ')
+        
         rawResults.push({
-          text: trimmedText,
+          text: rawText,
           confidence,
           bounds: {
             x: Math.min(...box.map((p) => p[0])),
@@ -818,8 +829,8 @@ export function useOcrMainThread() {
           },
           polygon: box,
           detectionScore: score,
-          recognitionFailed: !trimmedText,
-          failureReason: !trimmedText ? 'empty_text' : null,
+          recognitionFailed: !rawText.trim(),
+          failureReason: !rawText.trim() ? 'empty_text' : null,
         })
 
         if (onProgress) {
