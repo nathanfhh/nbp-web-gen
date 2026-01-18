@@ -5,6 +5,10 @@
 
 import { ref } from 'vue'
 import PptxGenJS from 'pptxgenjs'
+import {
+  calculateFontSizeForMultilineText,
+  PPTX_FONT_STACK,
+} from '@/utils/text-measure'
 
 /**
  * @typedef {Object} SlideData
@@ -180,77 +184,40 @@ export function usePptxExport() {
             const w = pxToInches(region.bounds.width, slideData.width, slideSize.width)
             const h = pxToInches(region.bounds.height, slideData.height, slideSize.height)
 
-            // Calculate Font Size (Refined Algorithm)
+            // Calculate Font Size
+            // Strategy: Height-based PRIMARY (preserves original proportions),
+            //           Width-based as CEILING (prevents text overflow)
             let fontSize
-            
-            // 1. Width-Based Estimation (User Request):
-            // Estimate based on the width of the longest line and its character count
-            let widthBasedSize = 0
-            const lines = region.text.split('\n')
-            let maxLineWeight = 0
 
-            // Character weight function using charCodeAt for performance (O(1) vs regex O(n))
-            const getCharWeight = (char) => {
-              const code = char.charCodeAt(0)
-              // CJK (Wide): \u4e00-\u9fa5, \u3000-\u303f, \uff00-\uffef
-              if (
-                (code >= 0x4e00 && code <= 0x9fa5) ||
-                (code >= 0x3000 && code <= 0x303f) ||
-                (code >= 0xff00 && code <= 0xffef)
-              ) {
-                return 1.0
-              }
-              // Uppercase A-Z
-              if (code >= 0x41 && code <= 0x5a) {
-                return 0.7
-              }
-              // Lowercase a-z or digits 0-9
-              if ((code >= 0x61 && code <= 0x7a) || (code >= 0x30 && code <= 0x39)) {
-                return 0.55
-              }
-              // Punctuation/Space/Other
-              return 0.3
-            }
-
-            for (const line of lines) {
-              let weight = 0
-              for (const char of line) {
-                weight += getCharWeight(char)
-              }
-              maxLineWeight = Math.max(maxLineWeight, weight)
-            }
-
-            if (maxLineWeight > 0) {
-              // Font Size (pt) ≈ (Width (inch) / WeightedCharCount) * 72 (points per inch)
-              widthBasedSize = (w / maxLineWeight) * 72
-            }
-
-            // 2. Height-Based Estimation (OCR Metadata):
+            // 1. Height-Based Estimation (PRIMARY)
+            // OCR's fontSize = average line height in pixels
+            // Line height ≈ font size × 1.2, so we divide by 1.2 to get actual font size
+            const LINE_HEIGHT_RATIO = 1.2
             let heightBasedSize = 0
-            if (region.fontSize) {
-               // Convert pixel height to points (use height ratio for vertical scaling)
-               heightBasedSize = (region.fontSize / slideData.height) * slideSize.height * 72
-            }
-
-            // 3. Selection Logic
-            if (widthBasedSize > 0) {
-               // Use width-based size to ensure text fits horizontally
-               fontSize = widthBasedSize
-               
-               // Sanity check: if width-based is significantly larger than height-based (e.g. > 1.5x),
-               // it might mean the text box is very wide but text is short. 
-               // In that case, cap it closer to height-based to avoid huge text.
-               if (heightBasedSize > 0 && widthBasedSize > heightBasedSize * 1.5) {
-                 fontSize = heightBasedSize * 1.2
-               }
-            } else if (heightBasedSize > 0) {
-               fontSize = heightBasedSize
+            if (region.fontSize && region.fontSize > 0) {
+              // Convert pixel height to points, accounting for line height ratio
+              heightBasedSize =
+                (region.fontSize / slideData.height) * slideSize.height * 72 / LINE_HEIGHT_RATIO
             } else {
-               // Fallback: Estimate from box height (assuming single line)
-               fontSize = h * 72 / 1.2
+              // Fallback: estimate from box height (assuming single line with padding)
+              heightBasedSize = (h * 72) / LINE_HEIGHT_RATIO
             }
 
-            // Clamp font size
+            // 2. Width-Based Estimation (CEILING)
+            // Ensures text doesn't overflow the box width
+            const widthBasedSize = calculateFontSizeForMultilineText(
+              region.text,
+              w, // box width in inches
+              PPTX_FONT_STACK,
+              { minSize: 8, maxSize: 120 }
+            )
+
+            // 3. Selection Logic: Use height-based, but cap at width-based
+            // This ensures consistent font sizes for similar-height boxes,
+            // while preventing text from overflowing
+            fontSize = Math.min(heightBasedSize, widthBasedSize)
+
+            // Clamp font size to reasonable range
             fontSize = Math.max(8, Math.min(120, Math.round(fontSize)))
 
             slide.addText(region.text, {
@@ -259,7 +226,7 @@ export function usePptxExport() {
               w,
               h,
               fontSize,
-              fontFace: 'Arial',
+              fontFace: 'Arial', // Primary font (matches PPTX_FONT_STACK)
               color: '000000',
               align: region.alignment || 'left', // Use inferred alignment
               valign: 'top', // Align text to top of box (important for multi-line)
