@@ -28,7 +28,7 @@ export const OCR_DEFAULTS = {
   unclipRatio: 1.5,
 
   // Morphological dilation iterations - horizontal (connects characters in a line)
-  dilationH: 1,
+  dilationH: 2,
 
   // Morphological dilation iterations - vertical (connects strokes, less aggressive)
   dilationV: 1,
