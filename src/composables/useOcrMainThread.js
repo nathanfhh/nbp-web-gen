@@ -85,8 +85,6 @@ async function loadOnnxRuntime() {
 // Shared utilities from ocr-core.js
 import {
   mergeTextRegions,
-  getMinTesseractConfidence,
-  cropRegionToDataUrl,
   hasWebGPU,
   isMobile,
   loadImage,
@@ -94,6 +92,7 @@ import {
   postProcessDetection,
   preprocessForRecognition,
   decodeRecognition,
+  createTesseractFallback,
 } from '../utils/ocr-core.js'
 
 // ============================================================================ 
@@ -245,12 +244,11 @@ export function useOcrMainThread() {
   let dictionary = null
   let isInitialized = false
 
-  // Tesseract state
-  let tesseractWorker = null
-  let tesseractInitPromise = null
-
   // Initialization promise
   let initPromise = null
+
+  // Tesseract fallback (created lazily when first needed)
+  let tesseractFallback = null
 
   /**
    * Report progress
@@ -261,102 +259,17 @@ export function useOcrMainThread() {
   }
 
   /**
-   * Initialize Tesseract (lazy)
+   * Get or create Tesseract fallback instance
+   * Lazily initialized to avoid loading Tesseract until needed
    */
-  async function initializeTesseract() {
-    if (tesseractWorker) return tesseractWorker
-    if (tesseractInitPromise) return tesseractInitPromise
-
-    tesseractInitPromise = (async () => {
-      const originalWarn = console.warn
-      console.warn = (...args) => {
-        const message = args[0]?.toString() || ''
-        if (!message.includes('Parameter not found')) {
-          originalWarn.apply(console, args)
-        }
-      }
-
-      try {
-        tesseractWorker = await Tesseract.createWorker(['eng', 'chi_tra'], 1, {
-          errorHandler: (err) => {
-            if (!err.message?.includes('Parameter not found')) {
-              console.error('Tesseract error:', err)
-            }
-          },
-        })
-      } finally {
-        console.warn = originalWarn
-      }
-
-      return tesseractWorker
-    })()
-
-    return tesseractInitPromise
-  }
-
-  /**
-   * Recognize with Tesseract fallback
-   */
-  async function recognizeWithTesseract(bitmap, region) {
-    try {
-      const worker = await initializeTesseract()
-      const croppedDataUrl = await cropRegionToDataUrl(bitmap, region.bounds)
-
-      const result = await worker.recognize(croppedDataUrl)
-      const text = result.data.text.trim()
-      const confidence = result.data.confidence
-
-      const minConfidence = getMinTesseractConfidence(text)
-      if (text && confidence >= minConfidence) {
-        return { text, confidence }
-      }
-      return null
-    } catch (err) {
-      console.warn('Tesseract recognition failed:', err)
-      return null
+  function getTesseractFallback(onProgress) {
+    if (!tesseractFallback) {
+      tesseractFallback = createTesseractFallback(
+        Tesseract,
+        (value, message) => onProgress?.(value, message, 'tesseract')
+      )
     }
-  }
-
-  /**
-   * Apply Tesseract fallback for failed regions
-   */
-  async function applyTesseractFallback(bitmap, rawResults, onProgress) {
-    const failedRegions = rawResults.filter((r) => r.recognitionFailed)
-    if (failedRegions.length === 0) return rawResults
-
-    if (onProgress) {
-      onProgress(0, `Trying Tesseract fallback for ${failedRegions.length} region(s)...`, 'tesseract')
-    }
-
-    let recoveredCount = 0
-    for (let i = 0; i < failedRegions.length; i++) {
-      const region = failedRegions[i]
-      const tesseractResult = await recognizeWithTesseract(bitmap, region)
-
-      if (tesseractResult) {
-        region.text = tesseractResult.text
-        region.confidence = tesseractResult.confidence
-        region.recognitionFailed = false
-        region.failureReason = null
-        region.recognitionSource = 'tesseract'
-        recoveredCount++
-      }
-
-      if (onProgress) {
-        const prog = Math.round(((i + 1) / failedRegions.length) * 100)
-        onProgress(prog, `Tesseract: ${i + 1}/${failedRegions.length}`, 'tesseract')
-      }
-    }
-
-    if (onProgress) {
-      if (recoveredCount > 0) {
-        onProgress(100, `Tesseract recovered ${recoveredCount}/${failedRegions.length} region(s)`, 'tesseract')
-      } else {
-        onProgress(100, `Tesseract could not recover any regions`, 'tesseract')
-      }
-    }
-
-    return rawResults
+    return tesseractFallback
   }
 
   /**
@@ -518,7 +431,9 @@ export function useOcrMainThread() {
 
       let detOutput
       try {
-        detOutput = await detSession.run({ x: detTensor })
+        // Use dynamic input name (same as CPU worker for consistency)
+        const detFeeds = { [detSession.inputNames[0]]: detTensor }
+        detOutput = await detSession.run(detFeeds)
       } catch (e) {
         const errorMsg = e.message || String(e)
         if (isGpuMemoryError(errorMsg)) {
@@ -527,7 +442,8 @@ export function useOcrMainThread() {
         }
         throw e
       }
-      const outputTensor = detOutput[Object.keys(detOutput)[0]]
+      // Use dynamic output name (same as CPU worker for consistency)
+      const outputTensor = detOutput[detSession.outputNames[0]]
 
       if (onProgress) onProgress(30, 'Processing detection results...', 'detection')
       const detectedBoxes = postProcessDetection(
@@ -569,7 +485,9 @@ export function useOcrMainThread() {
 
         let recOutput
         try {
-          recOutput = await recSession.run({ x: recTensor })
+          // Use dynamic input name (same as CPU worker for consistency)
+          const recFeeds = { [recSession.inputNames[0]]: recTensor }
+          recOutput = await recSession.run(recFeeds)
         } catch (e) {
           const errorMsg = e.message || String(e)
           if (isGpuMemoryError(errorMsg)) {
@@ -578,7 +496,8 @@ export function useOcrMainThread() {
           }
           throw e
         }
-        const recTensorOutput = recOutput[Object.keys(recOutput)[0]]
+        // Use dynamic output name (same as CPU worker for consistency)
+        const recTensorOutput = recOutput[recSession.outputNames[0]]
         const { text, confidence } = decodeRecognition(recTensorOutput, dictionary)
 
         // Don't trim! Preserving leading/trailing spaces is crucial for layout analysis.
@@ -606,8 +525,9 @@ export function useOcrMainThread() {
         }
       }
 
-      // Tesseract fallback
-      await applyTesseractFallback(bitmap, rawResults, onProgress)
+      // Tesseract fallback (uses shared factory from ocr-core.js)
+      const { applyTesseractFallback } = getTesseractFallback(onProgress)
+      await applyTesseractFallback(bitmap, rawResults)
 
       if (onProgress) onProgress(95, 'Analyzing layout...', 'merge')
       const mergedResults = mergeTextRegions(rawResults)
@@ -693,10 +613,9 @@ export function useOcrMainThread() {
       recSession.release()
       recSession = null
     }
-    if (tesseractWorker) {
-      await tesseractWorker.terminate()
-      tesseractWorker = null
-      tesseractInitPromise = null
+    if (tesseractFallback) {
+      await tesseractFallback.terminateTesseract()
+      tesseractFallback = null
     }
 
     dictionary = null

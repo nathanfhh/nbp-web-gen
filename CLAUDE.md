@@ -107,26 +107,51 @@ scaleX = originalWidth / scaledWidth  // scaledWidth 是實際內容寬度
 ```
 **原因**: 補白區域（padding）不包含內容，但錯誤的縮放比例會假設內容填滿整個 canvas，導致座標偏移（越靠右下角偏移越大）。
 
-#### 4. Layout Analysis - Text Block Merging
+#### 4. OCR Architecture - CPU/GPU Unified Implementation
 
-Raw OCR detections (single lines) must be merged into logical paragraphs. This is handled by `mergeTextRegions()` in `ocr-core.js`, using **Recursive XY-Cut** algorithm:
+OCR 有兩種執行模式（WebGPU 主執行緒 / WASM Worker），核心邏輯已統一：
 
-1. **Vertical Cut**: Separates columns by detecting wide vertical gaps (threshold: 1.5× median line height)
-2. **Horizontal Cut**: Separates sections/paragraphs by detecting horizontal gaps (threshold: 0.3× median line height)
-3. **Leaf Nodes**: When no more cuts can be made, regions become atomic text blocks
-4. **Smart Text Joining**: Within each block, lines on the same row (Y-center within 0.7× height) are joined with spaces; different rows are joined with newlines
+| 共用檔案 | 內容 |
+|----------|------|
+| `utils/ocr-core.js` | 所有 OCR 演算法（前處理、後處理、Layout 分析、Tesseract fallback） |
+| `constants/ocrDefaults.js` | 參數預設值與驗證規則 |
+| `composables/useOcrSettings.js` | 設定管理 (localStorage) |
 
-**Key Parameters** (update docs when modifying):
-| Parameter | Location | Description |
-|-----------|----------|-------------|
-| `dilateMask(mask, w, h, 2, 1)` | `ocr.worker.js`, `useOcrMainThread.js` | Morphological dilation, controls box padding |
-| `unclipRatio = 1.5` | Same as above | DBNet box expansion ratio |
-| `threshold = 0.3` | Same as above | Detection confidence threshold |
-| `boxThreshold = 0.6` | Same as above | Box score threshold |
-| Column gap `1.5 × medianHeight` | `ocr-core.js` | Vertical cut threshold |
-| Section gap `0.3 × medianHeight` | `ocr-core.js` | Horizontal cut threshold |
+**修改原則：**
+- 修改 OCR 演算法 → 只改 `ocr-core.js`
+- 修改參數預設值 → 只改 `ocrDefaults.js`
+- 修改 ONNX/快取邏輯 → 兩邊都要改（`useOcrMainThread.js` + `ocr.worker.js`）
+
+> **Architecture Details**: See [`docs/ocr-architecture.md`](docs/ocr-architecture.md)
+>
+> **⚠️ 維護提醒**：修改 OCR 相關邏輯時，請同步更新 `docs/ocr-architecture.md`
+
+#### 5. Layout Analysis - Text Block Merging
+
+Raw OCR detections (single lines) must be merged into logical paragraphs. This is done using a Recursive XY-Cut algorithm combined with heuristic line grouping.
 
 > **Algorithm Details**: See [`docs/layout-analysis-algorithm.md`](docs/layout-analysis-algorithm.md)
+
+#### 6. PPTX Text Box Font Sizing
+
+Font size calculation uses **Canvas measureText API** for accurate width measurement:
+
+| File | Description |
+|------|-------------|
+| `utils/text-measure.js` | Canvas-based text measurement utility |
+| `composables/usePptxExport.js` | PPTX generation with font size calculation |
+
+**Algorithm:**
+1. **Binary search** to find optimal font size that fits text within box width
+2. **Expansion factor** (1.15×) applied to Canvas measurement to account for PPTX rendering wider
+3. **Height-based fallback** caps font size if width-based result is too large (> 1.5× OCR height)
+4. **Spaces preserved** - all whitespace characters are included in width measurement
+
+**Key Constants** (`text-measure.js`):
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `TEXT_WIDTH_EXPANSION` | 1.15 | Multiplier for Canvas width → accounts for PPTX rendering wider. Increase if text wraps, decrease if too much whitespace. |
+| `PPTX_FONT_STACK` | `Arial, "Microsoft YaHei", "PingFang SC", sans-serif` | Cross-platform font fallback |
 
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.

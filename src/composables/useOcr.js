@@ -145,8 +145,7 @@ export function useOcr() {
     } else {
       ocrInstance.value = useOcrWorker()
       activeEngine.value = 'wasm'
-      // Sync current settings to Worker
-      syncOcrSettings()
+      // Note: syncOcrSettings() is called in initialize() after worker is created
     }
     instanceType = targetType
 
@@ -209,6 +208,9 @@ export function useOcr() {
     try {
       isLoading.value = true
       await instance.initialize(wrappedOnProgress)
+      // Sync settings AFTER worker is created (for WASM mode)
+      // This ensures the worker has the latest settings from localStorage
+      syncOcrSettings()
       syncState()
     } finally {
       isLoading.value = false
@@ -267,6 +269,8 @@ export function useOcr() {
         await wasmInstance.initialize((value, message) => {
           wrappedOnProgress(value, message, 'init')
         })
+        // Sync settings after worker is created
+        syncOcrSettings()
         syncState()
 
         // Retry recognition with WASM

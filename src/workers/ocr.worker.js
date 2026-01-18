@@ -14,13 +14,12 @@ import Tesseract from 'tesseract.js'
 // Shared OCR utilities from ocr-core.js
 import {
   mergeTextRegions,
-  getMinTesseractConfidence,
-  cropRegionToDataUrl,
   loadImage,
   preprocessForDetection,
   postProcessDetection,
   preprocessForRecognition,
   decodeRecognition,
+  createTesseractFallback,
 } from '../utils/ocr-core.js'
 
 // OCR default settings
@@ -66,9 +65,11 @@ let isInitialized = false
 // OCR settings (updated via postMessage from main thread)
 let ocrSettings = { ...OCR_DEFAULTS }
 
-// Tesseract.js state (lazy initialized)
-let tesseractWorker = null
-let tesseractInitPromise = null
+// Tesseract fallback (created via factory from ocr-core.js)
+const { applyTesseractFallback, terminateTesseract } = createTesseractFallback(
+  Tesseract,
+  (value, message) => reportProgress('tesseract', value, message)
+)
 
 // ============================================================================
 // Progress Reporting
@@ -186,100 +187,6 @@ async function loadAllModels() {
   reportProgress('model', 90, 'ocr:loadingDict')
 
   return { detection, recognition, dictionary: dictText }
-}
-
-// ============================================================================
-// Tesseract.js Fallback (Lazy Initialized)
-// ============================================================================
-
-async function initializeTesseract() {
-  if (tesseractWorker) return tesseractWorker
-  if (tesseractInitPromise) return tesseractInitPromise
-
-  tesseractInitPromise = (async () => {
-    reportProgress('tesseract', 0, 'Loading Tesseract fallback...')
-
-    const originalWarn = console.warn
-    console.warn = (...args) => {
-      const message = args[0]?.toString() || ''
-      if (!message.includes('Parameter not found')) {
-        originalWarn.apply(console, args)
-      }
-    }
-
-    try {
-      tesseractWorker = await Tesseract.createWorker(['eng', 'chi_tra'], 1, {
-        errorHandler: (err) => {
-          if (!err.message?.includes('Parameter not found')) {
-            console.error('Tesseract error:', err)
-          }
-        },
-      })
-    } finally {
-      console.warn = originalWarn
-    }
-
-    reportProgress('tesseract', 100, 'Tesseract ready')
-    return tesseractWorker
-  })()
-
-  return tesseractInitPromise
-}
-
-async function recognizeWithTesseract(bitmap, region) {
-  try {
-    const worker = await initializeTesseract()
-    const croppedDataUrl = await cropRegionToDataUrl(bitmap, region.bounds)
-
-    const result = await worker.recognize(croppedDataUrl)
-    const text = result.data.text.trim()
-    const confidence = result.data.confidence
-
-    const minConfidence = getMinTesseractConfidence(text)
-    if (text && confidence >= minConfidence) {
-      return { text, confidence }
-    }
-    return null
-  } catch (error) {
-    console.warn('Tesseract recognition failed:', error)
-    return null
-  }
-}
-
-async function applyTesseractFallback(bitmap, rawResults, requestId) {
-  const failedRegions = rawResults.filter((r) => r.recognitionFailed)
-
-  if (failedRegions.length === 0) {
-    return rawResults
-  }
-
-  reportProgress('tesseract', 0, `Trying Tesseract fallback for ${failedRegions.length} region(s)...`, requestId)
-
-  let recoveredCount = 0
-  for (let i = 0; i < failedRegions.length; i++) {
-    const region = failedRegions[i]
-    const tesseractResult = await recognizeWithTesseract(bitmap, region)
-
-    if (tesseractResult) {
-      region.text = tesseractResult.text
-      region.confidence = tesseractResult.confidence
-      region.recognitionFailed = false
-      region.failureReason = null
-      region.recognitionSource = 'tesseract'
-      recoveredCount++
-    }
-
-    const progress = Math.round(((i + 1) / failedRegions.length) * 100)
-    reportProgress('tesseract', progress, `Tesseract: ${i + 1}/${failedRegions.length}`, requestId)
-  }
-
-  if (recoveredCount > 0) {
-    reportProgress('tesseract', 100, `Tesseract recovered ${recoveredCount}/${failedRegions.length} region(s)`, requestId)
-  } else {
-    reportProgress('tesseract', 100, `Tesseract could not recover any regions`, requestId)
-  }
-
-  return rawResults
 }
 
 // ============================================================================
@@ -405,7 +312,7 @@ async function recognize(imageDataUrl, requestId) {
     reportProgress('recognition', recognitionProgress, `Recognizing ${i + 1}/${detectedBoxes.length}...`, requestId)
   }
 
-  await applyTesseractFallback(bitmap, rawResults, requestId)
+  await applyTesseractFallback(bitmap, rawResults)
 
   reportProgress('merge', 95, 'Analyzing layout...', requestId)
   const mergedResults = mergeTextRegions(rawResults)
@@ -453,11 +360,7 @@ self.onmessage = async (e) => {
           recSession.release()
           recSession = null
         }
-        if (tesseractWorker) {
-          await tesseractWorker.terminate()
-          tesseractWorker = null
-          tesseractInitPromise = null
-        }
+        await terminateTesseract()
         dictionary = null
         isInitialized = false
         self.close()

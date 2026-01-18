@@ -851,3 +851,166 @@ export function decodeRecognition(output, dictionary) {
   const confidence = charCount > 0 ? Math.round((totalConf / charCount) * 100) : 0
   return { text, confidence: Math.min(100, confidence) }
 }
+
+// ============================================================================
+// Tesseract.js Fallback Factory
+// Creates Tesseract fallback functions with shared logic for Worker and Main Thread
+// ============================================================================
+
+/**
+ * Create Tesseract fallback functions
+ *
+ * Factory function that returns Tesseract helper functions. Each caller (Worker/Main Thread)
+ * gets its own Tesseract worker instance but shares the same logic.
+ *
+ * @param {Function} Tesseract - Tesseract.js module (must be imported by caller)
+ * @param {Function} onProgress - Progress callback: (value: number, message: string) => void
+ * @returns {Object} - { initializeTesseract, recognizeWithTesseract, applyTesseractFallback, terminateTesseract }
+ *
+ * @example
+ * // In Worker:
+ * import Tesseract from 'tesseract.js'
+ * const { applyTesseractFallback, terminateTesseract } = createTesseractFallback(
+ *   Tesseract,
+ *   (value, msg) => self.postMessage({ type: 'progress', stage: 'tesseract', value, message: msg })
+ * )
+ *
+ * @example
+ * // In Main Thread:
+ * import Tesseract from 'tesseract.js'
+ * const { applyTesseractFallback, terminateTesseract } = createTesseractFallback(
+ *   Tesseract,
+ *   (value, msg) => onProgress?.(value, msg, 'tesseract')
+ * )
+ */
+export function createTesseractFallback(Tesseract, onProgress = () => {}) {
+  // Instance state (each caller gets its own)
+  let tesseractWorker = null
+  let tesseractInitPromise = null
+
+  /**
+   * Initialize Tesseract worker (lazy, singleton per instance)
+   */
+  async function initializeTesseract() {
+    if (tesseractWorker) return tesseractWorker
+    if (tesseractInitPromise) return tesseractInitPromise
+
+    tesseractInitPromise = (async () => {
+      onProgress(0, 'Loading Tesseract fallback...')
+
+      // Suppress "Parameter not found" warnings from Tesseract
+      const originalWarn = console.warn
+      console.warn = (...args) => {
+        const message = args[0]?.toString() || ''
+        if (!message.includes('Parameter not found')) {
+          originalWarn.apply(console, args)
+        }
+      }
+
+      try {
+        tesseractWorker = await Tesseract.createWorker(['eng', 'chi_tra'], 1, {
+          errorHandler: (err) => {
+            if (!err.message?.includes('Parameter not found')) {
+              console.error('Tesseract error:', err)
+            }
+          },
+        })
+      } finally {
+        console.warn = originalWarn
+      }
+
+      onProgress(100, 'Tesseract ready')
+      return tesseractWorker
+    })()
+
+    return tesseractInitPromise
+  }
+
+  /**
+   * Recognize a single region with Tesseract
+   *
+   * @param {ImageBitmap} bitmap - Source image
+   * @param {Object} region - Region with bounds property
+   * @returns {Promise<{text: string, confidence: number}|null>}
+   */
+  async function recognizeWithTesseract(bitmap, region) {
+    try {
+      const worker = await initializeTesseract()
+      const croppedDataUrl = await cropRegionToDataUrl(bitmap, region.bounds)
+
+      const result = await worker.recognize(croppedDataUrl)
+      const text = result.data.text.trim()
+      const confidence = result.data.confidence
+
+      const minConfidence = getMinTesseractConfidence(text)
+      if (text && confidence >= minConfidence) {
+        return { text, confidence }
+      }
+      return null
+    } catch (error) {
+      console.warn('Tesseract recognition failed:', error)
+      return null
+    }
+  }
+
+  /**
+   * Apply Tesseract fallback for regions that failed PaddleOCR recognition
+   *
+   * @param {ImageBitmap} bitmap - Source image
+   * @param {Array} rawResults - Array of OCR results (will be mutated)
+   * @returns {Promise<Array>} - Same array with recovered regions updated
+   */
+  async function applyTesseractFallback(bitmap, rawResults) {
+    const failedRegions = rawResults.filter((r) => r.recognitionFailed)
+
+    if (failedRegions.length === 0) {
+      return rawResults
+    }
+
+    onProgress(0, `Trying Tesseract fallback for ${failedRegions.length} region(s)...`)
+
+    let recoveredCount = 0
+    for (let i = 0; i < failedRegions.length; i++) {
+      const region = failedRegions[i]
+      const tesseractResult = await recognizeWithTesseract(bitmap, region)
+
+      if (tesseractResult) {
+        region.text = tesseractResult.text
+        region.confidence = tesseractResult.confidence
+        region.recognitionFailed = false
+        region.failureReason = null
+        region.recognitionSource = 'tesseract'
+        recoveredCount++
+      }
+
+      const progress = Math.round(((i + 1) / failedRegions.length) * 100)
+      onProgress(progress, `Tesseract: ${i + 1}/${failedRegions.length}`)
+    }
+
+    if (recoveredCount > 0) {
+      onProgress(100, `Tesseract recovered ${recoveredCount}/${failedRegions.length} region(s)`)
+    } else {
+      onProgress(100, `Tesseract could not recover any regions`)
+    }
+
+    return rawResults
+  }
+
+  /**
+   * Terminate Tesseract worker and clean up resources
+   */
+  async function terminateTesseract() {
+    if (tesseractWorker) {
+      await tesseractWorker.terminate()
+      tesseractWorker = null
+      tesseractInitPromise = null
+    }
+  }
+
+  return {
+    initializeTesseract,
+    recognizeWithTesseract,
+    applyTesseractFallback,
+    terminateTesseract,
+  }
+}
