@@ -230,7 +230,7 @@ export function usePptxExport() {
               color: '000000',
               align: region.alignment || 'left', // Use inferred alignment
               valign: 'top', // Align text to top of box (important for multi-line)
-              wrap: true,
+              wrap: false, // Let text overflow instead of wrapping (unless \n exists)
               // Make text box transparent so background shows through
               fill: { type: 'none' },
               line: { type: 'none' },

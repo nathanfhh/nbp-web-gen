@@ -39,7 +39,7 @@ export const PPTX_FONT_STACK = 'Arial, "Microsoft YaHei", "PingFang SC", sans-se
  * If text is still wrapping in PPTX, increase this value (e.g., 1.20)
  * If text boxes have too much empty space, decrease this value (e.g., 1.10)
  */
-export const TEXT_WIDTH_EXPANSION = 1.15
+export const TEXT_WIDTH_EXPANSION = 1.05
 
 /**
  * DPI constants for unit conversion
