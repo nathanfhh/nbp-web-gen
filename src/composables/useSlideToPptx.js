@@ -729,30 +729,45 @@ Output: A single clean image with all text removed.`
     addLog(t('slideToPptx.logs.generatingPptx'))
 
     try {
-      // Generate filename based on content
-      // 1. Extract first text from first slide
+      // Generate filename and metadata based on content
+      // 1. Extract topmost text from first slide (by y-coordinate)
       let title = 'Presentation'
       const firstSlide = slideStates.value.find(s => s.status === 'done')
-      
+
       if (firstSlide && firstSlide.ocrResults && firstSlide.ocrResults.length > 0) {
-        const firstText = firstSlide.ocrResults[0].text || ''
+        // Sort by y-coordinate to find topmost text region
+        const sortedResults = [...firstSlide.ocrResults].sort((a, b) => {
+          const aY = a.bounds?.y ?? Infinity
+          const bY = b.bounds?.y ?? Infinity
+          return aY - bY
+        })
+        const topmostText = sortedResults[0]?.text || ''
         // Sanitize: remove invalid chars, newlines, and extra spaces
-        const sanitized = firstText.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
+        const sanitized = topmostText.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
         if (sanitized.length > 0) {
-          title = sanitized.substring(0, 15)
+          // Take first 20 chars, add ellipsis if truncated
+          title = sanitized.length > 20 ? sanitized.substring(0, 20) + '...' : sanitized
         }
       }
 
-      // 2. Add timestamp (YYYYMMDD-HHMMSS)
+      // 2. Build author/company with version
+      const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown'
+      const author = `Mediator v${version}`
+
+      // 3. Generate filename with timestamp (YYYYMMDD-HHMMSS)
+      // Use shorter title (15 chars) for filename to avoid overly long names
+      const filenameTitle = title.length > 15 ? title.substring(0, 15) : title.replace(/\.\.\.$/, '')
       const now = new Date()
       const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
       const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '')
-      const filename = `${title}-${dateStr}-${timeStr}.pptx`
+      const filename = `${filenameTitle}-${dateStr}-${timeStr}.pptx`
 
       await pptx.downloadPptx(successfulSlides, {
         ratio: settings.slideRatio,
-        title: title, // Metadata title
-      }, filename) // Actual filename
+        title: title, // Metadata title (up to 20 chars + ...)
+        author: author, // Metadata author
+        company: author, // Metadata company (same as author)
+      }, filename) // Actual filename (shorter)
 
       addLog(t('slideToPptx.logs.downloadComplete'), 'success')
       isPreviewMode.value = false

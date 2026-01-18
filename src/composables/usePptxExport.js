@@ -23,6 +23,7 @@ import {
  * @property {'16:9'|'4:3'|'9:16'|'auto'} ratio - Slide aspect ratio
  * @property {string} title - Presentation title
  * @property {string} author - Presentation author
+ * @property {string} company - Presentation company
  */
 
 /**
@@ -134,6 +135,7 @@ export function usePptxExport() {
       // Set metadata
       pptx.title = options.title || 'Presentation'
       pptx.author = options.author || 'Mediator'
+      pptx.company = options.company || 'Mediator'
       pptx.subject = 'Generated from slide images'
 
       // Determine layout from first slide
