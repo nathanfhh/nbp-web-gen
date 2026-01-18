@@ -318,7 +318,7 @@ export function useOcr() {
    * @param {number} padding
    * @returns {ImageData}
    */
-  function generateMask(width, height, ocrResults, padding = 5) {
+  function generateMask(width, height, ocrResults, padding = 1) {
     const instance = ensureInstance()
     return instance.generateMask(width, height, ocrResults, padding)
   }

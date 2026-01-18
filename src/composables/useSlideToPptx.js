@@ -15,6 +15,7 @@ import { useOcr } from './useOcr'
 import { useInpaintingWorker } from './useInpaintingWorker'
 import { usePptxExport } from './usePptxExport'
 import { useApiKeyManager } from './useApiKeyManager'
+import { getSettings as getOcrSettings } from './useOcrSettings'
 import { mergeTextRegions } from '@/utils/ocr-core'
 import i18n from '@/i18n'
 
@@ -69,6 +70,7 @@ const translateOcrMessage = (message) => {
  * @property {Array} rawRegions - Raw OCR regions (unmerged)
  * @property {string|null} cachedImageUrl - Cached image URL for OCR cache validation
  * @property {'webgpu'|'wasm'|null} cachedOcrEngine - Cached OCR engine type
+ * @property {Object|null} cachedOcrSettings - Cached OCR settings for cache invalidation
  * @property {ImageData} mask - Generated mask
  * @property {string} cleanImage - Text-removed image data URL
  * @property {string} originalImage - Original image data URL (for comparison)
@@ -115,8 +117,8 @@ export function useSlideToPptx() {
   const settings = reactive({
     inpaintMethod: 'opencv',
     opencvAlgorithm: 'NS', // Navier-Stokes is better for larger regions
-    inpaintRadius: 3,
-    maskPadding: 5,
+    inpaintRadius: 1,
+    maskPadding: 1,
     slideRatio: 'auto',
     // Gemini model for text removal
     // '2.0' = gemini-2.5-flash-image (can use free tier)
@@ -443,11 +445,15 @@ Output: A single clean image with all text removed.`
       state.status = 'ocr'
 
       // Check if we can use cached OCR results
-      // Must match: same image URL AND same OCR engine type
+      // Must match: same image URL AND same OCR engine type AND same OCR settings
       const currentEngine = ocr.activeEngine?.value || 'wasm'
+      const currentOcrSettings = getOcrSettings()
+      const settingsMatch = state.cachedOcrSettings &&
+                            JSON.stringify(state.cachedOcrSettings) === JSON.stringify(currentOcrSettings)
       const hasCachedOcr = state.rawRegions?.length > 0 &&
                            state.cachedImageUrl === imageDataUrl &&
-                           state.cachedOcrEngine === currentEngine
+                           state.cachedOcrEngine === currentEngine &&
+                           settingsMatch
 
       if (hasCachedOcr) {
         addLog(t('slideToPptx.logs.usingCachedOcr', { slide: index + 1, count: state.regions.length }), 'info')
@@ -473,9 +479,10 @@ Output: A single clean image with all text removed.`
           state.rawRegions = ocrResult.rawRegions
         }
 
-        // Cache the image URL and engine type for future comparisons
+        // Cache the image URL, engine type, and settings for future comparisons
         state.cachedImageUrl = imageDataUrl
         state.cachedOcrEngine = currentEngine
+        state.cachedOcrSettings = { ...currentOcrSettings }
 
         // Also store in ocrResults for PPTX export compatibility (using merged regions)
         state.ocrResults = state.regions
@@ -530,9 +537,9 @@ Output: A single clean image with all text removed.`
 
           const inpaintedData = await inpainting.inpaint(imageData, mask, {
             algorithm: 'NS', // Use NS algorithm for fallback (better for larger regions)
-            radius: effectiveSettings.inpaintRadius || 3,
+            radius: effectiveSettings.inpaintRadius || 1,
             dilateMask: true,
-            dilateIterations: Math.ceil((effectiveSettings.maskPadding || 5) / 2),
+            dilateIterations: Math.ceil((effectiveSettings.maskPadding || 1) / 2),
           })
 
           state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
@@ -581,6 +588,7 @@ Output: A single clean image with all text removed.`
         rawRegions: existingState?.rawRegions || [],
         cachedImageUrl: existingState?.cachedImageUrl || null,
         cachedOcrEngine: existingState?.cachedOcrEngine || null,
+        cachedOcrSettings: existingState?.cachedOcrSettings || null,
         mask: null,
         cleanImage: null,
         originalImage: null,
@@ -776,6 +784,7 @@ Output: A single clean image with all text removed.`
         rawRegions: [],
         cachedImageUrl: null,
         cachedOcrEngine: null,
+        cachedOcrSettings: null,
         mask: null,
         cleanImage: null,
         originalImage: null,
@@ -1001,9 +1010,9 @@ Output: A single clean image with all text removed.`
           addLog(t('slideToPptx.logs.geminiFailed', { slide: slideIndex + 1, error: geminiError.message }), 'warning')
           const inpaintedData = await inpainting.inpaint(imageData, state.mask, {
             algorithm: 'NS',
-            radius: effectiveSettings.inpaintRadius || 3,
+            radius: effectiveSettings.inpaintRadius || 1,
             dilateMask: true,
-            dilateIterations: Math.ceil((effectiveSettings.maskPadding || 5) / 2),
+            dilateIterations: Math.ceil((effectiveSettings.maskPadding || 1) / 2),
           })
           state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
         }

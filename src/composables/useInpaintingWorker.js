@@ -166,7 +166,7 @@ export function useInpaintingWorker() {
             maskData: maskClone,
             options: {
               algorithm: options.algorithm || 'TELEA',
-              radius: options.radius || 3,
+              radius: options.radius || 1,
               dilateMask: options.dilateMask ?? true,
               dilateIterations: options.dilateIterations ?? 2,
             },

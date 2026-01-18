@@ -259,7 +259,7 @@ export function useOcrWorker() {
    * @param {number} padding
    * @returns {ImageData}
    */
-  const generateMask = (width, height, ocrResults, padding = 5) => {
+  const generateMask = (width, height, ocrResults, padding = 1) => {
     const canvas = document.createElement('canvas')
     canvas.width = width
     canvas.height = height

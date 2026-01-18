@@ -84,7 +84,7 @@ async function loadOpenCV() {
  * @returns {ImageData} Inpainted image data
  */
 function inpaint(imageData, maskData, options = {}) {
-  const { algorithm = 'TELEA', radius = 3 } = options
+  const { algorithm = 'TELEA', radius = 1 } = options
 
   // Convert ImageData to cv.Mat
   const src = cv.matFromImageData(imageData)
