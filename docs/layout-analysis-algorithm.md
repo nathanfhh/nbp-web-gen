@@ -1,88 +1,114 @@
-# Hybrid Layout Analysis Algorithm
+# Recursive XY-Cut Layout Analysis Algorithm
 
 ## Overview
 
-Mediator uses a sophisticated **Hybrid Layout Analysis** engine to convert raw OCR detections into structured text blocks suitable for presentation slides. Unlike simple linear-scan methods, our approach combines **Recursive XY-Cut** (top-down) for macro-segmentation with **Graph-Based Clustering** (bottom-up) for precise text merging.
+Mediator uses a **Recursive XY-Cut** algorithm to convert raw OCR detections into structured text blocks suitable for presentation slides. This is a classic document layout analysis approach that recursively partitions the page into rectangular zones based on whitespace separators.
 
-This architecture is designed to handle complex slide layouts, including multi-column text, floating captions, and mixed font sizes, while being robust across different image resolutions.
-
----
-
-## Phase 1: Macro-Segmentation (Relaxed XY-Cut)
-
-The first phase partitions the entire slide into independent **Zones**. This "Divide & Conquer" strategy prevents text from physically distant sections (e.g., left vs. right columns) from ever being merged, regardless of their vertical alignment.
-
-### Logic
-1.  **Projection Analysis:** We calculate the projection profiles of all text bounding boxes onto the X and Y axes.
-2.  **Gap Detection:** The algorithm looks for "whitespace gaps" in these projections that exceed a dynamic threshold.
-3.  **Recursive Splitting:**
-    *   **Vertical Cuts (X-Axis):** Prioritized to separate columns.
-    *   **Horizontal Cuts (Y-Axis):** Used to separate headers, bodies, and footers.
-
-### Dynamic Thresholds (Scale Invariance)
-Instead of fixed pixel values, thresholds are calculated relative to the **Median Line Height** ($H_{med}$) of the page:
-
-*   **Column Gap Threshold:** $1.5 \times H_{med}$
-    *   *Reasoning:* Columns are typically separated by wide gutters.
-*   **Section Gap Threshold:** $0.3 \times H_{med}$
-    *   *Reasoning:* Paragraphs and headers are separated by distinct vertical whitespace.
+This architecture is designed to handle structured slide layouts, including multi-column text, headers, and sections, while maintaining simplicity and predictable behavior.
 
 ---
 
-## Phase 2: Micro-Merging (Graph-Based Clustering)
+## Algorithm: Recursive XY-Cut
 
-Within each Zone identified in Phase 1, we treat text lines as nodes in a graph and establish edges based on an **Affinity Score** (0.0 - 1.0).
+The algorithm recursively splits the page into smaller zones until no more valid cuts can be found. Each leaf node becomes a final text block.
 
-### The Affinity Function
-We calculate the affinity $S$ between two text regions $R_1$ (above) and $R_2$ (below) using a weighted formula:
+### Step 1: Vertical Cut (Column Separation)
 
-$$ S = (W_{dist} \times S_{dist}) + (W_{align} \times S_{align}) + B_{overlap} $$
+First, attempt to split the page vertically to separate columns.
 
-Where the merging threshold is **$S > 0.80$**.
+1. **Project** all text bounding boxes onto the X-axis.
+2. **Find gaps** in the projection that exceed the threshold.
+3. **Split** at the widest gap if found.
 
-#### 1. Vertical Distance ($S_{dist}$) - Weight: 0.7
-*   Measures how close $R_2$ is to the bottom of $R_1$.
-*   **Decay Function:** The score drops linearly as the gap increases.
-*   **Cutoff:** Gap $> 0.9 \times AvgHeight$.
+**Threshold:** $1.5 \times H_{med}$ (where $H_{med}$ is the median line height)
 
-#### 2. Horizontal Alignment ($S_{align}$) - Weight: 0.3
-*   Rewards regions that share left, center, or right alignment edges.
-*   Calculated based on the pixel distance between alignment anchors.
+*Reasoning:* Columns are typically separated by wide gutters. Using 1.5× median height ensures we don't accidentally split within a paragraph.
 
-#### 3. Overlap Bonus ($B_{overlap}$) - Special Rule
-*   **Condition:** If the vertical bounding boxes of $R_1$ and $R_2$ overlap significantly (intersection $> 20\%$ of height).
-*   **Bonus:** $+0.4$ to the total score.
-*   **Effect:** Strongly forces overlapping detections (often caused by OCR fragmentation) to merge.
+### Step 2: Horizontal Cut (Section Separation)
 
-### Hard Veto Rules
-Regardless of the score, merging is **forbidden** if:
+If no vertical cut is possible, attempt to split horizontally.
 
-1.  **Font Size Mismatch:**
-    *   If $\frac{Height_{min}}{Height_{max}} < 0.9$ (size differs by > 10%).
-    *   *Purpose:* Strictly separates Titles from Subtitles and Body Text.
+1. **Project** all text bounding boxes onto the Y-axis.
+2. **Find gaps** in the projection that exceed the threshold.
+3. **Split** at the widest gap if found.
 
-2.  **Horizontal Reach Separation (Side-by-Side):**
-    *   If **No Horizontal Overlap** AND **Gap > 0.5 $\times$ AvgHeight**.
-    *   *Purpose:* Prevents merging of widely separated elements (e.g., distinct columns that XY-Cut missed).
+**Threshold:** $0.3 \times H_{med}$
 
-3.  **Same-Line Gap Separation:**
-    *   If **Vertical Overlap > 50%** (Same Line) AND **Gap > 1.5 $\times$ AvgHeight**.
-    *   *Purpose:* Prevents merging of distinct words or list items on the same line (e.g., `Item A ... Item B`).
+*Reasoning:* Paragraphs and sections are separated by smaller but distinct vertical whitespace (roughly 1/3 of a line height).
 
-4.  **Zone Crossing:**
-    *   Nodes in different XY-Cut Zones can never have an edge.
+### Step 3: Recursion
+
+Apply the same process recursively to each partition until:
+- **Depth limit** (10 levels) is reached, OR
+- **Too few regions** (< 2) remain in a partition, OR
+- **No valid cuts** can be found
+
+When recursion stops, the partition becomes a **leaf node** (final text block).
+
+---
+
+## Text Block Creation
+
+Once leaf nodes are identified, each group of regions is converted into a text block:
+
+### Reading Order Sort
+
+Regions within a block are sorted in reading order:
+
+1. **Compare Y-centers** of two regions
+2. If Y-centers are within $0.7 \times min(height)$, they are on the **same line** → sort left-to-right
+3. Otherwise → sort top-to-bottom
+
+### Smart Text Joining
+
+Text from regions is joined intelligently:
+
+- **Same line:** Join with space ` `
+- **Different lines:** Join with newline `\n`
+- **Duplicate space prevention:** If the previous text ends with space or current text starts with space, avoid adding extra space
+
+---
+
+## Alignment Detection
+
+Each text block's alignment is inferred by analyzing the horizontal distribution:
+
+| Condition | Alignment |
+|-----------|-----------|
+| Left edge aligned (< 10% variance) | `left` |
+| Center aligned (< 10% variance) | `center` |
+| Right edge aligned (< 10% variance) | `right` |
+| Otherwise | `left` (default) |
 
 ---
 
 ## Summary of Parameters
 
 | Parameter | Value / Logic | Purpose |
-| :--- | :--- | :--- |
+|:----------|:--------------|:--------|
 | **Column Gap** | $1.5 \times H_{med}$ | Separate layout columns |
 | **Section Gap** | $0.3 \times H_{med}$ | Separate headers/paragraphs |
-| Max Merge Gap | $0.9 \times AvgHeight$ | Prevent merging across paragraphs |
-| **Size Tolerance** | $10\%$ ($0.9$ ratio) | Distinguish hierarchy levels |
-| **Merge Threshold** | $0.80$ | Confidence required to group |
-| **Overlap Bonus** | $+0.4$ | Fix broken/fragmented lines |
+| **Same-Line Threshold** | $0.7 \times min(height)$ | Determine if regions are on same line |
+| **Max Recursion Depth** | 10 | Prevent infinite recursion |
+| **Min Regions for Cut** | 2 | Stop cutting single-region zones |
 
-This hybrid approach ensures that Mediator produces structurally semantically correct PPTX outputs that respect the original design intent.
+---
+
+## Comparison with Previous Hybrid Approach
+
+The previous implementation used a two-phase approach:
+
+1. **Phase 1 (XY-Cut):** Macro-segmentation into zones
+2. **Phase 2 (Graph Clustering):** Affinity-based merging within zones
+
+The new pure XY-Cut approach offers:
+
+| Aspect | Hybrid (Old) | Pure XY-Cut (New) |
+|--------|--------------|-------------------|
+| Complexity | ~250 lines | ~100 lines |
+| Performance | O(N²) neighbor comparison | O(N log N) recursive split |
+| Predictability | Complex affinity scoring | Simple geometric rules |
+| Column handling | ✅ Good | ✅ Good |
+| Irregular layouts | ✅ Better | ⚠️ Adequate |
+
+The simplified approach trades some flexibility for maintainability and predictable behavior, which is well-suited for structured documents like presentation slides.

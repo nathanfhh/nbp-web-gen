@@ -109,18 +109,22 @@ scaleX = originalWidth / scaledWidth  // scaledWidth 是實際內容寬度
 
 #### 4. Layout Analysis - Text Block Merging
 
-Raw OCR detections (single lines) must be merged into logical paragraphs. This is handled by `mergeTextRegions()` in `ocr-core.js`, using a **Hybrid Layout Analysis** algorithm:
+Raw OCR detections (single lines) must be merged into logical paragraphs. This is handled by `mergeTextRegions()` in `ocr-core.js`, using **Recursive XY-Cut** algorithm:
 
-1. **Phase 1 (XY-Cut)**: Recursively partitions the page into independent zones, preventing cross-column merging
-2. **Phase 2 (Graph Clustering)**: Within each zone, merges adjacent lines based on affinity scores
+1. **Vertical Cut**: Separates columns by detecting wide vertical gaps (threshold: 1.5× median line height)
+2. **Horizontal Cut**: Separates sections/paragraphs by detecting horizontal gaps (threshold: 0.3× median line height)
+3. **Leaf Nodes**: When no more cuts can be made, regions become atomic text blocks
+4. **Smart Text Joining**: Within each block, lines on the same row (Y-center within 0.7× height) are joined with spaces; different rows are joined with newlines
 
 **Key Parameters** (update docs when modifying):
 | Parameter | Location | Description |
 |-----------|----------|-------------|
 | `dilateMask(mask, w, h, 2, 1)` | `ocr.worker.js`, `useOcrMainThread.js` | Morphological dilation, controls box padding |
 | `unclipRatio = 1.5` | Same as above | DBNet box expansion ratio |
-| Affinity threshold `0.80` | `ocr-core.js` | Merge confidence threshold |
-| Size tolerance `0.9` | `ocr-core.js` | Font size tolerance (10% diff) |
+| `threshold = 0.3` | Same as above | Detection confidence threshold |
+| `boxThreshold = 0.6` | Same as above | Box score threshold |
+| Column gap `1.5 × medianHeight` | `ocr-core.js` | Vertical cut threshold |
+| Section gap `0.3 × medianHeight` | `ocr-core.js` | Horizontal cut threshold |
 
 > **Algorithm Details**: See [`docs/layout-analysis-algorithm.md`](docs/layout-analysis-algorithm.md)
 
