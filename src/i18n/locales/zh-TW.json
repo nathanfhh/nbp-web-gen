@@ -1012,36 +1012,51 @@
       "reencoded": "僅重編碼"
     },
     "toast": {
-      "notFullyCompliant": "提醒您，目前尚未全面符合 LINE 貼圖規格"
+      "notFullyCompliant": "注意：您的貼圖不完全符合 LINE 規範"
     }
   },
-  "tour": {
-    "help": "使用導覽",
-    "skip": "跳過導覽",
-    "prev": "上一步",
-    "next": "下一步",
-    "finish": "完成",
-    "keyboardHint": "按 ← → 切換步驟，ESC 跳過",
-    "steps": {
-      "apiKey": {
-        "title": "設定 API Key",
-        "description": "首先，請輸入您的 Google Gemini API Key。這是使用本工具的必要條件。API Key 僅儲存在您的瀏覽器中，不會傳送至任何伺服器。"
+  "ocrSettings": {
+    "title": "OCR 進階設定",
+    "subtitle": "調整文字偵測與辨識參數",
+    "advancedSettings": "進階設定",
+    "resetToDefaults": "重置為預設值",
+    "modified": "已修改",
+    "default": "預設",
+    "categories": {
+      "preprocessing": "預處理",
+      "detection": "文字偵測",
+      "postprocessing": "後處理"
+    },
+    "params": {
+      "maxSideLen": {
+        "label": "目標最大邊長",
+        "description": "圖片預處理時的目標最大邊長（建議 2048）。超過此值的圖片會被縮小，小於則保持原尺寸。",
+        "effect": "調高：保留更多細節，解決空格消失問題｜調低：加快處理速度但可能模糊"
       },
-      "modeSelector": {
-        "title": "選擇生成模式",
-        "description": "我們提供 6 種不同的生成模式：基本生成、貼圖製作、圖片編輯、故事序列、圖表繪製、影片生成。選擇最適合您需求的模式。"
+      "threshold": {
+        "label": "偵測閾值",
+        "description": "DBNet 二值化閾值。用於將模型輸出轉換為二元遮罩。",
+        "effect": "調高：減少雜訊但可能漏字｜調低：偵測更敏感但雜訊增加"
       },
-      "promptInput": {
-        "title": "輸入 Prompt",
-        "description": "在這裡描述您想要生成的圖片。描述越詳細，生成的結果越好！您可以使用任何語言來描述。下方還有更多進階選項可以調整。"
+      "boxThreshold": {
+        "label": "框篩選閾值",
+        "description": "文字框的最低信心分數。低於此值的框將被過濾。",
+        "effect": "調高：只保留高信心框｜調低：保留更多框但可能含雜訊"
       },
-      "generateButton": {
-        "title": "開始生成",
-        "description": "準備好了嗎？點擊這個按鈕開始生成圖片！生成過程中您可以看到 AI 的思考過程。"
+      "unclipRatio": {
+        "label": "框膨脹比例",
+        "description": "DBNet 框膨脹係數。模型訓練時會縮小文字框，需膨脹回原始大小。",
+        "effect": "調高：框變大，包含更多周圍區域｜調低：框變小，更貼近文字"
       },
-      "history": {
-        "title": "歷史紀錄",
-        "description": "所有生成過的圖片都會保存在這裡。點擊紀錄可以載入之前的設定，點擊縮圖可以預覽圖片。右上角的傳輸圖示 (⇄) 可以匯出或匯入歷史紀錄。"
+      "dilationH": {
+        "label": "橫向膨脹",
+        "description": "形態學橫向膨脹迭代次數。用於連接同一行的文字。",
+        "effect": "調高：同行文字更易連接｜調低：保持字元獨立"
+      },
+      "dilationV": {
+        "label": "縱向膨脹",
+        "description": "形態學縱向膨脹迭代次數。用於連接筆劃，但過大會合併不同行。",
+        "effect": "調高：筆劃更易連接但可能合併行｜調低：避免跨行合併"
       }
     }
   },

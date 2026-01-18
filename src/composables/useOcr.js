@@ -16,6 +16,7 @@ import {
   clearModelCache,
   GpuOutOfMemoryError,
 } from './useOcrMainThread'
+import { getSettings, onSettingsChange } from './useOcrSettings'
 
 /**
  * OCR Engine Types
@@ -144,6 +145,8 @@ export function useOcr() {
     } else {
       ocrInstance.value = useOcrWorker()
       activeEngine.value = 'wasm'
+      // Sync current settings to Worker
+      syncOcrSettings()
     }
     instanceType = targetType
 
@@ -151,6 +154,18 @@ export function useOcr() {
     syncState()
 
     return ocrInstance.value
+  }
+
+  /**
+   * Sync OCR settings to the active engine
+   * WebGPU reads settings directly; WASM Worker needs postMessage
+   */
+  function syncOcrSettings() {
+    if (instanceType === 'wasm' && ocrInstance.value?.syncSettings) {
+      const settings = getSettings()
+      ocrInstance.value.syncSettings(settings)
+    }
+    // WebGPU main thread reads settings directly via getSettings() in preprocessing
   }
 
   /**
@@ -363,10 +378,16 @@ export function useOcr() {
     capabilitiesDetected = true
   }
 
+  // Register settings change listener to sync settings when they change
+  const unsubscribeSettings = onSettingsChange(() => {
+    syncOcrSettings()
+  })
+
   // Safe lifecycle registration - only if in component context
   const instance = getCurrentInstance()
   if (instance) {
     onUnmounted(() => {
+      unsubscribeSettings()
       terminate()
     })
   }
@@ -405,6 +426,7 @@ export function useOcr() {
     setEngine,
     detectCapabilities,
     clearModelCache,
+    syncOcrSettings,
 
     // Constants
     OCR_ENGINE,

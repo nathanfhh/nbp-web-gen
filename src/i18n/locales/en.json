@@ -1015,6 +1015,51 @@
       "notFullyCompliant": "Note: Your stickers are not fully compliant with LINE specifications"
     }
   },
+  "ocrSettings": {
+    "title": "OCR Advanced Settings",
+    "subtitle": "Configure text detection and recognition parameters",
+    "advancedSettings": "Advanced",
+    "resetToDefaults": "Reset to defaults",
+    "modified": "Modified",
+    "default": "Default",
+    "categories": {
+      "preprocessing": "Preprocessing",
+      "detection": "Text Detection",
+      "postprocessing": "Post-processing"
+    },
+    "params": {
+      "maxSideLen": {
+        "label": "Target Max Side Length",
+        "description": "Target max side length for preprocessing (Recommended: 2048). Larger images are downscaled, smaller images keep original size.",
+        "effect": "Higher: preserves more details, fixes missing spaces | Lower: faster processing but may blur"
+      },
+      "threshold": {
+        "label": "Detection Threshold",
+        "description": "DBNet binarization threshold. Converts model output to binary mask.",
+        "effect": "Higher: less noise but may miss text | Lower: more sensitive but noisier"
+      },
+      "boxThreshold": {
+        "label": "Box Threshold",
+        "description": "Minimum confidence score for text boxes. Boxes below this are filtered out.",
+        "effect": "Higher: only high confidence boxes | Lower: more boxes but may include noise"
+      },
+      "unclipRatio": {
+        "label": "Unclip Ratio",
+        "description": "DBNet box expansion factor. Model shrinks text boxes during training, needs expansion to original size.",
+        "effect": "Higher: larger boxes with more surrounding area | Lower: tighter boxes closer to text"
+      },
+      "dilationH": {
+        "label": "Horizontal Dilation",
+        "description": "Morphological horizontal dilation iterations. Connects characters in the same line.",
+        "effect": "Higher: easier to connect same-line text | Lower: keeps characters separate"
+      },
+      "dilationV": {
+        "label": "Vertical Dilation",
+        "description": "Morphological vertical dilation iterations. Connects strokes but may merge different lines if too high.",
+        "effect": "Higher: connects strokes but may merge lines | Lower: avoids cross-line merging"
+      }
+    }
+  },
   "slideToPptx": {
     "title": "Slide to PPTX Converter",
     "entry": {

@@ -85,6 +85,10 @@ export function useOcrWorker() {
         }
         break
 
+      case 'settingsUpdated':
+        // Settings sync acknowledged by worker
+        break
+
       case 'error': {
         const errorMessage = e.data.message || 'Unknown error'
         error.value = errorMessage
@@ -295,6 +299,16 @@ export function useOcrWorker() {
   }
 
   /**
+   * Sync OCR settings to Worker
+   * @param {Object} settings - Settings object from useOcrSettings
+   */
+  const syncSettings = (settings) => {
+    if (worker) {
+      worker.postMessage({ type: 'updateSettings', settings })
+    }
+  }
+
+  /**
    * Terminate OCR Worker
    */
   const terminate = () => {
@@ -341,6 +355,7 @@ export function useOcrWorker() {
     recognizeMultiple,
     generateMask,
     terminate,
+    syncSettings,
 
     // Model cache access (for checking cache status, clearing, etc.)
     modelCache,

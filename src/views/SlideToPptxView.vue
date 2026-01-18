@@ -11,6 +11,7 @@ import ImageLightbox from '@/components/ImageLightbox.vue'
 import SlideFileUploader from '@/components/SlideFileUploader.vue'
 import OcrRegionEditor from '@/components/OcrRegionEditor.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import OcrSettingsModal from '@/components/OcrSettingsModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -43,6 +44,7 @@ const uploadedImages = ref([])
 // Log container ref for auto-scroll
 const logContainer = ref(null)
 const confirmModalRef = ref(null)
+const ocrSettingsModalRef = ref(null)
 
 // Thumbnail refs for auto-scroll
 const thumbnailContainer = ref(null)
@@ -1131,16 +1133,31 @@ const getSlideStatus = (index) => {
             <div class="mb-6">
               <div class="flex items-center justify-between mb-2">
                 <label class="text-sm text-text-muted">{{ $t('slideToPptx.ocrEngine.label') }}</label>
-                <button
-                  @click="clearModelCache"
-                  class="text-xs px-2 py-1 rounded-lg text-text-muted hover:text-status-error hover:bg-status-error-muted transition-colors flex items-center gap-1"
-                  :title="$t('slideToPptx.ocrEngine.clearCache')"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  {{ $t('slideToPptx.ocrEngine.clearCache') }}
-                </button>
+                <div class="flex items-center gap-2">
+                  <!-- OCR Settings Button -->
+                  <button
+                    @click="ocrSettingsModalRef?.open()"
+                    class="text-xs px-2 py-1 rounded-lg text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition-colors flex items-center gap-1"
+                    :title="$t('ocrSettings.title')"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {{ $t('ocrSettings.advancedSettings') }}
+                  </button>
+                  <!-- Clear Cache Button -->
+                  <button
+                    @click="clearModelCache"
+                    class="text-xs px-2 py-1 rounded-lg text-text-muted hover:text-status-error hover:bg-status-error-muted transition-colors flex items-center gap-1"
+                    :title="$t('slideToPptx.ocrEngine.clearCache')"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    {{ $t('slideToPptx.ocrEngine.clearCache') }}
+                  </button>
+                </div>
               </div>
               <!-- Loading state while detecting -->
               <div v-if="slideToPptx.ocrIsDetecting.value" class="flex items-center gap-2 text-sm text-text-muted py-2">
@@ -1548,6 +1565,9 @@ const getSlideStatus = (index) => {
 
     <!-- Confirm Modal -->
     <ConfirmModal ref="confirmModalRef" />
+
+    <!-- OCR Settings Modal -->
+    <OcrSettingsModal ref="ocrSettingsModalRef" />
   </div>
 </template>
 

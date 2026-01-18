@@ -429,3 +429,425 @@ export async function cropRegionToDataUrl(bitmap, bounds, padding = 5) {
     reader.readAsDataURL(blob)
   })
 }
+
+// ============================================================================
+// Detection Preprocessing & Postprocessing
+// Shared between Worker (WASM) and Main Thread (WebGPU)
+// ============================================================================
+
+/**
+ * Preprocess image for DBNet detection model
+ *
+ * Steps:
+ * 1. Scale image (only downscale if larger than maxSideLen)
+ * 2. Pad to multiple of 32
+ * 3. Normalize with ImageNet mean/std
+ * 4. Create tensor in BGR order (PaddleOCR format)
+ *
+ * @param {ImageBitmap} bitmap - Source image
+ * @param {Object} settings - OCR settings { maxSideLen, ... }
+ * @param {Function} TensorClass - ONNX Runtime Tensor class (ort.Tensor)
+ * @returns {Object} - { tensor, width, height, originalWidth, originalHeight, scaleX, scaleY }
+ */
+export function preprocessForDetection(bitmap, settings, TensorClass) {
+  const maxSideLen = settings.maxSideLen
+  let width = bitmap.width
+  let height = bitmap.height
+
+  // Only downscale if the image is larger than maxSideLen
+  const ratio = maxSideLen / Math.max(width, height)
+  const scale = ratio < 1 ? ratio : 1
+
+  width = Math.round(width * scale)
+  height = Math.round(height * scale)
+
+  // Pad to multiple of 32 (required by DBNet)
+  const newWidth = Math.ceil(width / 32) * 32
+  const newHeight = Math.ceil(height / 32) * 32
+
+  // Use OffscreenCanvas (works in both Worker and Main Thread)
+  const canvas = new OffscreenCanvas(newWidth, newHeight)
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = 'white'
+  ctx.fillRect(0, 0, newWidth, newHeight)
+  ctx.drawImage(bitmap, 0, 0, width, height)
+
+  const imageData = ctx.getImageData(0, 0, newWidth, newHeight)
+  const data = imageData.data
+
+  // ImageNet normalization parameters
+  const mean = DETECTION_MEAN
+  const std = DETECTION_STD
+
+  // Create normalized tensor in BGR order (PaddleOCR format)
+  const float32Data = new Float32Array(3 * newWidth * newHeight)
+  for (let i = 0; i < newWidth * newHeight; i++) {
+    const r = data[i * 4] / 255
+    const g = data[i * 4 + 1] / 255
+    const b = data[i * 4 + 2] / 255
+
+    // BGR Order (PaddleOCR uses BGR, not RGB)
+    float32Data[i] = (b - mean[2]) / std[2]
+    float32Data[newWidth * newHeight + i] = (g - mean[1]) / std[1]
+    float32Data[2 * newWidth * newHeight + i] = (r - mean[0]) / std[0]
+  }
+
+  const tensor = new TensorClass('float32', float32Data, [1, 3, newHeight, newWidth])
+
+  return {
+    tensor,
+    width: newWidth,
+    height: newHeight,
+    originalWidth: bitmap.width,
+    originalHeight: bitmap.height,
+    scaleX: bitmap.width / width,
+    scaleY: bitmap.height / height,
+  }
+}
+
+/**
+ * Post-process DBNet detection output to extract text boxes
+ *
+ * Steps:
+ * 1. Threshold the probability map to binary mask
+ * 2. Apply morphological dilation to connect characters
+ * 3. Find connected components (8-connectivity)
+ * 4. Calculate expanded bounding boxes using unclip ratio
+ * 5. Filter by confidence and area
+ *
+ * @param {Object} outputTensor - ONNX output tensor
+ * @param {Object} settings - OCR settings { threshold, boxThreshold, unclipRatio, dilationH, dilationV }
+ * @param {number} width - Preprocessed image width
+ * @param {number} height - Preprocessed image height
+ * @param {number} scaleX - X scale factor to original
+ * @param {number} scaleY - Y scale factor to original
+ * @param {number} originalWidth - Original image width
+ * @param {number} originalHeight - Original image height
+ * @returns {Array<{box: Array, score: number}>} - Array of detected boxes with scores
+ */
+export function postProcessDetection(
+  outputTensor,
+  settings,
+  width,
+  height,
+  scaleX,
+  scaleY,
+  originalWidth,
+  originalHeight
+) {
+  const { threshold, boxThreshold, unclipRatio, dilationH, dilationV } = settings
+  const minArea = 100
+
+  const data = outputTensor.data
+  const outputDims = outputTensor.dims
+
+  // Handle different output dimension formats
+  let outputH, outputW
+  if (outputDims.length === 4) {
+    outputH = outputDims[2]
+    outputW = outputDims[3]
+  } else if (outputDims.length === 3) {
+    outputH = outputDims[1]
+    outputW = outputDims[2]
+  } else {
+    outputH = outputDims[0]
+    outputW = outputDims[1]
+  }
+
+  const actualWidth = outputW || width
+  const actualHeight = outputH || height
+  const finalScaleX = scaleX * (width / actualWidth)
+  const finalScaleY = scaleY * (height / actualHeight)
+
+  // 1. Create binary mask from probability map
+  let mask = new Uint8Array(actualWidth * actualHeight)
+  for (let i = 0; i < actualWidth * actualHeight; i++) {
+    mask[i] = data[i] > threshold ? 255 : 0
+  }
+
+  // Save raw mask for scoring (before dilation)
+  const rawMask = new Uint8Array(mask)
+
+  // 2. Apply morphological dilation to connect characters
+  mask = dilateMask(mask, actualWidth, actualHeight, dilationH, dilationV)
+
+  // 3. Find connected components (8-connectivity)
+  const components = findConnectedComponents(mask, actualWidth, actualHeight)
+
+  // 4. Extract boxes from components
+  const boxes = []
+  for (const component of components) {
+    // Calculate bounding box from [x, y] coordinates
+    let minX = Infinity,
+      maxX = -Infinity
+    let minY = Infinity,
+      maxY = -Infinity
+    let scoreSum = 0
+    let rawPixelCount = 0
+
+    for (const [px, py] of component) {
+      minX = Math.min(minX, px)
+      maxX = Math.max(maxX, px)
+      minY = Math.min(minY, py)
+      maxY = Math.max(maxY, py)
+
+      // Only count score from raw (undilated) mask pixels
+      const pIdx = py * actualWidth + px
+      if (rawMask[pIdx] === 255) {
+        scoreSum += data[pIdx]
+        rawPixelCount++
+      }
+    }
+
+    // Filter by size constraints
+    const boxW = maxX - minX + 1
+    const boxH = maxY - minY + 1
+    const boxArea = boxW * boxH
+
+    if (boxArea < minArea || rawPixelCount < 10) continue
+
+    // Calculate score from raw pixels only (not dilated)
+    const score = rawPixelCount > 0 ? scoreSum / rawPixelCount : 0
+    if (score < boxThreshold) continue
+
+    // 5. Apply unclip expansion (DBNet boxes are shrunk during training)
+    const area = component.length
+    const perimeter = 2 * (boxW + boxH)
+    const offset = (area * unclipRatio) / perimeter
+
+    const expandedMinX = Math.max(0, minX - offset)
+    const expandedMinY = Math.max(0, minY - offset)
+    const expandedMaxX = Math.min(actualWidth - 1, maxX + offset)
+    const expandedMaxY = Math.min(actualHeight - 1, maxY + offset)
+
+    // Scale to original image coordinates
+    const box = [
+      [expandedMinX * finalScaleX, expandedMinY * finalScaleY],
+      [expandedMaxX * finalScaleX, expandedMinY * finalScaleY],
+      [expandedMaxX * finalScaleX, expandedMaxY * finalScaleY],
+      [expandedMinX * finalScaleX, expandedMaxY * finalScaleY],
+    ]
+
+    // Clamp to original image bounds
+    for (const point of box) {
+      point[0] = Math.max(0, Math.min(originalWidth, point[0]))
+      point[1] = Math.max(0, Math.min(originalHeight, point[1]))
+    }
+
+    boxes.push({ box, score })
+  }
+
+  return boxes
+}
+
+/**
+ * Apply morphological dilation to binary mask
+ *
+ * @param {Uint8Array} mask - Binary mask
+ * @param {number} width - Mask width
+ * @param {number} height - Mask height
+ * @param {number} iterationsH - Horizontal dilation iterations
+ * @param {number} iterationsV - Vertical dilation iterations
+ * @returns {Uint8Array} - Dilated mask
+ */
+function dilateMask(mask, width, height, iterationsH = 2, iterationsV = 1) {
+  let current = mask
+  let next = new Uint8Array(mask.length)
+
+  // 1. Horizontal Dilation (Connect characters in a line)
+  for (let iter = 0; iter < iterationsH; iter++) {
+    next.fill(0)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x
+        if (current[idx] === 255) {
+          next[idx] = 255
+          if (x > 0) next[idx - 1] = 255
+          if (x < width - 1) next[idx + 1] = 255
+        }
+      }
+    }
+    ;[current, next] = [next, current]
+  }
+
+  // 2. Vertical Dilation (Connect strokes, less aggressive)
+  for (let iter = 0; iter < iterationsV; iter++) {
+    next.fill(0)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x
+        if (current[idx] === 255) {
+          next[idx] = 255
+          if (y > 0) next[idx - width] = 255
+          if (y < height - 1) next[idx + width] = 255
+        }
+      }
+    }
+    ;[current, next] = [next, current]
+  }
+
+  return current
+}
+
+/**
+ * Find connected components in binary mask using flood fill
+ * Uses 8-connectivity (includes diagonals) for better text region detection
+ *
+ * @param {Uint8Array} mask - Binary mask
+ * @param {number} width - Mask width
+ * @param {number} height - Mask height
+ * @returns {Array<Array<[number, number]>>} - Array of components (each component is array of [x, y] coordinates)
+ */
+function findConnectedComponents(mask, width, height) {
+  const visited = new Set()
+  const components = []
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x
+      if (mask[idx] === 0 || visited.has(idx)) continue
+
+      const component = []
+      const queue = [[x, y]]
+      visited.add(idx)
+
+      while (queue.length > 0) {
+        const [cx, cy] = queue.shift()
+        component.push([cx, cy])
+
+        // 8-connectivity neighbors (including diagonals)
+        const neighbors = [
+          [cx - 1, cy],
+          [cx + 1, cy],
+          [cx, cy - 1],
+          [cx, cy + 1],
+          [cx - 1, cy - 1],
+          [cx + 1, cy - 1],
+          [cx - 1, cy + 1],
+          [cx + 1, cy + 1],
+        ]
+
+        for (const [nx, ny] of neighbors) {
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue
+          const nidx = ny * width + nx
+          if (mask[nidx] === 0 || visited.has(nidx)) continue
+          visited.add(nidx)
+          queue.push([nx, ny])
+        }
+      }
+
+      if (component.length > 0) {
+        components.push(component)
+      }
+    }
+  }
+
+  return components
+}
+
+// ============================================================================
+// Recognition Preprocessing & Decoding
+// ============================================================================
+
+/**
+ * Preprocess a detected text region for recognition model
+ *
+ * @param {ImageBitmap} bitmap - Source image
+ * @param {Array} box - Polygon coordinates [[x,y], [x,y], [x,y], [x,y]]
+ * @param {Function} TensorClass - ONNX Runtime Tensor class
+ * @returns {Object|null} - Tensor or null if region is invalid
+ */
+export function preprocessForRecognition(bitmap, box, TensorClass) {
+  const targetHeight = RECOGNITION_TARGET_HEIGHT
+  const maxWidth = RECOGNITION_MAX_WIDTH
+
+  const xs = box.map((p) => p[0])
+  const ys = box.map((p) => p[1])
+  const x0 = Math.floor(Math.min(...xs))
+  const y0 = Math.floor(Math.min(...ys))
+  const x1 = Math.ceil(Math.max(...xs))
+  const y1 = Math.ceil(Math.max(...ys))
+
+  const cropWidth = x1 - x0
+  const cropHeight = y1 - y0
+
+  if (cropWidth <= 0 || cropHeight <= 0) return null
+
+  const aspectRatio = cropWidth / cropHeight
+  let targetWidth = Math.round(targetHeight * aspectRatio)
+  targetWidth = Math.min(targetWidth, maxWidth)
+  targetWidth = Math.max(targetWidth, 10)
+
+  const canvas = new OffscreenCanvas(targetWidth, targetHeight)
+  const ctx = canvas.getContext('2d')
+
+  ctx.fillStyle = 'white'
+  ctx.fillRect(0, 0, targetWidth, targetHeight)
+  ctx.drawImage(bitmap, x0, y0, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight)
+
+  const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight)
+  const data = imageData.data
+
+  const float32Data = new Float32Array(3 * targetWidth * targetHeight)
+  for (let i = 0; i < targetWidth * targetHeight; i++) {
+    const r = (data[i * 4] / 255 - 0.5) / 0.5
+    const g = (data[i * 4 + 1] / 255 - 0.5) / 0.5
+    const b = (data[i * 4 + 2] / 255 - 0.5) / 0.5
+
+    // BGR Order (PaddleOCR format)
+    float32Data[i] = b
+    float32Data[targetWidth * targetHeight + i] = g
+    float32Data[2 * targetWidth * targetHeight + i] = r
+  }
+
+  return new TensorClass('float32', float32Data, [1, 3, targetHeight, targetWidth])
+}
+
+/**
+ * Decode CTC output from recognition model
+ *
+ * @param {Object} output - ONNX output tensor
+ * @param {Array<string>} dictionary - Character dictionary
+ * @returns {{ text: string, confidence: number }}
+ */
+export function decodeRecognition(output, dictionary) {
+  const data = output.data
+  const dims = output.dims
+  const seqLen = dims[1]
+  const vocabSize = dims[2]
+
+  let text = ''
+  let totalConf = 0
+  let charCount = 0
+  let prevIdx = 0
+
+  for (let t = 0; t < seqLen; t++) {
+    let maxIdx = 0
+    let maxVal = data[t * vocabSize]
+
+    for (let v = 1; v < vocabSize; v++) {
+      const val = data[t * vocabSize + v]
+      if (val > maxVal) {
+        maxVal = val
+        maxIdx = v
+      }
+    }
+
+    if (maxIdx !== 0 && maxIdx !== prevIdx) {
+      if (maxIdx === vocabSize - 1) {
+        text += ' '
+        totalConf += Math.exp(maxVal)
+        charCount++
+      } else if (maxIdx < dictionary.length) {
+        text += dictionary[maxIdx]
+        totalConf += Math.exp(maxVal)
+        charCount++
+      }
+    }
+
+    prevIdx = maxIdx
+  }
+
+  const confidence = charCount > 0 ? Math.round((totalConf / charCount) * 100) : 0
+  return { text, confidence: Math.min(100, confidence) }
+}
