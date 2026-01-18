@@ -220,7 +220,11 @@ function createBlockFromRegions(regions) {
 
   const bounds = getGroupBounds(regions)
   const avgConfidence = regions.reduce((sum, r) => sum + r.confidence, 0) / regions.length
-  const avgHeight = regions.reduce((sum, r) => sum + r.bounds.height, 0) / regions.length
+
+  // Use MAX line height for fontSize (not average)
+  // Rationale: OCR detection boxes may be undersized (cropped), but rarely oversized.
+  // The largest line height best represents the actual text size.
+  const maxHeight = Math.max(...regions.map((r) => r.bounds.height))
 
   return {
     text,
@@ -233,7 +237,7 @@ function createBlockFromRegions(regions) {
       [bounds.x, bounds.y + bounds.height],
     ],
     alignment: inferAlignment(regions),
-    fontSize: avgHeight,
+    fontSize: maxHeight,
     // Keep original lines for potential detailed editing later
     lines: regions,
   }

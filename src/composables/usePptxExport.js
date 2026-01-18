@@ -5,10 +5,6 @@
 
 import { ref } from 'vue'
 import PptxGenJS from 'pptxgenjs'
-import {
-  calculateFontSizeForMultilineText,
-  PPTX_FONT_STACK,
-} from '@/utils/text-measure'
 
 /**
  * @typedef {Object} SlideData
@@ -187,40 +183,53 @@ export function usePptxExport() {
             const h = pxToInches(region.bounds.height, slideData.height, slideSize.height)
 
             // Calculate Font Size
-            // Strategy: Height-based PRIMARY (preserves original proportions),
-            //           Width-based as CEILING (prevents text overflow)
-            let fontSize
-
-            // 1. Height-Based Estimation (PRIMARY)
-            // OCR's fontSize = average line height in pixels
-            // Line height ≈ font size × 1.2, so we divide by 1.2 to get actual font size
+            // Strategy: Use height-based calculation with median of original line heights
+            // This is more reliable than width-based Canvas measurement
             const LINE_HEIGHT_RATIO = 1.2
-            let heightBasedSize = 0
-            if (region.fontSize && region.fontSize > 0) {
-              // Convert pixel height to points, accounting for line height ratio
-              heightBasedSize =
-                (region.fontSize / slideData.height) * slideSize.height * 72 / LINE_HEIGHT_RATIO
+            let fontSize
+            const debugLines = [] // Debug info
+
+            if (region.lines && region.lines.length > 0) {
+              // Get heights of all original lines
+              const lineHeights = region.lines
+                .filter((line) => line.text && line.text.trim())
+                .map((line) => {
+                  debugLines.push({
+                    text: line.text.substring(0, 30) + (line.text.length > 30 ? '...' : ''),
+                    heightPx: Math.round(line.bounds.height),
+                  })
+                  return line.bounds.height
+                })
+
+              if (lineHeights.length > 0) {
+                // Use max height (largest line best represents actual text size)
+                const maxHeight = Math.max(...lineHeights)
+
+                // Convert max height to font size in points
+                fontSize =
+                  (maxHeight / slideData.height) * slideSize.height * 72 / LINE_HEIGHT_RATIO
+              } else {
+                // Fallback if no valid lines
+                fontSize = (h * 72) / LINE_HEIGHT_RATIO
+              }
             } else {
-              // Fallback: estimate from box height (assuming single line with padding)
-              heightBasedSize = (h * 72) / LINE_HEIGHT_RATIO
+              // Single line or no lines data: use region height directly
+              const heightPx = region.fontSize || region.bounds.height
+              fontSize = (heightPx / slideData.height) * slideSize.height * 72 / LINE_HEIGHT_RATIO
+              debugLines.push({
+                text: region.text.substring(0, 30) + (region.text.length > 30 ? '...' : ''),
+                heightPx: Math.round(heightPx),
+              })
             }
-
-            // 2. Width-Based Estimation (CEILING)
-            // Ensures text doesn't overflow the box width
-            const widthBasedSize = calculateFontSizeForMultilineText(
-              region.text,
-              w, // box width in inches
-              PPTX_FONT_STACK,
-              { minSize: 8, maxSize: 120 }
-            )
-
-            // 3. Selection Logic: Use height-based, but cap at width-based
-            // This ensures consistent font sizes for similar-height boxes,
-            // while preventing text from overflowing
-            fontSize = Math.min(heightBasedSize, widthBasedSize)
 
             // Clamp font size to reasonable range
             fontSize = Math.max(8, Math.min(120, Math.round(fontSize)))
+
+            // Debug output
+            console.group(`📝 Font Size Calculation (Height-based)`)
+            console.log(`Final fontSize: ${fontSize}pt`)
+            console.table(debugLines)
+            console.groupEnd()
 
             slide.addText(region.text, {
               x,

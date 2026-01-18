@@ -139,6 +139,21 @@ const getDeleteButtonCenter = (region) => {
   }
 }
 
+/**
+ * Get delete button size based on region bounds
+ * Scales proportionally with the smaller dimension, with min/max limits
+ */
+const getDeleteButtonSize = (region) => {
+  const minDimension = Math.min(region.bounds.width, region.bounds.height)
+  const scaledRadius = minDimension * 0.15
+  const radius = Math.max(16, Math.min(40, scaledRadius))
+  return {
+    radius,
+    hitRadius: radius * 1.5,
+    fontSize: radius * 1.25,
+  }
+}
+
 // ============================================================================
 // Drawing Tool
 // ============================================================================
@@ -657,9 +672,10 @@ const getRegionColor = (region) => {
       v-if="hasValidDimensions"
       ref="svgRef"
       class="edit-overlay-svg"
-      :class="{ 
-        'cursor-crosshair pointer-events-auto': isDrawModeActive,
-        'pointer-events-none': !isDrawModeActive 
+      :class="{
+        'cursor-crosshair': isDrawModeActive,
+        'pointer-events-auto': isDrawModeActive || isResizing,
+        'pointer-events-none': !isDrawModeActive && !isResizing
       }"
       :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
       preserveAspectRatio="none"
@@ -734,14 +750,14 @@ const getRegionColor = (region) => {
           <circle
             :cx="getDeleteButtonCenter(regions[selectedIndex]).x"
             :cy="getDeleteButtonCenter(regions[selectedIndex]).y"
-            r="24"
+            :r="getDeleteButtonSize(regions[selectedIndex]).hitRadius"
             fill="transparent"
           />
           <!-- Visible button -->
           <circle
             :cx="getDeleteButtonCenter(regions[selectedIndex]).x"
             :cy="getDeleteButtonCenter(regions[selectedIndex]).y"
-            r="16"
+            :r="getDeleteButtonSize(regions[selectedIndex]).radius"
             fill="rgba(239, 68, 68, 0.9)"
           />
           <text
@@ -750,7 +766,7 @@ const getRegionColor = (region) => {
             text-anchor="middle"
             dominant-baseline="central"
             fill="white"
-            font-size="20"
+            :font-size="getDeleteButtonSize(regions[selectedIndex]).fontSize"
             font-weight="bold"
             class="delete-button-text"
           >×</text>
