@@ -1236,7 +1236,9 @@
       "generatingPptx": "產生 PPTX 檔案...",
       "downloadComplete": "PPTX 下載完成！",
       "pptxGenerationFailed": "PPTX 產生失敗：{error}",
-      "ocrEngine": "使用引擎：{engine}"
+      "ocrEngine": "使用引擎：{engine}",
+      "gpuMemoryError": "GPU 記憶體不足，自動切換至 CPU 模式...",
+      "gpuFallbackComplete": "已切換至 CPU 模式繼續處理"
     }
   }
 }

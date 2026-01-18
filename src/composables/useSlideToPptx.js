@@ -9,7 +9,7 @@
  * 4. Export to PPTX with text boxes overlaid on clean backgrounds
  */
 
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onUnmounted, watch } from 'vue'
 import { GoogleGenAI, Modality } from '@google/genai'
 import { useOcr } from './useOcr'
 import { useInpaintingWorker } from './useInpaintingWorker'
@@ -729,7 +729,7 @@ Output: A single clean image with all text removed.`
       if (firstSlide && firstSlide.ocrResults && firstSlide.ocrResults.length > 0) {
         const firstText = firstSlide.ocrResults[0].text || ''
         // Sanitize: remove invalid chars, newlines, and extra spaces
-        const sanitized = firstText.replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
+        const sanitized = firstText.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()
         if (sanitized.length > 0) {
           title = sanitized.substring(0, 15)
         }
@@ -1027,6 +1027,14 @@ Output: A single clean image with all text removed.`
     inpainting.terminate()
   }
 
+  // Watch for GPU fallback and log notification
+  watch(ocr.gpuFallbackOccurred, (occurred) => {
+    if (occurred) {
+      addLog(t('slideToPptx.logs.gpuMemoryError'), 'warning')
+      addLog(t('slideToPptx.logs.gpuFallbackComplete'), 'info')
+    }
+  })
+
   // Clean up on unmount
   onUnmounted(() => {
     cleanup()
@@ -1068,6 +1076,7 @@ Output: A single clean image with all text removed.`
     ocrCanUseWebGPU: ocr.canUseWebGPU,
     ocrIsDetecting: ocr.isDetecting,
     ocrExecutionProvider: ocr.executionProvider,
+    ocrGpuFallbackOccurred: ocr.gpuFallbackOccurred,
     setOcrEngine: ocr.setEngine,
     detectOcrCapabilities: ocr.detectCapabilities,
     clearOcrModelCache: ocr.clearModelCache,

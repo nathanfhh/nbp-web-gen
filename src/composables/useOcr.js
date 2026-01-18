@@ -10,7 +10,12 @@
 
 import { ref, computed, onUnmounted, shallowRef, getCurrentInstance } from 'vue'
 import { useOcrWorker } from './useOcrWorker'
-import { useOcrMainThread, hasWebGPU, isMobile, clearModelCache } from './useOcrMainThread'
+import {
+  useOcrMainThread,
+  isMobile,
+  clearModelCache,
+  GpuOutOfMemoryError,
+} from './useOcrMainThread'
 
 /**
  * OCR Engine Types
@@ -44,6 +49,10 @@ export function useOcr() {
 
   // Active engine info
   const activeEngine = ref(null)
+
+  // GPU fallback tracking
+  // Set to true when GPU memory error occurred and we fell back to WASM
+  const gpuFallbackOccurred = ref(false)
 
   // ============================================================================
   // OCR Instance Management
@@ -219,6 +228,41 @@ export function useOcr() {
       const result = await instance.recognize(image, wrappedOnProgress)
       syncState()
       return result
+    } catch (err) {
+      // Check if this is a GPU memory error - trigger automatic fallback
+      if (err instanceof GpuOutOfMemoryError && activeEngine.value === 'webgpu') {
+        console.warn('[useOcr] GPU memory error detected, falling back to WASM...')
+
+        // Mark that fallback occurred (UI can use this to show notification)
+        gpuFallbackOccurred.value = true
+
+        // Terminate current WebGPU instance
+        if (ocrInstance.value) {
+          await ocrInstance.value.terminate()
+          ocrInstance.value = null
+          instanceType = null
+        }
+
+        // Force WASM mode
+        preferredEngine.value = OCR_ENGINE.WASM
+        activeEngine.value = 'wasm'
+
+        // Create new WASM instance and initialize
+        const wasmInstance = ensureInstance()
+        await wasmInstance.initialize((value, message) => {
+          wrappedOnProgress(value, message, 'init')
+        })
+        syncState()
+
+        // Retry recognition with WASM
+        console.log('[useOcr] Retrying recognition with WASM backend...')
+        const result = await wasmInstance.recognize(image, wrappedOnProgress)
+        syncState()
+        return result
+      }
+
+      // Re-throw other errors
+      throw err
     } finally {
       isLoading.value = false
     }
@@ -350,6 +394,7 @@ export function useOcr() {
     canUseWebGPU,
     isMobileDevice,
     isDetecting,
+    gpuFallbackOccurred,
 
     // Methods
     initialize,

@@ -1203,7 +1203,9 @@
       "generatingPptx": "Generating PPTX file...",
       "downloadComplete": "PPTX download complete!",
       "pptxGenerationFailed": "PPTX generation failed: {error}",
-      "ocrEngine": "Using engine: {engine}"
+      "ocrEngine": "Using engine: {engine}",
+      "gpuMemoryError": "GPU memory insufficient, switching to CPU mode...",
+      "gpuFallbackComplete": "Switched to CPU mode, continuing processing"
     }
   },
   "tour": {

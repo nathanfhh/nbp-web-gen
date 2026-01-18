@@ -13,6 +13,51 @@
 import { ref, onUnmounted, getCurrentInstance } from 'vue'
 import Tesseract from 'tesseract.js'
 
+// ============================================================================
+// GPU Memory Error Detection
+// ============================================================================
+
+/**
+ * Custom error class for GPU memory issues
+ * Used to trigger automatic fallback to CPU/WASM mode
+ */
+export class GpuOutOfMemoryError extends Error {
+  constructor(originalMessage) {
+    super(`GPU out of memory: ${originalMessage}`)
+    this.name = 'GpuOutOfMemoryError'
+    this.originalMessage = originalMessage
+  }
+}
+
+/**
+ * Check if an error message indicates GPU memory exhaustion
+ * Common patterns from WebGPU/ONNX Runtime when VRAM is insufficient
+ */
+function isGpuMemoryError(errorMessage) {
+  if (!errorMessage) return false
+  const msg = errorMessage.toLowerCase()
+  return (
+    msg.includes('out of memory') ||
+    msg.includes('allocation failed') ||
+    msg.includes('device lost') ||
+    msg.includes('buffer allocation') ||
+    msg.includes('memory exhausted') ||
+    msg.includes('oom') ||
+    msg.includes('gpu memory') ||
+    msg.includes('vram') ||
+    // WebGPU specific errors
+    msg.includes('createbuffer') ||
+    msg.includes('mapasync') ||
+    // ONNX Runtime specific
+    msg.includes('failed to allocate') ||
+    msg.includes('gpubufferoffset')
+  )
+}
+
+// ============================================================================
+// ONNX Runtime Configuration
+// ============================================================================
+
 // ONNX Runtime version (must match package.json)
 const ONNX_VERSION = '1.23.2'
 const ONNX_CDN_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_VERSION}/dist/`
@@ -770,7 +815,17 @@ export function useOcrMainThread() {
       const { tensor: detTensor, width, height, originalWidth, originalHeight, scaleX, scaleY } =
         preprocessForDetection(bitmap, ort)
 
-      const detOutput = await detSession.run({ x: detTensor })
+      let detOutput
+      try {
+        detOutput = await detSession.run({ x: detTensor })
+      } catch (e) {
+        const errorMsg = e.message || String(e)
+        if (isGpuMemoryError(errorMsg)) {
+          console.warn('[useOcrMainThread] GPU memory error during detection:', errorMsg)
+          throw new GpuOutOfMemoryError(errorMsg)
+        }
+        throw e
+      }
       const outputTensor = detOutput[Object.keys(detOutput)[0]]
 
       if (onProgress) onProgress(30, 'Processing detection results...', 'detection')
@@ -810,7 +865,17 @@ export function useOcrMainThread() {
           continue
         }
 
-        const recOutput = await recSession.run({ x: recTensor })
+        let recOutput
+        try {
+          recOutput = await recSession.run({ x: recTensor })
+        } catch (e) {
+          const errorMsg = e.message || String(e)
+          if (isGpuMemoryError(errorMsg)) {
+            console.warn('[useOcrMainThread] GPU memory error during recognition:', errorMsg)
+            throw new GpuOutOfMemoryError(errorMsg)
+          }
+          throw e
+        }
         const recTensorOutput = recOutput[Object.keys(recOutput)[0]]
         const { text, confidence } = decodeRecognition(recTensorOutput, dictionary)
 
