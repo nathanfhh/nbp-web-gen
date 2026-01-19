@@ -356,6 +356,102 @@ function findBestCut(regions, bounds, axis, minGapSize) {
 }
 
 /**
+ * Parse hex color string to RGB array
+ * @param {string} hex - Hex color (with or without #)
+ * @returns {[number, number, number]} RGB values
+ */
+function hexToRgb(hex) {
+  const cleanHex = hex.replace('#', '')
+  const r = parseInt(cleanHex.substring(0, 2), 16)
+  const g = parseInt(cleanHex.substring(2, 4), 16)
+  const b = parseInt(cleanHex.substring(4, 6), 16)
+  return [r, g, b]
+}
+
+/**
+ * Calculate color distance (Euclidean in RGB space)
+ * @param {string} color1 - Hex color string
+ * @param {string} color2 - Hex color string
+ * @returns {number} Distance (0-441.67 for RGB)
+ */
+function colorDistance(color1, color2) {
+  const [r1, g1, b1] = hexToRgb(color1)
+  const [r2, g2, b2] = hexToRgb(color2)
+  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2)
+}
+
+/**
+ * Color difference threshold for considering colors as "different enough" to preserve
+ * RGB Euclidean distance > 50 means visually distinct colors (e.g., black vs dark gray is ~30)
+ */
+const COLOR_DIFFERENCE_THRESHOLD = 50
+
+/**
+ * Unify colors in a region group if they are similar, or preserve distinct colors
+ *
+ * Logic:
+ * - If all colors are within threshold of each other → use the most common color (mode)
+ * - If any color is distinctly different → preserve individual colors (e.g., highlights)
+ *
+ * @param {Array} regions - Array of regions with optional textColor property
+ */
+function unifyOrPreserveColors(regions) {
+  // Collect all colors (filter out undefined/null)
+  const colors = regions.map((r) => r.textColor).filter(Boolean)
+
+  if (colors.length === 0) {
+    // No colors extracted, leave as-is (will use default black in PPTX)
+    return
+  }
+
+  if (colors.length === 1) {
+    // Only one region has color, apply to all that don't have one
+    const singleColor = colors[0]
+    regions.forEach((r) => {
+      if (!r.textColor) r.textColor = singleColor
+    })
+    return
+  }
+
+  // Check if any pair of colors differs significantly
+  let hasDistinctColors = false
+  for (let i = 0; i < colors.length && !hasDistinctColors; i++) {
+    for (let j = i + 1; j < colors.length; j++) {
+      if (colorDistance(colors[i], colors[j]) > COLOR_DIFFERENCE_THRESHOLD) {
+        hasDistinctColors = true
+        break
+      }
+    }
+  }
+
+  if (hasDistinctColors) {
+    // Preserve individual colors (e.g., highlighted text)
+    // Fill in missing colors with the most common one
+    const colorCounts = {}
+    colors.forEach((c) => {
+      colorCounts[c] = (colorCounts[c] || 0) + 1
+    })
+    const modeColor = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0]
+
+    regions.forEach((r) => {
+      if (!r.textColor) r.textColor = modeColor
+    })
+  } else {
+    // All colors are similar → unify to mode (most common)
+    const colorCounts = {}
+    colors.forEach((c) => {
+      colorCounts[c] = (colorCounts[c] || 0) + 1
+    })
+    const modeColor = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0]
+
+    // Apply mode color to ALL regions (removes noise)
+    regions.forEach((r) => {
+      r.textColor = modeColor
+    })
+  }
+}
+
+/**
  * Helper: Create a final merged block from a list of regions
  */
 function createBlockFromRegions(regions) {
@@ -377,7 +473,10 @@ function createBlockFromRegions(regions) {
     return aCenterY - bCenterY
   })
 
-  // 2. Smart Text Joining
+  // 2. Process colors: unify similar colors or preserve distinct ones (e.g., highlights)
+  unifyOrPreserveColors(regions)
+
+  // 3. Smart Text Joining
   // Determine whether to use space " " or newline "\n" based on vertical position
   let text = regions[0].text
   for (let i = 1; i < regions.length; i++) {
@@ -393,7 +492,7 @@ function createBlockFromRegions(regions) {
 
     // Join with space if same line, newline if logically distinct line
     const separator = isSameLine ? ' ' : '\n'
-    
+
     // Prevent double spaces if OCR already provided one
     if (separator === ' ' && (text.endsWith(' ') || curr.text.startsWith(' '))) {
       text += curr.text
@@ -423,6 +522,7 @@ function createBlockFromRegions(regions) {
     alignment: inferAlignment(regions),
     fontSize: maxHeight,
     // Keep original lines for potential detailed editing later
+    // Each line now has textColor property (possibly unified)
     lines: regions,
   }
 }

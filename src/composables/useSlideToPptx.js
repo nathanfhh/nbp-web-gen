@@ -514,18 +514,31 @@ Output: A single clean image with all text removed.`
         return state
       }
 
-      // Step 4: Inpaint (remove text)
+      // Step 4: Inpaint (remove text) + Extract text colors
       currentStep.value = 'inpaint'
       state.status = 'inpaint'
       addLog(t('slideToPptx.logs.removingText', { slide: index + 1, method: effectiveSettings.inpaintMethod }))
 
       if (effectiveSettings.inpaintMethod === 'opencv') {
-        const inpaintedData = await inpainting.inpaint(imageData, mask, {
-          algorithm: effectiveSettings.opencvAlgorithm,
-          radius: effectiveSettings.inpaintRadius,
-          dilateMask: true,
-          dilateIterations: Math.ceil(effectiveSettings.maskPadding / 2),
-        })
+        // Pass rawRegions for color extraction during inpaint
+        const { imageData: inpaintedData, textColors } = await inpainting.inpaint(
+          imageData,
+          mask,
+          {
+            algorithm: effectiveSettings.opencvAlgorithm,
+            radius: effectiveSettings.inpaintRadius,
+            dilateMask: true,
+            dilateIterations: Math.ceil(effectiveSettings.maskPadding / 2),
+          },
+          state.rawRegions // Pass regions for color extraction
+        )
+
+        // Apply extracted colors to rawRegions
+        if (textColors && textColors.length === state.rawRegions.length) {
+          state.rawRegions.forEach((region, i) => {
+            region.textColor = textColors[i]
+          })
+        }
 
         // Convert ImageData to data URL
         state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
@@ -534,18 +547,27 @@ Output: A single clean image with all text removed.`
         const modelName = effectiveSettings.geminiModel === '2.0' ? 'Nano Banana (2.0)' : 'Nano Banana Pro (3.0)'
         addLog(t('slideToPptx.logs.usingGeminiModel', { slide: index + 1, model: modelName }))
 
+        // For Gemini method, extract colors separately first
+        const textColors = await inpainting.extractColors(imageData, state.rawRegions)
+        if (textColors && textColors.length === state.rawRegions.length) {
+          state.rawRegions.forEach((region, i) => {
+            region.textColor = textColors[i]
+          })
+        }
+
         try {
           state.cleanImage = await removeTextWithGeminiWithSettings(imageDataUrl, state.regions, effectiveSettings)
         } catch (geminiError) {
           // Fallback to OpenCV when Gemini fails (RECITATION, quota, etc.)
           addLog(t('slideToPptx.logs.geminiFailed', { slide: index + 1, error: geminiError.message }), 'warning')
 
-          const inpaintedData = await inpainting.inpaint(imageData, mask, {
+          const { imageData: inpaintedData } = await inpainting.inpaint(imageData, mask, {
             algorithm: 'NS', // Use NS algorithm for fallback (better for larger regions)
             radius: effectiveSettings.inpaintRadius || 1,
             dilateMask: true,
             dilateIterations: Math.ceil((effectiveSettings.maskPadding || 1) / 2),
           })
+          // Note: colors already extracted above, no need to re-extract
 
           state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
           addLog(t('slideToPptx.logs.opencvFallbackComplete', { slide: index + 1 }), 'success')
@@ -1215,11 +1237,6 @@ Output: A single clean image with all text removed.`
     addLog(t('slideToPptx.logs.reprocessingSlide', { slide: slideIndex + 1 }), 'info')
 
     try {
-      // Re-merge for PPTX export (with separator lines as forced cut boundaries)
-      const mergedRegions = mergeTextRegions(regionsToUse, separatorLines)
-      state.regions = mergedRegions
-      state.ocrResults = mergedRegions
-
       // Re-generate mask
       addLog(t('slideToPptx.logs.generatingMask', { slide: slideIndex + 1 }))
       state.mask = ocr.generateMask(state.width, state.height, regionsToUse, effectiveSettings.maskPadding)
@@ -1227,24 +1244,45 @@ Output: A single clean image with all text removed.`
       // Re-load original image data for inpainting
       const { imageData } = await loadImage(state.originalImage)
 
-      // Re-inpaint
+      // Re-inpaint + Re-extract colors
       addLog(t('slideToPptx.logs.removingText', { slide: slideIndex + 1, method: effectiveSettings.inpaintMethod }))
 
       if (effectiveSettings.inpaintMethod === 'opencv') {
-        const inpaintedData = await inpainting.inpaint(imageData, state.mask, {
-          algorithm: effectiveSettings.opencvAlgorithm,
-          radius: effectiveSettings.inpaintRadius,
-          dilateMask: true,
-          dilateIterations: Math.ceil(effectiveSettings.maskPadding / 2),
-        })
+        // Pass regionsToUse for color extraction during inpaint
+        const { imageData: inpaintedData, textColors } = await inpainting.inpaint(
+          imageData,
+          state.mask,
+          {
+            algorithm: effectiveSettings.opencvAlgorithm,
+            radius: effectiveSettings.inpaintRadius,
+            dilateMask: true,
+            dilateIterations: Math.ceil(effectiveSettings.maskPadding / 2),
+          },
+          regionsToUse
+        )
+
+        // Apply extracted colors to regions
+        if (textColors && textColors.length === regionsToUse.length) {
+          regionsToUse.forEach((region, i) => {
+            region.textColor = textColors[i]
+          })
+        }
+
         state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
       } else {
-        // Gemini API method with fallback to OpenCV
+        // Gemini API method - extract colors separately first
+        const textColors = await inpainting.extractColors(imageData, regionsToUse)
+        if (textColors && textColors.length === regionsToUse.length) {
+          regionsToUse.forEach((region, i) => {
+            region.textColor = textColors[i]
+          })
+        }
+
         try {
           state.cleanImage = await removeTextWithGeminiWithSettings(state.originalImage, state.regions, effectiveSettings)
         } catch (geminiError) {
           addLog(t('slideToPptx.logs.geminiFailed', { slide: slideIndex + 1, error: geminiError.message }), 'warning')
-          const inpaintedData = await inpainting.inpaint(imageData, state.mask, {
+          const { imageData: inpaintedData } = await inpainting.inpaint(imageData, state.mask, {
             algorithm: 'NS',
             radius: effectiveSettings.inpaintRadius || 1,
             dilateMask: true,
@@ -1253,6 +1291,12 @@ Output: A single clean image with all text removed.`
           state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
         }
       }
+
+      // Re-merge for PPTX export (with separator lines as forced cut boundaries)
+      // This happens AFTER color extraction so colors are available for merge logic
+      const mergedRegions = mergeTextRegions(regionsToUse, separatorLines)
+      state.regions = mergedRegions
+      state.ocrResults = mergedRegions
 
       addLog(t('slideToPptx.logs.reprocessingComplete', { slide: slideIndex + 1 }), 'success')
 

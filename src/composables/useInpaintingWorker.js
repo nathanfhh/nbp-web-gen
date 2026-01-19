@@ -14,6 +14,12 @@ import { ref, shallowRef, onUnmounted } from 'vue'
  */
 
 /**
+ * @typedef {Object} InpaintResult
+ * @property {ImageData} imageData - Inpainted image data
+ * @property {Array<string>|null} textColors - Array of hex color strings for each region, or null
+ */
+
+/**
  * @returns {Object} Inpainting worker composable
  */
 export function useInpaintingWorker() {
@@ -72,7 +78,19 @@ export function useInpaintingWorker() {
 
           case 'result':
             if (pendingResolve) {
-              pendingResolve(imageData)
+              // Return both imageData and textColors (if available)
+              pendingResolve({
+                imageData,
+                textColors: e.data.textColors || null,
+              })
+              pendingResolve = null
+              pendingReject = null
+            }
+            break
+
+          case 'colorsResult':
+            if (pendingResolve) {
+              pendingResolve(e.data.textColors || [])
               pendingResolve = null
               pendingReject = null
             }
@@ -131,9 +149,10 @@ export function useInpaintingWorker() {
    * @param {ImageData} imageData - Source image data
    * @param {ImageData} maskData - Mask image data (white = areas to inpaint)
    * @param {InpaintOptions} options - Inpainting options
-   * @returns {Promise<ImageData>} Inpainted image data
+   * @param {Array<{bounds: Object}>} [regions] - Optional regions for text color extraction
+   * @returns {Promise<InpaintResult>} Inpainted image data and text colors
    */
-  const inpaint = async (imageData, maskData, options = {}) => {
+  const inpaint = async (imageData, maskData, options = {}, regions = null) => {
     if (!worker.value || !isReady.value) {
       await initialize()
     }
@@ -159,6 +178,19 @@ export function useInpaintingWorker() {
           maskData.height
         )
 
+        // Serialize regions to ensure they can be cloned for postMessage
+        // Only extract the numeric bounds values needed for color extraction
+        const serializableRegions = regions
+          ? regions.map((r) => ({
+              bounds: {
+                x: Number(r.bounds.x),
+                y: Number(r.bounds.y),
+                width: Number(r.bounds.width),
+                height: Number(r.bounds.height),
+              },
+            }))
+          : null
+
         worker.value.postMessage(
           {
             type: 'inpaint',
@@ -170,6 +202,7 @@ export function useInpaintingWorker() {
               dilateMask: options.dilateMask ?? true,
               dilateIterations: options.dilateIterations ?? 2,
             },
+            regions: serializableRegions,
           },
           [imageClone.data.buffer, maskClone.data.buffer]
         )
@@ -180,6 +213,68 @@ export function useInpaintingWorker() {
     } catch (err) {
       error.value = err.message
       status.value = `Inpainting failed: ${err.message}`
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Extract text colors from regions (standalone, without inpainting)
+   * @param {ImageData} imageData - Source image data
+   * @param {Array<{bounds: Object}>} regions - Regions to extract colors from
+   * @returns {Promise<Array<string>>} Array of hex color strings
+   */
+  const extractColors = async (imageData, regions) => {
+    if (!worker.value || !isReady.value) {
+      await initialize()
+    }
+
+    if (!regions || regions.length === 0) {
+      return []
+    }
+
+    isLoading.value = true
+    status.value = 'Extracting text colors...'
+    error.value = null
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        pendingResolve = resolve
+        pendingReject = reject
+
+        // Clone the image data
+        const imageClone = new ImageData(
+          new Uint8ClampedArray(imageData.data),
+          imageData.width,
+          imageData.height
+        )
+
+        // Serialize regions to ensure they can be cloned for postMessage
+        const serializableRegions = regions.map((r) => ({
+          bounds: {
+            x: Number(r.bounds.x),
+            y: Number(r.bounds.y),
+            width: Number(r.bounds.width),
+            height: Number(r.bounds.height),
+          },
+        }))
+
+        worker.value.postMessage(
+          {
+            type: 'extractColors',
+            imageData: imageClone,
+            regions: serializableRegions,
+          },
+          [imageClone.data.buffer]
+        )
+      })
+
+      status.value = 'Color extraction complete'
+      return result
+    } catch (err) {
+      error.value = err.message
+      status.value = `Color extraction failed: ${err.message}`
       throw err
     } finally {
       isLoading.value = false
@@ -303,6 +398,7 @@ export function useInpaintingWorker() {
     initialize,
     inpaint,
     inpaintMultiple,
+    extractColors,
     dilateMask,
     imageToImageData,
     imageDataToDataUrl,

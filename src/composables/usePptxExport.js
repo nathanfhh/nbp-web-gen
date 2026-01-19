@@ -197,6 +197,7 @@ export function usePptxExport() {
                   debugLines.push({
                     text: line.text.substring(0, 30) + (line.text.length > 30 ? '...' : ''),
                     heightPx: Math.round(line.bounds.height),
+                    color: line.textColor || '(none)',
                   })
                   return line.bounds.height
                 })
@@ -219,6 +220,7 @@ export function usePptxExport() {
               debugLines.push({
                 text: region.text.substring(0, 30) + (region.text.length > 30 ? '...' : ''),
                 heightPx: Math.round(heightPx),
+                color: '(single)',
               })
             }
 
@@ -231,21 +233,75 @@ export function usePptxExport() {
             console.table(debugLines)
             console.groupEnd()
 
-            slide.addText(region.text, {
+            // Determine text content and colors
+            // If region has lines with different colors, use array format for per-line colors
+            const validLines = region.lines?.filter((line) => line.text && line.text.trim()) || []
+            const colors = validLines.map((line) => line.textColor).filter(Boolean)
+            const uniqueColors = [...new Set(colors)]
+            const hasMultipleColors = uniqueColors.length > 1
+
+            // Default color fallback (black)
+            const defaultColor = colors[0] || '000000'
+
+            // Common text box options
+            const textBoxOptions = {
               x,
               y,
               w,
               h,
               fontSize,
               fontFace: 'Arial', // Primary font (matches PPTX_FONT_STACK)
-              color: '000000',
               align: region.alignment || 'left', // Use inferred alignment
               valign: 'top', // Align text to top of box (important for multi-line)
               wrap: false, // Let text overflow instead of wrapping (unless \n exists)
               // Make text box transparent so background shows through
               fill: { type: 'none' },
               line: { type: 'none' },
-            })
+            }
+
+            if (hasMultipleColors && validLines.length > 0) {
+              // Multiple colors: use array format for per-line coloring
+              // Group consecutive lines by color and join with appropriate separators
+              const textParts = []
+
+              for (let lineIdx = 0; lineIdx < validLines.length; lineIdx++) {
+                const line = validLines[lineIdx]
+                const lineColor = line.textColor || defaultColor
+
+                // Determine separator: space for same visual line, newline for different lines
+                let separator = ''
+                if (lineIdx > 0) {
+                  const prev = validLines[lineIdx - 1]
+                  const prevCenterY = prev.bounds.y + prev.bounds.height / 2
+                  const currCenterY = line.bounds.y + line.bounds.height / 2
+                  const threshold = Math.min(prev.bounds.height, line.bounds.height) * 0.7
+                  const isSameLine = Math.abs(prevCenterY - currCenterY) < threshold
+                  separator = isSameLine ? ' ' : '\n'
+                }
+
+                // Add separator as separate part if needed (inherits previous color)
+                if (separator && textParts.length > 0) {
+                  textParts.push({
+                    text: separator,
+                    options: { color: textParts[textParts.length - 1].options.color },
+                  })
+                }
+
+                // Add the text with its color
+                textParts.push({
+                  text: line.text,
+                  options: { color: lineColor },
+                })
+              }
+
+              slide.addText(textParts, textBoxOptions)
+            } else {
+              // Single color: use simple format
+              slide.addText(region.text, {
+                ...textBoxOptions,
+                color: defaultColor,
+              })
+            }
           }
         }
       }
