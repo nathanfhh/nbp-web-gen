@@ -159,6 +159,27 @@ const isClosing = ref(false)
 const isRegionSidebarOpen = ref(false)
 const imageContainerRef = ref(null)
 
+// Highlighted region (for blink effect after clicking sidebar item)
+const highlightedRegion = ref(null) // { type: 'merged'|'raw'|'failed', index: number }
+const blinkVisible = ref(true) // Toggle for blink animation
+let highlightTimeout = null
+let blinkInterval = null
+
+// Check if a specific region is currently highlighted and should show blink effect
+const isRegionHighlighted = (type, idx) => {
+  return highlightedRegion.value?.type === type && highlightedRegion.value?.index === idx
+}
+
+// Get dynamic style for highlighted region
+const getHighlightStyle = (type, idx) => {
+  if (!isRegionHighlighted(type, idx)) return {}
+  return {
+    fillOpacity: blinkVisible.value ? 0.6 : 0.1,
+    strokeOpacity: blinkVisible.value ? 1 : 0.3,
+    strokeWidth: blinkVisible.value ? 4 : 2,
+  }
+}
+
 // Combined region list for sidebar (respects visibility filters)
 const visibleRegions = computed(() => {
   const regions = []
@@ -220,6 +241,25 @@ const handleRegionClick = (region) => {
     imageDimensions.value,
     { width: containerRect.width, height: containerRect.height }
   )
+
+  // Set highlighted region for blink effect
+  if (highlightTimeout) clearTimeout(highlightTimeout)
+  if (blinkInterval) clearInterval(blinkInterval)
+
+  highlightedRegion.value = { type: region.type, index: region.originalIndex }
+  blinkVisible.value = true
+
+  // Start blink animation (toggle every 300ms for 3 seconds)
+  blinkInterval = setInterval(() => {
+    blinkVisible.value = !blinkVisible.value
+  }, 300)
+
+  highlightTimeout = setTimeout(() => {
+    clearInterval(blinkInterval)
+    blinkInterval = null
+    highlightedRegion.value = null
+    blinkVisible.value = true
+  }, 3000)
 
   // Auto-close sidebar after clicking
   isRegionSidebarOpen.value = false
@@ -409,6 +449,16 @@ onUnmounted(() => {
   window.removeEventListener('wheel', handleWheel)
   document.body.style.overflow = ''
   // Note: useHistoryState handles its own cleanup in onUnmounted
+
+  // Clean up highlight animation timers
+  if (highlightTimeout) {
+    clearTimeout(highlightTimeout)
+    highlightTimeout = null
+  }
+  if (blinkInterval) {
+    clearInterval(blinkInterval)
+    blinkInterval = null
+  }
 })
 
 // Image dimensions
@@ -657,8 +707,9 @@ const goToSlideToPptx = async () => {
               <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <span class="text-xs font-medium">{{ $t('common.download') }}</span>
-              <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <!-- Hide text and chevron on mobile -->
+              <span class="hidden sm:inline text-xs font-medium">{{ $t('common.download') }}</span>
+              <svg class="hidden sm:block w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -718,10 +769,76 @@ const goToSlideToPptx = async () => {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            <span class="text-xs font-medium">{{ $t('lightbox.close') }}</span>
+            <!-- Hide text on mobile -->
+            <span class="hidden sm:inline text-xs font-medium">{{ $t('lightbox.close') }}</span>
           </button>
         </div>
 
+
+        <!-- Region Sidebar Toggle Button (outside content for proper positioning) -->
+        <button
+          v-if="showRegionSidebar"
+          @click.stop="toggleRegionSidebar"
+          class="region-sidebar-toggle"
+          :class="{ 'is-open': isRegionSidebarOpen }"
+          :title="$t('lightbox.regionList.toggle')"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              :d="isRegionSidebarOpen ? 'M15 19l-7-7 7-7' : 'M4 6h16M4 12h16M4 18h16'"
+            />
+          </svg>
+        </button>
+
+        <!-- Region List Sidebar (outside content for proper positioning) -->
+        <Transition name="sidebar">
+          <div
+            v-if="showRegionSidebar && isRegionSidebarOpen"
+            class="region-sidebar"
+            @click.stop
+            @mousedown.stop
+            @touchstart.stop
+            @wheel.stop
+          >
+            <div class="region-sidebar-header">
+              <span class="text-sm font-medium text-text-primary">
+                {{ $t('lightbox.regionList.title') }}
+              </span>
+              <span class="text-xs text-text-muted">
+                ({{ visibleRegions.length }})
+              </span>
+            </div>
+            <div class="region-sidebar-list">
+              <button
+                v-for="(region, idx) in visibleRegions"
+                :key="`${region.type}-${region.originalIndex}`"
+                @click="handleRegionClick(region)"
+                @mousedown.stop
+                @touchstart.stop
+                class="region-sidebar-item"
+              >
+                <span
+                  class="region-color-dot"
+                  :class="{
+                    'bg-blue-500': region.color === 'blue',
+                    'bg-green-500': region.color === 'green',
+                    'bg-red-500': region.color === 'red',
+                  }"
+                ></span>
+                <div class="region-item-content">
+                  <span class="region-item-index">#{{ idx + 1 }}</span>
+                  <span class="region-item-label">{{ region.label }}</span>
+                  <span v-if="region.text" class="region-item-text">
+                    {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </Transition>
 
         <!-- Navigation: Previous -->
         <button
@@ -747,66 +864,6 @@ const goToSlideToPptx = async () => {
           @touchmove="handleTouchMove"
           @touchend="handleTouchEnd"
         >
-          <!-- Region List Sidebar (overlay on top of image) -->
-          <Transition name="sidebar">
-            <div
-              v-if="showRegionSidebar && isRegionSidebarOpen"
-              class="region-sidebar"
-              @click.stop
-            >
-              <div class="region-sidebar-header">
-                <span class="text-sm font-medium text-text-primary">
-                  {{ $t('lightbox.regionList.title') }}
-                </span>
-                <span class="text-xs text-text-muted">
-                  ({{ visibleRegions.length }})
-                </span>
-              </div>
-              <div class="region-sidebar-list">
-                <button
-                  v-for="(region, idx) in visibleRegions"
-                  :key="`${region.type}-${region.originalIndex}`"
-                  @click="handleRegionClick(region)"
-                  class="region-sidebar-item"
-                >
-                  <span
-                    class="region-color-dot"
-                    :class="{
-                      'bg-blue-500': region.color === 'blue',
-                      'bg-green-500': region.color === 'green',
-                      'bg-red-500': region.color === 'red',
-                    }"
-                  ></span>
-                  <div class="region-item-content">
-                    <span class="region-item-index">#{{ idx + 1 }}</span>
-                    <span class="region-item-label">{{ region.label }}</span>
-                    <span v-if="region.text" class="region-item-text">
-                      {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </Transition>
-
-          <!-- Sidebar Toggle Button (only in edit mode with regions) -->
-          <button
-            v-if="showRegionSidebar"
-            @click.stop="toggleRegionSidebar"
-            class="region-sidebar-toggle"
-            :class="{ 'is-open': isRegionSidebarOpen }"
-            :title="$t('lightbox.regionList.toggle')"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                :d="isRegionSidebarOpen ? 'M15 19l-7-7 7-7' : 'M4 6h16M4 12h16M4 18h16'"
-              />
-            </svg>
-          </button>
-
           <div
             class="lightbox-image-wrapper relative"
             :class="{
@@ -850,9 +907,11 @@ const goToSlideToPptx = async () => {
                     :y="result.bounds.y"
                     :width="result.bounds.width"
                     :height="result.bounds.height"
-                    fill="rgba(59, 130, 246, 0.2)"
+                    :fill="isRegionHighlighted('merged', idx) ? 'rgba(59, 130, 246, 0.5)' : 'rgba(59, 130, 246, 0.2)'"
                     stroke="rgba(59, 130, 246, 0.8)"
-                    stroke-width="2"
+                    :stroke-width="getHighlightStyle('merged', idx).strokeWidth || 2"
+                    :fill-opacity="getHighlightStyle('merged', idx).fillOpacity"
+                    :stroke-opacity="getHighlightStyle('merged', idx).strokeOpacity"
                     vector-effect="non-scaling-stroke"
                   />
                 </template>
@@ -865,10 +924,12 @@ const goToSlideToPptx = async () => {
                     :y="result.bounds.y"
                     :width="result.bounds.width"
                     :height="result.bounds.height"
-                    fill="rgba(16, 185, 129, 0.1)"
+                    :fill="isRegionHighlighted('raw', idx) ? 'rgba(16, 185, 129, 0.4)' : 'rgba(16, 185, 129, 0.1)'"
                     stroke="rgba(16, 185, 129, 0.8)"
-                    stroke-width="1"
-                    stroke-dasharray="4"
+                    :stroke-width="getHighlightStyle('raw', idx).strokeWidth || 1"
+                    :stroke-dasharray="isRegionHighlighted('raw', idx) ? '0' : '4'"
+                    :fill-opacity="getHighlightStyle('raw', idx).fillOpacity"
+                    :stroke-opacity="getHighlightStyle('raw', idx).strokeOpacity"
                     vector-effect="non-scaling-stroke"
                   />
                 </template>
@@ -881,10 +942,12 @@ const goToSlideToPptx = async () => {
                     :y="result.bounds.y"
                     :width="result.bounds.width"
                     :height="result.bounds.height"
-                    fill="rgba(239, 68, 68, 0.15)"
+                    :fill="isRegionHighlighted('failed', idx) ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.15)'"
                     stroke="rgba(239, 68, 68, 0.9)"
-                    stroke-width="2"
-                    stroke-dasharray="6 3"
+                    :stroke-width="getHighlightStyle('failed', idx).strokeWidth || 2"
+                    :stroke-dasharray="isRegionHighlighted('failed', idx) ? '0' : '6 3'"
+                    :fill-opacity="getHighlightStyle('failed', idx).fillOpacity"
+                    :stroke-opacity="getHighlightStyle('failed', idx).strokeOpacity"
                     vector-effect="non-scaling-stroke"
                   />
                 </template>
@@ -1035,6 +1098,18 @@ const goToSlideToPptx = async () => {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
   transition: all 0.2s;
+}
+
+/* Mobile: ensure consistent button height */
+@media (max-width: 639px) {
+  .lightbox-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 .lightbox-btn:hover {
@@ -1357,17 +1432,18 @@ const goToSlideToPptx = async () => {
   opacity: 0;
 }
 
-/* Region Sidebar - overlays on top of image */
+/* Region Sidebar - positioned at lightbox-overlay level */
 .region-sidebar {
   position: absolute;
-  top: 0;
+  top: 4.5rem; /* Below toolbar */
   left: 0;
-  bottom: 0;
+  bottom: 4rem; /* Above dots/info */
   width: 280px;
-  max-width: 100%;
+  max-width: calc(100% - 3.5rem); /* Leave space for toggle button */
   background: rgba(20, 20, 30, 0.95);
   backdrop-filter: blur(12px);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0.75rem 0.75rem 0;
   display: flex;
   flex-direction: column;
   z-index: 30;
@@ -1377,7 +1453,9 @@ const goToSlideToPptx = async () => {
 /* Mobile: full width */
 @media (max-width: 639px) {
   .region-sidebar {
-    width: 100%;
+    top: 4rem;
+    width: 85%;
+    max-width: 85%;
     border-right: none;
   }
 }
@@ -1456,12 +1534,11 @@ const goToSlideToPptx = async () => {
   text-overflow: ellipsis;
 }
 
-/* Sidebar Toggle Button */
+/* Sidebar Toggle Button - positioned at lightbox-overlay level */
 .region-sidebar-toggle {
   position: absolute;
-  top: 50%;
-  left: 0.5rem;
-  transform: translateY(-50%);
+  top: 4.5rem; /* Align with sidebar top */
+  left: 0.75rem;
   width: 2.5rem;
   height: 2.5rem;
   display: flex;
@@ -1471,24 +1548,27 @@ const goToSlideToPptx = async () => {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 0.5rem;
   color: white;
-  z-index: 25;
+  z-index: 31; /* Above sidebar */
   transition: all 0.2s;
 }
 
 .region-sidebar-toggle:hover {
   background: rgba(50, 50, 60, 0.95);
-  transform: translateY(-50%) scale(1.05);
+  transform: scale(1.05);
 }
 
 .region-sidebar-toggle.is-open {
   left: calc(280px + 0.5rem);
 }
 
-/* Mobile: toggle position when open */
+/* Mobile: toggle position */
 @media (max-width: 639px) {
+  .region-sidebar-toggle {
+    top: 4rem;
+  }
+
   .region-sidebar-toggle.is-open {
-    left: auto;
-    right: 0.5rem;
+    left: calc(85% + 0.5rem);
   }
 }
 
@@ -1503,4 +1583,5 @@ const goToSlideToPptx = async () => {
   transform: translateX(-100%);
   opacity: 0;
 }
+
 </style>

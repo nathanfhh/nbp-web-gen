@@ -142,11 +142,12 @@ export function useLightboxZoom() {
   const focusOnRegion = (bounds, imageDimensions, containerDimensions) => {
     if (!bounds || !imageDimensions || !containerDimensions) return
 
-    // Set zoom to 1.5 if currently < 1, otherwise maintain
-    const targetScale = scale.value < 1 ? 1.5 : scale.value
+    // Step 1: If currently < 100%, zoom to 150% first
+    // If already >= 100%, keep current scale
+    const targetScale = scale.value < 1 ? 1.5 : Math.max(scale.value, 1.5)
     scale.value = targetScale
 
-    // Calculate region center in image coordinates (0-1 normalized)
+    // Step 2: Calculate region center in image coordinates (0-1 normalized)
     const regionCenterX = (bounds.x + bounds.width / 2) / imageDimensions.width
     const regionCenterY = (bounds.y + bounds.height / 2) / imageDimensions.height
 
@@ -166,7 +167,7 @@ export function useLightboxZoom() {
       displayedWidth = containerDimensions.height * imageAspect
     }
 
-    // Calculate the offset from container center to region center (in displayed pixels at scale 1)
+    // Step 3: Calculate the offset from container center to region center (in displayed pixels at scale 1)
     const offsetX = (regionCenterX - 0.5) * displayedWidth
     const offsetY = (regionCenterY - 0.5) * displayedHeight
 
@@ -174,7 +175,7 @@ export function useLightboxZoom() {
     translateX.value = -offsetX * targetScale
     translateY.value = -offsetY * targetScale
 
-    // Constrain to valid pan range
+    // Step 4: Constrain to valid pan range
     constrainPan()
   }
 
