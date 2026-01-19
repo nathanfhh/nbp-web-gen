@@ -62,10 +62,11 @@ This project is a testament to the power of AI-assisted development:
 *   **Character Extraction:** AI-powered character trait extraction from images. Save and reuse characters across generation modes for consistent character design.
 *   **LINE Sticker Compliance Tool:** Dedicated tool to prepare stickers for LINE Store submission - auto-resize, even dimension enforcement, cover image generation (main.png/tab.png), and batch ZIP export.
 *   **Slide to PPTX Converter:** Inspired by [DeckEdit](https://deckedit.com/), convert slide images or PDFs into editable PowerPoint files - all processing happens in your browser. Unlike purely automated tools that often fail on complex layouts, Mediator provides a "Human-in-the-loop" workflow powered by our **Recursive XY-Cut Layout Analysis Engine**, allowing precise manual correction of OCR regions before generation.
-    *   **Client-Side OCR:** Uses PaddleOCR v5 models running on ONNX Runtime with WebGPU acceleration (falls back to WebAssembly).
+    *   **Client-Side OCR:** Uses PaddleOCR v5 models running on ONNX Runtime with WebGPU acceleration (falls back to WebAssembly). Choose between Server (higher accuracy) or Mobile (faster) model sizes.
     *   **Tesseract.js Fallback:** Automatic fallback for failed text regions using Tesseract.js OCR engine.
-    *   **Manual Region Editing:** Manually add, delete, or resize OCR regions in a visual editor to fix detection errors.
+    *   **Advanced Region Editor:** Manually add, delete, resize, or batch-select OCR regions. Features undo/redo support, separator line tool for splitting merged regions, and rectangle selection for bulk deletion.
     *   **Text Removal:** Remove text from slide backgrounds using OpenCV.js (free) or Gemini API (higher quality, requires API key).
+    *   **Dynamic Text Colors:** Automatically extracts and applies original text colors from slides to PPTX output.
     *   **Smart API Key Validation:** Gemini options are automatically disabled when no API key is configured; 3.0 model requires paid key.
     *   **Editable Output:** Generates PPTX files with text boxes overlaid on clean background images.
     *   **PDF Support:** Upload PDFs directly - automatically converted to images page by page.
@@ -193,10 +194,11 @@ npm run build
 *   **角色萃取工具：** AI 驅動的角色特徵萃取功能，可從圖片中提取角色資訊並儲存，跨模式重複使用以維持角色設計一致性。
 *   **LINE 貼圖合規工具：** 專為 LINE 貼圖上架打造的工具，自動調整尺寸、強制偶數尺寸、生成封面圖 (main.png/tab.png)，並批次匯出 ZIP。
 *   **簡報轉 PPTX 工具：** 靈感來自 [DeckEdit](https://deckedit.com/)，將簡報圖片或 PDF 轉換為可編輯的 PowerPoint 檔案，所有處理皆在瀏覽器端完成。不同於容易在複雜排版中失敗的全自動工具，Mediator 提供「人機協作」工作流，讓您在生成前能精確地手動修正 OCR 區域。
-    *   **客戶端 OCR：** 使用 PaddleOCR v5 模型搭配 ONNX Runtime，支援 WebGPU 加速（自動降級至 WebAssembly）。
+    *   **客戶端 OCR：** 使用 PaddleOCR v5 模型搭配 ONNX Runtime，支援 WebGPU 加速（自動降級至 WebAssembly）。可選擇 Server（高精度）或 Mobile（快速）模型。
     *   **Tesseract.js 備援：** 針對辨識失敗的區域，自動使用 Tesseract.js 重新辨識。
-    *   **手動編輯區域：** 在視覺化編輯器中手動新增、刪除或調整 OCR 區域，修正偵測錯誤。
+    *   **進階區域編輯器：** 手動新增、刪除、調整或批次選取 OCR 區域。支援復原/重做、分隔線工具（拆分誤合併區域）、矩形選取批次刪除。
     *   **文字移除：** 使用 OpenCV.js（免費）或 Gemini API（品質較高，需設定 API 金鑰）從簡報背景中移除文字。
+    *   **動態文字顏色：** 自動提取並套用原始簡報中的文字顏色至 PPTX 輸出。
     *   **智慧金鑰驗證：** 未設定 API 金鑰時自動禁用 Gemini 選項；3.0 模型需使用付費金鑰。
     *   **可編輯輸出：** 生成的 PPTX 包含文字框疊加在乾淨的背景圖片上。
     *   **PDF 支援：** 可直接上傳 PDF，自動逐頁轉換為圖片。
