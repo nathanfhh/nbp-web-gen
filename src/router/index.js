@@ -21,6 +21,11 @@ const routes = [
     name: 'slide-to-pptx',
     component: () => import('@/views/SlideToPptxView.vue'),
   },
+  // Catch-all: redirect unknown routes to home
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/',
+  },
 ]
 
 // Get base URL safely - handle cases where BASE_URL might be undefined or string "undefined"
