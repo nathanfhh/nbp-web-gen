@@ -64,7 +64,9 @@
     "freeTierSubtitle": "用於文字處理功能（選填）",
     "freeTierPlaceholder": "輸入您的 Free Tier API Key...",
     "addFreeTier": "新增 Free Tier 金鑰",
-    "freeTierHint": "Free Tier 金鑰可用於角色萃取、簡報風格分析等文字處理功能，額度用盡時會自動切換到主要金鑰。"
+    "freeTierHint": "Free Tier 金鑰可用於角色萃取、簡報風格分析等文字處理功能，額度用盡時會自動切換到主要金鑰。",
+    "showKey": "顯示金鑰",
+    "hideKey": "隱藏金鑰"
   },
   "modes": {
     "title": "生成模式",

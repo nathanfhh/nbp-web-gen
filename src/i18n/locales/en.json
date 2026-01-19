@@ -64,7 +64,9 @@
     "freeTierSubtitle": "For text processing features (optional)",
     "freeTierPlaceholder": "Enter your Free Tier API Key...",
     "addFreeTier": "Add Free Tier Key",
-    "freeTierHint": "Free Tier key can be used for character extraction, slide style analysis, and other text processing. When quota is exhausted, it automatically falls back to the main key."
+    "freeTierHint": "Free Tier key can be used for character extraction, slide style analysis, and other text processing. When quota is exhausted, it automatically falls back to the main key.",
+    "showKey": "Show API Key",
+    "hideKey": "Hide API Key"
   },
   "modes": {
     "title": "Generation Mode",

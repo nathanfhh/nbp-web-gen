@@ -204,6 +204,7 @@ const cancelEditingFreeTier = () => {
           <button
             @click="showPaidKey = !showPaidKey"
             class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-bg-muted transition-colors"
+            :aria-label="showPaidKey ? $t('apiKey.hideKey') : $t('apiKey.showKey')"
           >
             <svg v-if="showPaidKey" class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -329,6 +330,7 @@ const cancelEditingFreeTier = () => {
           <button
             @click="showFreeTierKey = !showFreeTierKey"
             class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-bg-muted transition-colors"
+            :aria-label="showFreeTierKey ? $t('apiKey.hideKey') : $t('apiKey.showKey')"
           >
             <svg v-if="showFreeTierKey" class="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
