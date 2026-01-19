@@ -911,6 +911,39 @@ Output: A single clean image with all text removed.`
   }
 
   /**
+   * Delete multiple regions from a slide (batch delete)
+   * @param {number} slideIndex - Slide index
+   * @param {number[]} regionIndices - Array of region indices to delete
+   */
+  const deleteRegionsBatch = (slideIndex, regionIndices) => {
+    const state = slideStates.value[slideIndex]
+    if (!state || !regionIndices.length) return
+
+    // Create edited regions array if not exists
+    const currentRegions = state.editedRawRegions || [...state.rawRegions]
+
+    // Validate all indices
+    const validIndices = regionIndices.filter(i => i >= 0 && i < currentRegions.length)
+    if (!validIndices.length) return
+
+    // Push to history before making changes (single snapshot for all deletions)
+    pushEditHistory(slideIndex)
+
+    // Remove regions using Set for O(1) lookup (order doesn't matter with filter approach)
+    const indicesToRemove = new Set(validIndices)
+    const newRegions = currentRegions.filter((_, i) => !indicesToRemove.has(i))
+
+    // Update state
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: newRegions,
+      isRegionsEdited: true,
+    }
+
+    addLog(t('slideToPptx.logs.regionsBatchDeleted', { count: validIndices.length, slide: slideIndex + 1 }), 'info')
+  }
+
+  /**
    * Add a manually drawn region to a slide
    * @param {number} slideIndex - Slide index
    * @param {Object} bounds - Region bounds { x, y, width, height }
@@ -1326,6 +1359,13 @@ Output: A single clean image with all text removed.`
     }
   })
 
+  // Watch for model size fallback and log notification
+  watch(ocr.modelSizeFallbackOccurred, (occurred) => {
+    if (occurred) {
+      addLog(t('ocrSettings.modelSizeFallback'), 'warning')
+    }
+  })
+
   // Clean up on unmount
   onUnmounted(() => {
     cleanup()
@@ -1368,6 +1408,7 @@ Output: A single clean image with all text removed.`
     ocrIsDetecting: ocr.isDetecting,
     ocrExecutionProvider: ocr.executionProvider,
     ocrGpuFallbackOccurred: ocr.gpuFallbackOccurred,
+    ocrModelSizeFallbackOccurred: ocr.modelSizeFallbackOccurred,
     setOcrEngine: ocr.setEngine,
     detectOcrCapabilities: ocr.detectCapabilities,
     clearOcrModelCache: ocr.clearModelCache,
@@ -1392,6 +1433,7 @@ Output: A single clean image with all text removed.`
     // Region editing methods
     getEditableRegions,
     deleteRegion,
+    deleteRegionsBatch,
     addManualRegion,
     resetRegions,
     resizeRegion,

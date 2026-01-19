@@ -96,7 +96,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'close', 'edit-regions'])
+const emit = defineEmits(['update:modelValue', 'close', 'edit-regions', 'select-region'])
 
 // Image storage for OPFS access (used by useLightboxDownload)
 const imageStorage = useImageStorage()
@@ -118,6 +118,7 @@ const {
   handleMouseMove,
   handleGlobalMouseUp,
   handleDoubleClick,
+  focusOnRegion,
 } = useLightboxZoom()
 
 // Initialize touch composable with zoom dependencies
@@ -153,6 +154,74 @@ const isAnimating = ref(false)
 const slideDirection = ref('') // 'left' or 'right'
 const isVisible = ref(false)
 const isClosing = ref(false)
+
+// Region sidebar state (for edit mode)
+const isRegionSidebarOpen = ref(false)
+const imageContainerRef = ref(null)
+
+// Combined region list for sidebar (only raw and failed - merged are not editable)
+const visibleRegions = computed(() => {
+  const regions = []
+
+  // Add raw regions (green) - successfully recognized text
+  if (props.ocrRegions.raw) {
+    props.ocrRegions.raw.forEach((r, idx) => {
+      regions.push({
+        ...r,
+        type: 'raw',
+        color: 'green',
+        label: t('lightbox.regionList.raw'),
+        originalIndex: idx,
+      })
+    })
+  }
+
+  // Add failed regions (red) - detection without recognition
+  if (props.ocrRegions.failed) {
+    props.ocrRegions.failed.forEach((r, idx) => {
+      regions.push({
+        ...r,
+        type: 'failed',
+        color: 'red',
+        label: t('lightbox.regionList.failed'),
+        originalIndex: idx,
+      })
+    })
+  }
+
+  return regions
+})
+
+// Check if region sidebar should be available
+const showRegionSidebar = computed(() => {
+  return props.isEditMode && visibleRegions.value.length > 0
+})
+
+// Handle region click - navigate to region and emit select event
+const handleRegionClick = (region) => {
+  if (!imageDimensions.value.width || !imageContainerRef.value) return
+
+  const containerRect = imageContainerRef.value.getBoundingClientRect()
+  focusOnRegion(
+    region.bounds,
+    imageDimensions.value,
+    { width: containerRect.width, height: containerRect.height }
+  )
+
+  // Emit select-region event for parent to handle (e.g., select in OcrRegionEditor)
+  // Only raw and failed types can be selected (merged regions are computed, not editable)
+  if (region.type === 'raw' || region.type === 'failed') {
+    emit('select-region', { type: region.type, index: region.originalIndex })
+  }
+
+  // Auto-close sidebar after clicking
+  isRegionSidebarOpen.value = false
+}
+
+// Toggle region sidebar
+const toggleRegionSidebar = () => {
+  isRegionSidebarOpen.value = !isRegionSidebarOpen.value
+}
 
 // History state management for back gesture/button support
 const { pushState, popState, cleanupBeforeNavigation } = useHistoryState('lightbox', {
@@ -581,8 +650,9 @@ const goToSlideToPptx = async () => {
               <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <span class="text-xs font-medium">{{ $t('common.download') }}</span>
-              <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <!-- Hide text and chevron on mobile -->
+              <span class="hidden sm:inline text-xs font-medium">{{ $t('common.download') }}</span>
+              <svg class="hidden sm:block w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -642,10 +712,75 @@ const goToSlideToPptx = async () => {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            <span class="text-xs font-medium">{{ $t('lightbox.close') }}</span>
+            <!-- Hide text on mobile -->
+            <span class="hidden sm:inline text-xs font-medium">{{ $t('lightbox.close') }}</span>
           </button>
         </div>
 
+
+        <!-- Region Sidebar Toggle Button (outside content for proper positioning) -->
+        <button
+          v-if="showRegionSidebar"
+          @click.stop="toggleRegionSidebar"
+          class="region-sidebar-toggle"
+          :class="{ 'is-open': isRegionSidebarOpen }"
+          :title="$t('lightbox.regionList.toggle')"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              :d="isRegionSidebarOpen ? 'M15 19l-7-7 7-7' : 'M4 6h16M4 12h16M4 18h16'"
+            />
+          </svg>
+        </button>
+
+        <!-- Region List Sidebar (outside content for proper positioning) -->
+        <!-- Using v-show to preserve scroll position when closed -->
+        <div
+          v-show="showRegionSidebar"
+          class="region-sidebar"
+          :class="{ 'is-open': isRegionSidebarOpen }"
+          @click.stop
+          @mousedown.stop
+          @touchstart.stop
+          @wheel.stop
+        >
+          <div class="region-sidebar-header">
+            <span class="text-sm font-medium text-text-primary">
+              {{ $t('lightbox.regionList.title') }}
+            </span>
+            <span class="text-xs text-text-muted">
+              ({{ visibleRegions.length }})
+            </span>
+          </div>
+          <div class="region-sidebar-list">
+            <button
+              v-for="(region, idx) in visibleRegions"
+              :key="`${region.type}-${region.originalIndex}`"
+              @click="handleRegionClick(region)"
+              @mousedown.stop
+              @touchstart.stop
+              class="region-sidebar-item"
+            >
+              <span
+                class="region-color-dot"
+                :class="{
+                  'bg-green-500': region.color === 'green',
+                  'bg-red-500': region.color === 'red',
+                }"
+              ></span>
+              <div class="region-item-content">
+                <span class="region-item-index">#{{ idx + 1 }}</span>
+                <span class="region-item-label">{{ region.label }}</span>
+                <span v-if="region.text" class="region-item-text">
+                  {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
 
         <!-- Navigation: Previous -->
         <button
@@ -662,6 +797,7 @@ const goToSlideToPptx = async () => {
 
         <!-- Image container -->
         <div
+          ref="imageContainerRef"
           class="lightbox-content"
           @mousedown="handleMouseDownWrapper"
           @mousemove="handleMouseMove"
@@ -898,6 +1034,18 @@ const goToSlideToPptx = async () => {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
   transition: all 0.2s;
+}
+
+/* Mobile: ensure consistent button height */
+@media (max-width: 639px) {
+  .lightbox-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 .lightbox-btn:hover {
@@ -1219,4 +1367,157 @@ const goToSlideToPptx = async () => {
 .lightbox-leave-to {
   opacity: 0;
 }
+
+/* Region Sidebar - positioned at lightbox-overlay level */
+.region-sidebar {
+  position: absolute;
+  top: 4.5rem; /* Below toolbar */
+  left: 0;
+  bottom: 4rem; /* Above dots/info */
+  width: 280px;
+  max-width: calc(100% - 3.5rem); /* Leave space for toggle button */
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0.75rem 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+  overflow: hidden;
+  /* Default: hidden (slide out) */
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+/* Open state */
+.region-sidebar.is-open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile: full width */
+@media (max-width: 639px) {
+  .region-sidebar {
+    top: 4rem;
+    width: 85%;
+    max-width: 85%;
+    border-right: none;
+  }
+}
+
+.region-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.region-sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.region-sidebar-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  margin-bottom: 0.25rem;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.region-sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateX(2px);
+}
+
+.region-sidebar-item:active {
+  transform: scale(0.98);
+}
+
+.region-color-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.region-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.region-item-index {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.region-item-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.region-item-text {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar Toggle Button - positioned at lightbox-overlay level */
+.region-sidebar-toggle {
+  position: absolute;
+  top: 4.5rem; /* Align with sidebar top */
+  left: 0.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 30, 40, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  color: white;
+  z-index: 31; /* Above sidebar */
+  transition: all 0.2s;
+}
+
+.region-sidebar-toggle:hover {
+  background: rgba(50, 50, 60, 0.95);
+  transform: scale(1.05);
+}
+
+.region-sidebar-toggle.is-open {
+  left: calc(280px + 0.5rem);
+}
+
+/* Mobile: toggle position */
+@media (max-width: 639px) {
+  .region-sidebar-toggle {
+    top: 4rem;
+  }
+
+  .region-sidebar-toggle.is-open {
+    left: calc(85% + 0.5rem);
+  }
+}
+
 </style>

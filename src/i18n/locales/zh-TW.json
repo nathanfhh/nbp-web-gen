@@ -18,7 +18,8 @@
     "characters": "字元",
     "back": "返回",
     "images": "張圖片",
-    "optional": "可選"
+    "optional": "可選",
+    "confirmLeave": "正在生成中，確定要離開嗎？"
   },
   "hero": {
     "subtitle": "AI 圖像與影片生成工具",
@@ -717,7 +718,14 @@
     "allImages": "全部 ({count} 張)",
     "exportAs": "匯出為",
     "pdfError": "PDF 產生失敗",
-    "zipError": "ZIP 產生失敗"
+    "zipError": "ZIP 產生失敗",
+    "regionList": {
+      "title": "區域列表",
+      "toggle": "顯示/隱藏區域列表",
+      "merged": "合併區塊",
+      "raw": "原始偵測",
+      "failed": "辨識失敗"
+    }
   },
   "stickerCropper": {
     "title": "貼圖裁切工具",
@@ -843,7 +851,8 @@
     "noImage": "請先上傳或選擇圖片",
     "noName": "請輸入角色名稱",
     "editResult": "編輯萃取結果",
-    "reExtract": "重新萃取"
+    "reExtract": "重新萃取",
+    "confirmLeave": "正在萃取中，確定要離開嗎？"
   },
   "characterCarousel": {
     "title": "我的角色",
@@ -1159,7 +1168,10 @@
       "separatorSelectedHint": "按 Delete 或點擊 ✕ 刪除分隔線",
       "separatorCount": "{count} 條分隔線",
       "undo": "復原",
-      "redo": "重做"
+      "redo": "重做",
+      "selectArea": "框選",
+      "selectionHint": "拖曳框選要批次刪除的區域",
+      "selectionConfirm": "已選取 {count} 個區域，點擊 ✓ 確認刪除"
     },
     "inpaintMethod": "文字移除方式",
     "free": "免費",
@@ -1255,6 +1267,7 @@
       "reprocessingComplete": "第 {slide} 頁：重新處理完成",
       "reprocessingFailed": "第 {slide} 頁：重新處理失敗 - {error}",
       "regionDeleted": "第 {slide} 頁：已刪除區域 #{index}",
+      "regionsBatchDeleted": "第 {slide} 頁：已批次刪除 {count} 個區域",
       "regionAdded": "第 {slide} 頁：已新增手動區域",
       "regionsReset": "第 {slide} 頁：已重設為原始 OCR 結果",
       "slideError": "第 {slide} 頁：錯誤 - {error}",

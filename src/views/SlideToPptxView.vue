@@ -47,6 +47,7 @@ const uploadedImages = ref([])
 const logContainer = ref(null)
 const confirmModalRef = ref(null)
 const ocrSettingsModalRef = ref(null)
+const ocrRegionEditorRef = ref(null)
 
 // Thumbnail refs for auto-scroll
 const thumbnailContainer = ref(null)
@@ -65,6 +66,13 @@ const selectSlide = (idx) => {
       })
     }
   })
+}
+
+// Handle mouse wheel on thumbnail strip - scroll horizontally
+const onThumbnailWheel = (event) => {
+  if (thumbnailContainer.value) {
+    thumbnailContainer.value.scrollLeft += event.deltaY
+  }
 }
 
 // OCR overlay toggle
@@ -135,6 +143,44 @@ const exitEditMode = async () => {
 // Region editing event handlers
 const handleDeleteRegion = (index) => {
   slideToPptx.deleteRegion(currentIndex.value, index)
+}
+
+const handleDeleteRegionsBatch = (indices) => {
+  slideToPptx.deleteRegionsBatch(currentIndex.value, indices)
+}
+
+/**
+ * Handle region selection from sidebar click
+ * Maps the filtered type/index to the actual rawRegions index
+ */
+const handleSelectRegion = ({ type, index }) => {
+  if (!ocrRegionEditorRef.value) return
+
+  // Get the raw regions for current slide
+  const state = slideToPptx.slideStates.value[currentIndex.value]
+  if (!state) return
+
+  const rawRegions = state.editedRawRegions || state.rawRegions || []
+
+  // Map filtered index back to rawRegions index
+  // raw = regions without recognitionFailed, failed = regions with recognitionFailed
+  let rawIndex = -1
+  let count = 0
+
+  for (let i = 0; i < rawRegions.length; i++) {
+    const isFailed = rawRegions[i].recognitionFailed
+    if ((type === 'raw' && !isFailed) || (type === 'failed' && isFailed)) {
+      if (count === index) {
+        rawIndex = i
+        break
+      }
+      count++
+    }
+  }
+
+  if (rawIndex >= 0) {
+    ocrRegionEditorRef.value.selectRegion(rawIndex)
+  }
 }
 
 const handleAddRegion = ({ bounds, text }) => {
@@ -520,6 +566,13 @@ watch(lightboxOpen, (isOpen) => {
   }
 })
 
+// Show toast when OCR model size fallback occurs
+watch(slideToPptx.ocrModelSizeFallbackOccurred, (occurred) => {
+  if (occurred) {
+    toast.warning(t('ocrSettings.modelSizeFallback'))
+  }
+})
+
 // Prepare images for processing (load from OPFS if needed)
 const prepareImagesForProcessing = async () => {
   const preparedImages = []
@@ -633,18 +686,22 @@ const getSlideStatus = (index) => {
   <div class="relative z-10 min-h-screen">
     <!-- Header -->
     <header class="sticky top-0 z-50 backdrop-blur-xl bg-glass-bg-strong border-b border-border-subtle shadow-card">
-      <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="container mx-auto px-4 py-4 flex items-center justify-between relative">
         <button
           @click="goBack"
-          class="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors"
+          class="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors z-10"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-          <span>{{ $t('common.back') }}</span>
+          <span class="hidden sm:inline">{{ $t('common.back') }}</span>
         </button>
-        <h1 class="text-xl font-semibold text-text-primary">{{ $t('slideToPptx.title') }}</h1>
-        <div class="w-24"></div>
+        <!-- Title centered absolutely -->
+        <h1 class="absolute left-1/2 -translate-x-1/2 text-xl font-semibold text-text-primary truncate max-w-[60%] sm:max-w-none">
+          {{ $t('slideToPptx.title') }}
+        </h1>
+        <!-- Spacer for layout balance -->
+        <div class="w-8 sm:w-24"></div>
       </div>
     </header>
 
@@ -726,7 +783,7 @@ const getSlideStatus = (index) => {
 
             <!-- Image Container - Unified Animated Layout -->
             <div class="relative">
-              <div class="flex transition-all duration-500 ease-in-out">
+              <div class="flex flex-col sm:flex-row transition-all duration-500 ease-in-out">
                 <!-- Left: Original Image -->
                 <div class="flex-1 min-w-0 transition-all duration-500">
                   <!-- Label (Animate height/opacity) -->
@@ -823,9 +880,9 @@ const getSlideStatus = (index) => {
                 </div>
 
                 <!-- Right: Processed Image (Transition Entry) -->
-                <div 
+                <div
                   class="transition-all duration-500 ease-in-out flex flex-col overflow-hidden"
-                  :class="currentSlideState?.cleanImage ? 'flex-1 ml-4 opacity-100' : 'w-0 ml-0 opacity-0'"
+                  :class="currentSlideState?.cleanImage ? 'flex-1 mt-4 sm:mt-0 sm:ml-4 opacity-100' : 'w-0 mt-0 ml-0 opacity-0'"
                 >
                   <div class="h-6 mb-2 flex-shrink-0">
                     <h4 class="text-xs font-medium text-text-muted text-center whitespace-nowrap">{{ $t('slideToPptx.processed') }}</h4>
@@ -875,7 +932,7 @@ const getSlideStatus = (index) => {
             </div>
 
             <!-- OCR Toggle Controls -->
-            <div class="mt-4 flex items-center justify-end gap-4">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 sm:gap-4">
               <label class="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -886,7 +943,7 @@ const getSlideStatus = (index) => {
               </label>
 
               <!-- Toggle Buttons (only when enabled) -->
-              <div v-if="showOcrOverlay" class="flex items-center gap-2">
+              <div v-if="showOcrOverlay" class="flex flex-wrap items-center gap-2">
                 <!-- Merged Regions Toggle -->
                 <button
                   @click="showMergedRegions = !showMergedRegions"
@@ -957,6 +1014,7 @@ const getSlideStatus = (index) => {
               <div
                 ref="thumbnailContainer"
                 class="flex gap-3 overflow-x-auto px-2 py-2 thumbnail-scroll-hidden"
+                @wheel.prevent="onThumbnailWheel"
               >
                 <button
                   v-for="(img, idx) in images"
@@ -1612,10 +1670,12 @@ const getSlideStatus = (index) => {
       :hide-file-size="true"
       :show-edit-regions-button="currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0"
       @edit-regions="enterEditMode"
+      @select-region="handleSelectRegion"
     >
       <!-- OCR Region Editor Overlay -->
       <template #edit-overlay="{ imageDimensions }">
         <OcrRegionEditor
+          ref="ocrRegionEditorRef"
           v-if="isRegionEditMode && imageDimensions.width > 0"
           :regions="currentEditableRegions"
           :separator-lines="currentSeparatorLines"
@@ -1626,6 +1686,7 @@ const getSlideStatus = (index) => {
           :can-undo="currentCanUndo"
           :can-redo="currentCanRedo"
           @delete-region="handleDeleteRegion"
+          @delete-regions-batch="handleDeleteRegionsBatch"
           @add-region="handleAddRegion"
           @resize-region="handleResizeRegion"
           @reset="handleResetRegions"
@@ -1651,9 +1712,16 @@ const getSlideStatus = (index) => {
 .thumbnail-scroll-hidden {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE 10+ */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scroll-snap-type: x proximity; /* Snap to thumbnails */
 }
 
 .thumbnail-scroll-hidden::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Edge */
+}
+
+/* Each thumbnail snaps to start */
+.thumbnail-scroll-hidden > * {
+  scroll-snap-align: center;
 }
 </style>

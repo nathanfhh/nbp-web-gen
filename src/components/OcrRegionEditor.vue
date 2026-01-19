@@ -57,6 +57,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'delete-region',
+  'delete-regions-batch', // For batch deletion from selection tool
   'add-region',
   'resize-region',
   'reset',
@@ -94,6 +95,13 @@ const isSeparatorModeActive = ref(false)
 const separatorFirstPoint = ref(null)
 const separatorPreview = ref(null) // { start, end } for preview line
 const selectedSeparatorId = ref(null)
+
+// Selection tool state (for batch delete)
+const isSelectionModeActive = ref(false)
+const isSelecting = ref(false)
+const selectionStart = ref(null)
+const selectionRect = ref(null)
+const selectedRegionIndices = ref([]) // Indices of regions inside selection box
 
 // Magnifier state
 const showMagnifier = ref(false)
@@ -140,6 +148,27 @@ const onRegionClick = (index, e) => {
   e.stopPropagation()
   selectedIndex.value = index
 }
+
+/**
+ * Programmatically select a region by index (exposed for parent component)
+ */
+const selectRegion = (index) => {
+  if (index < 0 || index >= props.regions.length) return
+  // Exit any active modes
+  isDrawModeActive.value = false
+  isSeparatorModeActive.value = false
+  isSelectionModeActive.value = false
+  selectionRect.value = null
+  selectedRegionIndices.value = []
+  selectedSeparatorId.value = null
+  // Select the region
+  selectedIndex.value = index
+}
+
+// Expose methods for parent component
+defineExpose({
+  selectRegion,
+})
 
 /**
  * Deselect region/separator when clicking on empty area, or handle separator click
@@ -210,6 +239,9 @@ const toggleDrawMode = () => {
   if (isDrawModeActive.value) {
     selectedIndex.value = null
     isSeparatorModeActive.value = false // Exit separator mode
+    isSelectionModeActive.value = false // Exit selection mode
+    selectionRect.value = null
+    selectedRegionIndices.value = []
     selectedSeparatorId.value = null
   }
 }
@@ -228,6 +260,9 @@ const toggleSeparatorMode = () => {
   // Exit other modes when entering separator mode
   if (isSeparatorModeActive.value) {
     isDrawModeActive.value = false
+    isSelectionModeActive.value = false // Exit selection mode
+    selectionRect.value = null
+    selectedRegionIndices.value = []
     selectedIndex.value = null
     selectedSeparatorId.value = null
   }
@@ -299,7 +334,96 @@ const getSeparatorMidpoint = (separator) => {
   }
 }
 
+// ============================================================================
+// Selection Tool (Batch Delete)
+// ============================================================================
+
+const toggleSelectionMode = () => {
+  isSelectionModeActive.value = !isSelectionModeActive.value
+  if (!isSelectionModeActive.value) {
+    // Reset selection state when exiting
+    isSelecting.value = false
+    selectionStart.value = null
+    selectionRect.value = null
+    selectedRegionIndices.value = []
+  }
+  // Exit other modes when entering selection mode
+  if (isSelectionModeActive.value) {
+    isDrawModeActive.value = false
+    isSeparatorModeActive.value = false
+    selectedIndex.value = null
+    selectedSeparatorId.value = null
+  }
+}
+
+/**
+ * Check if two rectangles intersect
+ */
+const rectsIntersect = (r1, r2) => {
+  return !(
+    r1.x + r1.width < r2.x ||
+    r2.x + r2.width < r1.x ||
+    r1.y + r1.height < r2.y ||
+    r2.y + r2.height < r1.y
+  )
+}
+
+/**
+ * Update selected regions based on current selection rect
+ */
+const updateSelectedRegions = () => {
+  if (!selectionRect.value) {
+    selectedRegionIndices.value = []
+    return
+  }
+
+  const indices = []
+  props.regions.forEach((region, idx) => {
+    if (rectsIntersect(selectionRect.value, region.bounds)) {
+      indices.push(idx)
+    }
+  })
+  selectedRegionIndices.value = indices
+}
+
+/**
+ * Confirm and delete selected regions
+ */
+const confirmBatchDelete = () => {
+  if (selectedRegionIndices.value.length === 0) return
+
+  // Emit batch delete with the selected region indices
+  emit('delete-regions-batch', selectedRegionIndices.value)
+
+  // Reset selection state
+  isSelecting.value = false
+  selectionStart.value = null
+  selectionRect.value = null
+  selectedRegionIndices.value = []
+}
+
+/**
+ * Cancel current selection
+ */
+const cancelSelection = () => {
+  isSelecting.value = false
+  selectionStart.value = null
+  selectionRect.value = null
+  selectedRegionIndices.value = []
+}
+
 const onMouseDown = (e) => {
+  // Handle selection mode
+  if (isSelectionModeActive.value) {
+    e.stopPropagation()
+    const coords = getImageCoords(e)
+    selectionStart.value = coords
+    isSelecting.value = true
+    selectionRect.value = { x: coords.x, y: coords.y, width: 0, height: 0 }
+    selectedRegionIndices.value = []
+    return
+  }
+
   if (!isDrawModeActive.value) return
 
   // Prevent event from bubbling to lightbox (stops panning)
@@ -312,6 +436,18 @@ const onMouseDown = (e) => {
 
 const onMouseMove = (e) => {
   const current = getImageCoords(e)
+
+  // Handle selection mode
+  if (isSelecting.value && selectionStart.value) {
+    selectionRect.value = {
+      x: Math.min(selectionStart.value.x, current.x),
+      y: Math.min(selectionStart.value.y, current.y),
+      width: Math.abs(current.x - selectionStart.value.x),
+      height: Math.abs(current.y - selectionStart.value.y),
+    }
+    updateSelectedRegions()
+    return
+  }
 
   // Handle resize (also update magnifier target)
   if (isResizing.value) {
@@ -337,6 +473,17 @@ const onMouseMove = (e) => {
 }
 
 const onMouseUp = () => {
+  // Handle selection mode - keep selection visible for confirmation
+  if (isSelecting.value) {
+    isSelecting.value = false
+    // If no regions selected, cancel selection
+    if (selectedRegionIndices.value.length === 0) {
+      cancelSelection()
+    }
+    // Otherwise keep selectionRect visible for confirmation UI
+    return
+  }
+
   if (isResizing.value) {
     finishResize()
     return
@@ -633,6 +780,11 @@ const handleKeydown = (e) => {
   if (e.key === 'Escape') {
     if (showTextDialog.value) {
       cancelTextDialog()
+    } else if (selectionRect.value && selectedRegionIndices.value.length > 0) {
+      // Cancel pending selection
+      cancelSelection()
+    } else if (isSelectionModeActive.value) {
+      toggleSelectionMode()
     } else if (isSeparatorModeActive.value) {
       // If drawing a separator (first point set), cancel it; otherwise exit mode
       if (separatorFirstPoint.value) {
@@ -676,10 +828,12 @@ const hasMoved = ref(false) // Track if user has moved it, to disable auto-cente
 onMounted(() => {
   if (toolbarRef.value) {
     const rect = toolbarRef.value.getBoundingClientRect()
-    // Center horizontally, 1rem from top
+    // Center horizontally
+    // On mobile (< 640px), position lower to avoid Lightbox header buttons (download + close)
+    const isMobile = window.innerWidth < 640
     toolbarPos.value = {
       x: (window.innerWidth - rect.width) / 2,
-      y: 16 // 1rem
+      y: isMobile ? 72 : 16 // 4.5rem on mobile (below Lightbox toolbar ~60px), 1rem on desktop
     }
   }
   
@@ -823,7 +977,7 @@ const getRegionColor = (region) => {
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          {{ t('slideToPptx.regionEditor.done') }}
+          <span class="hidden sm:inline">{{ t('slideToPptx.regionEditor.done') }}</span>
         </button>
 
         <!-- Undo button -->
@@ -863,7 +1017,7 @@ const getRegionColor = (region) => {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {{ t('slideToPptx.regionEditor.reset') }}
+          <span class="hidden sm:inline">{{ t('slideToPptx.regionEditor.reset') }}</span>
         </button>
 
         <button
@@ -874,7 +1028,7 @@ const getRegionColor = (region) => {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          {{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}
+          <span class="hidden sm:inline">{{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}</span>
         </button>
 
         <!-- Separator line tool -->
@@ -886,21 +1040,46 @@ const getRegionColor = (region) => {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20L20 4" />
           </svg>
-          {{ isSeparatorModeActive
+          <span class="hidden sm:inline">{{ isSeparatorModeActive
             ? (separatorFirstPoint ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separator'))
-            : t('slideToPptx.regionEditor.separator') }}
+            : t('slideToPptx.regionEditor.separator') }}</span>
+        </button>
+
+        <!-- Selection tool for batch delete -->
+        <button
+          @click="toggleSelectionMode"
+          class="toolbar-btn"
+          :class="{ 'toolbar-btn-selection': isSelectionModeActive }"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zM4 13a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zM15 4a1 1 0 100 2h4a1 1 0 100-2h-4zM15 12a1 1 0 100 2h4a1 1 0 100-2h-4zM4 19a1 1 0 011-1h14a1 1 0 110 2H5a1 1 0 01-1-1z" />
+          </svg>
+          <span class="hidden sm:inline">{{ t('slideToPptx.regionEditor.selectArea') }}</span>
         </button>
 
         <!-- Region count indicator -->
         <span class="region-count">
-          {{ t('slideToPptx.regionEditor.regionCount', { count: regions.length }) }}
-          <template v-if="separatorLines.length > 0">
-            · {{ t('slideToPptx.regionEditor.separatorCount', { count: separatorLines.length }) }}
-          </template>
+          <!-- Mobile: short format -->
+          <span class="sm:hidden">
+            {{ regions.length }}<template v-if="separatorLines.length > 0"> · {{ separatorLines.length }}</template>
+          </span>
+          <!-- Desktop: full format -->
+          <span class="hidden sm:inline">
+            {{ t('slideToPptx.regionEditor.regionCount', { count: regions.length }) }}
+            <template v-if="separatorLines.length > 0">
+              · {{ t('slideToPptx.regionEditor.separatorCount', { count: separatorLines.length }) }}
+            </template>
+          </span>
         </span>
 
         <!-- Hint text (Attached to toolbar) -->
-        <div class="edit-hint" v-if="isSeparatorModeActive">
+        <div class="edit-hint" v-if="isSelectionModeActive && selectedRegionIndices.length > 0">
+          {{ t('slideToPptx.regionEditor.selectionConfirm', { count: selectedRegionIndices.length }) }}
+        </div>
+        <div class="edit-hint" v-else-if="isSelectionModeActive">
+          {{ t('slideToPptx.regionEditor.selectionHint') }}
+        </div>
+        <div class="edit-hint" v-else-if="isSeparatorModeActive">
           {{ separatorFirstPoint ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separatorHint') }}
         </div>
         <div class="edit-hint" v-else-if="selectedSeparatorId !== null">
@@ -924,9 +1103,9 @@ const getRegionColor = (region) => {
       ref="svgRef"
       class="edit-overlay-svg"
       :class="{
-        'cursor-crosshair': isDrawModeActive || isSeparatorModeActive,
-        'pointer-events-auto': isDrawModeActive || isResizing || isSeparatorModeActive,
-        'pointer-events-none': !isDrawModeActive && !isResizing && !isSeparatorModeActive
+        'cursor-crosshair': isDrawModeActive || isSeparatorModeActive || isSelectionModeActive,
+        'pointer-events-auto': isDrawModeActive || isResizing || isSeparatorModeActive || isSelectionModeActive,
+        'pointer-events-none': !isDrawModeActive && !isResizing && !isSeparatorModeActive && !isSelectionModeActive
       }"
       :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
       preserveAspectRatio="none"
@@ -1148,6 +1327,38 @@ const getRegionColor = (region) => {
         stroke-dasharray="6 3"
         vector-effect="non-scaling-stroke"
       />
+
+      <!-- Selection box and highlighted regions -->
+      <g v-if="isSelectionModeActive || selectionRect">
+        <!-- Highlight selected regions (red overlay) -->
+        <rect
+          v-for="idx in selectedRegionIndices"
+          :key="`selected-${idx}`"
+          :x="regions[idx].bounds.x"
+          :y="regions[idx].bounds.y"
+          :width="regions[idx].bounds.width"
+          :height="regions[idx].bounds.height"
+          fill="rgba(239, 68, 68, 0.4)"
+          stroke="rgba(239, 68, 68, 1)"
+          stroke-width="3"
+          vector-effect="non-scaling-stroke"
+        />
+
+        <!-- Selection rectangle -->
+        <rect
+          v-if="selectionRect"
+          :x="selectionRect.x"
+          :y="selectionRect.y"
+          :width="selectionRect.width"
+          :height="selectionRect.height"
+          fill="rgba(239, 68, 68, 0.1)"
+          stroke="rgba(239, 68, 68, 0.8)"
+          stroke-width="2"
+          stroke-dasharray="8 4"
+          vector-effect="non-scaling-stroke"
+        />
+
+      </g>
     </svg>
 
     <!-- Magnifier (shows when resizing) -->
@@ -1168,6 +1379,32 @@ const getRegionColor = (region) => {
           <!-- Crosshair -->
           <div class="magnifier-crosshair-h"></div>
           <div class="magnifier-crosshair-v"></div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Selection Confirm Dialog (fixed at bottom center) -->
+    <Teleport to="body">
+      <div
+        v-if="selectionRect && selectedRegionIndices.length > 0 && !isSelecting"
+        class="selection-confirm-bar"
+      >
+        <span class="selection-count">
+          {{ t('slideToPptx.regionEditor.selectionConfirm', { count: selectedRegionIndices.length }) }}
+        </span>
+        <div class="selection-actions">
+          <button @click="cancelSelection" class="selection-btn selection-btn-cancel">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>{{ t('common.cancel') }}</span>
+          </button>
+          <button @click="confirmBatchDelete" class="selection-btn selection-btn-confirm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>{{ t('common.delete') }}</span>
+          </button>
         </div>
       </div>
     </Teleport>
@@ -1221,8 +1458,10 @@ const getRegionColor = (region) => {
   position: fixed;
   z-index: 9999; /* Ensure it's above lightbox */
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.375rem; /* Smaller gap on mobile */
   align-items: center;
+  justify-content: center;
   padding: 0.5rem;
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(8px);
@@ -1231,13 +1470,22 @@ const getRegionColor = (region) => {
   cursor: move;
   user-select: none;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-width: calc(100vw - 2rem); /* Prevent overflow on small screens */
+}
+
+@media (min-width: 640px) {
+  .edit-toolbar {
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
 }
 
 .toolbar-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem; /* Icon-only on mobile */
   font-size: 0.875rem;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.85);
@@ -1246,6 +1494,12 @@ const getRegionColor = (region) => {
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .toolbar-btn {
+    padding: 0.5rem 0.75rem; /* Text + icon on desktop */
+  }
 }
 
 .toolbar-btn:hover:not(:disabled) {
@@ -1275,6 +1529,12 @@ const getRegionColor = (region) => {
   border-color: rgba(249, 115, 22, 0.8);
 }
 
+.toolbar-btn-selection {
+  color: white;
+  background: rgba(239, 68, 68, 0.8);
+  border-color: rgba(239, 68, 68, 0.8);
+}
+
 .toolbar-btn-icon {
   padding: 0.5rem;
 }
@@ -1299,14 +1559,24 @@ const getRegionColor = (region) => {
   left: 50%;
   transform: translateX(-50%);
   margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.625rem;
   color: rgba(255, 255, 255, 0.6);
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   border-radius: 0.5rem;
   pointer-events: none;
   white-space: nowrap;
+  max-width: calc(100vw - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 640px) {
+  .edit-hint {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
 }
 
 /* SVG Overlay */
@@ -1372,6 +1642,88 @@ const getRegionColor = (region) => {
 .delete-button-text {
   pointer-events: none;
   user-select: none;
+}
+
+/* Selection confirm bar (fixed at bottom) */
+.selection-confirm-bar {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(30, 30, 40, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.selection-count {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.selection-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.selection-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.selection-btn-cancel {
+  color: white;
+  background: rgba(100, 100, 100, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.selection-btn-cancel:hover {
+  background: rgba(120, 120, 120, 0.8);
+}
+
+.selection-btn-confirm {
+  color: white;
+  background: rgba(239, 68, 68, 0.9);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.selection-btn-confirm:hover {
+  background: rgba(220, 50, 50, 1);
+}
+
+@media (max-width: 639px) {
+  .selection-confirm-bar {
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .selection-actions {
+    width: 100%;
+  }
+
+  .selection-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 /* Text Dialog */
