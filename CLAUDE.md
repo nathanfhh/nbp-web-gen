@@ -315,6 +315,39 @@ if (hasApiKeyFor('text')) { ... }
 - PWA configured with workbox for offline support
 - Base path changes to `/nbp-web-gen/` in GitHub Actions builds
 
+### SEO & Static Route Generation
+
+**⚠️ CRITICAL: When adding a new route, update these files:**
+
+This project uses a postbuild script to generate static HTML files for each route, enabling:
+- HTTP 200 responses for SPA routes on GitHub Pages (instead of 404)
+- Unique meta tags (title, description, canonical, OG/Twitter) per page
+- Better SEO indexing by search engines
+
+| File | Purpose |
+|------|---------|
+| `src/router/seo-meta.js` | **SEO meta tags (Single Source of Truth)** |
+| `src/router/index.js` | Vue Router route definitions (imports from seo-meta.js) |
+| `scripts/postbuild.js` | Static HTML generation (imports from seo-meta.js) |
+
+**Example: Adding a new `/my-feature` route**
+1. Add meta to `src/router/seo-meta.js`:
+```javascript
+'/my-feature': {
+  title: 'My Feature | Mediator - Feature Description',
+  description: 'Detailed description for SEO...',
+},
+```
+2. Add route to `src/router/index.js`:
+```javascript
+{
+  path: '/my-feature',
+  name: 'my-feature',
+  component: () => import('@/views/MyFeatureView.vue'),
+  meta: routeSeoMeta['/my-feature'],
+},
+```
+
 ## Code Patterns
 
 - Vue 3 Composition API with `<script setup>`
