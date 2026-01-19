@@ -392,9 +392,8 @@ const updateSelectedRegions = () => {
 const confirmBatchDelete = () => {
   if (selectedRegionIndices.value.length === 0) return
 
-  // Emit batch delete with sorted indices (descending to avoid index shift issues)
-  const sortedIndices = [...selectedRegionIndices.value].sort((a, b) => b - a)
-  emit('delete-regions-batch', sortedIndices)
+  // Emit batch delete with the selected region indices
+  emit('delete-regions-batch', selectedRegionIndices.value)
 
   // Reset selection state
   isSelecting.value = false

@@ -1,8 +1,21 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { useToast } from '@/composables/useToast'
 
 const { toasts, remove } = useToast()
+
+// Clean up swipeState when toasts are removed externally (e.g., auto-dismiss timer)
+watch(
+  () => toasts.value.map((t) => t.id),
+  (currentIds) => {
+    const currentIdSet = new Set(currentIds)
+    for (const id of Object.keys(swipeState)) {
+      if (!currentIdSet.has(Number(id))) {
+        delete swipeState[id]
+      }
+    }
+  }
+)
 
 const typeClasses = {
   success: 'bg-status-success-muted border-status-success text-status-success',
@@ -98,6 +111,7 @@ const onTouchMove = (e, id) => {
   const state = swipeState[id]
   if (!state?.isDragging) return
 
+  e.preventDefault() // Prevent page scroll while swiping
   state.offsetX = e.touches[0].clientX - state.startX
 }
 

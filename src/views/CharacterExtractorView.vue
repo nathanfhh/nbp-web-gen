@@ -46,6 +46,15 @@ const characterName = ref('')
 const newAccessory = ref('')
 const newFeature = ref('')
 
+// Prevent accidental page close during extraction
+const handleBeforeUnload = (e) => {
+  if (isExtracting.value) {
+    e.preventDefault()
+    e.returnValue = t('characterExtractor.confirmLeave')
+    return e.returnValue
+  }
+}
+
 // Load image from route query or edit existing character
 onMounted(async () => {
   // Edit mode - load existing character
@@ -100,15 +109,6 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
-
-// Prevent accidental page close during extraction
-const handleBeforeUnload = (e) => {
-  if (isExtracting.value) {
-    e.preventDefault()
-    e.returnValue = t('characterExtractor.confirmLeave')
-    return e.returnValue
-  }
-}
 
 const goBack = () => {
   router.push('/')
