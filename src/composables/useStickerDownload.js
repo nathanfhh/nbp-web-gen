@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import JSZip from 'jszip'
+// JSZip is dynamically imported when needed to reduce initial bundle size
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
 import { useAnalytics } from '@/composables/useAnalytics'
@@ -45,6 +45,7 @@ export function useStickerDownload() {
     isDownloading.value = true
 
     try {
+      const { default: JSZip } = await import('jszip')
       const zip = new JSZip()
 
       for (const sticker of selected) {

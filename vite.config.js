@@ -40,7 +40,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['banana.webp', 'nbp-title.webp'],
+      includeAssets: ['banana.webp', 'nbp-title-320.webp', 'nbp-title-384.webp', 'nbp-title-512.webp'],
       manifest: {
         name: 'Mediator - AI Image & Video Generator',
         short_name: 'Mediator',

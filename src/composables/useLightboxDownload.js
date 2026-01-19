@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import JSZip from 'jszip'
+// JSZip is dynamically imported when needed to reduce initial bundle size
 
 const DOWNLOAD_PREF_KEY = 'nbp-download-format'
 
@@ -178,6 +178,7 @@ export function useLightboxDownload(deps) {
     showDownloadMenu.value = false
 
     try {
+      const { default: JSZip } = await import('jszip')
       const zip = new JSZip()
       const prefix = historyId ? `${historyId}-` : ''
 

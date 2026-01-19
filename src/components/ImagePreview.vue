@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import JSZip from 'jszip'
+// JSZip is dynamically imported when needed to reduce initial bundle size
 import { useGeneratorStore } from '@/stores/generator'
 import { formatElapsed } from '@/composables/useFormatTime'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
@@ -171,6 +171,7 @@ const downloadAllAsZip = async () => {
   showBatchMenu.value = false
 
   try {
+    const { default: JSZip } = await import('jszip')
     const zip = new JSZip()
 
     for (let i = 0; i < store.generatedImages.length; i++) {

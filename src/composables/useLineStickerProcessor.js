@@ -1,5 +1,5 @@
 import { ref, computed, reactive } from 'vue'
-import JSZip from 'jszip'
+// JSZip is dynamically imported when needed to reduce initial bundle size
 import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
 
@@ -558,6 +558,7 @@ export function useLineStickerProcessor() {
       toast.warning(t('lineStickerTool.toast.notFullyCompliant'))
     }
 
+    const { default: JSZip } = await import('jszip')
     const zip = new JSZip()
 
     // Add sticker images

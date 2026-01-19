@@ -472,10 +472,10 @@ const handleAddToReferences = (referenceData) => {
               : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
           "
           :title="$t('language.label')"
+          :aria-label="$t('language.label')"
         >
           <span
-            class="text-sm font-medium group-hover:scale-110 transition-transform inline-block"
-            :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
+            class="text-sm font-medium group-hover:scale-110 transition-transform inline-block text-text-secondary"
           >
             {{
               locale === 'zh-TW'
@@ -589,9 +589,12 @@ const handleAddToReferences = (referenceData) => {
       <div class="text-center">
         <div class="inline-flex items-center gap-3 mb-6">
           <img
-            src="/nbp-title.webp"
+            src="/nbp-title-384.webp"
+            srcset="/nbp-title-320.webp 320w, /nbp-title-384.webp 384w, /nbp-title-512.webp 512w"
+            sizes="(min-width: 1024px) 192px, 160px"
             alt="Nano Banana Pro"
             class="w-40 h-40 lg:w-48 lg:h-48 drop-shadow-2xl hero-float"
+            fetchpriority="high"
           />
         </div>
         <HeroTitle />
