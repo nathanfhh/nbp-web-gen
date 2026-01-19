@@ -703,6 +703,7 @@
     "cropSticker": "裁切貼圖",
     "crop": "裁切",
     "convertToPptx": "轉換為 PPTX",
+    "editRegions": "編輯區域",
     "downloadWebp": "下載 WebP",
     "selectFormat": "選擇下載格式",
     "webp": "WebP",
@@ -1023,10 +1024,22 @@
     "modified": "已修改",
     "default": "預設",
     "categories": {
+      "model": "模型設定",
       "preprocessing": "預處理",
       "detection": "文字偵測",
       "postprocessing": "後處理"
     },
+    "modelSize": {
+      "server": {
+        "label": "Server 級別",
+        "description": "高精度 (~172MB)"
+      },
+      "mobile": {
+        "label": "Mobile 級別",
+        "description": "輕量版 (~21MB)"
+      }
+    },
+    "modelSizeFallback": "因 GPU 記憶體限制，已自動切換至 Mobile 模型",
     "params": {
       "maxSideLen": {
         "label": "目標最大邊長",

@@ -22,8 +22,8 @@ import {
   createTesseractFallback,
 } from '../utils/ocr-core.js'
 
-// OCR default settings
-import { OCR_DEFAULTS } from '../constants/ocrDefaults.js'
+// OCR default settings and model configuration
+import { OCR_DEFAULTS, getModelConfig } from '../constants/ocrDefaults.js'
 
 // Configure ONNX Runtime WASM paths (must be set before any session creation)
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/'
@@ -32,24 +32,8 @@ ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/di
 // Model Configuration
 // ============================================================================
 
-const HF_BASE = 'https://huggingface.co/nathanfhh/PaddleOCR-ONNX/resolve/main'
-const MODELS = {
-  detection: {
-    filename: 'PP-OCRv5_server_det.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_det.onnx`,
-    size: 88_000_000,
-  },
-  recognition: {
-    filename: 'PP-OCRv5_server_rec.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_rec.onnx`,
-    size: 84_000_000,
-  },
-  dictionary: {
-    filename: 'ppocrv5_dict.txt',
-    url: `${HF_BASE}/ppocrv5_dict.txt`,
-    size: 74_000,
-  },
-}
+// Model configuration is now centralized in ocrDefaults.js
+// Use getModelConfig(modelSize) to get URLs based on current settings
 
 const OPFS_DIR = 'ocr-models'
 
@@ -148,8 +132,14 @@ async function downloadModel(url, filename, expectedSize) {
   return filename.endsWith('.txt') ? new TextDecoder().decode(data) : data.buffer
 }
 
-async function getModel(modelType, statusMessage) {
-  const model = MODELS[modelType]
+/**
+ * Get model from OPFS cache or download
+ * @param {string} modelType - 'detection', 'recognition', or 'dictionary'
+ * @param {Object} modelConfig - Model configuration from getModelConfig()
+ * @param {string} statusMessage - Progress message for loading from cache
+ */
+async function getModel(modelType, modelConfig, statusMessage) {
+  const model = modelConfig[modelType]
   if (!model) throw new Error(`Unknown model type: ${modelType}`)
 
   if (await modelExists(model.filename)) {
@@ -163,9 +153,13 @@ async function getModel(modelType, statusMessage) {
 }
 
 async function loadAllModels() {
-  const detCached = await modelExists(MODELS.detection.filename)
-  const recCached = await modelExists(MODELS.recognition.filename)
-  const dictCached = await modelExists(MODELS.dictionary.filename)
+  // Get model configuration based on current settings
+  const modelConfig = getModelConfig(ocrSettings.modelSize)
+  console.log(`[ocr.worker] Using ${ocrSettings.modelSize} model`)
+
+  const detCached = await modelExists(modelConfig.detection.filename)
+  const recCached = await modelExists(modelConfig.recognition.filename)
+  const dictCached = await modelExists(modelConfig.dictionary.filename)
   const allCached = detCached && recCached && dictCached
   const modelsToDownload = [!detCached, !recCached].filter(Boolean).length
 
@@ -176,14 +170,14 @@ async function loadAllModels() {
   }
 
   const detStatus = detCached ? 'ocr:loadingDetModel' : 'ocr:downloadingDetModel:1:2'
-  const { data: detection } = await getModel('detection', detStatus)
+  const { data: detection } = await getModel('detection', modelConfig, detStatus)
   reportProgress('model', 33, 'ocr:loadingDetModel')
 
   const recStatus = recCached ? 'ocr:loadingRecModel' : `ocr:downloadingRecModel:${detCached ? '1' : '2'}:2`
-  const { data: recognition } = await getModel('recognition', recStatus)
+  const { data: recognition } = await getModel('recognition', modelConfig, recStatus)
   reportProgress('model', 66, 'ocr:loadingRecModel')
 
-  const { data: dictText } = await getModel('dictionary', 'ocr:loadingDict')
+  const { data: dictText } = await getModel('dictionary', modelConfig, 'ocr:loadingDict')
   reportProgress('model', 90, 'ocr:loadingDict')
 
   return { detection, recognition, dictionary: dictText }

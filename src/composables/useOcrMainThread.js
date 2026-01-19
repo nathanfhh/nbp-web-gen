@@ -31,6 +31,32 @@ export class GpuOutOfMemoryError extends Error {
 }
 
 /**
+ * Custom error class for GPU buffer size limit exceeded
+ * Distinct from OOM - this is a hard WebGPU limit that can be resolved by using smaller models
+ */
+export class GpuBufferSizeError extends Error {
+  constructor(originalMessage) {
+    super(`GPU buffer size exceeded: ${originalMessage}`)
+    this.name = 'GpuBufferSizeError'
+    this.originalMessage = originalMessage
+  }
+}
+
+/**
+ * Check if an error message indicates GPU buffer size limit exceeded
+ * This is a hard WebGPU limit (e.g., 134MB max storage buffer binding size on mobile)
+ */
+function isGpuBufferSizeError(errorMessage) {
+  if (!errorMessage) return false
+  const msg = errorMessage.toLowerCase()
+  return (
+    msg.includes('larger than the maximum storage buffer binding size') ||
+    msg.includes('exceeds the max buffer size') ||
+    msg.includes('buffer size') && msg.includes('exceed')
+  )
+}
+
+/**
  * Check if an error message indicates GPU memory exhaustion
  * Common patterns from WebGPU/ONNX Runtime when VRAM is insufficient
  */
@@ -95,30 +121,13 @@ import {
   createTesseractFallback,
 } from '../utils/ocr-core.js'
 
-// ============================================================================ 
+// ============================================================================
 // Model Configuration
-// ============================================================================ 
+// ============================================================================
 
-// Use the same model source as Worker for consistency
-// Models from nathanfhh/PaddleOCR-ONNX (user's HuggingFace repo)
-const HF_BASE = 'https://huggingface.co/nathanfhh/PaddleOCR-ONNX/resolve/main'
-const MODELS = {
-  detection: {
-    filename: 'PP-OCRv5_server_det.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_det.onnx`,
-    size: 88_000_000,
-  },
-  recognition: {
-    filename: 'PP-OCRv5_server_rec.onnx',
-    url: `${HF_BASE}/PP-OCRv5_server_rec.onnx`,
-    size: 84_000_000,
-  },
-  dictionary: {
-    filename: 'ppocrv5_dict.txt',
-    url: `${HF_BASE}/ppocrv5_dict.txt`,
-    size: 74_000,
-  },
-}
+// Model configuration is now centralized in ocrDefaults.js
+// Use getModelConfig(modelSize) to get URLs based on current settings
+import { getModelConfig } from '@/constants/ocrDefaults'
 
 const OPFS_DIR = 'ocr-models'
 
@@ -206,8 +215,14 @@ async function downloadModel(url, filename, expectedSize, onProgress) {
   return data.buffer
 }
 
-async function getModel(modelType, onProgress) {
-  const config = MODELS[modelType]
+/**
+ * Get model from OPFS cache or download
+ * @param {string} modelType - 'detection', 'recognition', or 'dictionary'
+ * @param {Object} modelConfig - Model configuration from getModelConfig()
+ * @param {function} onProgress - Progress callback
+ */
+async function getModel(modelType, modelConfig, onProgress) {
+  const config = modelConfig[modelType]
   const exists = await modelExists(config.filename)
 
   if (exists) {
@@ -299,22 +314,27 @@ export function useOcrMainThread() {
         // Configure ONNX Runtime threading
         ortModule.env.wasm.numThreads = 1
 
+        // Get model configuration based on current settings
+        const ocrSettings = getSettings()
+        const modelConfig = getModelConfig(ocrSettings.modelSize)
+        console.log(`[useOcrMainThread] Using ${ocrSettings.modelSize} model`)
+
         // Load models in parallel
         reportProgress(5, 'ocr:loadingModelsFromCache')
         if (onProgress) onProgress(5, 'ocr:loadingModelsFromCache')
 
         const [detModelResult, recModelResult, dictResult] = await Promise.all([
-          getModel('detection', (p) => {
+          getModel('detection', modelConfig, (p) => {
             const prog = 5 + p * 30
             reportProgress(prog, 'ocr:loadingDetModel')
             if (onProgress) onProgress(prog, 'ocr:loadingDetModel')
           }),
-          getModel('recognition', (p) => {
+          getModel('recognition', modelConfig, (p) => {
             const prog = 35 + p * 30
             reportProgress(prog, 'ocr:loadingRecModel')
             if (onProgress) onProgress(prog, 'ocr:loadingRecModel')
           }),
-          getModel('dictionary', (p) => {
+          getModel('dictionary', modelConfig, (p) => {
             const prog = 65 + p * 5
             reportProgress(prog, 'ocr:loadingDict')
             if (onProgress) onProgress(prog, 'ocr:loadingDict')
@@ -360,6 +380,11 @@ export function useOcrMainThread() {
             if (detSession) {
               detSession.release()
               detSession = null
+            }
+            // Check for GPU buffer size error - throw immediately to trigger model downgrade
+            if (isGpuBufferSizeError(errorMsg)) {
+              console.warn('[useOcrMainThread] GPU buffer size limit exceeded during initialization')
+              throw new GpuBufferSizeError(errorMsg)
             }
           }
         }
@@ -436,6 +461,11 @@ export function useOcrMainThread() {
         detOutput = await detSession.run(detFeeds)
       } catch (e) {
         const errorMsg = e.message || String(e)
+        // Check for GPU buffer size error first (more specific)
+        if (isGpuBufferSizeError(errorMsg)) {
+          console.warn('[useOcrMainThread] GPU buffer size error during detection:', errorMsg)
+          throw new GpuBufferSizeError(errorMsg)
+        }
         if (isGpuMemoryError(errorMsg)) {
           console.warn('[useOcrMainThread] GPU memory error during detection:', errorMsg)
           throw new GpuOutOfMemoryError(errorMsg)
@@ -490,6 +520,11 @@ export function useOcrMainThread() {
           recOutput = await recSession.run(recFeeds)
         } catch (e) {
           const errorMsg = e.message || String(e)
+          // Check for GPU buffer size error first (more specific)
+          if (isGpuBufferSizeError(errorMsg)) {
+            console.warn('[useOcrMainThread] GPU buffer size error during recognition:', errorMsg)
+            throw new GpuBufferSizeError(errorMsg)
+          }
           if (isGpuMemoryError(errorMsg)) {
             console.warn('[useOcrMainThread] GPU memory error during recognition:', errorMsg)
             throw new GpuOutOfMemoryError(errorMsg)

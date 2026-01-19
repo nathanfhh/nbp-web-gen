@@ -7,6 +7,7 @@ import { useApiKeyManager } from '@/composables/useApiKeyManager'
 import { useSlideToPptx } from '@/composables/useSlideToPptx'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useImageStorage } from '@/composables/useImageStorage'
+import { useOcrSettings } from '@/composables/useOcrSettings'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import SlideFileUploader from '@/components/SlideFileUploader.vue'
 import OcrRegionEditor from '@/components/OcrRegionEditor.vue'
@@ -23,6 +24,7 @@ const slideToPptx = useSlideToPptx()
 const indexedDB = useIndexedDB()
 const imageStorage = useImageStorage()
 const apiKeyManager = useApiKeyManager()
+const { settings: ocrSettings, updateSetting: updateOcrSetting, modelSizeOptions } = useOcrSettings()
 
 // API Key availability for Gemini options
 const canUseGemini = computed(() => apiKeyManager.hasPaidApiKey() || apiKeyManager.hasFreeTierApiKey())
@@ -1167,6 +1169,31 @@ const getSlideStatus = (index) => {
               </button>
             </div>
 
+            <!-- OCR Model Size Selection -->
+            <div class="mb-6">
+              <label class="text-sm text-text-muted mb-2 block">{{ $t('ocrSettings.categories.model') }}</label>
+              <div class="flex rounded-xl bg-bg-muted p-1">
+                <button
+                  v-for="size in [modelSizeOptions.SERVER, modelSizeOptions.MOBILE]"
+                  :key="size"
+                  @click="updateOcrSetting('modelSize', size)"
+                  :disabled="isProcessing"
+                  class="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  :class="[
+                    ocrSettings.modelSize === size
+                      ? 'bg-brand-primary text-text-on-brand'
+                      : 'text-text-muted hover:text-text-primary',
+                    isProcessing && 'opacity-50 cursor-not-allowed'
+                  ]"
+                >
+                  <div class="text-center">
+                    <div>{{ $t(`ocrSettings.modelSize.${size}.label`) }}</div>
+                    <div class="text-xs opacity-75 mt-0.5">{{ $t(`ocrSettings.modelSize.${size}.description`) }}</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <!-- OCR Engine Selection (Global setting, independent of settingMode) -->
             <div class="mb-6">
               <div class="flex items-center justify-between mb-2">
@@ -1583,6 +1610,8 @@ const getSlideStatus = (index) => {
       :ocr-regions="currentOcrRegions"
       :is-edit-mode="isRegionEditMode"
       :hide-file-size="true"
+      :show-edit-regions-button="currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0"
+      @edit-regions="enterEditMode"
     >
       <!-- OCR Region Editor Overlay -->
       <template #edit-overlay="{ imageDimensions }">

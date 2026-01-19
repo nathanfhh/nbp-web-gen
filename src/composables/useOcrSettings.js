@@ -12,8 +12,10 @@ import {
   OCR_PARAM_RULES,
   OCR_PARAM_ORDER,
   OCR_CATEGORIES,
+  OCR_MODEL_SIZE,
   validateOcrParam,
   validateOcrSettings,
+  validateModelSize,
 } from '@/constants/ocrDefaults'
 
 // localStorage key for OCR settings
@@ -106,7 +108,7 @@ export function getSettings() {
 /**
  * Update a single setting
  * @param {string} key - Parameter name
- * @param {number} value - New value
+ * @param {number|string} value - New value
  */
 export function updateSetting(key, value) {
   const state = initState()
@@ -116,7 +118,8 @@ export function updateSetting(key, value) {
     return
   }
 
-  const validated = validateOcrParam(key, value)
+  // modelSize is string enum, not numeric
+  const validated = key === 'modelSize' ? validateModelSize(value) : validateOcrParam(key, value)
   state[key] = validated
   state.isModified = JSON.stringify(getSettings()) !== JSON.stringify(OCR_DEFAULTS)
 
@@ -133,7 +136,8 @@ export function updateSettings(updates) {
 
   for (const [key, value] of Object.entries(updates)) {
     if (key in OCR_DEFAULTS) {
-      state[key] = validateOcrParam(key, value)
+      // modelSize is string enum, not numeric
+      state[key] = key === 'modelSize' ? validateModelSize(value) : validateOcrParam(key, value)
     }
   }
 
@@ -196,5 +200,6 @@ export function useOcrSettings() {
     rules: OCR_PARAM_RULES,
     paramOrder: OCR_PARAM_ORDER,
     categories: OCR_CATEGORIES,
+    modelSizeOptions: OCR_MODEL_SIZE,
   }
 }

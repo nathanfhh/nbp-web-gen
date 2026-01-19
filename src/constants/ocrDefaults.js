@@ -5,11 +5,76 @@
  * These parameters affect text detection and recognition quality.
  */
 
+// ============================================================================
+// Model Size Configuration
+// ============================================================================
+
+/**
+ * Model size options
+ * - server: High accuracy, requires larger GPU buffer (~172MB total)
+ * - mobile: Lightweight, suitable for mobile devices (~21MB total)
+ */
+export const OCR_MODEL_SIZE = {
+  SERVER: 'server',
+  MOBILE: 'mobile',
+}
+
+/**
+ * Model URLs and file information
+ * Models hosted at: https://huggingface.co/nathanfhh/PaddleOCR-ONNX
+ */
+export const OCR_MODELS = {
+  HF_BASE: 'https://huggingface.co/nathanfhh/PaddleOCR-ONNX/resolve/main',
+  server: {
+    detection: { filename: 'PP-OCRv5_server_det.onnx', size: 88_100_000 },
+    recognition: { filename: 'PP-OCRv5_server_rec.onnx', size: 84_500_000 },
+  },
+  mobile: {
+    detection: { filename: 'PP-OCRv5_mobile_det.onnx', size: 4_830_000 },
+    recognition: { filename: 'PP-OCRv5_mobile_rec.onnx', size: 16_600_000 },
+  },
+  // Dictionary is shared between server and mobile
+  dictionary: { filename: 'ppocrv5_dict.txt', size: 74_000 },
+}
+
+/**
+ * Get model configuration based on model size setting
+ * @param {string} modelSize - 'server' or 'mobile'
+ * @returns {Object} Model configuration with URLs and sizes
+ */
+export function getModelConfig(modelSize) {
+  const models = OCR_MODELS[modelSize] || OCR_MODELS.server
+  const base = OCR_MODELS.HF_BASE
+  return {
+    detection: {
+      filename: models.detection.filename,
+      url: `${base}/${models.detection.filename}`,
+      size: models.detection.size,
+    },
+    recognition: {
+      filename: models.recognition.filename,
+      url: `${base}/${models.recognition.filename}`,
+      size: models.recognition.size,
+    },
+    dictionary: {
+      filename: OCR_MODELS.dictionary.filename,
+      url: `${base}/${OCR_MODELS.dictionary.filename}`,
+      size: OCR_MODELS.dictionary.size,
+    },
+  }
+}
+
+// ============================================================================
+// OCR Parameters
+// ============================================================================
+
 /**
  * Default OCR parameters
  * @see docs/layout-analysis-algorithm.md for parameter details
  */
 export const OCR_DEFAULTS = {
+  // Model size: 'server' (high accuracy) or 'mobile' (lightweight)
+  modelSize: OCR_MODEL_SIZE.SERVER,
   // Target max side length for preprocessing
   // Only downscale if image is larger than this value
   // Recommended: 1600 (balance between detail and performance)
@@ -124,6 +189,18 @@ export function validateOcrParam(key, value) {
 }
 
 /**
+ * Validate model size value
+ * @param {string} value - Model size value to validate
+ * @returns {string} - Valid model size ('server' or 'mobile')
+ */
+export function validateModelSize(value) {
+  if (value === OCR_MODEL_SIZE.SERVER || value === OCR_MODEL_SIZE.MOBILE) {
+    return value
+  }
+  return OCR_MODEL_SIZE.SERVER // Default to server
+}
+
+/**
  * Validate all OCR settings
  * @param {Object} settings - Settings object to validate
  * @returns {Object} - Validated settings with defaults for missing values
@@ -135,6 +212,9 @@ export function validateOcrSettings(settings) {
     const value = settings[key]
     if (value === undefined || value === null) {
       validated[key] = OCR_DEFAULTS[key]
+    } else if (key === 'modelSize') {
+      // modelSize is string enum, not numeric
+      validated[key] = validateModelSize(value)
     } else {
       validated[key] = validateOcrParam(key, value)
     }

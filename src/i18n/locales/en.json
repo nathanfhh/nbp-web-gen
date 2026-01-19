@@ -702,6 +702,7 @@
     "resetZoom": "Reset Zoom (Press 0)",
     "cropSticker": "Crop Sticker",
     "crop": "Crop",
+    "editRegions": "Edit Regions",
     "downloadWebp": "Download WebP",
     "selectFormat": "Select Download Format",
     "webp": "WebP",
@@ -1023,10 +1024,22 @@
     "modified": "Modified",
     "default": "Default",
     "categories": {
+      "model": "Model",
       "preprocessing": "Preprocessing",
       "detection": "Text Detection",
       "postprocessing": "Post-processing"
     },
+    "modelSize": {
+      "server": {
+        "label": "Server",
+        "description": "High accuracy (~172MB)"
+      },
+      "mobile": {
+        "label": "Mobile",
+        "description": "Lightweight (~21MB)"
+      }
+    },
+    "modelSizeFallback": "Switched to mobile model due to GPU memory limit",
     "params": {
       "maxSideLen": {
         "label": "Target Max Side Length",

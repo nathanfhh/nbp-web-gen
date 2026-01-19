@@ -647,10 +647,12 @@ Output: A single clean image with all text removed.`
         }
       })
 
-      // Log OCR engine info
+      // Log OCR engine info with model size
       const engineType = ocr.activeEngine?.value === 'webgpu' ? 'Main Thread' : 'Worker'
       const provider = ocr.executionProvider?.value || 'wasm'
-      addLog(t('slideToPptx.logs.ocrEngine', { engine: `${engineType} + ${provider.toUpperCase()} (PaddleOCR)` }), 'info')
+      const modelSize = getOcrSettings().modelSize || 'server'
+      const modelLabel = t(`ocrSettings.modelSize.${modelSize}.label`)
+      addLog(t('slideToPptx.logs.ocrEngine', { engine: `${engineType} + ${provider.toUpperCase()} (PaddleOCR ${modelLabel})` }), 'info')
 
       addLog(t('slideToPptx.logs.initializingInpainting'))
       await inpainting.initialize()

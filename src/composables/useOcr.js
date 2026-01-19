@@ -15,8 +15,10 @@ import {
   isMobile,
   clearModelCache,
   GpuOutOfMemoryError,
+  GpuBufferSizeError,
 } from './useOcrMainThread'
-import { getSettings, onSettingsChange } from './useOcrSettings'
+import { getSettings, onSettingsChange, updateSetting } from './useOcrSettings'
+import { OCR_MODEL_SIZE } from '@/constants/ocrDefaults'
 
 /**
  * OCR Engine Types
@@ -54,6 +56,10 @@ export function useOcr() {
   // GPU fallback tracking
   // Set to true when GPU memory error occurred and we fell back to WASM
   const gpuFallbackOccurred = ref(false)
+
+  // Model size fallback tracking
+  // Set to true when GPU buffer size error occurred and we switched to Mobile model
+  const modelSizeFallbackOccurred = ref(false)
 
   // ============================================================================
   // OCR Instance Management
@@ -246,7 +252,43 @@ export function useOcr() {
       syncState()
       return result
     } catch (err) {
-      // Check if this is a GPU memory error - trigger automatic fallback
+      // Check if this is a GPU buffer size error - trigger model size downgrade
+      if (err instanceof GpuBufferSizeError && activeEngine.value === 'webgpu') {
+        const currentSettings = getSettings()
+        // Only downgrade if currently using server model
+        if (currentSettings.modelSize === OCR_MODEL_SIZE.SERVER) {
+          console.warn('[useOcr] GPU buffer size exceeded, switching to mobile model...')
+
+          // Mark that fallback occurred (UI can use this to show notification)
+          modelSizeFallbackOccurred.value = true
+
+          // Terminate current instance
+          if (ocrInstance.value) {
+            await ocrInstance.value.terminate()
+            ocrInstance.value = null
+            instanceType = null
+          }
+
+          // Switch to mobile model (persists to localStorage)
+          updateSetting('modelSize', OCR_MODEL_SIZE.MOBILE)
+
+          // Re-initialize with mobile model
+          const newInstance = ensureInstance()
+          await newInstance.initialize((value, message) => {
+            wrappedOnProgress(value, message, 'init')
+          })
+          syncOcrSettings()
+          syncState()
+
+          // Retry recognition with mobile model
+          console.log('[useOcr] Retrying recognition with mobile model...')
+          const result = await newInstance.recognize(image, wrappedOnProgress)
+          syncState()
+          return result
+        }
+      }
+
+      // Check if this is a GPU memory error - trigger automatic fallback to WASM
       if (err instanceof GpuOutOfMemoryError && activeEngine.value === 'webgpu') {
         console.warn('[useOcr] GPU memory error detected, falling back to WASM...')
 
@@ -420,6 +462,7 @@ export function useOcr() {
     isMobileDevice,
     isDetecting,
     gpuFallbackOccurred,
+    modelSizeFallbackOccurred,
 
     // Methods
     initialize,

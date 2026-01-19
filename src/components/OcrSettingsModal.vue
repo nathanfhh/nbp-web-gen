@@ -45,8 +45,11 @@ const formatValue = (key, value) => {
   return value.toString()
 }
 
-// Check if any settings are modified
+// Check if any settings are modified (including modelSize)
 const hasModifications = computed(() => {
+  // Check modelSize
+  if (settings.modelSize !== defaults.modelSize) return true
+  // Check all category params
   return categories.some((cat) => cat.params.some((key) => settings[key] !== defaults[key]))
 })
 
