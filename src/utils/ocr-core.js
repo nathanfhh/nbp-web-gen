@@ -50,23 +50,207 @@ export const DETECTION_MIN_AREA = 100
  * - Then attempts to split horizontally (Paragraphs/Sections)
  * - Leaf nodes become the final text blocks
  *
+ * Manual separator lines (any angle) are used to pre-partition regions before XY-Cut.
+ * If a separator line intersects the line connecting two region centers, they will
+ * be placed in separate groups and never merged together.
+ *
  * This approach is ideal for structured documents like slides and papers.
  *
  * @param {Array} rawResults - Array of OCR results with bounds, text, confidence
+ * @param {Array} separatorLines - Array of manual separator lines (any angle)
+ *   Each separator: { id, start: {x, y}, end: {x, y} }
  * @returns {Array} - Merged text blocks with combined bounds and inferred alignment
  */
-export function mergeTextRegions(rawResults) {
+export function mergeTextRegions(rawResults, separatorLines = []) {
   // 1. Preprocessing: Filter invalid data
   const validRegions = rawResults.filter((r) => !r.recognitionFailed && r.text.trim().length > 0)
   if (validRegions.length === 0) return []
 
-  // 2. Recursive XY-Cut
-  // Splits page into independent zones down to the paragraph/block level
-  const leafZones = performRecursiveXYCut(validRegions)
+  // 2. Pre-partition: Split regions into groups that should never be merged
+  // Two regions are in the same group only if no separator line intersects their center-to-center line
+  const partitionedGroups = partitionBySeparators(validRegions, separatorLines)
 
-  // 3. Block Creation
+  // 3. Apply XY-Cut to each partition separately, then combine results
+  const allLeafZones = []
+  for (const group of partitionedGroups) {
+    if (group.length === 0) continue
+    const leafZones = performRecursiveXYCut(group, 0)
+    allLeafZones.push(...leafZones)
+  }
+
+  // 4. Block Creation
   // Convert each leaf zone into a text block
-  return leafZones.map(createBlockFromRegions)
+  return allLeafZones.map(createBlockFromRegions)
+}
+
+/**
+ * Partition regions into groups based on separator lines.
+ * Two regions are separated if they are on opposite sides of a separator line.
+ * Uses signed distance to line equation: Ax + By + C = 0
+ *
+ * Uses Union-Find (Disjoint Set) to efficiently group connected regions.
+ *
+ * @param {Array} regions - List of valid text regions
+ * @param {Array} separatorLines - Manual separator lines
+ * @returns {Array<Array>} - Array of region groups
+ */
+function partitionBySeparators(regions, separatorLines) {
+  if (separatorLines.length === 0) return [regions]
+  if (regions.length <= 1) return [regions]
+
+  const n = regions.length
+
+  // Union-Find data structure
+  const parent = Array.from({ length: n }, (_, i) => i)
+  const rank = new Array(n).fill(0)
+
+  function find(x) {
+    if (parent[x] !== x) parent[x] = find(parent[x])
+    return parent[x]
+  }
+
+  function union(x, y) {
+    const px = find(x)
+    const py = find(y)
+    if (px === py) return
+    if (rank[px] < rank[py]) {
+      parent[px] = py
+    } else if (rank[px] > rank[py]) {
+      parent[py] = px
+    } else {
+      parent[py] = px
+      rank[px]++
+    }
+  }
+
+  // Pre-calculate which side of each separator line each region is on
+  // Side: 1 = positive side, -1 = negative side, 0 = straddles the line
+  const regionSides = separatorLines.map((sep) => {
+    return regions.map((r) => getRegionSideOfLine(r.bounds, sep.start, sep.end))
+  })
+
+  // Try to union regions that are NOT separated by any line
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const boundsI = regions[i].bounds
+      const boundsJ = regions[j].bounds
+
+      // Check if any separator line separates these two regions
+      // A separator only applies if:
+      // 1. Its range overlaps with the union of the two regions' bounding boxes
+      // 2. The two regions are on opposite sides (one +1, one -1)
+      const isSeparated = separatorLines.some((sep, sepIdx) => {
+        const sideI = regionSides[sepIdx][i]
+        const sideJ = regionSides[sepIdx][j]
+
+        // First check if on opposite sides
+        const onOppositeSides = (sideI === 1 && sideJ === -1) || (sideI === -1 && sideJ === 1)
+        if (!onOppositeSides) return false
+
+        // Then check if separator is relevant (its range overlaps with the two regions)
+        return isSeparatorRelevantToRegions(sep, boundsI, boundsJ)
+      })
+
+      // Also check if either region straddles any RELEVANT separator line
+      // Straddling regions should NOT act as bridges between sides
+      const anyStraddles = separatorLines.some((sep, sepIdx) => {
+        const straddles = regionSides[sepIdx][i] === 0 || regionSides[sepIdx][j] === 0
+        if (!straddles) return false
+        // Only count if separator is relevant to these regions
+        return isSeparatorRelevantToRegions(sep, boundsI, boundsJ)
+      })
+
+      if (!isSeparated && !anyStraddles) {
+        union(i, j)
+      }
+    }
+  }
+
+  // Collect groups
+  const groups = new Map()
+  for (let i = 0; i < n; i++) {
+    const root = find(i)
+    if (!groups.has(root)) groups.set(root, [])
+    groups.get(root).push(regions[i])
+  }
+
+  return Array.from(groups.values())
+}
+
+/**
+ * Check if a separator line is relevant to a pair of regions.
+ * A separator is relevant if its bounding box overlaps with the union
+ * of the two regions' bounding boxes.
+ *
+ * This prevents a line drawn in one area from affecting distant regions.
+ *
+ * @param {Object} sep - Separator { start: {x, y}, end: {x, y} }
+ * @param {Object} boundsA - First region's bounds
+ * @param {Object} boundsB - Second region's bounds
+ * @returns {boolean} True if separator is relevant to these regions
+ */
+function isSeparatorRelevantToRegions(sep, boundsA, boundsB) {
+  // Calculate separator's bounding box
+  const sepMinX = Math.min(sep.start.x, sep.end.x)
+  const sepMaxX = Math.max(sep.start.x, sep.end.x)
+  const sepMinY = Math.min(sep.start.y, sep.end.y)
+  const sepMaxY = Math.max(sep.start.y, sep.end.y)
+
+  // Calculate union bounding box of the two regions
+  const unionMinX = Math.min(boundsA.x, boundsB.x)
+  const unionMaxX = Math.max(boundsA.x + boundsA.width, boundsB.x + boundsB.width)
+  const unionMinY = Math.min(boundsA.y, boundsB.y)
+  const unionMaxY = Math.max(boundsA.y + boundsA.height, boundsB.y + boundsB.height)
+
+  // Check if bounding boxes overlap (with some padding for near-misses)
+  const padding = 10 // Small padding to catch edge cases
+  return (
+    sepMaxX + padding >= unionMinX &&
+    sepMinX - padding <= unionMaxX &&
+    sepMaxY + padding >= unionMinY &&
+    sepMinY - padding <= unionMaxY
+  )
+}
+
+/**
+ * Determine which side of a line a bounding box is on.
+ * Line is defined by two points (p1, p2), extended infinitely.
+ *
+ * Uses line equation: (y2-y1)(x-x1) - (x2-x1)(y-y1) = 0
+ * Substitute each corner and check the sign.
+ *
+ * @param {Object} bounds - Bounding box { x, y, width, height }
+ * @param {{x: number, y: number}} p1 - First point of line
+ * @param {{x: number, y: number}} p2 - Second point of line
+ * @returns {number} 1 if all corners on positive side, -1 if all on negative side, 0 if straddles
+ */
+function getRegionSideOfLine(bounds, p1, p2) {
+  // Line equation coefficients: A*x + B*y + C = 0
+  const A = p2.y - p1.y
+  const B = -(p2.x - p1.x)
+  const C = (p2.x - p1.x) * p1.y - (p2.y - p1.y) * p1.x
+
+  // Get the four corners of the bounding box
+  const corners = [
+    { x: bounds.x, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x, y: bounds.y + bounds.height },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+  ]
+
+  // Calculate signed distance for each corner
+  let hasPositive = false
+  let hasNegative = false
+
+  for (const corner of corners) {
+    const value = A * corner.x + B * corner.y + C
+    if (value > 0) hasPositive = true
+    else if (value < 0) hasNegative = true
+  }
+
+  if (hasPositive && !hasNegative) return 1 // All on positive side
+  if (hasNegative && !hasPositive) return -1 // All on negative side
+  return 0 // Straddles the line (some positive, some negative)
 }
 
 // ============================================================================

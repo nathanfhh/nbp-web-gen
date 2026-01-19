@@ -19,6 +19,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Separator lines to prevent region merging
+  separatorLines: {
+    type: Array,
+    default: () => [],
+  },
   // Image dimensions for coordinate mapping
   imageDimensions: {
     type: Object,
@@ -34,6 +39,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Image URL for magnifier
+  imageUrl: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits([
@@ -42,6 +52,8 @@ const emit = defineEmits([
   'resize-region',
   'reset',
   'done',
+  'add-separator',
+  'delete-separator',
 ])
 
 // ============================================================================
@@ -65,6 +77,16 @@ const isResizing = ref(false)
 const resizeHandle = ref(null) // 'nw', 'ne', 'sw', 'se'
 const resizeStart = ref(null)
 const resizeOriginalBounds = ref(null)
+
+// Separator line state
+const isSeparatorModeActive = ref(false)
+const separatorFirstPoint = ref(null)
+const separatorPreview = ref(null) // { start, end } for preview line
+const selectedSeparatorId = ref(null)
+
+// Magnifier state
+const showMagnifier = ref(false)
+const magnifierTarget = ref({ x: 0, y: 0 })
 
 // ============================================================================
 // Computed
@@ -109,12 +131,19 @@ const onRegionClick = (index, e) => {
 }
 
 /**
- * Deselect region when clicking on empty area
+ * Deselect region/separator when clicking on empty area, or handle separator click
  */
-const onBackgroundClick = () => {
+const onBackgroundClick = (e) => {
+  // Handle separator mode click (for drawing new separator)
+  if (isSeparatorModeActive.value) {
+    onSeparatorClick(e)
+    return
+  }
+
   if (isDrawModeActive.value) return
   if (!isResizing.value) {
     selectedIndex.value = null
+    selectedSeparatorId.value = null
   }
 }
 
@@ -169,6 +198,93 @@ const toggleDrawMode = () => {
   // Deselect when entering draw mode
   if (isDrawModeActive.value) {
     selectedIndex.value = null
+    isSeparatorModeActive.value = false // Exit separator mode
+    selectedSeparatorId.value = null
+  }
+}
+
+// ============================================================================
+// Separator Line Tool
+// ============================================================================
+
+const toggleSeparatorMode = () => {
+  isSeparatorModeActive.value = !isSeparatorModeActive.value
+  if (!isSeparatorModeActive.value) {
+    // Reset separator state when exiting
+    separatorFirstPoint.value = null
+    separatorPreview.value = null
+  }
+  // Exit other modes when entering separator mode
+  if (isSeparatorModeActive.value) {
+    isDrawModeActive.value = false
+    selectedIndex.value = null
+    selectedSeparatorId.value = null
+  }
+}
+
+/**
+ * Handle click for separator line drawing (two-point)
+ */
+const onSeparatorClick = (e) => {
+  if (!isSeparatorModeActive.value) return
+  e.stopPropagation()
+
+  const coords = getImageCoords(e)
+
+  if (!separatorFirstPoint.value) {
+    // First point: start the line
+    separatorFirstPoint.value = coords
+  } else {
+    // Second point: finish the line
+    emit('add-separator', {
+      start: separatorFirstPoint.value,
+      end: coords,
+    })
+    // Reset for next line
+    separatorFirstPoint.value = null
+    separatorPreview.value = null
+  }
+}
+
+/**
+ * Update separator preview line on mouse move
+ */
+const updateSeparatorPreview = (coords) => {
+  if (!isSeparatorModeActive.value || !separatorFirstPoint.value) return
+  separatorPreview.value = {
+    start: separatorFirstPoint.value,
+    end: coords,
+  }
+}
+
+/**
+ * Select a separator line by clicking on it
+ */
+const onSeparatorClick_Select = (separatorId, e) => {
+  if (isSeparatorModeActive.value || isDrawModeActive.value) return
+  e.stopPropagation()
+  selectedSeparatorId.value = separatorId
+  selectedIndex.value = null // Deselect any region
+}
+
+/**
+ * Delete the currently selected separator line
+ */
+const onDeleteSeparatorClick = (e) => {
+  e.stopPropagation()
+  if (selectedSeparatorId.value !== null) {
+    emit('delete-separator', selectedSeparatorId.value)
+    selectedSeparatorId.value = null
+  }
+}
+
+/**
+ * Get midpoint of a separator line (for delete button placement)
+ */
+const getSeparatorMidpoint = (separator) => {
+  return {
+    x: (separator.start.x + separator.end.x) / 2,
+    y: (separator.start.y + separator.end.y) / 2,
   }
 }
 
@@ -186,9 +302,16 @@ const onMouseDown = (e) => {
 const onMouseMove = (e) => {
   const current = getImageCoords(e)
 
-  // Handle resize
+  // Handle resize (also update magnifier target)
   if (isResizing.value) {
     handleResizeMove(current)
+    magnifierTarget.value = current
+    return
+  }
+
+  // Handle separator preview
+  if (isSeparatorModeActive.value) {
+    updateSeparatorPreview(current)
     return
   }
 
@@ -268,10 +391,18 @@ const onTouchMove = (e) => {
 
   const current = getTouchImageCoords(e.touches[0])
 
-  // Handle resize
+  // Handle resize (also update magnifier target)
   if (isResizing.value) {
     e.preventDefault()
     handleResizeMove(current)
+    magnifierTarget.value = current
+    return
+  }
+
+  // Handle separator preview
+  if (isSeparatorModeActive.value) {
+    e.preventDefault()
+    updateSeparatorPreview(current)
     return
   }
 
@@ -332,6 +463,10 @@ const onResizeStart = (handle, e) => {
   resizeHandle.value = handle
   resizeStart.value = getImageCoords(e)
   resizeOriginalBounds.value = { ...region.bounds }
+
+  // Show magnifier when resizing
+  showMagnifier.value = true
+  magnifierTarget.value = getImageCoords(e)
 }
 
 /**
@@ -381,6 +516,9 @@ const finishResize = () => {
   resizeHandle.value = null
   resizeStart.value = null
   resizeOriginalBounds.value = null
+
+  // Hide magnifier when done resizing
+  showMagnifier.value = false
 }
 
 /**
@@ -399,6 +537,10 @@ const onResizeTouchStart = (handle, e) => {
   resizeHandle.value = handle
   resizeStart.value = getTouchImageCoords(e.touches[0])
   resizeOriginalBounds.value = { ...region.bounds }
+
+  // Show magnifier when resizing
+  showMagnifier.value = true
+  magnifierTarget.value = getTouchImageCoords(e.touches[0])
 }
 
 // ============================================================================
@@ -448,8 +590,23 @@ const handleKeydown = (e) => {
   if (e.key === 'Escape') {
     if (showTextDialog.value) {
       cancelTextDialog()
+    } else if (isSeparatorModeActive.value) {
+      // If drawing a separator (first point set), cancel it; otherwise exit mode
+      if (separatorFirstPoint.value) {
+        separatorFirstPoint.value = null
+        separatorPreview.value = null
+      } else {
+        toggleSeparatorMode()
+      }
     } else if (isDrawModeActive.value) {
       toggleDrawMode()
+    }
+  }
+  // Delete key to delete selected separator
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selectedSeparatorId.value !== null) {
+      emit('delete-separator', selectedSeparatorId.value)
+      selectedSeparatorId.value = null
     }
   }
 }
@@ -649,20 +806,43 @@ const getRegionColor = (region) => {
           {{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}
         </button>
 
+        <!-- Separator line tool -->
+        <button
+          @click="toggleSeparatorMode"
+          class="toolbar-btn"
+          :class="{ 'toolbar-btn-separator': isSeparatorModeActive }"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20L20 4" />
+          </svg>
+          {{ isSeparatorModeActive
+            ? (separatorFirstPoint ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separator'))
+            : t('slideToPptx.regionEditor.separator') }}
+        </button>
+
         <!-- Region count indicator -->
         <span class="region-count">
           {{ t('slideToPptx.regionEditor.regionCount', { count: regions.length }) }}
+          <template v-if="separatorLines.length > 0">
+            · {{ t('slideToPptx.regionEditor.separatorCount', { count: separatorLines.length }) }}
+          </template>
         </span>
 
         <!-- Hint text (Attached to toolbar) -->
-        <div class="edit-hint" v-if="!isDrawModeActive && selectedIndex === null">
-          {{ t('slideToPptx.regionEditor.hint') }}
+        <div class="edit-hint" v-if="isSeparatorModeActive">
+          {{ separatorFirstPoint ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separatorHint') }}
+        </div>
+        <div class="edit-hint" v-else-if="selectedSeparatorId !== null">
+          {{ t('slideToPptx.regionEditor.separatorSelectedHint') }}
         </div>
         <div class="edit-hint" v-else-if="isDrawModeActive">
           {{ t('slideToPptx.regionEditor.drawHint') }}
         </div>
         <div class="edit-hint" v-else-if="selectedIndex !== null">
           {{ t('slideToPptx.regionEditor.selectedHint') }}
+        </div>
+        <div class="edit-hint" v-else>
+          {{ t('slideToPptx.regionEditor.hint') }}
         </div>
       </div>
     </Teleport>
@@ -673,9 +853,9 @@ const getRegionColor = (region) => {
       ref="svgRef"
       class="edit-overlay-svg"
       :class="{
-        'cursor-crosshair': isDrawModeActive,
-        'pointer-events-auto': isDrawModeActive || isResizing,
-        'pointer-events-none': !isDrawModeActive && !isResizing
+        'cursor-crosshair': isDrawModeActive || isSeparatorModeActive,
+        'pointer-events-auto': isDrawModeActive || isResizing || isSeparatorModeActive,
+        'pointer-events-none': !isDrawModeActive && !isResizing && !isSeparatorModeActive
       }"
       :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
       preserveAspectRatio="none"
@@ -773,6 +953,117 @@ const getRegionColor = (region) => {
         </g>
       </g>
 
+      <!-- Separator lines (existing) -->
+      <g
+        v-for="sep in separatorLines"
+        :key="`sep-${sep.id}`"
+        class="separator-group"
+        :class="{ 'separator-selected': selectedSeparatorId === sep.id }"
+        pointer-events="auto"
+        @click.stop="onSeparatorClick_Select(sep.id, $event)"
+      >
+        <!-- Wider transparent hit area for easier clicking -->
+        <line
+          :x1="sep.start.x"
+          :y1="sep.start.y"
+          :x2="sep.end.x"
+          :y2="sep.end.y"
+          stroke="transparent"
+          stroke-width="20"
+          vector-effect="non-scaling-stroke"
+        />
+        <!-- Visible separator line -->
+        <line
+          :x1="sep.start.x"
+          :y1="sep.start.y"
+          :x2="sep.end.x"
+          :y2="sep.end.y"
+          :stroke="selectedSeparatorId === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
+          :stroke-width="selectedSeparatorId === sep.id ? '4' : '3'"
+          :stroke-dasharray="selectedSeparatorId === sep.id ? 'none' : '8 4'"
+          vector-effect="non-scaling-stroke"
+        />
+        <!-- Endpoint circles -->
+        <circle
+          :cx="sep.start.x"
+          :cy="sep.start.y"
+          r="6"
+          :fill="selectedSeparatorId === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
+        />
+        <circle
+          :cx="sep.end.x"
+          :cy="sep.end.y"
+          r="6"
+          :fill="selectedSeparatorId === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
+        />
+      </g>
+
+      <!-- Selected separator delete button -->
+      <g
+        v-if="selectedSeparatorId !== null && separatorLines.find(s => s.id === selectedSeparatorId)"
+        class="delete-button-group"
+        pointer-events="auto"
+        @click.stop="onDeleteSeparatorClick($event)"
+      >
+        <!-- Get the selected separator for positioning -->
+        <circle
+          :cx="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).x"
+          :cy="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).y"
+          r="24"
+          fill="transparent"
+        />
+        <circle
+          :cx="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).x"
+          :cy="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).y"
+          r="18"
+          fill="rgba(239, 68, 68, 0.9)"
+        />
+        <text
+          :x="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).x"
+          :y="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).y"
+          text-anchor="middle"
+          dominant-baseline="central"
+          fill="white"
+          font-size="22"
+          font-weight="bold"
+          class="delete-button-text"
+        >×</text>
+      </g>
+
+      <!-- Separator preview line (when drawing) -->
+      <g v-if="isSeparatorModeActive && separatorPreview">
+        <line
+          :x1="separatorPreview.start.x"
+          :y1="separatorPreview.start.y"
+          :x2="separatorPreview.end.x"
+          :y2="separatorPreview.end.y"
+          stroke="rgba(249, 115, 22, 0.5)"
+          stroke-width="3"
+          stroke-dasharray="8 4"
+          vector-effect="non-scaling-stroke"
+        />
+        <!-- First point marker -->
+        <circle
+          :cx="separatorPreview.start.x"
+          :cy="separatorPreview.start.y"
+          r="8"
+          fill="rgba(249, 115, 22, 0.9)"
+          stroke="white"
+          stroke-width="2"
+        />
+      </g>
+
+      <!-- First point marker when starting separator (before preview) -->
+      <circle
+        v-if="isSeparatorModeActive && separatorFirstPoint && !separatorPreview"
+        :cx="separatorFirstPoint.x"
+        :cy="separatorFirstPoint.y"
+        r="8"
+        fill="rgba(249, 115, 22, 0.9)"
+        stroke="white"
+        stroke-width="2"
+      />
+
       <!-- Drawing preview -->
       <rect
         v-if="isDrawing && drawRect"
@@ -787,6 +1078,28 @@ const getRegionColor = (region) => {
         vector-effect="non-scaling-stroke"
       />
     </svg>
+
+    <!-- Magnifier (shows when resizing) -->
+    <Teleport to="body">
+      <div
+        v-if="showMagnifier && imageUrl"
+        class="magnifier"
+      >
+        <div class="magnifier-content">
+          <div
+            class="magnifier-image"
+            :style="{
+              backgroundImage: `url(${imageUrl})`,
+              backgroundPosition: `-${magnifierTarget.x * 2.5 - 60}px -${magnifierTarget.y * 2.5 - 60}px`,
+              backgroundSize: `${imageDimensions.width * 2.5}px ${imageDimensions.height * 2.5}px`
+            }"
+          ></div>
+          <!-- Crosshair -->
+          <div class="magnifier-crosshair-h"></div>
+          <div class="magnifier-crosshair-v"></div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Text Input Dialog -->
     <Teleport to="body">
@@ -883,6 +1196,12 @@ const getRegionColor = (region) => {
   color: white;
   background: rgba(168, 85, 247, 0.8);
   border-color: rgba(168, 85, 247, 0.8);
+}
+
+.toolbar-btn-separator {
+  color: white;
+  background: rgba(249, 115, 22, 0.8);
+  border-color: rgba(249, 115, 22, 0.8);
 }
 
 .region-count {
@@ -1058,5 +1377,66 @@ const getRegionColor = (region) => {
 
 .dialog-btn-primary:hover {
   filter: brightness(1.1);
+}
+
+/* Separator line styling */
+.separator-group {
+  cursor: pointer;
+}
+
+.separator-group line {
+  transition: stroke 0.15s ease, stroke-width 0.15s ease;
+}
+
+.separator-group circle {
+  transition: fill 0.15s ease;
+}
+
+/* Magnifier */
+.magnifier {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 10001;
+  pointer-events: none;
+}
+
+.magnifier-content {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 3px solid rgba(59, 130, 246, 0.8);
+  background: #000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.magnifier-image {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+}
+
+.magnifier-crosshair-h,
+.magnifier-crosshair-v {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.8);
+}
+
+.magnifier-crosshair-h {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform: translateY(-0.5px);
+}
+
+.magnifier-crosshair-v {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-0.5px);
 }
 </style>

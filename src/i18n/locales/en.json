@@ -1139,7 +1139,12 @@
       "reprocessFailed": "Reprocessing failed: {error}",
       "hint": "Click a region to select, then resize or delete",
       "drawHint": "Drag to draw a new text region",
-      "selectedHint": "Drag corners to resize, or click ✕ to delete"
+      "selectedHint": "Drag corners to resize, or click ✕ to delete",
+      "separator": "Separator",
+      "separatorDrawing": "Drawing...",
+      "separatorHint": "Click two points to draw a separator line",
+      "separatorSelectedHint": "Press Delete or click ✕ to remove separator",
+      "separatorCount": "{count} separator(s)"
     },
     "inpaintMethod": "Text Removal Method",
     "free": "Free",

@@ -147,6 +147,26 @@ const handleResetRegions = () => {
   slideToPptx.resetRegions(currentIndex.value)
 }
 
+// Separator line event handlers
+const handleAddSeparator = (separator) => {
+  slideToPptx.addSeparatorLine(currentIndex.value, separator)
+}
+
+const handleDeleteSeparator = (separatorId) => {
+  slideToPptx.deleteSeparatorLine(currentIndex.value, separatorId)
+}
+
+// Get current separator lines
+const currentSeparatorLines = computed(() => {
+  return slideToPptx.getSeparatorLines(currentIndex.value)
+})
+
+// Get current image URL for magnifier
+const currentImageUrl = computed(() => {
+  const state = slideStates.value[currentIndex.value]
+  return state?.originalImage || ''
+})
+
 // Get current editable regions (edited or original)
 const currentEditableRegions = computed(() => {
   return slideToPptx.getEditableRegions(currentIndex.value)
@@ -1551,14 +1571,18 @@ const getSlideStatus = (index) => {
         <OcrRegionEditor
           v-if="isRegionEditMode && imageDimensions.width > 0"
           :regions="currentEditableRegions"
+          :separator-lines="currentSeparatorLines"
           :image-dimensions="imageDimensions"
           :is-edited="currentSlideIsEdited"
           :is-reprocessing="isReprocessing"
+          :image-url="currentImageUrl"
           @delete-region="handleDeleteRegion"
           @add-region="handleAddRegion"
           @resize-region="handleResizeRegion"
           @reset="handleResetRegions"
           @done="exitEditMode"
+          @add-separator="handleAddSeparator"
+          @delete-separator="handleDeleteSeparator"
         />
       </template>
     </ImageLightbox>

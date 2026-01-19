@@ -1139,7 +1139,12 @@
       "reprocessFailed": "重新處理失敗：{error}",
       "hint": "點擊區域以選取，可調整大小或刪除",
       "drawHint": "拖曳繪製新的文字區域",
-      "selectedHint": "拖曳角落調整大小，或點擊中央 ✕ 刪除"
+      "selectedHint": "拖曳角落調整大小，或點擊中央 ✕ 刪除",
+      "separator": "分隔線",
+      "separatorDrawing": "繪製中...",
+      "separatorHint": "點擊兩點繪製分隔線，阻止區域合併",
+      "separatorSelectedHint": "按 Delete 或點擊 ✕ 刪除分隔線",
+      "separatorCount": "{count} 條分隔線"
     },
     "inpaintMethod": "文字移除方式",
     "free": "免費",

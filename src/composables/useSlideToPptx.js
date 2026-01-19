@@ -80,6 +80,7 @@ const translateOcrMessage = (message) => {
  * @property {Object|null} overrideSettings - Per-page settings override (null = use global)
  * @property {boolean} isRegionsEdited - Flag: user has manually edited regions
  * @property {Array|null} editedRawRegions - User-modified regions (null = use original rawRegions)
+ * @property {Array} separatorLines - Manual separator lines to prevent region merging
  */
 
 /**
@@ -599,6 +600,8 @@ Output: A single clean image with all text removed.`
         // Preserve region editing state
         isRegionsEdited: existingState?.isRegionsEdited || false,
         editedRawRegions: existingState?.editedRawRegions || null,
+        // Preserve separator lines
+        separatorLines: existingState?.separatorLines || [],
       }
     })
 
@@ -809,6 +812,7 @@ Output: A single clean image with all text removed.`
         overrideSettings: null,
         isRegionsEdited: false,
         editedRawRegions: null,
+        separatorLines: [],
       }))
     }
   }
@@ -926,11 +930,12 @@ Output: A single clean image with all text removed.`
     const state = slideStates.value[slideIndex]
     if (!state) return
 
-    // Clear edited regions
+    // Clear edited regions and separator lines
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: null,
       isRegionsEdited: false,
+      separatorLines: [],
     }
 
     addLog(t('slideToPptx.logs.regionsReset', { slide: slideIndex + 1 }), 'info')
@@ -974,6 +979,61 @@ Output: A single clean image with all text removed.`
     }
   }
 
+  // ============================================================================
+  // Separator Line Methods
+  // ============================================================================
+
+  /**
+   * Add a separator line to a slide
+   * Separator lines can be any angle - they prevent regions whose center-to-center
+   * line intersects the separator from being merged together.
+   *
+   * @param {number} slideIndex - Slide index
+   * @param {Object} separator - Separator line data { start: {x, y}, end: {x, y} }
+   */
+  const addSeparatorLine = (slideIndex, separator) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    const newSeparator = {
+      id: `sep-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      start: separator.start,
+      end: separator.end,
+    }
+
+    slideStates.value[slideIndex] = {
+      ...state,
+      separatorLines: [...(state.separatorLines || []), newSeparator],
+      isRegionsEdited: true,
+    }
+  }
+
+  /**
+   * Delete a separator line from a slide
+   * @param {number} slideIndex - Slide index
+   * @param {string} separatorId - Separator line ID
+   */
+  const deleteSeparatorLine = (slideIndex, separatorId) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    slideStates.value[slideIndex] = {
+      ...state,
+      separatorLines: (state.separatorLines || []).filter((s) => s.id !== separatorId),
+      isRegionsEdited: true,
+    }
+  }
+
+  /**
+   * Get separator lines for a slide
+   * @param {number} slideIndex - Slide index
+   * @returns {Array} Separator lines
+   */
+  const getSeparatorLines = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    return state?.separatorLines || []
+  }
+
   /**
    * Reprocess a single slide with current (possibly edited) regions
    * Re-runs mask generation and inpainting
@@ -990,12 +1050,13 @@ Output: A single clean image with all text removed.`
 
     // Use edited regions if available, otherwise original
     const regionsToUse = state.editedRawRegions || state.rawRegions
+    const separatorLines = state.separatorLines || []
 
     addLog(t('slideToPptx.logs.reprocessingSlide', { slide: slideIndex + 1 }), 'info')
 
     try {
-      // Re-merge for PPTX export
-      const mergedRegions = mergeTextRegions(regionsToUse)
+      // Re-merge for PPTX export (with separator lines as forced cut boundaries)
+      const mergedRegions = mergeTextRegions(regionsToUse, separatorLines)
       state.regions = mergedRegions
       state.ocrResults = mergedRegions
 
@@ -1129,5 +1190,10 @@ Output: A single clean image with all text removed.`
     resetRegions,
     resizeRegion,
     reprocessSlide,
+
+    // Separator line methods
+    addSeparatorLine,
+    deleteSeparatorLine,
+    getSeparatorLines,
   }
 }
