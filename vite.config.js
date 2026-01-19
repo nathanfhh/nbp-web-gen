@@ -71,6 +71,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         skipWaiting: true,      // 新 SW 立即激活，不等待
         clientsClaim: true,     // 立即接管所有頁面
+        navigateFallbackDenylist: [/^\/.*\.(xml|txt|json)$/], // Don't intercept static files
       },
     }),
   ],
