@@ -89,9 +89,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Show "Edit Regions" button (for slides mode OCR editing)
+  showEditRegionsButton: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['update:modelValue', 'close'])
+const emit = defineEmits(['update:modelValue', 'close', 'edit-regions'])
 
 // Image storage for OPFS access (used by useLightboxDownload)
 const imageStorage = useImageStorage()
@@ -544,6 +549,19 @@ const goToSlideToPptx = async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span class="text-xs font-medium">PPTX</span>
+          </button>
+
+          <!-- Edit Regions button (for OCR editing in slides mode) -->
+          <button
+            v-if="showEditRegionsButton && !isEditMode"
+            @click="emit('edit-regions')"
+            class="lightbox-btn flex items-center gap-2"
+            :title="$t('lightbox.editRegions')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span class="text-xs font-medium">{{ $t('lightbox.editRegions') }}</span>
           </button>
 
           <!-- Unified download button -->
