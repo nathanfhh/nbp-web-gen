@@ -144,6 +144,10 @@ const handleDeleteRegion = (index) => {
   slideToPptx.deleteRegion(currentIndex.value, index)
 }
 
+const handleDeleteRegionsBatch = (indices) => {
+  slideToPptx.deleteRegionsBatch(currentIndex.value, indices)
+}
+
 const handleAddRegion = ({ bounds, text }) => {
   slideToPptx.addManualRegion(currentIndex.value, bounds, text)
 }
@@ -647,18 +651,22 @@ const getSlideStatus = (index) => {
   <div class="relative z-10 min-h-screen">
     <!-- Header -->
     <header class="sticky top-0 z-50 backdrop-blur-xl bg-glass-bg-strong border-b border-border-subtle shadow-card">
-      <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="container mx-auto px-4 py-4 flex items-center justify-between relative">
         <button
           @click="goBack"
-          class="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors"
+          class="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors z-10"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-          <span>{{ $t('common.back') }}</span>
+          <span class="hidden sm:inline">{{ $t('common.back') }}</span>
         </button>
-        <h1 class="text-xl font-semibold text-text-primary">{{ $t('slideToPptx.title') }}</h1>
-        <div class="w-24"></div>
+        <!-- Title centered absolutely -->
+        <h1 class="absolute left-1/2 -translate-x-1/2 text-xl font-semibold text-text-primary truncate max-w-[60%] sm:max-w-none">
+          {{ $t('slideToPptx.title') }}
+        </h1>
+        <!-- Spacer for layout balance -->
+        <div class="w-8 sm:w-24"></div>
       </div>
     </header>
 
@@ -1641,6 +1649,7 @@ const getSlideStatus = (index) => {
           :can-undo="currentCanUndo"
           :can-redo="currentCanRedo"
           @delete-region="handleDeleteRegion"
+          @delete-regions-batch="handleDeleteRegionsBatch"
           @add-region="handleAddRegion"
           @resize-region="handleResizeRegion"
           @reset="handleResetRegions"
