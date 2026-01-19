@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useIndexedDB } from '@/composables/useIndexedDB'
@@ -92,7 +92,23 @@ onMounted(async () => {
       }
     }
   }
+
+  // Register beforeunload handler
+  window.addEventListener('beforeunload', handleBeforeUnload)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// Prevent accidental page close during extraction
+const handleBeforeUnload = (e) => {
+  if (isExtracting.value) {
+    e.preventDefault()
+    e.returnValue = t('characterExtractor.confirmLeave')
+    return e.returnValue
+  }
+}
 
 const goBack = () => {
   router.push('/')

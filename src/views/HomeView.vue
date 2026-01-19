@@ -359,12 +359,24 @@ const setupIntersectionObserver = () => {
 
 let intersectionObserver = null
 
+// Prevent accidental page close during generation
+const handleBeforeUnload = (e) => {
+  if (store.isGenerating) {
+    e.preventDefault()
+    e.returnValue = t('common.confirmLeave')
+    return e.returnValue
+  }
+}
+
 onMounted(() => {
   // Force scroll to top on page load
   window.scrollTo({ top: 0, behavior: 'instant' })
 
   // Setup asymmetric scroll behavior
   window.addEventListener('scroll', throttledScrollHandler, { passive: true })
+
+  // Register beforeunload handler
+  window.addEventListener('beforeunload', handleBeforeUnload)
 
   intersectionObserver = setupIntersectionObserver()
   checkAppUpdate()
@@ -374,6 +386,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', throttledScrollHandler)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
   if (scrollThrottleTimer) {
     clearTimeout(scrollThrottleTimer)
     scrollThrottleTimer = null

@@ -18,7 +18,8 @@
     "characters": "characters",
     "back": "Back",
     "images": "images",
-    "optional": "Optional"
+    "optional": "Optional",
+    "confirmLeave": "Generation in progress. Are you sure you want to leave?"
   },
   "hero": {
     "subtitle": "AI Image & Video Generator",
@@ -850,7 +851,8 @@
     "noImage": "Please upload or select an image first",
     "noName": "Please enter a character name",
     "editResult": "Edit extraction result",
-    "reExtract": "Re-extract"
+    "reExtract": "Re-extract",
+    "confirmLeave": "Extraction in progress. Are you sure you want to leave?"
   },
   "characterCarousel": {
     "title": "My Characters",
@@ -1166,7 +1168,10 @@
       "separatorSelectedHint": "Press Delete or click ✕ to remove separator",
       "separatorCount": "{count} separator(s)",
       "undo": "Undo",
-      "redo": "Redo"
+      "redo": "Redo",
+      "selectArea": "Select",
+      "selectionHint": "Drag to select regions for batch deletion",
+      "selectionConfirm": "{count} region(s) selected, click ✓ to delete"
     },
     "inpaintMethod": "Text Removal Method",
     "free": "Free",
@@ -1259,6 +1264,7 @@
       "reprocessingComplete": "Slide {slide}: Reprocessing complete",
       "reprocessingFailed": "Slide {slide}: Reprocessing failed - {error}",
       "regionDeleted": "Slide {slide}: Deleted region #{index}",
+      "regionsBatchDeleted": "Slide {slide}: Batch deleted {count} region(s)",
       "regionAdded": "Slide {slide}: Added manual region",
       "regionsReset": "Slide {slide}: Reset to original OCR results",
       "slideError": "Slide {slide}: Error - {error}",
