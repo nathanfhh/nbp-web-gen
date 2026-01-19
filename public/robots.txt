@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nathanfhh.github.io/nbp-web-gen/sitemap.xml

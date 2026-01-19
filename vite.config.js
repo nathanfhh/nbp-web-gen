@@ -28,6 +28,13 @@ export default defineConfig({
     __BUILD_HASH__: JSON.stringify(getBuildHash()),
   },
   plugins: [
+    // Replace %APP_VERSION% in index.html with actual version
+    {
+      name: 'html-transform',
+      transformIndexHtml(html) {
+        return html.replace(/%APP_VERSION%/g, pkg.version)
+      },
+    },
     vue(),
     vueDevTools(),
     tailwindcss(),
