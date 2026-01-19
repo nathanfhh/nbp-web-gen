@@ -150,6 +150,27 @@ const onRegionClick = (index, e) => {
 }
 
 /**
+ * Programmatically select a region by index (exposed for parent component)
+ */
+const selectRegion = (index) => {
+  if (index < 0 || index >= props.regions.length) return
+  // Exit any active modes
+  isDrawModeActive.value = false
+  isSeparatorModeActive.value = false
+  isSelectionModeActive.value = false
+  selectionRect.value = null
+  selectedRegionIndices.value = []
+  selectedSeparatorId.value = null
+  // Select the region
+  selectedIndex.value = index
+}
+
+// Expose methods for parent component
+defineExpose({
+  selectRegion,
+})
+
+/**
  * Deselect region/separator when clicking on empty area, or handle separator click
  */
 const onBackgroundClick = (e) => {

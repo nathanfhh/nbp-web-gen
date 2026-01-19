@@ -96,7 +96,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'close', 'edit-regions'])
+const emit = defineEmits(['update:modelValue', 'close', 'edit-regions', 'select-region'])
 
 // Image storage for OPFS access (used by useLightboxDownload)
 const imageStorage = useImageStorage()
@@ -159,46 +159,12 @@ const isClosing = ref(false)
 const isRegionSidebarOpen = ref(false)
 const imageContainerRef = ref(null)
 
-// Highlighted region (for blink effect after clicking sidebar item)
-const highlightedRegion = ref(null) // { type: 'merged'|'raw'|'failed', index: number }
-const blinkVisible = ref(true) // Toggle for blink animation
-let highlightTimeout = null
-let blinkInterval = null
-
-// Check if a specific region is currently highlighted and should show blink effect
-const isRegionHighlighted = (type, idx) => {
-  return highlightedRegion.value?.type === type && highlightedRegion.value?.index === idx
-}
-
-// Get dynamic style for highlighted region
-const getHighlightStyle = (type, idx) => {
-  if (!isRegionHighlighted(type, idx)) return {}
-  return {
-    fillOpacity: blinkVisible.value ? 0.6 : 0.1,
-    strokeOpacity: blinkVisible.value ? 1 : 0.3,
-    strokeWidth: blinkVisible.value ? 4 : 2,
-  }
-}
-
-// Combined region list for sidebar (respects visibility filters)
+// Combined region list for sidebar (only raw and failed - merged are not editable)
 const visibleRegions = computed(() => {
   const regions = []
 
-  // Add merged regions (blue)
-  if (props.showMergedRegions && props.ocrRegions.merged) {
-    props.ocrRegions.merged.forEach((r, idx) => {
-      regions.push({
-        ...r,
-        type: 'merged',
-        color: 'blue',
-        label: t('lightbox.regionList.merged'),
-        originalIndex: idx,
-      })
-    })
-  }
-
-  // Add raw regions (green)
-  if (props.showRawRegions && props.ocrRegions.raw) {
+  // Add raw regions (green) - successfully recognized text
+  if (props.ocrRegions.raw) {
     props.ocrRegions.raw.forEach((r, idx) => {
       regions.push({
         ...r,
@@ -210,8 +176,8 @@ const visibleRegions = computed(() => {
     })
   }
 
-  // Add failed regions (red)
-  if (props.showFailedRegions && props.ocrRegions.failed) {
+  // Add failed regions (red) - detection without recognition
+  if (props.ocrRegions.failed) {
     props.ocrRegions.failed.forEach((r, idx) => {
       regions.push({
         ...r,
@@ -231,7 +197,7 @@ const showRegionSidebar = computed(() => {
   return props.isEditMode && visibleRegions.value.length > 0
 })
 
-// Handle region click - navigate to region and close sidebar
+// Handle region click - navigate to region and emit select event
 const handleRegionClick = (region) => {
   if (!imageDimensions.value.width || !imageContainerRef.value) return
 
@@ -242,24 +208,11 @@ const handleRegionClick = (region) => {
     { width: containerRect.width, height: containerRect.height }
   )
 
-  // Set highlighted region for blink effect
-  if (highlightTimeout) clearTimeout(highlightTimeout)
-  if (blinkInterval) clearInterval(blinkInterval)
-
-  highlightedRegion.value = { type: region.type, index: region.originalIndex }
-  blinkVisible.value = true
-
-  // Start blink animation (toggle every 300ms for 3 seconds)
-  blinkInterval = setInterval(() => {
-    blinkVisible.value = !blinkVisible.value
-  }, 300)
-
-  highlightTimeout = setTimeout(() => {
-    clearInterval(blinkInterval)
-    blinkInterval = null
-    highlightedRegion.value = null
-    blinkVisible.value = true
-  }, 3000)
+  // Emit select-region event for parent to handle (e.g., select in OcrRegionEditor)
+  // Only raw and failed types can be selected (merged regions are computed, not editable)
+  if (region.type === 'raw' || region.type === 'failed') {
+    emit('select-region', { type: region.type, index: region.originalIndex })
+  }
 
   // Auto-close sidebar after clicking
   isRegionSidebarOpen.value = false
@@ -449,16 +402,6 @@ onUnmounted(() => {
   window.removeEventListener('wheel', handleWheel)
   document.body.style.overflow = ''
   // Note: useHistoryState handles its own cleanup in onUnmounted
-
-  // Clean up highlight animation timers
-  if (highlightTimeout) {
-    clearTimeout(highlightTimeout)
-    highlightTimeout = null
-  }
-  if (blinkInterval) {
-    clearInterval(blinkInterval)
-    blinkInterval = null
-  }
 })
 
 // Image dimensions
@@ -794,51 +737,50 @@ const goToSlideToPptx = async () => {
         </button>
 
         <!-- Region List Sidebar (outside content for proper positioning) -->
-        <Transition name="sidebar">
-          <div
-            v-if="showRegionSidebar && isRegionSidebarOpen"
-            class="region-sidebar"
-            @click.stop
-            @mousedown.stop
-            @touchstart.stop
-            @wheel.stop
-          >
-            <div class="region-sidebar-header">
-              <span class="text-sm font-medium text-text-primary">
-                {{ $t('lightbox.regionList.title') }}
-              </span>
-              <span class="text-xs text-text-muted">
-                ({{ visibleRegions.length }})
-              </span>
-            </div>
-            <div class="region-sidebar-list">
-              <button
-                v-for="(region, idx) in visibleRegions"
-                :key="`${region.type}-${region.originalIndex}`"
-                @click="handleRegionClick(region)"
-                @mousedown.stop
-                @touchstart.stop
-                class="region-sidebar-item"
-              >
-                <span
-                  class="region-color-dot"
-                  :class="{
-                    'bg-blue-500': region.color === 'blue',
-                    'bg-green-500': region.color === 'green',
-                    'bg-red-500': region.color === 'red',
-                  }"
-                ></span>
-                <div class="region-item-content">
-                  <span class="region-item-index">#{{ idx + 1 }}</span>
-                  <span class="region-item-label">{{ region.label }}</span>
-                  <span v-if="region.text" class="region-item-text">
-                    {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
-                  </span>
-                </div>
-              </button>
-            </div>
+        <!-- Using v-show to preserve scroll position when closed -->
+        <div
+          v-show="showRegionSidebar"
+          class="region-sidebar"
+          :class="{ 'is-open': isRegionSidebarOpen }"
+          @click.stop
+          @mousedown.stop
+          @touchstart.stop
+          @wheel.stop
+        >
+          <div class="region-sidebar-header">
+            <span class="text-sm font-medium text-text-primary">
+              {{ $t('lightbox.regionList.title') }}
+            </span>
+            <span class="text-xs text-text-muted">
+              ({{ visibleRegions.length }})
+            </span>
           </div>
-        </Transition>
+          <div class="region-sidebar-list">
+            <button
+              v-for="(region, idx) in visibleRegions"
+              :key="`${region.type}-${region.originalIndex}`"
+              @click="handleRegionClick(region)"
+              @mousedown.stop
+              @touchstart.stop
+              class="region-sidebar-item"
+            >
+              <span
+                class="region-color-dot"
+                :class="{
+                  'bg-green-500': region.color === 'green',
+                  'bg-red-500': region.color === 'red',
+                }"
+              ></span>
+              <div class="region-item-content">
+                <span class="region-item-index">#{{ idx + 1 }}</span>
+                <span class="region-item-label">{{ region.label }}</span>
+                <span v-if="region.text" class="region-item-text">
+                  {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
 
         <!-- Navigation: Previous -->
         <button
@@ -907,11 +849,9 @@ const goToSlideToPptx = async () => {
                     :y="result.bounds.y"
                     :width="result.bounds.width"
                     :height="result.bounds.height"
-                    :fill="isRegionHighlighted('merged', idx) ? 'rgba(59, 130, 246, 0.5)' : 'rgba(59, 130, 246, 0.2)'"
+                    fill="rgba(59, 130, 246, 0.2)"
                     stroke="rgba(59, 130, 246, 0.8)"
-                    :stroke-width="getHighlightStyle('merged', idx).strokeWidth || 2"
-                    :fill-opacity="getHighlightStyle('merged', idx).fillOpacity"
-                    :stroke-opacity="getHighlightStyle('merged', idx).strokeOpacity"
+                    stroke-width="2"
                     vector-effect="non-scaling-stroke"
                   />
                 </template>
@@ -924,12 +864,10 @@ const goToSlideToPptx = async () => {
                     :y="result.bounds.y"
                     :width="result.bounds.width"
                     :height="result.bounds.height"
-                    :fill="isRegionHighlighted('raw', idx) ? 'rgba(16, 185, 129, 0.4)' : 'rgba(16, 185, 129, 0.1)'"
+                    fill="rgba(16, 185, 129, 0.1)"
                     stroke="rgba(16, 185, 129, 0.8)"
-                    :stroke-width="getHighlightStyle('raw', idx).strokeWidth || 1"
-                    :stroke-dasharray="isRegionHighlighted('raw', idx) ? '0' : '4'"
-                    :fill-opacity="getHighlightStyle('raw', idx).fillOpacity"
-                    :stroke-opacity="getHighlightStyle('raw', idx).strokeOpacity"
+                    stroke-width="1"
+                    stroke-dasharray="4"
                     vector-effect="non-scaling-stroke"
                   />
                 </template>
@@ -942,12 +880,10 @@ const goToSlideToPptx = async () => {
                     :y="result.bounds.y"
                     :width="result.bounds.width"
                     :height="result.bounds.height"
-                    :fill="isRegionHighlighted('failed', idx) ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.15)'"
+                    fill="rgba(239, 68, 68, 0.15)"
                     stroke="rgba(239, 68, 68, 0.9)"
-                    :stroke-width="getHighlightStyle('failed', idx).strokeWidth || 2"
-                    :stroke-dasharray="isRegionHighlighted('failed', idx) ? '0' : '6 3'"
-                    :fill-opacity="getHighlightStyle('failed', idx).fillOpacity"
-                    :stroke-opacity="getHighlightStyle('failed', idx).strokeOpacity"
+                    stroke-width="2"
+                    stroke-dasharray="6 3"
                     vector-effect="non-scaling-stroke"
                   />
                 </template>
@@ -1448,6 +1384,18 @@ const goToSlideToPptx = async () => {
   flex-direction: column;
   z-index: 30;
   overflow: hidden;
+  /* Default: hidden (slide out) */
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+/* Open state */
+.region-sidebar.is-open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Mobile: full width */
@@ -1570,18 +1518,6 @@ const goToSlideToPptx = async () => {
   .region-sidebar-toggle.is-open {
     left: calc(85% + 0.5rem);
   }
-}
-
-/* Sidebar Transition */
-.sidebar-enter-active,
-.sidebar-leave-active {
-  transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.sidebar-enter-from,
-.sidebar-leave-to {
-  transform: translateX(-100%);
-  opacity: 0;
 }
 
 </style>

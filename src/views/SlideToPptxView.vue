@@ -47,6 +47,7 @@ const uploadedImages = ref([])
 const logContainer = ref(null)
 const confirmModalRef = ref(null)
 const ocrSettingsModalRef = ref(null)
+const ocrRegionEditorRef = ref(null)
 
 // Thumbnail refs for auto-scroll
 const thumbnailContainer = ref(null)
@@ -146,6 +147,40 @@ const handleDeleteRegion = (index) => {
 
 const handleDeleteRegionsBatch = (indices) => {
   slideToPptx.deleteRegionsBatch(currentIndex.value, indices)
+}
+
+/**
+ * Handle region selection from sidebar click
+ * Maps the filtered type/index to the actual rawRegions index
+ */
+const handleSelectRegion = ({ type, index }) => {
+  if (!ocrRegionEditorRef.value) return
+
+  // Get the raw regions for current slide
+  const state = slideToPptx.slideStates.value[currentIndex.value]
+  if (!state) return
+
+  const rawRegions = state.editedRawRegions || state.rawRegions || []
+
+  // Map filtered index back to rawRegions index
+  // raw = regions without recognitionFailed, failed = regions with recognitionFailed
+  let rawIndex = -1
+  let count = 0
+
+  for (let i = 0; i < rawRegions.length; i++) {
+    const isFailed = rawRegions[i].recognitionFailed
+    if ((type === 'raw' && !isFailed) || (type === 'failed' && isFailed)) {
+      if (count === index) {
+        rawIndex = i
+        break
+      }
+      count++
+    }
+  }
+
+  if (rawIndex >= 0) {
+    ocrRegionEditorRef.value.selectRegion(rawIndex)
+  }
 }
 
 const handleAddRegion = ({ bounds, text }) => {
@@ -1635,10 +1670,12 @@ const getSlideStatus = (index) => {
       :hide-file-size="true"
       :show-edit-regions-button="currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0"
       @edit-regions="enterEditMode"
+      @select-region="handleSelectRegion"
     >
       <!-- OCR Region Editor Overlay -->
       <template #edit-overlay="{ imageDimensions }">
         <OcrRegionEditor
+          ref="ocrRegionEditorRef"
           v-if="isRegionEditMode && imageDimensions.width > 0"
           :regions="currentEditableRegions"
           :separator-lines="currentSeparatorLines"
