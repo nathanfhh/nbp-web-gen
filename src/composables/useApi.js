@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { GoogleGenAI, Modality } from '@google/genai'
 import { useLocalStorage } from './useLocalStorage'
+import { useApiKeyManager } from './useApiKeyManager'
 import { DEFAULT_MODEL, RATIO_API_MAP, RESOLUTION_API_MAP } from '@/constants'
 import i18n from '@/i18n'
 
@@ -343,6 +344,7 @@ export function useApi() {
   const isLoading = ref(false)
   const error = ref(null)
   const { getApiKey } = useLocalStorage()
+  const { callWithFallback } = useApiKeyManager()
 
   /**
    * Build content parts for SDK request
@@ -643,12 +645,6 @@ export function useApi() {
    * @returns {Promise<{globalStyle: string, pageStyles: Array<{pageId: string, styleGuide: string}>}>}
    */
   const analyzeSlideStyle = async (pages, options = {}, onThinkingChunk = null) => {
-    const apiKey = getApiKey()
-    if (!apiKey) {
-      throw new Error(t('errors.apiKeyNotSet'))
-    }
-
-    const ai = new GoogleGenAI({ apiKey })
     const model = options.model || 'gemini-3-flash-preview'
     const styleGuidance = options.styleGuidance?.trim() || ''
 
@@ -759,57 +755,62 @@ Return valid JSON matching this structure:
 Write all descriptions in English.`
 
     try {
-      // Use streaming to capture thinking process
-      const response = await ai.models.generateContentStream({
-        model,
-        contents: [{ role: 'user', parts: [{ text: analysisPrompt }] }],
-        config: {
-          temperature: 0.3, // Low temperature for consistency
-          responseMimeType: 'application/json',
-          responseSchema: SLIDE_STYLE_SCHEMA,
-          thinkingConfig: {
-            includeThoughts: true,
+      // Use callWithFallback: Free Tier first, then paid key on quota error
+      return await callWithFallback(async (apiKey) => {
+        const ai = new GoogleGenAI({ apiKey })
+
+        // Use streaming to capture thinking process
+        const response = await ai.models.generateContentStream({
+          model,
+          contents: [{ role: 'user', parts: [{ text: analysisPrompt }] }],
+          config: {
+            temperature: 0.3, // Low temperature for consistency
+            responseMimeType: 'application/json',
+            responseSchema: SLIDE_STYLE_SCHEMA,
+            thinkingConfig: {
+              includeThoughts: true,
+            },
           },
-        },
-      })
+        })
 
-      // Process stream
-      let textResponse = ''
+        // Process stream
+        let textResponse = ''
 
-      for await (const chunk of response) {
-        if (chunk.candidates?.[0]?.content?.parts) {
-          for (const part of chunk.candidates[0].content.parts) {
-            if (part.text) {
-              if (part.thought) {
-                // Thinking content - stream to callback
-                if (onThinkingChunk) {
-                  onThinkingChunk(part.text)
+        for await (const chunk of response) {
+          if (chunk.candidates?.[0]?.content?.parts) {
+            for (const part of chunk.candidates[0].content.parts) {
+              if (part.text) {
+                if (part.thought) {
+                  // Thinking content - stream to callback
+                  if (onThinkingChunk) {
+                    onThinkingChunk(part.text)
+                  }
+                } else {
+                  // Final response text (JSON)
+                  textResponse += part.text
                 }
-              } else {
-                // Final response text (JSON)
-                textResponse += part.text
               }
             }
           }
         }
-      }
 
-      // Parse JSON response
-      try {
-        const parsed = JSON.parse(textResponse.trim())
-        // Validate structure
-        if (!parsed.globalStyle || !Array.isArray(parsed.pageStyles)) {
-          throw new Error('Invalid response structure')
+        // Parse JSON response
+        try {
+          const parsed = JSON.parse(textResponse.trim())
+          // Validate structure
+          if (!parsed.globalStyle || !Array.isArray(parsed.pageStyles)) {
+            throw new Error('Invalid response structure')
+          }
+          return parsed
+        } catch (parseErr) {
+          // Fallback: if JSON parsing fails, use raw text as global style
+          console.warn('JSON parse failed, using fallback:', parseErr)
+          return {
+            globalStyle: textResponse.trim() || 'Professional presentation design',
+            pageStyles: pages.map((p) => ({ pageId: p.id, styleGuide: '' })),
+          }
         }
-        return parsed
-      } catch (parseErr) {
-        // Fallback: if JSON parsing fails, use raw text as global style
-        console.warn('JSON parse failed, using fallback:', parseErr)
-        return {
-          globalStyle: textResponse.trim() || 'Professional presentation design',
-          pageStyles: pages.map((p) => ({ pageId: p.id, styleGuide: '' })),
-        }
-      }
+      }, 'text')
     } catch (err) {
       throw new Error(t('slides.analyzeFailed') + ': ' + err.message)
     }
@@ -858,12 +859,6 @@ Write all descriptions in English.`
    * @returns {Promise<{globalDescription: string, pages: Array<{pageNumber: number, content: string}>}>}
    */
   const splitSlidesContent = async (rawContent, options = {}, onThinkingChunk = null) => {
-    const apiKey = getApiKey()
-    if (!apiKey) {
-      throw new Error(t('errors.apiKeyNotSet'))
-    }
-
-    const ai = new GoogleGenAI({ apiKey })
     const model = options.model || 'gemini-3-flash-preview'
     const targetPages = options.targetPages || 10
     const additionalNotes = options.additionalNotes?.trim() || ''
@@ -920,52 +915,57 @@ For each page, create content that:
 Write all content in the same language as the input material.`
 
     try {
-      const response = await ai.models.generateContentStream({
-        model,
-        contents: [{ role: 'user', parts: [{ text: splitPrompt }] }],
-        config: {
-          temperature: 0.5,
-          responseMimeType: 'application/json',
-          responseSchema: CONTENT_SPLIT_SCHEMA,
-          thinkingConfig: {
-            includeThoughts: true,
+      // Use callWithFallback: Free Tier first, then paid key on quota error
+      return await callWithFallback(async (apiKey) => {
+        const ai = new GoogleGenAI({ apiKey })
+
+        const response = await ai.models.generateContentStream({
+          model,
+          contents: [{ role: 'user', parts: [{ text: splitPrompt }] }],
+          config: {
+            temperature: 0.5,
+            responseMimeType: 'application/json',
+            responseSchema: CONTENT_SPLIT_SCHEMA,
+            thinkingConfig: {
+              includeThoughts: true,
+            },
           },
-        },
-      })
+        })
 
-      // Process stream
-      let textResponse = ''
+        // Process stream
+        let textResponse = ''
 
-      for await (const chunk of response) {
-        if (chunk.candidates?.[0]?.content?.parts) {
-          for (const part of chunk.candidates[0].content.parts) {
-            if (part.text) {
-              if (part.thought) {
-                // Thinking content - stream to callback
-                if (onThinkingChunk) {
-                  onThinkingChunk(part.text)
+        for await (const chunk of response) {
+          if (chunk.candidates?.[0]?.content?.parts) {
+            for (const part of chunk.candidates[0].content.parts) {
+              if (part.text) {
+                if (part.thought) {
+                  // Thinking content - stream to callback
+                  if (onThinkingChunk) {
+                    onThinkingChunk(part.text)
+                  }
+                } else {
+                  // Final response text (JSON)
+                  textResponse += part.text
                 }
-              } else {
-                // Final response text (JSON)
-                textResponse += part.text
               }
             }
           }
         }
-      }
 
-      // Parse JSON response
-      try {
-        const parsed = JSON.parse(textResponse.trim())
-        // Validate structure
-        if (!parsed.globalDescription || !Array.isArray(parsed.pages)) {
-          throw new Error('Invalid response structure')
+        // Parse JSON response
+        try {
+          const parsed = JSON.parse(textResponse.trim())
+          // Validate structure
+          if (!parsed.globalDescription || !Array.isArray(parsed.pages)) {
+            throw new Error('Invalid response structure')
+          }
+          return parsed
+        } catch (parseErr) {
+          console.warn('JSON parse failed in splitSlidesContent:', parseErr)
+          throw new Error(t('slides.contentSplitter.error'))
         }
-        return parsed
-      } catch (parseErr) {
-        console.warn('JSON parse failed in splitSlidesContent:', parseErr)
-        throw new Error(t('slides.contentSplitter.error'))
-      }
+      }, 'text')
     } catch (err) {
       // Avoid duplicating i18n messages if err.message is already localized
       throw new Error(err.message || t('slides.contentSplitter.error'))
