@@ -134,6 +134,51 @@ export function useLightboxZoom() {
   }
 
   /**
+   * Focus view on a specific region
+   * @param {Object} bounds - Region bounds { x, y, width, height } in image coordinates
+   * @param {Object} imageDimensions - Image dimensions { width, height }
+   * @param {Object} containerDimensions - Container dimensions { width, height } (viewport)
+   */
+  const focusOnRegion = (bounds, imageDimensions, containerDimensions) => {
+    if (!bounds || !imageDimensions || !containerDimensions) return
+
+    // Set zoom to 1.5 if currently < 1, otherwise maintain
+    const targetScale = scale.value < 1 ? 1.5 : scale.value
+    scale.value = targetScale
+
+    // Calculate region center in image coordinates (0-1 normalized)
+    const regionCenterX = (bounds.x + bounds.width / 2) / imageDimensions.width
+    const regionCenterY = (bounds.y + bounds.height / 2) / imageDimensions.height
+
+    // At scale 1, the image fills the container (object-contain behavior)
+    // Calculate how the image is positioned within the container
+    const imageAspect = imageDimensions.width / imageDimensions.height
+    const containerAspect = containerDimensions.width / containerDimensions.height
+
+    let displayedWidth, displayedHeight
+    if (imageAspect > containerAspect) {
+      // Image is wider than container - width fills, height is letterboxed
+      displayedWidth = containerDimensions.width
+      displayedHeight = containerDimensions.width / imageAspect
+    } else {
+      // Image is taller than container - height fills, width is pillarboxed
+      displayedHeight = containerDimensions.height
+      displayedWidth = containerDimensions.height * imageAspect
+    }
+
+    // Calculate the offset from container center to region center (in displayed pixels at scale 1)
+    const offsetX = (regionCenterX - 0.5) * displayedWidth
+    const offsetY = (regionCenterY - 0.5) * displayedHeight
+
+    // Apply scale to get the actual offset at current zoom
+    translateX.value = -offsetX * targetScale
+    translateY.value = -offsetY * targetScale
+
+    // Constrain to valid pan range
+    constrainPan()
+  }
+
+  /**
    * Computed transform style for the image
    * @param {boolean} isTouching - Whether touch is active (passed from touch composable)
    */
@@ -163,5 +208,6 @@ export function useLightboxZoom() {
     handleGlobalMouseUp,
     handleDoubleClick,
     createImageTransformStyle,
+    focusOnRegion,
   }
 }

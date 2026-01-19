@@ -676,10 +676,12 @@ const hasMoved = ref(false) // Track if user has moved it, to disable auto-cente
 onMounted(() => {
   if (toolbarRef.value) {
     const rect = toolbarRef.value.getBoundingClientRect()
-    // Center horizontally, 1rem from top
+    // Center horizontally
+    // On mobile (< 640px), position lower to avoid Lightbox header buttons
+    const isMobile = window.innerWidth < 640
     toolbarPos.value = {
       x: (window.innerWidth - rect.width) / 2,
-      y: 16 // 1rem
+      y: isMobile ? 56 : 16 // 3.5rem on mobile, 1rem on desktop
     }
   }
   
@@ -823,7 +825,7 @@ const getRegionColor = (region) => {
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
           </svg>
-          {{ t('slideToPptx.regionEditor.done') }}
+          <span class="hidden sm:inline">{{ t('slideToPptx.regionEditor.done') }}</span>
         </button>
 
         <!-- Undo button -->
@@ -863,7 +865,7 @@ const getRegionColor = (region) => {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          {{ t('slideToPptx.regionEditor.reset') }}
+          <span class="hidden sm:inline">{{ t('slideToPptx.regionEditor.reset') }}</span>
         </button>
 
         <button
@@ -874,7 +876,7 @@ const getRegionColor = (region) => {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          {{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}
+          <span class="hidden sm:inline">{{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}</span>
         </button>
 
         <!-- Separator line tool -->
@@ -886,17 +888,24 @@ const getRegionColor = (region) => {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20L20 4" />
           </svg>
-          {{ isSeparatorModeActive
+          <span class="hidden sm:inline">{{ isSeparatorModeActive
             ? (separatorFirstPoint ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separator'))
-            : t('slideToPptx.regionEditor.separator') }}
+            : t('slideToPptx.regionEditor.separator') }}</span>
         </button>
 
         <!-- Region count indicator -->
         <span class="region-count">
-          {{ t('slideToPptx.regionEditor.regionCount', { count: regions.length }) }}
-          <template v-if="separatorLines.length > 0">
-            · {{ t('slideToPptx.regionEditor.separatorCount', { count: separatorLines.length }) }}
-          </template>
+          <!-- Mobile: short format -->
+          <span class="sm:hidden">
+            {{ regions.length }}<template v-if="separatorLines.length > 0"> · {{ separatorLines.length }}</template>
+          </span>
+          <!-- Desktop: full format -->
+          <span class="hidden sm:inline">
+            {{ t('slideToPptx.regionEditor.regionCount', { count: regions.length }) }}
+            <template v-if="separatorLines.length > 0">
+              · {{ t('slideToPptx.regionEditor.separatorCount', { count: separatorLines.length }) }}
+            </template>
+          </span>
         </span>
 
         <!-- Hint text (Attached to toolbar) -->
@@ -1221,8 +1230,10 @@ const getRegionColor = (region) => {
   position: fixed;
   z-index: 9999; /* Ensure it's above lightbox */
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.375rem; /* Smaller gap on mobile */
   align-items: center;
+  justify-content: center;
   padding: 0.5rem;
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(8px);
@@ -1231,13 +1242,22 @@ const getRegionColor = (region) => {
   cursor: move;
   user-select: none;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-width: calc(100vw - 2rem); /* Prevent overflow on small screens */
+}
+
+@media (min-width: 640px) {
+  .edit-toolbar {
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
 }
 
 .toolbar-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem; /* Icon-only on mobile */
   font-size: 0.875rem;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.85);
@@ -1246,6 +1266,12 @@ const getRegionColor = (region) => {
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .toolbar-btn {
+    padding: 0.5rem 0.75rem; /* Text + icon on desktop */
+  }
 }
 
 .toolbar-btn:hover:not(:disabled) {
@@ -1299,14 +1325,24 @@ const getRegionColor = (region) => {
   left: 50%;
   transform: translateX(-50%);
   margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.625rem;
   color: rgba(255, 255, 255, 0.6);
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   border-radius: 0.5rem;
   pointer-events: none;
   white-space: nowrap;
+  max-width: calc(100vw - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 640px) {
+  .edit-hint {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
 }
 
 /* SVG Overlay */

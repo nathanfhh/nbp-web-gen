@@ -118,6 +118,7 @@ const {
   handleMouseMove,
   handleGlobalMouseUp,
   handleDoubleClick,
+  focusOnRegion,
 } = useLightboxZoom()
 
 // Initialize touch composable with zoom dependencies
@@ -153,6 +154,81 @@ const isAnimating = ref(false)
 const slideDirection = ref('') // 'left' or 'right'
 const isVisible = ref(false)
 const isClosing = ref(false)
+
+// Region sidebar state (for edit mode)
+const isRegionSidebarOpen = ref(false)
+const imageContainerRef = ref(null)
+
+// Combined region list for sidebar (respects visibility filters)
+const visibleRegions = computed(() => {
+  const regions = []
+
+  // Add merged regions (blue)
+  if (props.showMergedRegions && props.ocrRegions.merged) {
+    props.ocrRegions.merged.forEach((r, idx) => {
+      regions.push({
+        ...r,
+        type: 'merged',
+        color: 'blue',
+        label: t('lightbox.regionList.merged'),
+        originalIndex: idx,
+      })
+    })
+  }
+
+  // Add raw regions (green)
+  if (props.showRawRegions && props.ocrRegions.raw) {
+    props.ocrRegions.raw.forEach((r, idx) => {
+      regions.push({
+        ...r,
+        type: 'raw',
+        color: 'green',
+        label: t('lightbox.regionList.raw'),
+        originalIndex: idx,
+      })
+    })
+  }
+
+  // Add failed regions (red)
+  if (props.showFailedRegions && props.ocrRegions.failed) {
+    props.ocrRegions.failed.forEach((r, idx) => {
+      regions.push({
+        ...r,
+        type: 'failed',
+        color: 'red',
+        label: t('lightbox.regionList.failed'),
+        originalIndex: idx,
+      })
+    })
+  }
+
+  return regions
+})
+
+// Check if region sidebar should be available
+const showRegionSidebar = computed(() => {
+  return props.isEditMode && visibleRegions.value.length > 0
+})
+
+// Handle region click - navigate to region and close sidebar
+const handleRegionClick = (region) => {
+  if (!imageDimensions.value.width || !imageContainerRef.value) return
+
+  const containerRect = imageContainerRef.value.getBoundingClientRect()
+  focusOnRegion(
+    region.bounds,
+    imageDimensions.value,
+    { width: containerRect.width, height: containerRect.height }
+  )
+
+  // Auto-close sidebar after clicking
+  isRegionSidebarOpen.value = false
+}
+
+// Toggle region sidebar
+const toggleRegionSidebar = () => {
+  isRegionSidebarOpen.value = !isRegionSidebarOpen.value
+}
 
 // History state management for back gesture/button support
 const { pushState, popState, cleanupBeforeNavigation } = useHistoryState('lightbox', {
@@ -662,6 +738,7 @@ const goToSlideToPptx = async () => {
 
         <!-- Image container -->
         <div
+          ref="imageContainerRef"
           class="lightbox-content"
           @mousedown="handleMouseDownWrapper"
           @mousemove="handleMouseMove"
@@ -670,6 +747,66 @@ const goToSlideToPptx = async () => {
           @touchmove="handleTouchMove"
           @touchend="handleTouchEnd"
         >
+          <!-- Region List Sidebar (overlay on top of image) -->
+          <Transition name="sidebar">
+            <div
+              v-if="showRegionSidebar && isRegionSidebarOpen"
+              class="region-sidebar"
+              @click.stop
+            >
+              <div class="region-sidebar-header">
+                <span class="text-sm font-medium text-text-primary">
+                  {{ $t('lightbox.regionList.title') }}
+                </span>
+                <span class="text-xs text-text-muted">
+                  ({{ visibleRegions.length }})
+                </span>
+              </div>
+              <div class="region-sidebar-list">
+                <button
+                  v-for="(region, idx) in visibleRegions"
+                  :key="`${region.type}-${region.originalIndex}`"
+                  @click="handleRegionClick(region)"
+                  class="region-sidebar-item"
+                >
+                  <span
+                    class="region-color-dot"
+                    :class="{
+                      'bg-blue-500': region.color === 'blue',
+                      'bg-green-500': region.color === 'green',
+                      'bg-red-500': region.color === 'red',
+                    }"
+                  ></span>
+                  <div class="region-item-content">
+                    <span class="region-item-index">#{{ idx + 1 }}</span>
+                    <span class="region-item-label">{{ region.label }}</span>
+                    <span v-if="region.text" class="region-item-text">
+                      {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </Transition>
+
+          <!-- Sidebar Toggle Button (only in edit mode with regions) -->
+          <button
+            v-if="showRegionSidebar"
+            @click.stop="toggleRegionSidebar"
+            class="region-sidebar-toggle"
+            :class="{ 'is-open': isRegionSidebarOpen }"
+            :title="$t('lightbox.regionList.toggle')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                :d="isRegionSidebarOpen ? 'M15 19l-7-7 7-7' : 'M4 6h16M4 12h16M4 18h16'"
+              />
+            </svg>
+          </button>
+
           <div
             class="lightbox-image-wrapper relative"
             :class="{
@@ -1217,6 +1354,153 @@ const goToSlideToPptx = async () => {
 
 .lightbox-enter-from,
 .lightbox-leave-to {
+  opacity: 0;
+}
+
+/* Region Sidebar - overlays on top of image */
+.region-sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 100%;
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+  overflow: hidden;
+}
+
+/* Mobile: full width */
+@media (max-width: 639px) {
+  .region-sidebar {
+    width: 100%;
+    border-right: none;
+  }
+}
+
+.region-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.region-sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.region-sidebar-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  margin-bottom: 0.25rem;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.region-sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateX(2px);
+}
+
+.region-sidebar-item:active {
+  transform: scale(0.98);
+}
+
+.region-color-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.region-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.region-item-index {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.region-item-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.region-item-text {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar Toggle Button */
+.region-sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  left: 0.5rem;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 30, 40, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  color: white;
+  z-index: 25;
+  transition: all 0.2s;
+}
+
+.region-sidebar-toggle:hover {
+  background: rgba(50, 50, 60, 0.95);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.region-sidebar-toggle.is-open {
+  left: calc(280px + 0.5rem);
+}
+
+/* Mobile: toggle position when open */
+@media (max-width: 639px) {
+  .region-sidebar-toggle.is-open {
+    left: auto;
+    right: 0.5rem;
+  }
+}
+
+/* Sidebar Transition */
+.sidebar-enter-active,
+.sidebar-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.sidebar-enter-from,
+.sidebar-leave-to {
+  transform: translateX(-100%);
   opacity: 0;
 }
 </style>

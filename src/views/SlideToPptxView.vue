@@ -67,6 +67,13 @@ const selectSlide = (idx) => {
   })
 }
 
+// Handle mouse wheel on thumbnail strip - scroll horizontally
+const onThumbnailWheel = (event) => {
+  if (thumbnailContainer.value) {
+    thumbnailContainer.value.scrollLeft += event.deltaY
+  }
+}
+
 // OCR overlay toggle
 const showOcrOverlay = ref(true)
 // Separate toggles for merged and raw regions
@@ -733,7 +740,7 @@ const getSlideStatus = (index) => {
 
             <!-- Image Container - Unified Animated Layout -->
             <div class="relative">
-              <div class="flex transition-all duration-500 ease-in-out">
+              <div class="flex flex-col sm:flex-row transition-all duration-500 ease-in-out">
                 <!-- Left: Original Image -->
                 <div class="flex-1 min-w-0 transition-all duration-500">
                   <!-- Label (Animate height/opacity) -->
@@ -830,9 +837,9 @@ const getSlideStatus = (index) => {
                 </div>
 
                 <!-- Right: Processed Image (Transition Entry) -->
-                <div 
+                <div
                   class="transition-all duration-500 ease-in-out flex flex-col overflow-hidden"
-                  :class="currentSlideState?.cleanImage ? 'flex-1 ml-4 opacity-100' : 'w-0 ml-0 opacity-0'"
+                  :class="currentSlideState?.cleanImage ? 'flex-1 mt-4 sm:mt-0 sm:ml-4 opacity-100' : 'w-0 mt-0 ml-0 opacity-0'"
                 >
                   <div class="h-6 mb-2 flex-shrink-0">
                     <h4 class="text-xs font-medium text-text-muted text-center whitespace-nowrap">{{ $t('slideToPptx.processed') }}</h4>
@@ -882,7 +889,7 @@ const getSlideStatus = (index) => {
             </div>
 
             <!-- OCR Toggle Controls -->
-            <div class="mt-4 flex items-center justify-end gap-4">
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 sm:gap-4">
               <label class="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -893,7 +900,7 @@ const getSlideStatus = (index) => {
               </label>
 
               <!-- Toggle Buttons (only when enabled) -->
-              <div v-if="showOcrOverlay" class="flex items-center gap-2">
+              <div v-if="showOcrOverlay" class="flex flex-wrap items-center gap-2">
                 <!-- Merged Regions Toggle -->
                 <button
                   @click="showMergedRegions = !showMergedRegions"
@@ -964,6 +971,7 @@ const getSlideStatus = (index) => {
               <div
                 ref="thumbnailContainer"
                 class="flex gap-3 overflow-x-auto px-2 py-2 thumbnail-scroll-hidden"
+                @wheel.prevent="onThumbnailWheel"
               >
                 <button
                   v-for="(img, idx) in images"
@@ -1658,9 +1666,16 @@ const getSlideStatus = (index) => {
 .thumbnail-scroll-hidden {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE 10+ */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scroll-snap-type: x proximity; /* Snap to thumbnails */
 }
 
 .thumbnail-scroll-hidden::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Edge */
+}
+
+/* Each thumbnail snaps to start */
+.thumbnail-scroll-hidden > * {
+  scroll-snap-align: center;
 }
 </style>

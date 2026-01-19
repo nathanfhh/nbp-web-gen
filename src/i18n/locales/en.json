@@ -717,7 +717,14 @@
     "exportAs": "Export As",
     "pdfError": "Failed to generate PDF",
     "zipError": "Failed to generate ZIP",
-    "convertToPptx": "Convert to PPTX"
+    "convertToPptx": "Convert to PPTX",
+    "regionList": {
+      "title": "Region List",
+      "toggle": "Show/Hide Region List",
+      "merged": "Merged Block",
+      "raw": "Raw Detection",
+      "failed": "Recognition Failed"
+    }
   },
   "stickerCropper": {
     "title": "Sticker Cropper Tool",

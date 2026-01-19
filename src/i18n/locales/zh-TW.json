@@ -717,7 +717,14 @@
     "allImages": "全部 ({count} 張)",
     "exportAs": "匯出為",
     "pdfError": "PDF 產生失敗",
-    "zipError": "ZIP 產生失敗"
+    "zipError": "ZIP 產生失敗",
+    "regionList": {
+      "title": "區域列表",
+      "toggle": "顯示/隱藏區域列表",
+      "merged": "合併區塊",
+      "raw": "原始偵測",
+      "failed": "辨識失敗"
+    }
   },
   "stickerCropper": {
     "title": "貼圖裁切工具",
