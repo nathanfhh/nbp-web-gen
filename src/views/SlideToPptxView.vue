@@ -167,6 +167,24 @@ const currentImageUrl = computed(() => {
   return state?.originalImage || ''
 })
 
+// Undo/Redo handlers
+const handleUndo = () => {
+  slideToPptx.undo(currentIndex.value)
+}
+
+const handleRedo = () => {
+  slideToPptx.redo(currentIndex.value)
+}
+
+// Undo/Redo availability
+const currentCanUndo = computed(() => {
+  return slideToPptx.canUndo(currentIndex.value)
+})
+
+const currentCanRedo = computed(() => {
+  return slideToPptx.canRedo(currentIndex.value)
+})
+
 // Get current editable regions (edited or original)
 const currentEditableRegions = computed(() => {
   return slideToPptx.getEditableRegions(currentIndex.value)
@@ -1576,6 +1594,8 @@ const getSlideStatus = (index) => {
           :is-edited="currentSlideIsEdited"
           :is-reprocessing="isReprocessing"
           :image-url="currentImageUrl"
+          :can-undo="currentCanUndo"
+          :can-redo="currentCanRedo"
           @delete-region="handleDeleteRegion"
           @add-region="handleAddRegion"
           @resize-region="handleResizeRegion"
@@ -1583,6 +1603,8 @@ const getSlideStatus = (index) => {
           @done="exitEditMode"
           @add-separator="handleAddSeparator"
           @delete-separator="handleDeleteSeparator"
+          @undo="handleUndo"
+          @redo="handleRedo"
         />
       </template>
     </ImageLightbox>

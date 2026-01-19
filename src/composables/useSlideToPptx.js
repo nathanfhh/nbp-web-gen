@@ -81,7 +81,11 @@ const translateOcrMessage = (message) => {
  * @property {boolean} isRegionsEdited - Flag: user has manually edited regions
  * @property {Array|null} editedRawRegions - User-modified regions (null = use original rawRegions)
  * @property {Array} separatorLines - Manual separator lines to prevent region merging
+ * @property {Object} editHistory - Undo/redo history for region editing
  */
+
+// Maximum history depth per slide
+const MAX_HISTORY_DEPTH = 50
 
 /**
  * @returns {Object} Slide to PPTX composable
@@ -602,6 +606,8 @@ Output: A single clean image with all text removed.`
         editedRawRegions: existingState?.editedRawRegions || null,
         // Preserve separator lines
         separatorLines: existingState?.separatorLines || [],
+        // Preserve edit history
+        editHistory: existingState?.editHistory || { undoStack: [], redoStack: [] },
       }
     })
 
@@ -813,6 +819,7 @@ Output: A single clean image with all text removed.`
         isRegionsEdited: false,
         editedRawRegions: null,
         separatorLines: [],
+        editHistory: { undoStack: [], redoStack: [] },
       }))
     }
   }
@@ -863,6 +870,9 @@ Output: A single clean image with all text removed.`
     const currentRegions = state.editedRawRegions || [...state.rawRegions]
     if (regionIndex < 0 || regionIndex >= currentRegions.length) return
 
+    // Push to history before making changes
+    pushEditHistory(slideIndex)
+
     // Remove the region
     const newRegions = currentRegions.filter((_, i) => i !== regionIndex)
 
@@ -885,6 +895,9 @@ Output: A single clean image with all text removed.`
   const addManualRegion = (slideIndex, bounds, text = '') => {
     const state = slideStates.value[slideIndex]
     if (!state) return
+
+    // Push to history before making changes
+    pushEditHistory(slideIndex)
 
     // Create edited regions array if not exists
     const currentRegions = state.editedRawRegions || [...state.rawRegions]
@@ -930,15 +943,153 @@ Output: A single clean image with all text removed.`
     const state = slideStates.value[slideIndex]
     if (!state) return
 
-    // Clear edited regions and separator lines
+    // Clear edited regions, separator lines, and edit history
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: null,
       isRegionsEdited: false,
       separatorLines: [],
+      editHistory: { undoStack: [], redoStack: [] },
     }
 
     addLog(t('slideToPptx.logs.regionsReset', { slide: slideIndex + 1 }), 'info')
+  }
+
+  // ============================================================================
+  // Edit History Methods (Undo/Redo)
+  // ============================================================================
+
+  /**
+   * Create a snapshot of the current editable state
+   * @param {Object} state - Slide state
+   * @returns {Object} Snapshot
+   */
+  const createEditSnapshot = (state) => {
+    return {
+      editedRawRegions: state.editedRawRegions
+        ? JSON.parse(JSON.stringify(state.editedRawRegions))
+        : null,
+      separatorLines: state.separatorLines
+        ? JSON.parse(JSON.stringify(state.separatorLines))
+        : [],
+    }
+  }
+
+  /**
+   * Push current state to undo stack before making changes
+   * @param {number} slideIndex - Slide index
+   */
+  const pushEditHistory = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    // Initialize history if not exists
+    if (!state.editHistory) {
+      state.editHistory = { undoStack: [], redoStack: [] }
+    }
+
+    // Create snapshot of current state
+    const snapshot = createEditSnapshot(state)
+
+    // Push to undo stack
+    state.editHistory.undoStack.push(snapshot)
+
+    // Limit stack size
+    if (state.editHistory.undoStack.length > MAX_HISTORY_DEPTH) {
+      state.editHistory.undoStack.shift()
+    }
+
+    // Clear redo stack (new action invalidates redo history)
+    state.editHistory.redoStack = []
+  }
+
+  /**
+   * Undo the last edit operation
+   * @param {number} slideIndex - Slide index
+   * @returns {boolean} True if undo was performed
+   */
+  const undo = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state || !state.editHistory || state.editHistory.undoStack.length === 0) {
+      return false
+    }
+
+    // Save current state to redo stack before restoring
+    const currentSnapshot = createEditSnapshot(state)
+    state.editHistory.redoStack.push(currentSnapshot)
+
+    // Pop from undo stack and restore
+    const previousSnapshot = state.editHistory.undoStack.pop()
+
+    // Apply the snapshot
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: previousSnapshot.editedRawRegions,
+      separatorLines: previousSnapshot.separatorLines,
+      isRegionsEdited: previousSnapshot.editedRawRegions !== null || previousSnapshot.separatorLines.length > 0,
+    }
+
+    return true
+  }
+
+  /**
+   * Redo the last undone operation
+   * @param {number} slideIndex - Slide index
+   * @returns {boolean} True if redo was performed
+   */
+  const redo = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state || !state.editHistory || state.editHistory.redoStack.length === 0) {
+      return false
+    }
+
+    // Save current state to undo stack before restoring
+    const currentSnapshot = createEditSnapshot(state)
+    state.editHistory.undoStack.push(currentSnapshot)
+
+    // Pop from redo stack and restore
+    const nextSnapshot = state.editHistory.redoStack.pop()
+
+    // Apply the snapshot
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: nextSnapshot.editedRawRegions,
+      separatorLines: nextSnapshot.separatorLines,
+      isRegionsEdited: nextSnapshot.editedRawRegions !== null || nextSnapshot.separatorLines.length > 0,
+    }
+
+    return true
+  }
+
+  /**
+   * Check if undo is available
+   * @param {number} slideIndex - Slide index
+   * @returns {boolean}
+   */
+  const canUndo = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    return state?.editHistory?.undoStack?.length > 0
+  }
+
+  /**
+   * Check if redo is available
+   * @param {number} slideIndex - Slide index
+   * @returns {boolean}
+   */
+  const canRedo = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    return state?.editHistory?.redoStack?.length > 0
+  }
+
+  /**
+   * Clear edit history for a slide
+   * @param {number} slideIndex - Slide index
+   */
+  const clearEditHistory = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (state) {
+      state.editHistory = { undoStack: [], redoStack: [] }
+    }
   }
 
   /**
@@ -954,6 +1105,9 @@ Output: A single clean image with all text removed.`
     // Get current regions (edited or original)
     const currentRegions = state.editedRawRegions || state.rawRegions || []
     if (regionIndex < 0 || regionIndex >= currentRegions.length) return
+
+    // Push to history before making changes
+    pushEditHistory(slideIndex)
 
     // Create updated region with new bounds
     const updatedRegion = {
@@ -995,6 +1149,9 @@ Output: A single clean image with all text removed.`
     const state = slideStates.value[slideIndex]
     if (!state) return
 
+    // Push to history before making changes
+    pushEditHistory(slideIndex)
+
     const newSeparator = {
       id: `sep-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       start: separator.start,
@@ -1016,6 +1173,9 @@ Output: A single clean image with all text removed.`
   const deleteSeparatorLine = (slideIndex, separatorId) => {
     const state = slideStates.value[slideIndex]
     if (!state) return
+
+    // Push to history before making changes
+    pushEditHistory(slideIndex)
 
     slideStates.value[slideIndex] = {
       ...state,
@@ -1195,5 +1355,12 @@ Output: A single clean image with all text removed.`
     addSeparatorLine,
     deleteSeparatorLine,
     getSeparatorLines,
+
+    // Edit history methods (undo/redo)
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    clearEditHistory,
   }
 }

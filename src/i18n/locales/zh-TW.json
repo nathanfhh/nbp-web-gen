@@ -1144,7 +1144,9 @@
       "separatorDrawing": "繪製中...",
       "separatorHint": "點擊兩點繪製分隔線，阻止區域合併",
       "separatorSelectedHint": "按 Delete 或點擊 ✕ 刪除分隔線",
-      "separatorCount": "{count} 條分隔線"
+      "separatorCount": "{count} 條分隔線",
+      "undo": "復原",
+      "redo": "重做"
     },
     "inpaintMethod": "文字移除方式",
     "free": "免費",

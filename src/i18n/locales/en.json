@@ -1144,7 +1144,9 @@
       "separatorDrawing": "Drawing...",
       "separatorHint": "Click two points to draw a separator line",
       "separatorSelectedHint": "Press Delete or click ✕ to remove separator",
-      "separatorCount": "{count} separator(s)"
+      "separatorCount": "{count} separator(s)",
+      "undo": "Undo",
+      "redo": "Redo"
     },
     "inpaintMethod": "Text Removal Method",
     "free": "Free",

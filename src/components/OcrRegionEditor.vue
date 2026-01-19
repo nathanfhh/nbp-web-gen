@@ -44,6 +44,15 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  // Undo/Redo availability
+  canUndo: {
+    type: Boolean,
+    default: false,
+  },
+  canRedo: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits([
@@ -54,6 +63,8 @@ const emit = defineEmits([
   'done',
   'add-separator',
   'delete-separator',
+  'undo',
+  'redo',
 ])
 
 // ============================================================================
@@ -582,11 +593,43 @@ const onReset = () => {
   emit('reset')
 }
 
+const onUndo = () => {
+  if (props.canUndo) {
+    emit('undo')
+    // Clear selections after undo as indices may be invalid
+    selectedIndex.value = null
+    selectedSeparatorId.value = null
+  }
+}
+
+const onRedo = () => {
+  if (props.canRedo) {
+    emit('redo')
+    // Clear selections after redo as indices may be invalid
+    selectedIndex.value = null
+    selectedSeparatorId.value = null
+  }
+}
+
 // ============================================================================
 // Keyboard Shortcuts
 // ============================================================================
 
 const handleKeydown = (e) => {
+  // Undo: Ctrl+Z / Cmd+Z
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    onUndo()
+    return
+  }
+
+  // Redo: Ctrl+Shift+Z / Cmd+Shift+Z or Ctrl+Y / Cmd+Y
+  if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
+    e.preventDefault()
+    onRedo()
+    return
+  }
+
   if (e.key === 'Escape') {
     if (showTextDialog.value) {
       cancelTextDialog()
@@ -782,6 +825,34 @@ const getRegionColor = (region) => {
           </svg>
           {{ t('slideToPptx.regionEditor.done') }}
         </button>
+
+        <!-- Undo button -->
+        <button
+          @click="onUndo"
+          class="toolbar-btn toolbar-btn-icon"
+          :disabled="!canUndo"
+          :class="{ 'opacity-50 cursor-not-allowed': !canUndo }"
+          :title="t('slideToPptx.regionEditor.undo') + ' (Ctrl+Z)'"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+        </button>
+
+        <!-- Redo button -->
+        <button
+          @click="onRedo"
+          class="toolbar-btn toolbar-btn-icon"
+          :disabled="!canRedo"
+          :class="{ 'opacity-50 cursor-not-allowed': !canRedo }"
+          :title="t('slideToPptx.regionEditor.redo') + ' (Ctrl+Shift+Z)'"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+          </svg>
+        </button>
+
+        <span class="toolbar-divider"></span>
 
         <button
           @click="onReset"
@@ -1202,6 +1273,17 @@ const getRegionColor = (region) => {
   color: white;
   background: rgba(249, 115, 22, 0.8);
   border-color: rgba(249, 115, 22, 0.8);
+}
+
+.toolbar-btn-icon {
+  padding: 0.5rem;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 0.25rem;
 }
 
 .region-count {
