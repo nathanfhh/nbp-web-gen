@@ -12,6 +12,17 @@ const toast = useToast()
 const contentRef = ref(null)
 const isExpanded = ref(true)
 
+// Smart scroll: stop auto-scroll when user scrolls up
+const userScrolledUp = ref(false)
+const SCROLL_THRESHOLD = 50 // pixels from bottom to consider "at bottom"
+
+const handleScroll = () => {
+  if (!contentRef.value) return
+  const { scrollTop, scrollHeight, clientHeight } = contentRef.value
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+  userScrolledUp.value = distanceFromBottom > SCROLL_THRESHOLD
+}
+
 // Lightbox state
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
@@ -151,13 +162,23 @@ const thinkingSteps = computed(() => {
   return combinedSteps
 })
 
-// Auto-scroll to bottom when new content arrives
+// Auto-scroll to bottom when new content arrives (unless user scrolled up)
 watch(
   () => store.thinkingProcess.length,
   async () => {
     await nextTick()
-    if (contentRef.value && isExpanded.value) {
+    if (contentRef.value && isExpanded.value && !userScrolledUp.value) {
       contentRef.value.scrollTop = contentRef.value.scrollHeight
+    }
+  }
+)
+
+// Reset scroll state when generation starts (new thinking process)
+watch(
+  () => store.isStreaming,
+  (isStreaming) => {
+    if (isStreaming) {
+      userScrolledUp.value = false
     }
   }
 )
@@ -264,6 +285,7 @@ const getStepStatus = (index) => {
       v-show="isExpanded"
       ref="contentRef"
       class="max-h-80 overflow-y-auto overflow-x-visible pl-2 pr-2 -ml-2 space-y-1"
+      @scroll="handleScroll"
     >
       <!-- Loading state -->
       <div v-if="thinkingSteps.length === 0 && store.isStreaming" class="flex items-center gap-3 p-4">
