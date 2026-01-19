@@ -520,6 +520,13 @@ watch(lightboxOpen, (isOpen) => {
   }
 })
 
+// Show toast when OCR model size fallback occurs
+watch(slideToPptx.ocrModelSizeFallbackOccurred, (occurred) => {
+  if (occurred) {
+    toast.warning(t('ocrSettings.modelSizeFallback'))
+  }
+})
+
 // Prepare images for processing (load from OPFS if needed)
 const prepareImagesForProcessing = async () => {
   const preparedImages = []

@@ -1326,6 +1326,13 @@ Output: A single clean image with all text removed.`
     }
   })
 
+  // Watch for model size fallback and log notification
+  watch(ocr.modelSizeFallbackOccurred, (occurred) => {
+    if (occurred) {
+      addLog(t('ocrSettings.modelSizeFallback'), 'warning')
+    }
+  })
+
   // Clean up on unmount
   onUnmounted(() => {
     cleanup()
@@ -1368,6 +1375,7 @@ Output: A single clean image with all text removed.`
     ocrIsDetecting: ocr.isDetecting,
     ocrExecutionProvider: ocr.executionProvider,
     ocrGpuFallbackOccurred: ocr.gpuFallbackOccurred,
+    ocrModelSizeFallbackOccurred: ocr.modelSizeFallbackOccurred,
     setOcrEngine: ocr.setEngine,
     detectOcrCapabilities: ocr.detectCapabilities,
     clearOcrModelCache: ocr.clearModelCache,
