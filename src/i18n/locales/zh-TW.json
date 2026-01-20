@@ -1050,7 +1050,7 @@
     "modelSize": {
       "server": {
         "label": "Server 級別",
-        "description": "高精度 (~172MB)"
+        "description": "較高精度 (~172MB)"
       },
       "mobile": {
         "label": "Mobile 級別",

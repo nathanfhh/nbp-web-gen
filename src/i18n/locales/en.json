@@ -1050,7 +1050,7 @@
     "modelSize": {
       "server": {
         "label": "Server",
-        "description": "High accuracy (~172MB)"
+        "description": "Higher accuracy (~172MB)"
       },
       "mobile": {
         "label": "Mobile",
