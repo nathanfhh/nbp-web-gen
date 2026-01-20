@@ -6,6 +6,8 @@
  * which is more accurate than heuristic character weight estimation.
  */
 
+import { OCR_DEFAULTS } from '@/constants/ocrDefaults'
+
 // Reusable canvas context for performance
 let measureCanvas = null
 let measureCtx = null
@@ -38,8 +40,11 @@ export const PPTX_FONT_STACK = 'Arial, "Microsoft YaHei", "PingFang SC", sans-se
  *
  * If text is still wrapping in PPTX, increase this value (e.g., 1.20)
  * If text boxes have too much empty space, decrease this value (e.g., 1.10)
+ *
+ * @deprecated Use OCR_DEFAULTS.textWidthExpansion from ocrDefaults.js instead.
+ * This constant is kept for backwards compatibility.
  */
-export const TEXT_WIDTH_EXPANSION = 1.05
+export const TEXT_WIDTH_EXPANSION = OCR_DEFAULTS.textWidthExpansion
 
 /**
  * DPI constants for unit conversion
@@ -80,9 +85,9 @@ export function measureTextWidth(text, fontFamily, fontSizePt) {
  * @param {number} boxWidthInches - Available width in inches
  * @param {string} fontFamily - Font family to use
  * @param {Object} options - Additional options
- * @param {number} options.minSize - Minimum font size in points (default: 8)
- * @param {number} options.maxSize - Maximum font size in points (default: 120)
- * @param {number} options.expansionFactor - Text width expansion multiplier (default: TEXT_WIDTH_EXPANSION)
+ * @param {number} options.minSize - Minimum font size in points (default: OCR_DEFAULTS.minFontSize)
+ * @param {number} options.maxSize - Maximum font size in points (default: OCR_DEFAULTS.maxFontSize)
+ * @param {number} options.expansionFactor - Text width expansion multiplier (default: OCR_DEFAULTS.textWidthExpansion)
  * @returns {number} Optimal font size in points
  */
 export function calculateOptimalFontSize(
@@ -91,7 +96,11 @@ export function calculateOptimalFontSize(
   fontFamily = PPTX_FONT_STACK,
   options = {}
 ) {
-  const { minSize = 8, maxSize = 120, expansionFactor = TEXT_WIDTH_EXPANSION } = options
+  const {
+    minSize = OCR_DEFAULTS.minFontSize,
+    maxSize = OCR_DEFAULTS.maxFontSize,
+    expansionFactor = OCR_DEFAULTS.textWidthExpansion,
+  } = options
 
   // Convert box width to pixels (this is our target)
   const boxWidthPx = boxWidthInches * SCREEN_DPI
@@ -141,7 +150,7 @@ export function calculateFontSizeForMultilineText(
   fontFamily = PPTX_FONT_STACK,
   options = {}
 ) {
-  const { minSize = 8, maxSize = 120 } = options
+  const { minSize = OCR_DEFAULTS.minFontSize, maxSize = OCR_DEFAULTS.maxFontSize } = options
 
   const lines = text.split('\n')
   let smallestFittingSize = maxSize

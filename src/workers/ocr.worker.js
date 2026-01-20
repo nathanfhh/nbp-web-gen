@@ -309,7 +309,8 @@ async function recognize(imageDataUrl, requestId) {
   await applyTesseractFallback(bitmap, rawResults)
 
   reportProgress('merge', 95, 'Analyzing layout...', requestId)
-  const mergedResults = mergeTextRegions(rawResults)
+  // Pass layout settings for WYSIWYG support (settings updated via postMessage)
+  const mergedResults = mergeTextRegions(rawResults, [], ocrSettings)
 
   reportProgress('merge', 100, `Found ${mergedResults.length} text blocks`, requestId)
 

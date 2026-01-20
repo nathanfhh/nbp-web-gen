@@ -565,7 +565,9 @@ export function useOcrMainThread() {
       await applyTesseractFallback(bitmap, rawResults)
 
       if (onProgress) onProgress(95, 'Analyzing layout...', 'merge')
-      const mergedResults = mergeTextRegions(rawResults)
+      // Pass layout settings from OCR Settings (WYSIWYG support)
+      const layoutSettings = getSettings()
+      const mergedResults = mergeTextRegions(rawResults, [], layoutSettings)
 
       if (onProgress) onProgress(100, `Found ${mergedResults.length} text blocks`, 'merge')
 

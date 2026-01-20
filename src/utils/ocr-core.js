@@ -12,6 +12,8 @@
  * @see docs/ocr-optimization-plan.md for architecture details
  */
 
+import { OCR_DEFAULTS } from '@/constants/ocrDefaults'
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -59,9 +61,22 @@ export const DETECTION_MIN_AREA = 100
  * @param {Array} rawResults - Array of OCR results with bounds, text, confidence
  * @param {Array} separatorLines - Array of manual separator lines (any angle)
  *   Each separator: { id, start: {x, y}, end: {x, y} }
+ * @param {Object} layoutSettings - Layout analysis settings (optional)
+ *   Uses OCR_DEFAULTS as fallback for any missing values
  * @returns {Array} - Merged text blocks with combined bounds and inferred alignment
  */
-export function mergeTextRegions(rawResults, separatorLines = []) {
+export function mergeTextRegions(rawResults, separatorLines = [], layoutSettings = {}) {
+  // Merge settings with defaults (Single Source of Truth)
+  const settings = {
+    verticalCutThreshold: layoutSettings.verticalCutThreshold ?? OCR_DEFAULTS.verticalCutThreshold,
+    horizontalCutThreshold:
+      layoutSettings.horizontalCutThreshold ?? OCR_DEFAULTS.horizontalCutThreshold,
+    sameLineThreshold: layoutSettings.sameLineThreshold ?? OCR_DEFAULTS.sameLineThreshold,
+    fontSizeDiffThreshold:
+      layoutSettings.fontSizeDiffThreshold ?? OCR_DEFAULTS.fontSizeDiffThreshold,
+    colorDiffThreshold: layoutSettings.colorDiffThreshold ?? OCR_DEFAULTS.colorDiffThreshold,
+  }
+
   // 1. Preprocessing: Filter invalid data
   const validRegions = rawResults.filter((r) => !r.recognitionFailed && r.text.trim().length > 0)
   if (validRegions.length === 0) return []
@@ -74,13 +89,13 @@ export function mergeTextRegions(rawResults, separatorLines = []) {
   const allLeafZones = []
   for (const group of partitionedGroups) {
     if (group.length === 0) continue
-    const leafZones = performRecursiveXYCut(group, 0)
+    const leafZones = performRecursiveXYCut(group, 0, settings)
     allLeafZones.push(...leafZones)
   }
 
   // 4. Block Creation
   // Convert each leaf zone into a text block
-  return allLeafZones.map(createBlockFromRegions)
+  return allLeafZones.map((regions) => createBlockFromRegions(regions, settings))
 }
 
 /**
@@ -262,9 +277,10 @@ function getRegionSideOfLine(bounds, p1, p2) {
  *
  * @param {Array} regions - List of text regions
  * @param {number} depth - Recursion depth limit
+ * @param {Object} settings - Layout settings with thresholds
  * @returns {Array<Array>} - Array of region groups (zones)
  */
-function performRecursiveXYCut(regions, depth = 0) {
+function performRecursiveXYCut(regions, depth = 0, settings = {}) {
   // Stop recursion if too deep or too few regions
   if (depth > 10 || regions.length < 2) return [regions]
 
@@ -273,22 +289,31 @@ function performRecursiveXYCut(regions, depth = 0) {
 
   // 1. Try Vertical Cut (Separating Columns) - Higher Priority
   // Look for wide vertical gaps in the X-projection
-  // Threshold: 1.5x line height (Columns are usually separated by wide gaps)
-  const verticalCut = findBestCut(regions, bounds, 'x', medianHeight * 1.5)
+  // Threshold: verticalCutThreshold * line height (Columns are usually separated by wide gaps)
+  const verticalThreshold = settings.verticalCutThreshold ?? OCR_DEFAULTS.verticalCutThreshold
+  const verticalCut = findBestCut(regions, bounds, 'x', medianHeight * verticalThreshold)
   if (verticalCut) {
     const left = regions.filter((r) => r.bounds.x + r.bounds.width / 2 < verticalCut)
     const right = regions.filter((r) => r.bounds.x + r.bounds.width / 2 >= verticalCut)
-    return [...performRecursiveXYCut(left, depth + 1), ...performRecursiveXYCut(right, depth + 1)]
+    return [
+      ...performRecursiveXYCut(left, depth + 1, settings),
+      ...performRecursiveXYCut(right, depth + 1, settings),
+    ]
   }
 
   // 2. Try Horizontal Cut (Separating Sections/Paragraphs)
   // Look for wide horizontal gaps in the Y-projection
-  // Threshold: 0.3x line height (Standard paragraph spacing)
-  const horizontalCut = findBestCut(regions, bounds, 'y', medianHeight * 0.3)
+  // Threshold: horizontalCutThreshold * line height (Standard paragraph spacing)
+  const horizontalThreshold =
+    settings.horizontalCutThreshold ?? OCR_DEFAULTS.horizontalCutThreshold
+  const horizontalCut = findBestCut(regions, bounds, 'y', medianHeight * horizontalThreshold)
   if (horizontalCut) {
     const top = regions.filter((r) => r.bounds.y + r.bounds.height / 2 < horizontalCut)
     const bottom = regions.filter((r) => r.bounds.y + r.bounds.height / 2 >= horizontalCut)
-    return [...performRecursiveXYCut(top, depth + 1), ...performRecursiveXYCut(bottom, depth + 1)]
+    return [
+      ...performRecursiveXYCut(top, depth + 1, settings),
+      ...performRecursiveXYCut(bottom, depth + 1, settings),
+    ]
   }
 
   // No valid cuts found, this is an atomic block
@@ -381,12 +406,6 @@ function colorDistance(color1, color2) {
 }
 
 /**
- * Color difference threshold for considering colors as "different enough" to preserve
- * RGB Euclidean distance > 50 means visually distinct colors (e.g., black vs dark gray is ~30)
- */
-const COLOR_DIFFERENCE_THRESHOLD = 50
-
-/**
  * Unify colors in a region group if they are similar, or preserve distinct colors
  *
  * Logic:
@@ -394,8 +413,11 @@ const COLOR_DIFFERENCE_THRESHOLD = 50
  * - If any color is distinctly different → preserve individual colors (e.g., highlights)
  *
  * @param {Array} regions - Array of regions with optional textColor property
+ * @param {Object} settings - Layout settings with colorDiffThreshold
  */
-function unifyOrPreserveColors(regions) {
+function unifyOrPreserveColors(regions, settings = {}) {
+  const colorThreshold = settings.colorDiffThreshold ?? OCR_DEFAULTS.colorDiffThreshold
+
   // Collect all colors (filter out undefined/null)
   const colors = regions.map((r) => r.textColor).filter(Boolean)
 
@@ -417,7 +439,7 @@ function unifyOrPreserveColors(regions) {
   let hasDistinctColors = false
   for (let i = 0; i < colors.length && !hasDistinctColors; i++) {
     for (let j = i + 1; j < colors.length; j++) {
-      if (colorDistance(colors[i], colors[j]) > COLOR_DIFFERENCE_THRESHOLD) {
+      if (colorDistance(colors[i], colors[j]) > colorThreshold) {
         hasDistinctColors = true
         break
       }
@@ -453,17 +475,21 @@ function unifyOrPreserveColors(regions) {
 
 /**
  * Helper: Create a final merged block from a list of regions
+ * @param {Array} regions - Array of text regions to merge
+ * @param {Object} settings - Layout settings with thresholds
  */
-function createBlockFromRegions(regions) {
+function createBlockFromRegions(regions, settings = {}) {
   if (regions.length === 0) return null
+
+  const sameLineThreshold = settings.sameLineThreshold ?? OCR_DEFAULTS.sameLineThreshold
 
   // 1. Robust Sorting (Reading Order)
   // Sort by Y-center first (lines), then by X (words in line)
   regions.sort((a, b) => {
     const aCenterY = a.bounds.y + a.bounds.height / 2
     const bCenterY = b.bounds.y + b.bounds.height / 2
-    // Threshold to 0.7 for better tolerance
-    const threshold = Math.min(a.bounds.height, b.bounds.height) * 0.7
+    // Use configurable threshold for same-line detection
+    const threshold = Math.min(a.bounds.height, b.bounds.height) * sameLineThreshold
 
     // If Y-centers are close enough, they are on the same line -> Sort Left-to-Right
     if (Math.abs(aCenterY - bCenterY) < threshold) {
@@ -474,7 +500,7 @@ function createBlockFromRegions(regions) {
   })
 
   // 2. Process colors: unify similar colors or preserve distinct ones (e.g., highlights)
-  unifyOrPreserveColors(regions)
+  unifyOrPreserveColors(regions, settings)
 
   // 3. Smart Text Joining
   // Determine whether to use space " " or newline "\n" based on vertical position
@@ -485,7 +511,7 @@ function createBlockFromRegions(regions) {
 
     const prevCenterY = prev.bounds.y + prev.bounds.height / 2
     const currCenterY = curr.bounds.y + curr.bounds.height / 2
-    const threshold = Math.min(prev.bounds.height, curr.bounds.height) * 0.7
+    const threshold = Math.min(prev.bounds.height, curr.bounds.height) * sameLineThreshold
 
     // Check if on the same line
     const isSameLine = Math.abs(prevCenterY - currCenterY) < threshold

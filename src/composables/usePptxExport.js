@@ -5,6 +5,8 @@
 
 import { ref } from 'vue'
 import PptxGenJS from 'pptxgenjs'
+import { OCR_DEFAULTS } from '@/constants/ocrDefaults'
+import { getSettings as getOcrSettings } from '@/composables/useOcrSettings'
 
 /**
  * @typedef {Object} SlideData
@@ -185,7 +187,12 @@ export function usePptxExport() {
             // Calculate Font Size
             // Strategy: Use height-based calculation with median of original line heights
             // This is more reliable than width-based Canvas measurement
-            const LINE_HEIGHT_RATIO = 1.2
+            // Get settings from OCR Settings (Single Source of Truth)
+            const ocrSettings = getOcrSettings()
+            const lineHeightRatio = ocrSettings.lineHeightRatio ?? OCR_DEFAULTS.lineHeightRatio
+            const minFontSize = ocrSettings.minFontSize ?? OCR_DEFAULTS.minFontSize
+            const maxFontSize = ocrSettings.maxFontSize ?? OCR_DEFAULTS.maxFontSize
+
             let fontSize
             const debugLines = [] // Debug info
 
@@ -208,15 +215,15 @@ export function usePptxExport() {
 
                 // Convert max height to font size in points
                 fontSize =
-                  (maxHeight / slideData.height) * slideSize.height * 72 / LINE_HEIGHT_RATIO
+                  ((maxHeight / slideData.height) * slideSize.height * 72) / lineHeightRatio
               } else {
                 // Fallback if no valid lines
-                fontSize = (h * 72) / LINE_HEIGHT_RATIO
+                fontSize = (h * 72) / lineHeightRatio
               }
             } else {
               // Single line or no lines data: use region height directly
               const heightPx = region.fontSize || region.bounds.height
-              fontSize = (heightPx / slideData.height) * slideSize.height * 72 / LINE_HEIGHT_RATIO
+              fontSize = ((heightPx / slideData.height) * slideSize.height * 72) / lineHeightRatio
               debugLines.push({
                 text: region.text.substring(0, 30) + (region.text.length > 30 ? '...' : ''),
                 heightPx: Math.round(heightPx),
@@ -224,8 +231,8 @@ export function usePptxExport() {
               })
             }
 
-            // Clamp font size to reasonable range
-            fontSize = Math.max(8, Math.min(120, Math.round(fontSize)))
+            // Clamp font size to configurable range
+            fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.round(fontSize)))
 
             // Debug output
             console.group(`📝 Font Size Calculation (Height-based)`)
