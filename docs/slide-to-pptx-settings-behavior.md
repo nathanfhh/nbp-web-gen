@@ -23,11 +23,9 @@
 | **版面分析** | `sameLineThreshold` | 影響同一行判斷 | **立即** (remerge) |
 | **版面分析** | `fontSizeDiffThreshold` | 影響字體大小差異合併 | **立即** (remerge) |
 | **版面分析** | `colorDiffThreshold` | 影響顏色差異合併 | **立即** (remerge) |
-| **匯出** | `textWidthExpansion` | 影響 PPTX 文字寬度計算 | **立即** (remerge) |
-| **匯出** | `lineHeightRatio` | 影響字體大小計算 | **立即** (remerge) |
-| **匯出** | `minFontSize` | 限制最小字體 | **立即** (remerge) |
-| **匯出** | `maxFontSize` | 限制最大字體 | **立即** (remerge) |
-| **模型** | `modelSize` | 切換 server/mobile 模型 | 下次「開始轉換」 |
+| **匯出** | `lineHeightRatio` | 影響字體大小計算 | 下次匯出時 |
+| **匯出** | `minFontSize` | 限制最小字體 | 下次匯出時 |
+| **匯出** | `maxFontSize` | 限制最大字體 | 下次匯出時 |
 
 ### 重點說明
 
@@ -49,6 +47,7 @@
 | `slideRatio` | 輸出投影片比例 (auto/16:9/4:3/9:16) | 下次「開始轉換」或匯出時 |
 | `geminiModel` | Gemini 模型版本 (2.0/3.0) | 下次「開始轉換」或重新生成時 |
 | `imageQuality` | Gemini 3.0 輸出品質 (1k/2k/4k) | 下次「開始轉換」或重新生成時 |
+| `modelSize` | OCR 模型尺寸 (server/mobile) | 下次「開始轉換」 |
 
 ---
 
