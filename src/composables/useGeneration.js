@@ -67,12 +67,13 @@ export function useGeneration() {
 
       case 'story': {
         const result = await generateStory(store.prompt, options, refImages, onThinkingChunk)
-        // Flatten story results
+        // Flatten story results - only collect successful step images
         if (result.results) {
           const allImages = []
           let thinkingText = ''
           result.results.forEach((r) => {
-            if (r.images) {
+            // Only collect images from successful steps
+            if (r.success && r.images) {
               allImages.push(...r.images)
             }
             if (r.thinkingText) {
@@ -230,6 +231,31 @@ export function useGeneration() {
             options,
           })
         }
+      } else if (store.currentMode === 'story' && result) {
+        // Story mode result - handle partial success
+        const { successCount = 0, failedCount = 0, totalSteps = 0 } = result
+        if (result.images && result.images.length > 0) {
+          store.setGeneratedImages(result.images)
+        }
+
+        // Show appropriate toast based on success/failure
+        if (successCount > 0 && failedCount === 0) {
+          toast.success(t('toast.storySuccess', { count: successCount }))
+        } else if (successCount > 0 && failedCount > 0) {
+          toast.warning(t('toast.storyPartialSuccess', { success: successCount, failed: failedCount }))
+        } else {
+          toast.error(t('toast.storyAllFailed', { count: totalSteps }))
+        }
+
+        // Track GA4 event - only if at least one step succeeded
+        if (successCount > 0) {
+          trackGenerateSuccess({
+            mode: store.currentMode,
+            imageCount: successCount,
+            hasReferenceImages: refImages.length > 0,
+            options,
+          })
+        }
       } else if (result?.images) {
         // Other image mode result
         store.setGeneratedImages(result.images)
@@ -291,9 +317,9 @@ export function useGeneration() {
       }
 
       // Determine status for history record
-      // Slides mode: check partial success; other modes: always 'success' in try block
+      // Slides/Story mode: check partial success; other modes: always 'success' in try block
       let historyStatus = 'success'
-      if (store.currentMode === 'slides' && result) {
+      if ((store.currentMode === 'slides' || store.currentMode === 'story') && result) {
         const { successCount = 0, failedCount = 0 } = result
         if (successCount === 0) {
           historyStatus = 'failed'

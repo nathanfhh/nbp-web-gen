@@ -566,25 +566,42 @@ export function useApi() {
         onThinkingChunk(`\n--- ${t('storyProgress.generating', { current: i, total: steps })} ---\n`)
       }
 
-      // Only pass reference images for the first step
-      const stepImages = i === 1 ? referenceImages : []
-      const result = await generateImageStream(
-        stepPrompt,
-        { ...options, step: i },
-        'story',
-        stepImages,
-        onThinkingChunk,
-      )
-      results.push({
-        step: i,
-        ...result,
-      })
+      try {
+        // Only pass reference images for the first step
+        const stepImages = i === 1 ? referenceImages : []
+        const result = await generateImageStream(
+          stepPrompt,
+          { ...options, step: i },
+          'story',
+          stepImages,
+          onThinkingChunk,
+        )
+        results.push({
+          step: i,
+          success: true,
+          ...result,
+        })
+      } catch (stepErr) {
+        // Step failed - record error but continue to next step
+        console.warn(`Story step ${i} failed:`, stepErr.message)
+        results.push({
+          step: i,
+          success: false,
+          error: stepErr.message,
+        })
+      }
     }
 
+    // Calculate success/failure counts
+    const successCount = results.filter((r) => r.success).length
+    const failedCount = results.length - successCount
+
     return {
-      success: true,
+      success: successCount === steps,
       results,
       totalSteps: steps,
+      successCount,
+      failedCount,
     }
   }
 

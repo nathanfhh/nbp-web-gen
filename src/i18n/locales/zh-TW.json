@@ -688,7 +688,10 @@
     "downloadFailed": "下載失敗，請重試",
     "slidesSuccess": "成功生成 {count} 頁簡報",
     "slidesPartialSuccess": "簡報生成部分完成：{success} 頁成功，{failed} 頁失敗",
-    "slidesAllFailed": "簡報生成失敗，{count} 頁均未成功"
+    "slidesAllFailed": "簡報生成失敗，{count} 頁均未成功",
+    "storySuccess": "成功生成 {count} 步故事",
+    "storyPartialSuccess": "故事生成部分完成：{success} 步成功，{failed} 步失敗",
+    "storyAllFailed": "故事生成失敗，{count} 步均未成功"
   },
   "errors": {
     "noPrompt": "請輸入 Prompt 描述",

@@ -688,7 +688,10 @@
     "downloadFailed": "Download failed, please try again",
     "slidesSuccess": "Successfully generated {count} slides",
     "slidesPartialSuccess": "Slides partially generated: {success} succeeded, {failed} failed",
-    "slidesAllFailed": "Slides generation failed, all {count} pages failed"
+    "slidesAllFailed": "Slides generation failed, all {count} pages failed",
+    "storySuccess": "Successfully generated {count} story steps",
+    "storyPartialSuccess": "Story partially generated: {success} succeeded, {failed} failed",
+    "storyAllFailed": "Story generation failed, all {count} steps failed"
   },
   "errors": {
     "noPrompt": "Please enter a prompt description",
