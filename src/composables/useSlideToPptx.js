@@ -75,6 +75,7 @@ const translateOcrMessage = (message) => {
  * @property {string} cleanImage - Text-removed image data URL
  * @property {string} originalCleanImage - Original cleanImage from first processing (for reset)
  * @property {boolean} cleanImageIsOriginal - Whether cleanImage is based on original rawRegions (true) or editedRawRegions (false)
+ * @property {string|null} regionsSnapshotAtCleanImage - JSON snapshot of regions when cleanImage was generated (for change detection)
  * @property {string} originalImage - Original image data URL (for comparison)
  * @property {number} width - Image width
  * @property {number} height - Image height
@@ -83,10 +84,16 @@ const translateOcrMessage = (message) => {
  * @property {Array|null} editedRawRegions - User-modified regions (null = use original rawRegions)
  * @property {Array} separatorLines - Manual separator lines to prevent region merging
  * @property {Object} editHistory - Undo/redo history for region editing
+ * @property {string|null} customInpaintPrompt - User's custom prompt for Gemini inpainting
+ * @property {Array} cleanImageHistory - Version history of clean images [{image, timestamp, prompt, isOriginal}]
+ * @property {number} activeHistoryIndex - Currently selected version index in cleanImageHistory
  */
 
 // Maximum history depth per slide
 const MAX_HISTORY_DEPTH = 50
+
+// Maximum clean image versions to keep (1 original + 5 regenerated = 6 total)
+const MAX_CLEAN_IMAGE_VERSIONS = 5
 
 /**
  * @returns {Object} Slide to PPTX composable
@@ -252,13 +259,46 @@ export function useSlideToPptx() {
   }
 
   /**
+   * Resize image to target dimensions
+   * @param {string} dataUrl - Image data URL
+   * @param {number} targetWidth - Target width
+   * @param {number} targetHeight - Target height
+   * @returns {Promise<string>} - Resized image data URL
+   */
+  const resizeImageToTarget = (dataUrl, targetWidth, targetHeight) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        // Check if resize is needed
+        if (img.width === targetWidth && img.height === targetHeight) {
+          resolve(dataUrl)
+          return
+        }
+
+        // Resize to target dimensions
+        const canvas = document.createElement('canvas')
+        canvas.width = targetWidth
+        canvas.height = targetHeight
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
+        resolve(canvas.toDataURL('image/png'))
+      }
+      img.onerror = () => reject(new Error('Failed to load image for resize'))
+      img.src = dataUrl
+    })
+  }
+
+  /**
    * Remove text from image using Gemini API
    * @param {string} imageDataUrl - Image data URL
    * @param {Array} ocrResults - OCR detection results (for context)
    * @param {Object} effectiveSettings - Settings to use (per-page or global)
-   * @returns {Promise<string>} - Clean image data URL
+   * @param {string|null} customPrompt - Custom user prompt to append
+   * @param {number} originalWidth - Original image width (for size matching)
+   * @param {number} originalHeight - Original image height (for size matching)
+   * @returns {Promise<string>} - Clean image data URL (same size as original)
    */
-  const removeTextWithGeminiWithSettings = async (imageDataUrl, ocrResults, effectiveSettings) => {
+  const removeTextWithGeminiWithSettings = async (imageDataUrl, ocrResults, effectiveSettings, customPrompt = null, originalWidth = 0, originalHeight = 0) => {
     // Determine model and API key usage based on settings
     const modelId = effectiveSettings.geminiModel === '2.0'
       ? 'gemini-2.5-flash-image'
@@ -282,7 +322,7 @@ export function useSlideToPptx() {
 
     // Build prompt describing what text to remove
     const textDescriptions = ocrResults.slice(0, 10).map(r => r.text).join(', ')
-    const prompt = `Remove ALL text from this slide image completely. The image contains text like: "${textDescriptions}".
+    let prompt = `Remove ALL text from this slide image completely. The image contains text like: "${textDescriptions}".
 
 IMPORTANT REQUIREMENTS:
 1. Remove every piece of text, including titles, subtitles, body text, labels, and captions
@@ -293,6 +333,11 @@ IMPORTANT REQUIREMENTS:
 6. Do NOT add any new text or watermarks
 
 Output: A single clean image with all text removed.`
+
+    // Append custom prompt if provided
+    if (customPrompt && customPrompt.trim()) {
+      prompt += `\n\nADDITIONAL USER INSTRUCTIONS:\n${customPrompt.trim()}`
+    }
 
     const ai = new GoogleGenAI({ apiKey })
 
@@ -338,7 +383,13 @@ Output: A single clean image with all text removed.`
       for (const part of candidate.content.parts) {
         if (part.inlineData) {
           const resultMimeType = part.inlineData.mimeType || 'image/png'
-          return `data:${resultMimeType};base64,${part.inlineData.data}`
+          const resultDataUrl = `data:${resultMimeType};base64,${part.inlineData.data}`
+
+          // Resize to match original dimensions if needed
+          if (originalWidth > 0 && originalHeight > 0) {
+            return await resizeImageToTarget(resultDataUrl, originalWidth, originalHeight)
+          }
+          return resultDataUrl
         }
       }
 
@@ -379,7 +430,13 @@ Output: A single clean image with all text removed.`
           for (const part of retryCandidate.content.parts) {
             if (part.inlineData) {
               const resultMimeType = part.inlineData.mimeType || 'image/png'
-              return `data:${resultMimeType};base64,${part.inlineData.data}`
+              const resultDataUrl = `data:${resultMimeType};base64,${part.inlineData.data}`
+
+              // Resize to match original dimensions if needed
+              if (originalWidth > 0 && originalHeight > 0) {
+                return await resizeImageToTarget(resultDataUrl, originalWidth, originalHeight)
+              }
+              return resultDataUrl
             }
           }
         }
@@ -557,7 +614,7 @@ Output: A single clean image with all text removed.`
         }
 
         try {
-          state.cleanImage = await removeTextWithGeminiWithSettings(imageDataUrl, state.regions, effectiveSettings)
+          state.cleanImage = await removeTextWithGeminiWithSettings(imageDataUrl, state.regions, effectiveSettings, null, width, height)
         } catch (geminiError) {
           // Fallback to OpenCV when Gemini fails (RECITATION, quota, etc.)
           addLog(t('slideToPptx.logs.geminiFailed', { slide: index + 1, error: geminiError.message }), 'warning')
@@ -580,6 +637,15 @@ Output: A single clean image with all text removed.`
       // Save original cleanImage for reset functionality
       state.originalCleanImage = state.cleanImage
       state.cleanImageIsOriginal = true
+
+      // Initialize version history with the original clean image
+      state.cleanImageHistory = [{
+        image: state.cleanImage,
+        timestamp: Date.now(),
+        prompt: null,
+        isOriginal: true,
+      }]
+      state.activeHistoryIndex = 0
 
       state.status = 'done'
       return state
@@ -625,6 +691,7 @@ Output: A single clean image with all text removed.`
         cleanImage: null,
         originalCleanImage: null,
         cleanImageIsOriginal: true,
+        regionsSnapshotAtCleanImage: null,
         originalImage: null,
         width: 0,
         height: 0,
@@ -636,6 +703,8 @@ Output: A single clean image with all text removed.`
         separatorLines: existingState?.separatorLines || [],
         // Preserve edit history
         editHistory: existingState?.editHistory || { undoStack: [], redoStack: [] },
+        // Preserve custom inpaint prompt
+        customInpaintPrompt: existingState?.customInpaintPrompt || null,
       }
     })
 
@@ -843,6 +912,7 @@ Output: A single clean image with all text removed.`
         cleanImage: null,
         originalCleanImage: null,
         cleanImageIsOriginal: true,
+        regionsSnapshotAtCleanImage: null,
         originalImage: null,
         width: 0,
         height: 0,
@@ -851,6 +921,12 @@ Output: A single clean image with all text removed.`
         editedRawRegions: null,
         separatorLines: [],
         editHistory: { undoStack: [], redoStack: [] },
+        customInpaintPrompt: null,
+        // Clean image version history (for user to pick preferred version)
+        // Format: [{ image: dataUrl, timestamp: number, prompt: string|null, isOriginal: boolean }]
+        // First entry is always the original (from initial processing), subsequent entries are regenerated versions (FIFO, max 5)
+        cleanImageHistory: [],
+        activeHistoryIndex: 0, // Currently selected version in history
       }))
     }
   }
@@ -1013,6 +1089,8 @@ Output: A single clean image with all text removed.`
       editHistory: { undoStack: [], redoStack: [] },
       cleanImage: state.originalCleanImage || state.cleanImage,
       cleanImageIsOriginal: true,
+      // Reset snapshot to null (original rawRegions state)
+      regionsSnapshotAtCleanImage: null,
     }
 
     // Re-merge with original rawRegions to update display
@@ -1231,6 +1309,9 @@ Output: A single clean image with all text removed.`
       ...state,
       separatorLines: [...(state.separatorLines || []), newSeparator],
     }
+
+    // WYSIWYG: Re-merge immediately to reflect separator effect
+    remergeMergedRegions(slideIndex)
   }
 
   /**
@@ -1249,6 +1330,9 @@ Output: A single clean image with all text removed.`
       ...state,
       separatorLines: (state.separatorLines || []).filter((s) => s.id !== separatorId),
     }
+
+    // WYSIWYG: Re-merge immediately to reflect separator removal
+    remergeMergedRegions(slideIndex)
   }
 
   /**
@@ -1259,6 +1343,50 @@ Output: A single clean image with all text removed.`
   const getSeparatorLines = (slideIndex) => {
     const state = slideStates.value[slideIndex]
     return state?.separatorLines || []
+  }
+
+  /**
+   * Get current regions snapshot string for comparison
+   * @param {number} slideIndex - Slide index
+   * @returns {string} JSON string of current regions and separators
+   */
+  const getCurrentRegionsSnapshot = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return ''
+
+    const regionsToUse = state.editedRawRegions || state.rawRegions || []
+    const separatorLines = state.separatorLines || []
+
+    return JSON.stringify({
+      regions: regionsToUse,
+      separators: separatorLines,
+    })
+  }
+
+  /**
+   * Check if regions have changed since last cleanImage generation
+   * @param {number} slideIndex - Slide index
+   * @returns {boolean} True if regions have changed
+   */
+  const hasRegionsChangedSinceCleanImage = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return false
+
+    const currentSnapshot = getCurrentRegionsSnapshot(slideIndex)
+
+    // If cleanImage was generated from original rawRegions (snapshot is null)
+    // Compare with "no edits" state
+    if (state.regionsSnapshotAtCleanImage === null) {
+      // Original state = rawRegions with no separators
+      const originalSnapshot = JSON.stringify({
+        regions: state.rawRegions || [],
+        separators: [],
+      })
+      return currentSnapshot !== originalSnapshot
+    }
+
+    // Compare with recorded snapshot
+    return currentSnapshot !== state.regionsSnapshotAtCleanImage
   }
 
   /**
@@ -1324,7 +1452,7 @@ Output: A single clean image with all text removed.`
         }
 
         try {
-          state.cleanImage = await removeTextWithGeminiWithSettings(state.originalImage, state.regions, effectiveSettings)
+          state.cleanImage = await removeTextWithGeminiWithSettings(state.originalImage, state.regions, effectiveSettings, state.customInpaintPrompt, state.width, state.height)
         } catch (geminiError) {
           addLog(t('slideToPptx.logs.geminiFailed', { slide: slideIndex + 1, error: geminiError.message }), 'warning')
           const { imageData: inpaintedData } = await inpainting.inpaint(imageData, state.mask, {
@@ -1339,6 +1467,36 @@ Output: A single clean image with all text removed.`
 
       // Mark that cleanImage is now based on edited regions
       state.cleanImageIsOriginal = false
+
+      // Add to version history (FIFO: keep first original + max 5 regenerated)
+      if (!state.cleanImageHistory) {
+        state.cleanImageHistory = []
+      }
+      const newVersion = {
+        image: state.cleanImage,
+        timestamp: Date.now(),
+        prompt: state.customInpaintPrompt || null,
+        isOriginal: false,
+      }
+      // If history has more than MAX_CLEAN_IMAGE_VERSIONS non-original entries, remove oldest non-original
+      const nonOriginalCount = state.cleanImageHistory.filter(v => !v.isOriginal).length
+      if (nonOriginalCount >= MAX_CLEAN_IMAGE_VERSIONS) {
+        // Find first non-original and remove it (FIFO)
+        const firstNonOriginalIdx = state.cleanImageHistory.findIndex(v => !v.isOriginal)
+        if (firstNonOriginalIdx !== -1) {
+          state.cleanImageHistory.splice(firstNonOriginalIdx, 1)
+        }
+      }
+      state.cleanImageHistory.push(newVersion)
+      // Set active index to the new version
+      state.activeHistoryIndex = state.cleanImageHistory.length - 1
+
+      // Record snapshot of regions/separators at cleanImage generation time
+      // This is used to detect if regions changed since last generation
+      state.regionsSnapshotAtCleanImage = JSON.stringify({
+        regions: regionsToUse,
+        separators: separatorLines,
+      })
 
       // Re-merge for PPTX export (with separator lines as forced cut boundaries)
       // This happens AFTER color extraction so colors are available for merge logic
@@ -1398,6 +1556,88 @@ Output: A single clean image with all text removed.`
     if (remergedCount > 0) {
       addLog(t('slideToPptx.logs.settingsRemerged', { count: remergedCount }), 'info')
     }
+  }
+
+  /**
+   * Select a clean image version from history
+   * Only switches the display, doesn't affect regions
+   * @param {number} slideIndex - Slide index
+   * @param {number} versionIndex - Version index in cleanImageHistory
+   */
+  const selectCleanImageVersion = (slideIndex, versionIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state || !state.cleanImageHistory || versionIndex < 0 || versionIndex >= state.cleanImageHistory.length) {
+      return
+    }
+
+    const selectedVersion = state.cleanImageHistory[versionIndex]
+
+    // Update active index and cleanImage pointer
+    state.activeHistoryIndex = versionIndex
+    state.cleanImage = selectedVersion.image
+    // Update isOriginal flag based on selected version
+    state.cleanImageIsOriginal = selectedVersion.isOriginal
+
+    // Trigger reactivity update
+    slideStates.value[slideIndex] = { ...state }
+  }
+
+  /**
+   * Get clean image history for a slide
+   * @param {number} slideIndex - Slide index
+   * @returns {Array} Version history array
+   */
+  const getCleanImageHistory = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    return state?.cleanImageHistory || []
+  }
+
+  /**
+   * Delete a clean image version from history
+   * Cannot delete the original (first) version; at least one version must remain
+   * @param {number} slideIndex - Slide index
+   * @param {number} versionIndex - Version index to delete
+   * @returns {boolean} Whether deletion was successful
+   */
+  const deleteCleanImageVersion = (slideIndex, versionIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state || !state.cleanImageHistory) {
+      return false
+    }
+
+    // Cannot delete if only one version or if it's the original
+    if (state.cleanImageHistory.length <= 1) {
+      return false
+    }
+    if (state.cleanImageHistory[versionIndex]?.isOriginal) {
+      return false
+    }
+
+    // Remove the version
+    state.cleanImageHistory.splice(versionIndex, 1)
+
+    // Adjust activeHistoryIndex if needed
+    if (state.activeHistoryIndex >= state.cleanImageHistory.length) {
+      // Was pointing to deleted or beyond, move to last
+      state.activeHistoryIndex = state.cleanImageHistory.length - 1
+    } else if (state.activeHistoryIndex === versionIndex) {
+      // Was pointing to deleted version, stay at same index (now points to next item)
+      // But if that puts us at the end, decrement
+      if (state.activeHistoryIndex >= state.cleanImageHistory.length) {
+        state.activeHistoryIndex = state.cleanImageHistory.length - 1
+      }
+    } else if (state.activeHistoryIndex > versionIndex) {
+      // Was pointing after deleted, decrement
+      state.activeHistoryIndex--
+    }
+
+    // Update cleanImage to match new activeHistoryIndex
+    state.cleanImage = state.cleanImageHistory[state.activeHistoryIndex].image
+    state.cleanImageIsOriginal = state.cleanImageHistory[state.activeHistoryIndex].isOriginal
+
+    // Trigger reactivity update
+    slideStates.value[slideIndex] = { ...state }
+    return true
   }
 
   /**
@@ -1501,6 +1741,9 @@ Output: A single clean image with all text removed.`
     deleteSeparatorLine,
     getSeparatorLines,
 
+    // Region change detection
+    hasRegionsChangedSinceCleanImage,
+
     // Edit history methods (undo/redo)
     undo,
     redo,
@@ -1511,5 +1754,10 @@ Output: A single clean image with all text removed.`
     // WYSIWYG layout re-merge
     remergeMergedRegions,
     remergeAllSlides,
+
+    // Clean image version history
+    selectCleanImageVersion,
+    getCleanImageHistory,
+    deleteCleanImageVersion,
   }
 }

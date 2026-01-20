@@ -14,6 +14,7 @@ import OcrRegionEditor from '@/components/OcrRegionEditor.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import OcrSettingsModal from '@/components/OcrSettingsModal.vue'
 import ApiKeyModal from '@/components/ApiKeyModal.vue'
+import InpaintConfirmModal from '@/components/InpaintConfirmModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -61,6 +62,7 @@ const confirmModalRef = ref(null)
 const ocrSettingsModalRef = ref(null)
 const ocrRegionEditorRef = ref(null)
 const apiKeyModalRef = ref(null)
+const inpaintConfirmModalRef = ref(null)
 
 // Thumbnail refs for auto-scroll
 const thumbnailContainer = ref(null)
@@ -117,6 +119,11 @@ const openLightbox = (imageUrl, index = 0) => {
   lightboxOpen.value = true
 }
 
+// Snapshots when entering edit mode (for change detection)
+// Separate snapshots: regions (affects inpaint) vs separators (only affects merge)
+const editModeRegionsSnapshotRef = ref(null)
+const editModeSeparatorsSnapshotRef = ref(null)
+
 const enterEditMode = () => {
   isRegionEditMode.value = true
 }
@@ -125,6 +132,20 @@ const enterEditMode = () => {
 const openLightboxForEdit = () => {
   const state = slideStates.value[currentIndex.value]
   if (!state?.originalImage) return
+
+  // Record separate snapshots for regions and separators
+  const regionsToUse = state.editedRawRegions || state.rawRegions || []
+  const separatorLines = state.separatorLines || []
+
+  // Regions snapshot - changes here require inpaint
+  editModeRegionsSnapshotRef.value = JSON.stringify(
+    regionsToUse.map(r => ({ bounds: r.bounds, text: r.text }))
+  )
+
+  // Separators snapshot - changes here only require remerge
+  editModeSeparatorsSnapshotRef.value = JSON.stringify(
+    separatorLines.map(s => ({ start: s.start, end: s.end }))
+  )
 
   // Use original image for editing
   lightboxImages.value = [{ url: state.originalImage }]
@@ -141,36 +162,98 @@ const exitEditMode = async () => {
   isRegionEditMode.value = false
   lightboxOpen.value = false // Close lightbox when finishing edits
 
-  // Check if current regions match the cleanImage's basis
-  // - editedRawRegions === null means using original rawRegions
-  // - cleanImageIsOriginal === true means cleanImage is based on original rawRegions
   const state = slideStates.value[currentIndex.value]
   if (!state) return
 
-  const currentIsOriginal = state.editedRawRegions === null
-  const backgroundIsOriginal = state.cleanImageIsOriginal
+  // Create current snapshots for comparison
+  const regionsToUse = state.editedRawRegions || state.rawRegions || []
+  const separatorLines = state.separatorLines || []
 
-  if (currentIsOriginal && !backgroundIsOriginal) {
-    // Regions restored to original, but background is based on edited regions
-    // → Restore original background (no API call needed)
-    state.cleanImage = state.originalCleanImage || state.cleanImage
+  const currentRegionsSnapshot = JSON.stringify(
+    regionsToUse.map(r => ({ bounds: r.bounds, text: r.text }))
+  )
+  const currentSeparatorsSnapshot = JSON.stringify(
+    separatorLines.map(s => ({ start: s.start, end: s.end }))
+  )
+
+  // Check what changed during this edit session
+  const regionsChanged = editModeRegionsSnapshotRef.value !== currentRegionsSnapshot
+  const separatorsChanged = editModeSeparatorsSnapshotRef.value !== currentSeparatorsSnapshot
+
+  // Clear snapshots
+  editModeRegionsSnapshotRef.value = null
+  editModeSeparatorsSnapshotRef.value = null
+
+  // If nothing changed, nothing to do
+  if (!regionsChanged && !separatorsChanged) {
+    return
+  }
+
+  // Case 1: Only separators changed → just remerge, no inpaint needed
+  if (!regionsChanged && separatorsChanged) {
+    // Separators already trigger remerge in addSeparatorLine/deleteSeparatorLine
+    // But we call it here to ensure consistency
+    slideToPptx.remergeMergedRegions(currentIndex.value)
+    return
+  }
+
+  // Case 2: Regions changed (with or without separator changes)
+  // This requires inpaint (background regeneration)
+
+  // Special case: If regions are back to original state (no edits, no separators)
+  // and cleanImage is not original, restore the original cleanImage
+  const isBackToOriginal = state.editedRawRegions === null &&
+                           (state.separatorLines?.length || 0) === 0
+  const canRestoreOriginal = isBackToOriginal &&
+                             !state.cleanImageIsOriginal &&
+                             state.originalCleanImage
+
+  if (canRestoreOriginal) {
+    // Restore original cleanImage (no API call needed)
+    state.cleanImage = state.originalCleanImage
     state.cleanImageIsOriginal = true
+    state.regionsSnapshotAtCleanImage = null
     slideToPptx.remergeMergedRegions(currentIndex.value)
     toast.success(t('slideToPptx.regionEditor.reprocessSuccess'))
-  } else if (!currentIsOriginal && backgroundIsOriginal) {
-    // Regions are edited, but background is based on original regions
-    // → Need to reprocess (inpaint with new regions)
-    try {
-      isReprocessing.value = true
-      await slideToPptx.reprocessSlide(currentIndex.value)
-      toast.success(t('slideToPptx.regionEditor.reprocessSuccess'))
-    } catch (error) {
-      toast.error(t('slideToPptx.regionEditor.reprocessFailed', { error: error.message }))
-    } finally {
-      isReprocessing.value = false
+    return
+  }
+
+  // Regions have changed - need to reprocess (inpaint)
+  const effectiveSettings = slideToPptx.getEffectiveSettings(currentIndex.value)
+
+  if (effectiveSettings.inpaintMethod === 'gemini') {
+    // Show confirmation modal for Gemini method
+    const result = await inpaintConfirmModalRef.value?.show({
+      originalImage: state.originalImage,
+      cleanImage: state.cleanImage,
+      existingPrompt: state.customInpaintPrompt || '',
+      slideIndex: currentIndex.value,
+    })
+
+    // User closed modal without choosing
+    if (!result) return
+
+    // Save custom prompt (even if empty, to clear previous)
+    state.customInpaintPrompt = result.customPrompt || null
+
+    if (result.action === 'skip') {
+      // Skip API call, only do remerge
+      slideToPptx.remergeMergedRegions(currentIndex.value)
+      toast.success(t('slideToPptx.inpaintConfirm.skipped'))
+      return
     }
   }
-  // else: regions and background match, no action needed
+
+  // Execute reprocessing (Gemini with user confirmation, or OpenCV)
+  try {
+    isReprocessing.value = true
+    await slideToPptx.reprocessSlide(currentIndex.value)
+    toast.success(t('slideToPptx.regionEditor.reprocessSuccess'))
+  } catch (error) {
+    toast.error(t('slideToPptx.regionEditor.reprocessFailed', { error: error.message }))
+  } finally {
+    isReprocessing.value = false
+  }
 }
 
 // Region editing event handlers
@@ -284,6 +367,37 @@ const settings = slideToPptx.settings
 // Current image and slide state
 const currentImage = computed(() => images.value[currentIndex.value])
 const currentSlideState = computed(() => slideStates.value[currentIndex.value])
+
+// Clean image version history for current slide
+const currentCleanImageHistory = computed(() => {
+  return slideToPptx.getCleanImageHistory(currentIndex.value)
+})
+const currentActiveHistoryIndex = computed(() => {
+  const state = slideStates.value[currentIndex.value]
+  return state?.activeHistoryIndex ?? 0
+})
+
+// Handle version selection from history thumbnails
+const handleSelectVersion = (versionIndex) => {
+  slideToPptx.selectCleanImageVersion(currentIndex.value, versionIndex)
+}
+
+// Handle delete current version (with confirmation)
+const handleDeleteCurrentVersion = async () => {
+  const confirmed = await confirmModalRef.value?.show({
+    title: t('slideToPptx.versionHistory.deleteConfirmTitle'),
+    message: t('slideToPptx.versionHistory.deleteConfirmMessage'),
+    confirmText: t('common.delete'),
+    cancelText: t('common.cancel'),
+    type: 'danger',
+  })
+  if (confirmed) {
+    const deleted = slideToPptx.deleteCleanImageVersion(currentIndex.value, currentActiveHistoryIndex.value)
+    if (deleted) {
+      toast.success(t('slideToPptx.versionHistory.deleted'))
+    }
+  }
+}
 
 // Current slide's OCR results based on mode
 const currentOcrRegions = computed(() => {
@@ -969,6 +1083,43 @@ const getSlideStatus = (index) => {
                       <div class="animate-spin w-8 h-8 border-2 border-mode-generate border-t-transparent rounded-full mb-3"></div>
                       <span class="text-sm font-medium text-text-primary animate-pulse">{{ $t('slideToPptx.settling') }}</span>
                     </div>
+
+                    <!-- Delete Version Button (only for non-original versions) -->
+                    <button
+                      v-if="currentCleanImageHistory.length > 1 && !currentCleanImageHistory[currentActiveHistoryIndex]?.isOriginal"
+                      @click.stop="handleDeleteCurrentVersion"
+                      class="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-black/60 hover:bg-red-600 text-white transition-colors"
+                      :title="$t('slideToPptx.versionHistory.delete')"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Version History Thumbnails -->
+                  <div
+                    v-if="currentCleanImageHistory.length > 1"
+                    class="mt-3 flex gap-2 overflow-x-auto pb-1"
+                  >
+                    <button
+                      v-for="(version, idx) in currentCleanImageHistory"
+                      :key="idx"
+                      @click="handleSelectVersion(idx)"
+                      class="flex-shrink-0 w-16 h-9 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:opacity-90"
+                      :class="currentActiveHistoryIndex === idx
+                        ? 'border-mode-generate ring-2 ring-mode-generate ring-offset-1 ring-offset-bg-elevated'
+                        : 'border-border-muted hover:border-text-muted'"
+                      :title="version.isOriginal
+                        ? $t('slideToPptx.versionHistory.original')
+                        : $t('slideToPptx.versionHistory.version', { n: idx })"
+                    >
+                      <img
+                        :src="version.image"
+                        :alt="version.isOriginal ? 'Original' : `Version ${idx}`"
+                        class="w-full h-full object-contain bg-bg-muted"
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1874,6 +2025,9 @@ const getSlideStatus = (index) => {
 
     <!-- API Key Modal -->
     <ApiKeyModal ref="apiKeyModalRef" @close="refreshApiKeyStatus" />
+
+    <!-- Inpaint Confirm Modal -->
+    <InpaintConfirmModal ref="inpaintConfirmModalRef" />
   </div>
 </template>
 

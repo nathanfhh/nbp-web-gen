@@ -1307,6 +1307,27 @@
     "clickToSplit": "點擊以拆分此段落",
     "mergeSelected": "合併選取項目 ({count})",
     "confirmSplit": "確定要將此段落拆分為原始單行嗎？",
+    "inpaintConfirm": {
+      "title": "確認重新生成背景",
+      "subtitle": "第 {page} 頁",
+      "description": "您已編輯文字區域，這將觸發 Gemini API 重新生成背景圖。請確認是否需要重新生成，或使用現有圖片直接套用新的文字框位置。",
+      "currentClean": "上次生成結果",
+      "noCleanImage": "（尚未生成）",
+      "customPromptLabel": "額外指示",
+      "customPromptPlaceholder": "例如：保留左上角的 Logo、注意圖表區域的邊緣...",
+      "customPromptHint": "此說明會附加到基本提示詞後，幫助 AI 更精確地處理特定區域。",
+      "regenerate": "重新生成",
+      "useExisting": "使用現有圖片",
+      "skipped": "已跳過重新生成，僅更新文字框位置"
+    },
+    "versionHistory": {
+      "original": "原始版本（首次處理）",
+      "version": "版本 {n}",
+      "delete": "刪除此版本",
+      "deleteConfirmTitle": "刪除版本",
+      "deleteConfirmMessage": "確定要刪除此背景圖版本嗎？此操作無法復原。",
+      "deleted": "已刪除版本"
+    },
     "logs": {
       "freeTierQuotaExceeded": "Free Tier 配額已用盡，切換至付費金鑰...",
       "loadingModelsFromCache": "快速載入模型（從快取讀取）...",

@@ -1304,6 +1304,27 @@
     "clickToCustomize": "Click to customize",
     "processingPage": "Processing page {current} / {total}",
     "settling": "Recalculating...",
+    "inpaintConfirm": {
+      "title": "Confirm Background Regeneration",
+      "subtitle": "Page {page}",
+      "description": "You have edited text regions, which will trigger a Gemini API call to regenerate the background. Please confirm whether to regenerate, or use the existing image with updated text box positions.",
+      "currentClean": "Previous Result",
+      "noCleanImage": "(Not generated yet)",
+      "customPromptLabel": "Additional Instructions",
+      "customPromptPlaceholder": "e.g., Preserve the logo in top-left corner, Pay attention to chart edges...",
+      "customPromptHint": "These instructions will be appended to the base prompt to help AI process specific areas more precisely.",
+      "regenerate": "Regenerate",
+      "useExisting": "Use Existing Image",
+      "skipped": "Skipped regeneration, text box positions updated only"
+    },
+    "versionHistory": {
+      "original": "Original (first processing)",
+      "version": "Version {n}",
+      "delete": "Delete this version",
+      "deleteConfirmTitle": "Delete Version",
+      "deleteConfirmMessage": "Are you sure you want to delete this background version? This action cannot be undone.",
+      "deleted": "Version deleted"
+    },
     "logs": {
       "freeTierQuotaExceeded": "Free tier quota exceeded, switching to paid key...",
       "loadingModelsFromCache": "Loading models from cache...",
