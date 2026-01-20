@@ -6,10 +6,24 @@
  * - Delete existing regions (hover + click delete button)
  * - Draw new regions (rectangle drawing tool)
  * - Optional text input for new regions
+ *
+ * Refactored to use specialized composables for each tool.
  */
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+// Composables
+import { useRegionEditorCore } from '@/composables/useRegionEditorCore'
+import { useMagnifier } from '@/composables/useMagnifier'
+import { useToolbarDrag } from '@/composables/useToolbarDrag'
+import { useTextDialog } from '@/composables/useTextDialog'
+import { useDeleteTool } from '@/composables/useDeleteTool'
+import { useDrawTool } from '@/composables/useDrawTool'
+import { useSeparatorTool } from '@/composables/useSeparatorTool'
+import { useSelectionTool } from '@/composables/useSelectionTool'
+import { useResizeTool } from '@/composables/useResizeTool'
+import { useEditorKeyboard } from '@/composables/useEditorKeyboard'
 
 const { t } = useI18n()
 
@@ -57,7 +71,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'delete-region',
-  'delete-regions-batch', // For batch deletion from selection tool
+  'delete-regions-batch',
   'add-region',
   'resize-region',
   'reset',
@@ -69,660 +83,300 @@ const emit = defineEmits([
 ])
 
 // ============================================================================
-// State
+// Refs
 // ============================================================================
 
 const svgRef = ref(null)
-const selectedIndex = ref(null) // Selected region index (click to select)
-const isDrawModeActive = ref(false)
-const isDrawing = ref(false)
-const drawStart = ref(null)
-const drawRect = ref(null)
-
-// Text input dialog state
-const showTextDialog = ref(false)
-const pendingBounds = ref(null)
-const newRegionText = ref('')
-
-// Resize state
-const isResizing = ref(false)
-const resizeHandle = ref(null) // 'nw', 'ne', 'sw', 'se'
-const resizeStart = ref(null)
-const resizeOriginalBounds = ref(null)
-
-// Separator line state
-const isSeparatorModeActive = ref(false)
-const separatorFirstPoint = ref(null)
-const separatorPreview = ref(null) // { start, end } for preview line
-const selectedSeparatorId = ref(null)
-
-// Selection tool state (for batch delete)
-const isSelectionModeActive = ref(false)
-const isSelecting = ref(false)
-const selectionStart = ref(null)
-const selectionRect = ref(null)
-const selectedRegionIndices = ref([]) // Indices of regions inside selection box
-
-// Magnifier state
-const showMagnifier = ref(false)
-const magnifierTarget = ref({ x: 0, y: 0 })
+const toolbarRef = ref(null)
 
 // ============================================================================
-// Computed
+// Core Utilities
 // ============================================================================
 
-const hasValidDimensions = computed(() => {
-  return props.imageDimensions.width > 0 && props.imageDimensions.height > 0
+const core = useRegionEditorCore({
+  svgRef,
+  imageDimensions: computed(() => props.imageDimensions),
 })
 
 // ============================================================================
-// Coordinate Transformation
+// Magnifier
+// ============================================================================
+
+const magnifier = useMagnifier({
+  imageUrl: computed(() => props.imageUrl),
+  imageDimensions: computed(() => props.imageDimensions),
+})
+
+// ============================================================================
+// Toolbar Drag
+// ============================================================================
+
+const toolbar = useToolbarDrag({
+  toolbarRef,
+})
+
+// ============================================================================
+// Mode Coordination
 // ============================================================================
 
 /**
- * Convert mouse event coordinates to image coordinates
+ * Exit all active modes (called when entering a new mode)
  */
-const getImageCoords = (e) => {
-  if (!svgRef.value) return { x: 0, y: 0 }
+const exitAllModes = () => {
+  drawTool.toggleDrawMode(false)
+  separatorTool.toggleSeparatorMode(false)
+  selectionTool.toggleSelectionMode(false)
+  deleteTool.clearSelection()
+  separatorTool.clearSelection()
+}
 
-  const svg = svgRef.value
-  const rect = svg.getBoundingClientRect()
-  const scaleX = props.imageDimensions.width / rect.width
-  const scaleY = props.imageDimensions.height / rect.height
+// ============================================================================
+// Text Dialog
+// ============================================================================
 
-  return {
-    x: Math.max(0, Math.min(props.imageDimensions.width, (e.clientX - rect.left) * scaleX)),
-    y: Math.max(0, Math.min(props.imageDimensions.height, (e.clientY - rect.top) * scaleY)),
+const textDialog = useTextDialog({
+  onConfirm: (bounds, text) => {
+    emit('add-region', { bounds, text })
+  },
+})
+
+// ============================================================================
+// Delete Tool
+// ============================================================================
+
+const deleteTool = useDeleteTool({
+  onDelete: (index) => {
+    emit('delete-region', index)
+  },
+  isDrawModeActive: () => drawTool.isDrawModeActive.value,
+  exitOtherModes: exitAllModes,
+})
+
+// ============================================================================
+// Draw Tool
+// ============================================================================
+
+const drawTool = useDrawTool({
+  getImageCoords: core.getImageCoords,
+  getTouchImageCoords: core.getTouchImageCoords,
+  onDrawComplete: (bounds) => {
+    textDialog.openDialog(bounds)
+  },
+  onModeEnter: () => {
+    deleteTool.clearSelection()
+    separatorTool.toggleSeparatorMode(false)
+    selectionTool.toggleSelectionMode(false)
+    separatorTool.clearSelection()
+  },
+  onModeExit: () => {},
+})
+
+// ============================================================================
+// Separator Tool
+// ============================================================================
+
+const separatorTool = useSeparatorTool({
+  getImageCoords: core.getImageCoords,
+  onAddSeparator: (line) => {
+    emit('add-separator', line)
+  },
+  onDeleteSeparator: (id) => {
+    emit('delete-separator', id)
+  },
+  onModeEnter: () => {
+    drawTool.toggleDrawMode(false)
+    selectionTool.toggleSelectionMode(false)
+    deleteTool.clearSelection()
+    separatorTool.clearSelection()
+  },
+  onModeExit: () => {},
+})
+
+// ============================================================================
+// Selection Tool
+// ============================================================================
+
+const selectionTool = useSelectionTool({
+  getImageCoords: core.getImageCoords,
+  getRegions: () => props.regions,
+  rectsIntersect: core.rectsIntersect,
+  onBatchDelete: (indices) => {
+    emit('delete-regions-batch', indices)
+  },
+  onModeEnter: () => {
+    drawTool.toggleDrawMode(false)
+    separatorTool.toggleSeparatorMode(false)
+    deleteTool.clearSelection()
+    separatorTool.clearSelection()
+  },
+  onModeExit: () => {},
+})
+
+// ============================================================================
+// Resize Tool
+// ============================================================================
+
+const resizeTool = useResizeTool({
+  getImageCoords: core.getImageCoords,
+  getTouchImageCoords: core.getTouchImageCoords,
+  getSelectedRegion: () => {
+    const idx = deleteTool.selectedIndex.value
+    return idx !== null ? props.regions[idx] : null
+  },
+  getSelectedIndex: () => deleteTool.selectedIndex.value,
+  getImageDimensions: () => props.imageDimensions,
+  onResize: ({ index, bounds }) => {
+    emit('resize-region', { index, bounds })
+  },
+  onMagnifierShow: magnifier.show,
+  onMagnifierUpdate: magnifier.updateTarget,
+  onMagnifierHide: magnifier.hide,
+})
+
+// ============================================================================
+// Keyboard Shortcuts
+// ============================================================================
+
+const onUndo = () => {
+  if (props.canUndo) {
+    emit('undo')
+    deleteTool.clearSelection()
+    separatorTool.clearSelection()
   }
 }
 
-// ============================================================================
-// Region Interactions (Selection-based)
-// ============================================================================
-
-/**
- * Select a region by clicking on it
- */
-const onRegionClick = (index, e) => {
-  if (isDrawModeActive.value) return
-  e.stopPropagation()
-  selectedIndex.value = index
+const onRedo = () => {
+  if (props.canRedo) {
+    emit('redo')
+    deleteTool.clearSelection()
+    separatorTool.clearSelection()
+  }
 }
 
-/**
- * Programmatically select a region by index (exposed for parent component)
- */
-const selectRegion = (index) => {
-  if (index < 0 || index >= props.regions.length) return
-  // Exit any active modes
-  isDrawModeActive.value = false
-  isSeparatorModeActive.value = false
-  isSelectionModeActive.value = false
-  selectionRect.value = null
-  selectedRegionIndices.value = []
-  selectedSeparatorId.value = null
-  // Select the region
-  selectedIndex.value = index
-}
-
-// Expose methods for parent component
-defineExpose({
-  selectRegion,
+useEditorKeyboard({
+  onUndo,
+  onRedo,
+  canUndo: () => props.canUndo,
+  canRedo: () => props.canRedo,
+  isTextDialogOpen: () => textDialog.showTextDialog.value,
+  cancelTextDialog: textDialog.cancelTextDialog,
+  hasPendingSelection: () => selectionTool.hasPendingSelection.value,
+  cancelSelection: selectionTool.cancelSelection,
+  isSelectionModeActive: () => selectionTool.isSelectionModeActive.value,
+  toggleSelectionMode: selectionTool.toggleSelectionMode,
+  isSeparatorModeActive: () => separatorTool.isSeparatorModeActive.value,
+  isSeparatorDrawing: () => separatorTool.separatorFirstPoint.value !== null,
+  cancelSeparatorDrawing: separatorTool.cancelDrawing,
+  toggleSeparatorMode: separatorTool.toggleSeparatorMode,
+  isDrawModeActive: () => drawTool.isDrawModeActive.value,
+  toggleDrawMode: drawTool.toggleDrawMode,
+  hasSelectedSeparator: () => separatorTool.selectedSeparatorId.value !== null,
+  getSelectedSeparatorId: () => separatorTool.selectedSeparatorId.value,
+  deleteSeparator: (id) => {
+    emit('delete-separator', id)
+    separatorTool.clearSelection()
+  },
 })
 
+// ============================================================================
+// Event Handlers
+// ============================================================================
+
 /**
- * Deselect region/separator when clicking on empty area, or handle separator click
+ * Handle background click (deselect or separator click)
  */
 const onBackgroundClick = (e) => {
-  // Handle separator mode click (for drawing new separator)
-  if (isSeparatorModeActive.value) {
-    onSeparatorClick(e)
+  if (separatorTool.isSeparatorModeActive.value) {
+    separatorTool.onSeparatorClick(e)
     return
   }
 
-  if (isDrawModeActive.value) return
-  if (!isResizing.value) {
-    selectedIndex.value = null
-    selectedSeparatorId.value = null
+  if (drawTool.isDrawModeActive.value) return
+  if (!resizeTool.isResizing.value) {
+    deleteTool.clearSelection()
+    separatorTool.clearSelection()
   }
 }
 
 /**
- * Delete the currently selected region
+ * Handle mouse down on SVG
  */
-const onDeleteClick = (e) => {
-  e.stopPropagation()
-  if (selectedIndex.value !== null) {
-    emit('delete-region', selectedIndex.value)
-    selectedIndex.value = null
-  }
-}
-
-/**
- * Get delete button position (center of region)
- */
-const getDeleteButtonCenter = (region) => {
-  return {
-    x: region.bounds.x + region.bounds.width / 2,
-    y: region.bounds.y + region.bounds.height / 2,
-  }
-}
-
-/**
- * Get delete button size based on region bounds
- * Scales proportionally with the smaller dimension, with min/max limits
- */
-const getDeleteButtonSize = (region) => {
-  const minDimension = Math.min(region.bounds.width, region.bounds.height)
-  const scaledRadius = minDimension * 0.15
-  const radius = Math.max(16, Math.min(40, scaledRadius))
-  return {
-    radius,
-    hitRadius: radius * 1.5,
-    fontSize: radius * 1.25,
-  }
-}
-
-// ============================================================================
-// Drawing Tool
-// ============================================================================
-
-const toggleDrawMode = () => {
-  isDrawModeActive.value = !isDrawModeActive.value
-  if (!isDrawModeActive.value) {
-    // Reset drawing state when exiting draw mode
-    isDrawing.value = false
-    drawStart.value = null
-    drawRect.value = null
-  }
-  // Deselect when entering draw mode
-  if (isDrawModeActive.value) {
-    selectedIndex.value = null
-    isSeparatorModeActive.value = false // Exit separator mode
-    isSelectionModeActive.value = false // Exit selection mode
-    selectionRect.value = null
-    selectedRegionIndices.value = []
-    selectedSeparatorId.value = null
-  }
-}
-
-// ============================================================================
-// Separator Line Tool
-// ============================================================================
-
-const toggleSeparatorMode = () => {
-  isSeparatorModeActive.value = !isSeparatorModeActive.value
-  if (!isSeparatorModeActive.value) {
-    // Reset separator state when exiting
-    separatorFirstPoint.value = null
-    separatorPreview.value = null
-  }
-  // Exit other modes when entering separator mode
-  if (isSeparatorModeActive.value) {
-    isDrawModeActive.value = false
-    isSelectionModeActive.value = false // Exit selection mode
-    selectionRect.value = null
-    selectedRegionIndices.value = []
-    selectedIndex.value = null
-    selectedSeparatorId.value = null
-  }
-}
-
-/**
- * Handle click for separator line drawing (two-point)
- */
-const onSeparatorClick = (e) => {
-  if (!isSeparatorModeActive.value) return
-  e.stopPropagation()
-
-  const coords = getImageCoords(e)
-
-  if (!separatorFirstPoint.value) {
-    // First point: start the line
-    separatorFirstPoint.value = coords
-  } else {
-    // Second point: finish the line
-    emit('add-separator', {
-      start: separatorFirstPoint.value,
-      end: coords,
-    })
-    // Reset for next line
-    separatorFirstPoint.value = null
-    separatorPreview.value = null
-  }
-}
-
-/**
- * Update separator preview line on mouse move
- */
-const updateSeparatorPreview = (coords) => {
-  if (!isSeparatorModeActive.value || !separatorFirstPoint.value) return
-  separatorPreview.value = {
-    start: separatorFirstPoint.value,
-    end: coords,
-  }
-}
-
-/**
- * Select a separator line by clicking on it
- */
-const onSeparatorClick_Select = (separatorId, e) => {
-  if (isSeparatorModeActive.value || isDrawModeActive.value) return
-  e.stopPropagation()
-  selectedSeparatorId.value = separatorId
-  selectedIndex.value = null // Deselect any region
-}
-
-/**
- * Delete the currently selected separator line
- */
-const onDeleteSeparatorClick = (e) => {
-  e.stopPropagation()
-  if (selectedSeparatorId.value !== null) {
-    emit('delete-separator', selectedSeparatorId.value)
-    selectedSeparatorId.value = null
-  }
-}
-
-/**
- * Get midpoint of a separator line (for delete button placement)
- */
-const getSeparatorMidpoint = (separator) => {
-  return {
-    x: (separator.start.x + separator.end.x) / 2,
-    y: (separator.start.y + separator.end.y) / 2,
-  }
-}
-
-// ============================================================================
-// Selection Tool (Batch Delete)
-// ============================================================================
-
-const toggleSelectionMode = () => {
-  isSelectionModeActive.value = !isSelectionModeActive.value
-  if (!isSelectionModeActive.value) {
-    // Reset selection state when exiting
-    isSelecting.value = false
-    selectionStart.value = null
-    selectionRect.value = null
-    selectedRegionIndices.value = []
-  }
-  // Exit other modes when entering selection mode
-  if (isSelectionModeActive.value) {
-    isDrawModeActive.value = false
-    isSeparatorModeActive.value = false
-    selectedIndex.value = null
-    selectedSeparatorId.value = null
-  }
-}
-
-/**
- * Check if two rectangles intersect
- */
-const rectsIntersect = (r1, r2) => {
-  return !(
-    r1.x + r1.width < r2.x ||
-    r2.x + r2.width < r1.x ||
-    r1.y + r1.height < r2.y ||
-    r2.y + r2.height < r1.y
-  )
-}
-
-/**
- * Update selected regions based on current selection rect
- */
-const updateSelectedRegions = () => {
-  if (!selectionRect.value) {
-    selectedRegionIndices.value = []
-    return
-  }
-
-  const indices = []
-  props.regions.forEach((region, idx) => {
-    if (rectsIntersect(selectionRect.value, region.bounds)) {
-      indices.push(idx)
-    }
-  })
-  selectedRegionIndices.value = indices
-}
-
-/**
- * Confirm and delete selected regions
- */
-const confirmBatchDelete = () => {
-  if (selectedRegionIndices.value.length === 0) return
-
-  // Emit batch delete with the selected region indices
-  emit('delete-regions-batch', selectedRegionIndices.value)
-
-  // Reset selection state
-  isSelecting.value = false
-  selectionStart.value = null
-  selectionRect.value = null
-  selectedRegionIndices.value = []
-}
-
-/**
- * Cancel current selection
- */
-const cancelSelection = () => {
-  isSelecting.value = false
-  selectionStart.value = null
-  selectionRect.value = null
-  selectedRegionIndices.value = []
-}
-
 const onMouseDown = (e) => {
-  // Handle selection mode
-  if (isSelectionModeActive.value) {
-    e.stopPropagation()
-    const coords = getImageCoords(e)
-    selectionStart.value = coords
-    isSelecting.value = true
-    selectionRect.value = { x: coords.x, y: coords.y, width: 0, height: 0 }
-    selectedRegionIndices.value = []
-    return
-  }
-
-  if (!isDrawModeActive.value) return
-
-  // Prevent event from bubbling to lightbox (stops panning)
-  e.stopPropagation()
-
-  const coords = getImageCoords(e)
-  drawStart.value = coords
-  isDrawing.value = true
+  if (selectionTool.onMouseDown(e)) return
+  if (drawTool.onMouseDown(e)) return
 }
-
-const onMouseMove = (e) => {
-  const current = getImageCoords(e)
-
-  // Handle selection mode
-  if (isSelecting.value && selectionStart.value) {
-    selectionRect.value = {
-      x: Math.min(selectionStart.value.x, current.x),
-      y: Math.min(selectionStart.value.y, current.y),
-      width: Math.abs(current.x - selectionStart.value.x),
-      height: Math.abs(current.y - selectionStart.value.y),
-    }
-    updateSelectedRegions()
-    return
-  }
-
-  // Handle resize (also update magnifier target)
-  if (isResizing.value) {
-    handleResizeMove(current)
-    magnifierTarget.value = current
-    return
-  }
-
-  // Handle separator preview
-  if (isSeparatorModeActive.value) {
-    updateSeparatorPreview(current)
-    return
-  }
-
-  // Handle drawing
-  if (!isDrawing.value || !drawStart.value) return
-  drawRect.value = {
-    x: Math.min(drawStart.value.x, current.x),
-    y: Math.min(drawStart.value.y, current.y),
-    width: Math.abs(current.x - drawStart.value.x),
-    height: Math.abs(current.y - drawStart.value.y),
-  }
-}
-
-const onMouseUp = () => {
-  // Handle selection mode - keep selection visible for confirmation
-  if (isSelecting.value) {
-    isSelecting.value = false
-    // If no regions selected, cancel selection
-    if (selectedRegionIndices.value.length === 0) {
-      cancelSelection()
-    }
-    // Otherwise keep selectionRect visible for confirmation UI
-    return
-  }
-
-  if (isResizing.value) {
-    finishResize()
-    return
-  }
-  finishDrawing()
-}
-
-const finishDrawing = () => {
-  if (!isDrawing.value || !drawRect.value) {
-    isDrawing.value = false
-    drawStart.value = null
-    drawRect.value = null
-    return
-  }
-
-  // Minimum size check (10x10 pixels in image coordinates)
-  if (drawRect.value.width >= 10 && drawRect.value.height >= 10) {
-    // Show text input dialog
-    pendingBounds.value = { ...drawRect.value }
-    showTextDialog.value = true
-  }
-
-  isDrawing.value = false
-  drawStart.value = null
-  drawRect.value = null
-}
-
-// ============================================================================
-// Touch Events for Drawing
-// ============================================================================
 
 /**
- * Convert touch event to image coordinates
+ * Handle mouse move on SVG
  */
-const getTouchImageCoords = (touch) => {
-  if (!svgRef.value) return { x: 0, y: 0 }
+const onMouseMove = (e) => {
+  const current = core.getImageCoords(e)
 
-  const svg = svgRef.value
-  const rect = svg.getBoundingClientRect()
-  const scaleX = props.imageDimensions.width / rect.width
-  const scaleY = props.imageDimensions.height / rect.height
+  if (selectionTool.onMouseMove(e)) return
 
-  return {
-    x: Math.max(0, Math.min(props.imageDimensions.width, (touch.clientX - rect.left) * scaleX)),
-    y: Math.max(0, Math.min(props.imageDimensions.height, (touch.clientY - rect.top) * scaleY)),
+  if (resizeTool.isResizing.value) {
+    resizeTool.handleResizeMove(current)
+    magnifier.updateTarget(current)
+    return
   }
+
+  if (separatorTool.isSeparatorModeActive.value) {
+    separatorTool.updateSeparatorPreview(current)
+    return
+  }
+
+  if (drawTool.onMouseMove(e)) return
 }
 
+/**
+ * Handle mouse up on SVG
+ */
+const onMouseUp = () => {
+  if (selectionTool.onMouseUp()) return
+
+  if (resizeTool.isResizing.value) {
+    resizeTool.finishResize()
+    return
+  }
+
+  drawTool.onMouseUp()
+}
+
+/**
+ * Handle touch start on SVG
+ */
 const onTouchStart = (e) => {
-  if (!isDrawModeActive.value) return
-  if (e.touches.length !== 1) return // Only single touch for drawing
-
-  e.preventDefault()
-  e.stopPropagation() // Stop panning
-  
-  const coords = getTouchImageCoords(e.touches[0])
-  drawStart.value = coords
-  isDrawing.value = true
+  if (drawTool.onTouchStart(e)) return
 }
 
+/**
+ * Handle touch move on SVG
+ */
 const onTouchMove = (e) => {
   if (e.touches.length !== 1) return
 
-  const current = getTouchImageCoords(e.touches[0])
+  const current = core.getTouchImageCoords(e.touches[0])
 
-  // Handle resize (also update magnifier target)
-  if (isResizing.value) {
-    e.preventDefault()
-    handleResizeMove(current)
-    magnifierTarget.value = current
+  if (resizeTool.onResizeTouchMove(e)) {
+    magnifier.updateTarget(current)
     return
   }
 
-  // Handle separator preview
-  if (isSeparatorModeActive.value) {
+  if (separatorTool.isSeparatorModeActive.value) {
     e.preventDefault()
-    updateSeparatorPreview(current)
+    separatorTool.updateSeparatorPreview(current)
     return
   }
 
-  // Handle drawing
-  if (!isDrawing.value || !drawStart.value) return
-  e.preventDefault()
-  drawRect.value = {
-    x: Math.min(drawStart.value.x, current.x),
-    y: Math.min(drawStart.value.y, current.y),
-    width: Math.abs(current.x - drawStart.value.x),
-    height: Math.abs(current.y - drawStart.value.y),
-  }
+  if (drawTool.onTouchMove(e)) return
 }
 
+/**
+ * Handle touch end on SVG
+ */
 const onTouchEnd = (e) => {
-  // Handle resize end
-  if (isResizing.value) {
-    e.preventDefault()
-    finishResize()
-    return
-  }
-
-  // Handle draw end
-  if (!isDrawing.value) return
-  e.preventDefault()
-  finishDrawing()
-}
-
-// ============================================================================
-// Resize Handles
-// ============================================================================
-
-/**
- * Get resize handle positions for a region
- */
-const getResizeHandles = (region) => {
-  const { x, y, width, height } = region.bounds
-  return {
-    nw: { x, y },
-    ne: { x: x + width, y },
-    sw: { x, y: y + height },
-    se: { x: x + width, y: y + height },
-  }
-}
-
-/**
- * Start resizing the selected region
- */
-const onResizeStart = (handle, e) => {
-  e.stopPropagation()
-  e.preventDefault()
-
-  if (selectedIndex.value === null) return
-  const region = props.regions[selectedIndex.value]
-  if (!region) return
-
-  isResizing.value = true
-  resizeHandle.value = handle
-  resizeStart.value = getImageCoords(e)
-  resizeOriginalBounds.value = { ...region.bounds }
-
-  // Show magnifier when resizing
-  showMagnifier.value = true
-  magnifierTarget.value = getImageCoords(e)
-}
-
-/**
- * Handle resize move (called from main mousemove)
- */
-const handleResizeMove = (coords) => {
-  if (!isResizing.value || !resizeOriginalBounds.value || selectedIndex.value === null) return
-
-  const orig = resizeOriginalBounds.value
-  const handle = resizeHandle.value
-  let newBounds = { ...orig }
-
-  // Calculate new bounds based on which handle is being dragged
-  if (handle === 'nw') {
-    newBounds.x = Math.min(coords.x, orig.x + orig.width - 10)
-    newBounds.y = Math.min(coords.y, orig.y + orig.height - 10)
-    newBounds.width = orig.x + orig.width - newBounds.x
-    newBounds.height = orig.y + orig.height - newBounds.y
-  } else if (handle === 'ne') {
-    newBounds.y = Math.min(coords.y, orig.y + orig.height - 10)
-    newBounds.width = Math.max(10, coords.x - orig.x)
-    newBounds.height = orig.y + orig.height - newBounds.y
-  } else if (handle === 'sw') {
-    newBounds.x = Math.min(coords.x, orig.x + orig.width - 10)
-    newBounds.width = orig.x + orig.width - newBounds.x
-    newBounds.height = Math.max(10, coords.y - orig.y)
-  } else if (handle === 'se') {
-    newBounds.width = Math.max(10, coords.x - orig.x)
-    newBounds.height = Math.max(10, coords.y - orig.y)
-  }
-
-  // Constrain to image bounds
-  newBounds.x = Math.max(0, newBounds.x)
-  newBounds.y = Math.max(0, newBounds.y)
-  newBounds.width = Math.min(newBounds.width, props.imageDimensions.width - newBounds.x)
-  newBounds.height = Math.min(newBounds.height, props.imageDimensions.height - newBounds.y)
-
-  // Emit resize event for real-time preview
-  emit('resize-region', { index: selectedIndex.value, bounds: newBounds })
-}
-
-/**
- * Finish resizing
- */
-const finishResize = () => {
-  isResizing.value = false
-  resizeHandle.value = null
-  resizeStart.value = null
-  resizeOriginalBounds.value = null
-
-  // Hide magnifier when done resizing
-  showMagnifier.value = false
-}
-
-/**
- * Handle resize touch start
- */
-const onResizeTouchStart = (handle, e) => {
-  if (e.touches.length !== 1) return
-  e.stopPropagation()
-  e.preventDefault()
-
-  if (selectedIndex.value === null) return
-  const region = props.regions[selectedIndex.value]
-  if (!region) return
-
-  isResizing.value = true
-  resizeHandle.value = handle
-  resizeStart.value = getTouchImageCoords(e.touches[0])
-  resizeOriginalBounds.value = { ...region.bounds }
-
-  // Show magnifier when resizing
-  showMagnifier.value = true
-  magnifierTarget.value = getTouchImageCoords(e.touches[0])
-}
-
-// ============================================================================
-// Text Input Dialog
-// ============================================================================
-
-const confirmNewRegion = () => {
-  if (pendingBounds.value) {
-    emit('add-region', { bounds: pendingBounds.value, text: newRegionText.value.trim() })
-  }
-  cancelTextDialog()
-}
-
-const skipTextInput = () => {
-  if (pendingBounds.value) {
-    emit('add-region', { bounds: pendingBounds.value, text: '' })
-  }
-  cancelTextDialog()
-}
-
-const cancelTextDialog = () => {
-  showTextDialog.value = false
-  pendingBounds.value = null
-  newRegionText.value = ''
+  if (resizeTool.onResizeTouchEnd(e)) return
+  if (drawTool.onTouchEnd(e)) return
 }
 
 // ============================================================================
@@ -730,240 +384,37 @@ const cancelTextDialog = () => {
 // ============================================================================
 
 const onDone = () => {
-  isDrawModeActive.value = false
+  drawTool.toggleDrawMode(false)
   emit('done')
 }
 
 const onReset = () => {
-  isDrawModeActive.value = false
-  selectedIndex.value = null
+  drawTool.toggleDrawMode(false)
+  deleteTool.clearSelection()
   emit('reset')
 }
 
-const onUndo = () => {
-  if (props.canUndo) {
-    emit('undo')
-    // Clear selections after undo as indices may be invalid
-    selectedIndex.value = null
-    selectedSeparatorId.value = null
-  }
-}
-
-const onRedo = () => {
-  if (props.canRedo) {
-    emit('redo')
-    // Clear selections after redo as indices may be invalid
-    selectedIndex.value = null
-    selectedSeparatorId.value = null
-  }
-}
-
 // ============================================================================
-// Keyboard Shortcuts
+// Expose for Parent Component
 // ============================================================================
 
-const handleKeydown = (e) => {
-  // Undo: Ctrl+Z / Cmd+Z
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-    e.preventDefault()
-    onUndo()
-    return
-  }
-
-  // Redo: Ctrl+Shift+Z / Cmd+Shift+Z or Ctrl+Y / Cmd+Y
-  if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
-    e.preventDefault()
-    onRedo()
-    return
-  }
-
-  if (e.key === 'Escape') {
-    if (showTextDialog.value) {
-      cancelTextDialog()
-    } else if (selectionRect.value && selectedRegionIndices.value.length > 0) {
-      // Cancel pending selection
-      cancelSelection()
-    } else if (isSelectionModeActive.value) {
-      toggleSelectionMode()
-    } else if (isSeparatorModeActive.value) {
-      // If drawing a separator (first point set), cancel it; otherwise exit mode
-      if (separatorFirstPoint.value) {
-        separatorFirstPoint.value = null
-        separatorPreview.value = null
-      } else {
-        toggleSeparatorMode()
-      }
-    } else if (isDrawModeActive.value) {
-      toggleDrawMode()
-    }
-  }
-  // Delete key to delete selected separator
-  if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (selectedSeparatorId.value !== null) {
-      emit('delete-separator', selectedSeparatorId.value)
-      selectedSeparatorId.value = null
-    }
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
+defineExpose({
+  selectRegion: (index) => deleteTool.selectRegion(index, props.regions.length),
 })
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-})
-
-// ============================================================================
-// Toolbar Dragging
-// ============================================================================
-
-const toolbarRef = ref(null)
-const isToolbarDragging = ref(false)
-const toolbarPos = ref({ x: 0, y: 0 })
-const dragStartPos = ref({ x: 0, y: 0 })
-const hasMoved = ref(false) // Track if user has moved it, to disable auto-centering
-
-// Initialize position centered
-onMounted(() => {
-  if (toolbarRef.value) {
-    const rect = toolbarRef.value.getBoundingClientRect()
-    // Center horizontally
-    // On mobile (< 640px), position lower to avoid Lightbox header buttons (download + close)
-    const isMobile = window.innerWidth < 640
-    toolbarPos.value = {
-      x: (window.innerWidth - rect.width) / 2,
-      y: isMobile ? 72 : 16 // 4.5rem on mobile (below Lightbox toolbar ~60px), 1rem on desktop
-    }
-  }
-  
-  window.addEventListener('mousemove', onWindowMouseMove)
-  window.addEventListener('mouseup', onWindowMouseUp)
-  window.addEventListener('touchmove', onWindowTouchMove, { passive: false })
-  window.addEventListener('touchend', onWindowTouchEnd)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('mousemove', onWindowMouseMove)
-  window.removeEventListener('mouseup', onWindowMouseUp)
-  window.removeEventListener('touchmove', onWindowTouchMove)
-  window.removeEventListener('touchend', onWindowTouchEnd)
-})
-
-const onToolbarMouseDown = (e) => {
-  // Ignore clicks on buttons inside toolbar
-  if (e.target.closest('button')) return
-  
-  isToolbarDragging.value = true
-  hasMoved.value = true
-  dragStartPos.value = {
-    x: e.clientX - toolbarPos.value.x,
-    y: e.clientY - toolbarPos.value.y
-  }
-}
-
-const onWindowMouseMove = (e) => {
-  if (!isToolbarDragging.value) return
-  e.preventDefault()
-  
-  const newX = e.clientX - dragStartPos.value.x
-  const newY = e.clientY - dragStartPos.value.y
-  
-  // Constrain to window
-  const maxX = window.innerWidth - (toolbarRef.value?.offsetWidth || 0)
-  const maxY = window.innerHeight - (toolbarRef.value?.offsetHeight || 0)
-  
-  toolbarPos.value = {
-    x: Math.max(0, Math.min(maxX, newX)),
-    y: Math.max(0, Math.min(maxY, newY))
-  }
-}
-
-const onWindowMouseUp = () => {
-  isToolbarDragging.value = false
-}
-
-// Touch support for toolbar
-const onToolbarTouchStart = (e) => {
-  if (e.target.closest('button')) return
-  if (e.touches.length !== 1) return
-  
-  isToolbarDragging.value = true
-  hasMoved.value = true
-  const touch = e.touches[0]
-  dragStartPos.value = {
-    x: touch.clientX - toolbarPos.value.x,
-    y: touch.clientY - toolbarPos.value.y
-  }
-}
-
-const onWindowTouchMove = (e) => {
-  if (!isToolbarDragging.value) return
-  if (e.touches.length !== 1) return
-  e.preventDefault()
-  
-  const touch = e.touches[0]
-  const newX = touch.clientX - dragStartPos.value.x
-  const newY = touch.clientY - dragStartPos.value.y
-  
-  const maxX = window.innerWidth - (toolbarRef.value?.offsetWidth || 0)
-  const maxY = window.innerHeight - (toolbarRef.value?.offsetHeight || 0)
-  
-  toolbarPos.value = {
-    x: Math.max(0, Math.min(maxX, newX)),
-    y: Math.max(0, Math.min(maxY, newY))
-  }
-}
-
-const onWindowTouchEnd = () => {
-  isToolbarDragging.value = false
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Get region color based on recognition source
- */
-const getRegionColor = (region) => {
-  if (region.recognitionSource === 'manual') {
-    return {
-      fill: 'rgba(168, 85, 247, 0.2)', // Purple for manual
-      stroke: 'rgba(168, 85, 247, 0.9)',
-    }
-  }
-  if (region.recognitionSource === 'tesseract') {
-    return {
-      fill: 'rgba(234, 179, 8, 0.2)', // Yellow for tesseract
-      stroke: 'rgba(234, 179, 8, 0.9)',
-    }
-  }
-  if (region.recognitionFailed) {
-    return {
-      fill: 'rgba(239, 68, 68, 0.2)', // Red for failed
-      stroke: 'rgba(239, 68, 68, 0.9)',
-    }
-  }
-  return {
-    fill: 'rgba(16, 185, 129, 0.2)', // Green for paddle
-    stroke: 'rgba(16, 185, 129, 0.9)',
-  }
-}
 </script>
 
 <template>
   <div class="ocr-region-editor">
     <!-- Draggable Toolbar (Teleported to body to escape image transform context) -->
     <Teleport to="body">
-      <div 
-        v-if="hasValidDimensions"
+      <div
+        v-if="core.hasValidDimensions.value"
         ref="toolbarRef"
-        class="edit-toolbar" 
+        class="edit-toolbar"
         :class="{ 'pointer-events-none opacity-70': isReprocessing }"
-        :style="{ left: `${toolbarPos.x}px`, top: `${toolbarPos.y}px`, transform: 'none' }"
-        @mousedown="onToolbarMouseDown"
-        @touchstart="onToolbarTouchStart"
+        :style="{ left: `${toolbar.toolbarPos.value.x}px`, top: `${toolbar.toolbarPos.value.y}px`, transform: 'none' }"
+        @mousedown="toolbar.onToolbarMouseDown"
+        @touchstart="toolbar.onToolbarTouchStart"
       >
         <button
           @click="onDone"
@@ -1021,35 +472,35 @@ const getRegionColor = (region) => {
         </button>
 
         <button
-          @click="toggleDrawMode"
+          @click="drawTool.toggleDrawMode()"
           class="toolbar-btn"
-          :class="{ 'toolbar-btn-active': isDrawModeActive }"
+          :class="{ 'toolbar-btn-active': drawTool.isDrawModeActive.value }"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          <span class="hidden sm:inline">{{ isDrawModeActive ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}</span>
+          <span class="hidden sm:inline">{{ drawTool.isDrawModeActive.value ? t('slideToPptx.regionEditor.drawing') : t('slideToPptx.regionEditor.drawRect') }}</span>
         </button>
 
         <!-- Separator line tool -->
         <button
-          @click="toggleSeparatorMode"
+          @click="separatorTool.toggleSeparatorMode()"
           class="toolbar-btn"
-          :class="{ 'toolbar-btn-separator': isSeparatorModeActive }"
+          :class="{ 'toolbar-btn-separator': separatorTool.isSeparatorModeActive.value }"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20L20 4" />
           </svg>
-          <span class="hidden sm:inline">{{ isSeparatorModeActive
-            ? (separatorFirstPoint ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separator'))
+          <span class="hidden sm:inline">{{ separatorTool.isSeparatorModeActive.value
+            ? (separatorTool.separatorFirstPoint.value ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separator'))
             : t('slideToPptx.regionEditor.separator') }}</span>
         </button>
 
         <!-- Selection tool for batch delete -->
         <button
-          @click="toggleSelectionMode"
+          @click="selectionTool.toggleSelectionMode()"
           class="toolbar-btn"
-          :class="{ 'toolbar-btn-selection': isSelectionModeActive }"
+          :class="{ 'toolbar-btn-selection': selectionTool.isSelectionModeActive.value }"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zM4 13a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zM15 4a1 1 0 100 2h4a1 1 0 100-2h-4zM15 12a1 1 0 100 2h4a1 1 0 100-2h-4zM4 19a1 1 0 011-1h14a1 1 0 110 2H5a1 1 0 01-1-1z" />
@@ -1073,22 +524,22 @@ const getRegionColor = (region) => {
         </span>
 
         <!-- Hint text (Attached to toolbar) -->
-        <div class="edit-hint" v-if="isSelectionModeActive && selectedRegionIndices.length > 0">
-          {{ t('slideToPptx.regionEditor.selectionConfirm', { count: selectedRegionIndices.length }) }}
+        <div class="edit-hint" v-if="selectionTool.isSelectionModeActive.value && selectionTool.selectedRegionIndices.value.length > 0">
+          {{ t('slideToPptx.regionEditor.selectionConfirm', { count: selectionTool.selectedRegionIndices.value.length }) }}
         </div>
-        <div class="edit-hint" v-else-if="isSelectionModeActive">
+        <div class="edit-hint" v-else-if="selectionTool.isSelectionModeActive.value">
           {{ t('slideToPptx.regionEditor.selectionHint') }}
         </div>
-        <div class="edit-hint" v-else-if="isSeparatorModeActive">
-          {{ separatorFirstPoint ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separatorHint') }}
+        <div class="edit-hint" v-else-if="separatorTool.isSeparatorModeActive.value">
+          {{ separatorTool.separatorFirstPoint.value ? t('slideToPptx.regionEditor.separatorDrawing') : t('slideToPptx.regionEditor.separatorHint') }}
         </div>
-        <div class="edit-hint" v-else-if="selectedSeparatorId !== null">
+        <div class="edit-hint" v-else-if="separatorTool.selectedSeparatorId.value !== null">
           {{ t('slideToPptx.regionEditor.separatorSelectedHint') }}
         </div>
-        <div class="edit-hint" v-else-if="isDrawModeActive">
+        <div class="edit-hint" v-else-if="drawTool.isDrawModeActive.value">
           {{ t('slideToPptx.regionEditor.drawHint') }}
         </div>
-        <div class="edit-hint" v-else-if="selectedIndex !== null">
+        <div class="edit-hint" v-else-if="deleteTool.selectedIndex.value !== null">
           {{ t('slideToPptx.regionEditor.selectedHint') }}
         </div>
         <div class="edit-hint" v-else>
@@ -1099,13 +550,13 @@ const getRegionColor = (region) => {
 
     <!-- SVG Overlay for region editing -->
     <svg
-      v-if="hasValidDimensions"
+      v-if="core.hasValidDimensions.value"
       ref="svgRef"
       class="edit-overlay-svg"
       :class="{
-        'cursor-crosshair': isDrawModeActive || isSeparatorModeActive || isSelectionModeActive,
-        'pointer-events-auto': isDrawModeActive || isResizing || isSeparatorModeActive || isSelectionModeActive,
-        'pointer-events-none': !isDrawModeActive && !isResizing && !isSeparatorModeActive && !isSelectionModeActive
+        'cursor-crosshair': drawTool.isDrawModeActive.value || separatorTool.isSeparatorModeActive.value || selectionTool.isSelectionModeActive.value,
+        'pointer-events-auto': drawTool.isDrawModeActive.value || resizeTool.isResizing.value || separatorTool.isSeparatorModeActive.value || selectionTool.isSelectionModeActive.value,
+        'pointer-events-none': !drawTool.isDrawModeActive.value && !resizeTool.isResizing.value && !separatorTool.isSeparatorModeActive.value && !selectionTool.isSelectionModeActive.value
       }"
       :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
       preserveAspectRatio="none"
@@ -1122,9 +573,9 @@ const getRegionColor = (region) => {
       <g
         v-for="(region, idx) in regions"
         :key="`region-${idx}`"
-        @click.stop="onRegionClick(idx, $event)"
+        @click.stop="deleteTool.onRegionClick(idx, $event)"
         class="region-group"
-        :class="{ 'region-selected': selectedIndex === idx }"
+        :class="{ 'region-selected': deleteTool.selectedIndex.value === idx }"
         pointer-events="auto"
       >
         <!-- Region rectangle -->
@@ -1133,8 +584,8 @@ const getRegionColor = (region) => {
           :y="region.bounds.y"
           :width="region.bounds.width"
           :height="region.bounds.height"
-          :fill="selectedIndex === idx ? 'rgba(59, 130, 246, 0.2)' : getRegionColor(region).fill"
-          :stroke="selectedIndex === idx ? 'rgba(59, 130, 246, 0.9)' : getRegionColor(region).stroke"
+          :fill="deleteTool.selectedIndex.value === idx ? 'rgba(59, 130, 246, 0.2)' : core.getRegionColor(region).fill"
+          :stroke="deleteTool.selectedIndex.value === idx ? 'rgba(59, 130, 246, 0.9)' : core.getRegionColor(region).stroke"
           stroke-width="2"
           vector-effect="non-scaling-stroke"
           class="region-rect"
@@ -1142,13 +593,13 @@ const getRegionColor = (region) => {
       </g>
 
       <!-- Selected region controls (rendered on top) -->
-      <g v-if="selectedIndex !== null && regions[selectedIndex] && !isDrawModeActive" pointer-events="auto">
+      <g v-if="deleteTool.selectedIndex.value !== null && regions[deleteTool.selectedIndex.value] && !drawTool.isDrawModeActive.value" pointer-events="auto">
         <!-- Resize handles at corners -->
         <g
-          v-for="(pos, handle) in getResizeHandles(regions[selectedIndex])"
+          v-for="(pos, handle) in core.getResizeHandles(regions[deleteTool.selectedIndex.value])"
           :key="`handle-${handle}`"
-          @mousedown.stop="onResizeStart(handle, $event)"
-          @touchstart.stop="onResizeTouchStart(handle, $event)"
+          @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
+          @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
           class="resize-handle"
           :class="`resize-handle-${handle}`"
         >
@@ -1174,29 +625,29 @@ const getRegionColor = (region) => {
         <!-- Delete button at center -->
         <g
           class="delete-button-group"
-          @click.stop="onDeleteClick($event)"
+          @click.stop="deleteTool.onDeleteClick($event)"
         >
           <!-- Larger transparent hit area -->
           <circle
-            :cx="getDeleteButtonCenter(regions[selectedIndex]).x"
-            :cy="getDeleteButtonCenter(regions[selectedIndex]).y"
-            :r="getDeleteButtonSize(regions[selectedIndex]).hitRadius"
+            :cx="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
+            :cy="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
+            :r="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).hitRadius"
             fill="transparent"
           />
           <!-- Visible button -->
           <circle
-            :cx="getDeleteButtonCenter(regions[selectedIndex]).x"
-            :cy="getDeleteButtonCenter(regions[selectedIndex]).y"
-            :r="getDeleteButtonSize(regions[selectedIndex]).radius"
+            :cx="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
+            :cy="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
+            :r="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).radius"
             fill="rgba(239, 68, 68, 0.9)"
           />
           <text
-            :x="getDeleteButtonCenter(regions[selectedIndex]).x"
-            :y="getDeleteButtonCenter(regions[selectedIndex]).y"
+            :x="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
+            :y="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
             text-anchor="middle"
             dominant-baseline="central"
             fill="white"
-            :font-size="getDeleteButtonSize(regions[selectedIndex]).fontSize"
+            :font-size="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).fontSize"
             font-weight="bold"
             class="delete-button-text"
           >×</text>
@@ -1208,9 +659,9 @@ const getRegionColor = (region) => {
         v-for="sep in separatorLines"
         :key="`sep-${sep.id}`"
         class="separator-group"
-        :class="{ 'separator-selected': selectedSeparatorId === sep.id }"
+        :class="{ 'separator-selected': separatorTool.selectedSeparatorId.value === sep.id }"
         pointer-events="auto"
-        @click.stop="onSeparatorClick_Select(sep.id, $event)"
+        @click.stop="separatorTool.onSeparatorClick_Select(sep.id, $event, () => drawTool.isDrawModeActive.value, deleteTool.clearSelection)"
       >
         <!-- Wider transparent hit area for easier clicking -->
         <line
@@ -1228,9 +679,9 @@ const getRegionColor = (region) => {
           :y1="sep.start.y"
           :x2="sep.end.x"
           :y2="sep.end.y"
-          :stroke="selectedSeparatorId === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
-          :stroke-width="selectedSeparatorId === sep.id ? '4' : '3'"
-          :stroke-dasharray="selectedSeparatorId === sep.id ? 'none' : '8 4'"
+          :stroke="separatorTool.selectedSeparatorId.value === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
+          :stroke-width="separatorTool.selectedSeparatorId.value === sep.id ? '4' : '3'"
+          :stroke-dasharray="separatorTool.selectedSeparatorId.value === sep.id ? 'none' : '8 4'"
           vector-effect="non-scaling-stroke"
         />
         <!-- Endpoint circles -->
@@ -1238,39 +689,39 @@ const getRegionColor = (region) => {
           :cx="sep.start.x"
           :cy="sep.start.y"
           r="6"
-          :fill="selectedSeparatorId === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
+          :fill="separatorTool.selectedSeparatorId.value === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
         />
         <circle
           :cx="sep.end.x"
           :cy="sep.end.y"
           r="6"
-          :fill="selectedSeparatorId === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
+          :fill="separatorTool.selectedSeparatorId.value === sep.id ? 'rgba(249, 115, 22, 1)' : 'rgba(249, 115, 22, 0.7)'"
         />
       </g>
 
       <!-- Selected separator delete button -->
       <g
-        v-if="selectedSeparatorId !== null && separatorLines.find(s => s.id === selectedSeparatorId)"
+        v-if="separatorTool.selectedSeparatorId.value !== null && separatorLines.find(s => s.id === separatorTool.selectedSeparatorId.value)"
         class="delete-button-group"
         pointer-events="auto"
-        @click.stop="onDeleteSeparatorClick($event)"
+        @click.stop="separatorTool.onDeleteSeparatorClick($event)"
       >
         <!-- Get the selected separator for positioning -->
         <circle
-          :cx="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).x"
-          :cy="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).y"
+          :cx="core.getSeparatorMidpoint(separatorLines.find(s => s.id === separatorTool.selectedSeparatorId.value)).x"
+          :cy="core.getSeparatorMidpoint(separatorLines.find(s => s.id === separatorTool.selectedSeparatorId.value)).y"
           r="24"
           fill="transparent"
         />
         <circle
-          :cx="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).x"
-          :cy="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).y"
+          :cx="core.getSeparatorMidpoint(separatorLines.find(s => s.id === separatorTool.selectedSeparatorId.value)).x"
+          :cy="core.getSeparatorMidpoint(separatorLines.find(s => s.id === separatorTool.selectedSeparatorId.value)).y"
           r="18"
           fill="rgba(239, 68, 68, 0.9)"
         />
         <text
-          :x="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).x"
-          :y="getSeparatorMidpoint(separatorLines.find(s => s.id === selectedSeparatorId)).y"
+          :x="core.getSeparatorMidpoint(separatorLines.find(s => s.id === separatorTool.selectedSeparatorId.value)).x"
+          :y="core.getSeparatorMidpoint(separatorLines.find(s => s.id === separatorTool.selectedSeparatorId.value)).y"
           text-anchor="middle"
           dominant-baseline="central"
           fill="white"
@@ -1281,12 +732,12 @@ const getRegionColor = (region) => {
       </g>
 
       <!-- Separator preview line (when drawing) -->
-      <g v-if="isSeparatorModeActive && separatorPreview">
+      <g v-if="separatorTool.isSeparatorModeActive.value && separatorTool.separatorPreview.value">
         <line
-          :x1="separatorPreview.start.x"
-          :y1="separatorPreview.start.y"
-          :x2="separatorPreview.end.x"
-          :y2="separatorPreview.end.y"
+          :x1="separatorTool.separatorPreview.value.start.x"
+          :y1="separatorTool.separatorPreview.value.start.y"
+          :x2="separatorTool.separatorPreview.value.end.x"
+          :y2="separatorTool.separatorPreview.value.end.y"
           stroke="rgba(249, 115, 22, 0.5)"
           stroke-width="3"
           stroke-dasharray="8 4"
@@ -1294,8 +745,8 @@ const getRegionColor = (region) => {
         />
         <!-- First point marker -->
         <circle
-          :cx="separatorPreview.start.x"
-          :cy="separatorPreview.start.y"
+          :cx="separatorTool.separatorPreview.value.start.x"
+          :cy="separatorTool.separatorPreview.value.start.y"
           r="8"
           fill="rgba(249, 115, 22, 0.9)"
           stroke="white"
@@ -1305,9 +756,9 @@ const getRegionColor = (region) => {
 
       <!-- First point marker when starting separator (before preview) -->
       <circle
-        v-if="isSeparatorModeActive && separatorFirstPoint && !separatorPreview"
-        :cx="separatorFirstPoint.x"
-        :cy="separatorFirstPoint.y"
+        v-if="separatorTool.isSeparatorModeActive.value && separatorTool.separatorFirstPoint.value && !separatorTool.separatorPreview.value"
+        :cx="separatorTool.separatorFirstPoint.value.x"
+        :cy="separatorTool.separatorFirstPoint.value.y"
         r="8"
         fill="rgba(249, 115, 22, 0.9)"
         stroke="white"
@@ -1316,11 +767,11 @@ const getRegionColor = (region) => {
 
       <!-- Drawing preview -->
       <rect
-        v-if="isDrawing && drawRect"
-        :x="drawRect.x"
-        :y="drawRect.y"
-        :width="drawRect.width"
-        :height="drawRect.height"
+        v-if="drawTool.isDrawing.value && drawTool.drawRect.value"
+        :x="drawTool.drawRect.value.x"
+        :y="drawTool.drawRect.value.y"
+        :width="drawTool.drawRect.value.width"
+        :height="drawTool.drawRect.value.height"
         fill="rgba(168, 85, 247, 0.2)"
         stroke="rgba(168, 85, 247, 0.9)"
         stroke-width="2"
@@ -1329,10 +780,10 @@ const getRegionColor = (region) => {
       />
 
       <!-- Selection box and highlighted regions -->
-      <g v-if="isSelectionModeActive || selectionRect">
+      <g v-if="selectionTool.isSelectionModeActive.value || selectionTool.selectionRect.value">
         <!-- Highlight selected regions (red overlay) -->
         <rect
-          v-for="idx in selectedRegionIndices"
+          v-for="idx in selectionTool.selectedRegionIndices.value"
           :key="`selected-${idx}`"
           :x="regions[idx].bounds.x"
           :y="regions[idx].bounds.y"
@@ -1346,11 +797,11 @@ const getRegionColor = (region) => {
 
         <!-- Selection rectangle -->
         <rect
-          v-if="selectionRect"
-          :x="selectionRect.x"
-          :y="selectionRect.y"
-          :width="selectionRect.width"
-          :height="selectionRect.height"
+          v-if="selectionTool.selectionRect.value"
+          :x="selectionTool.selectionRect.value.x"
+          :y="selectionTool.selectionRect.value.y"
+          :width="selectionTool.selectionRect.value.width"
+          :height="selectionTool.selectionRect.value.height"
           fill="rgba(239, 68, 68, 0.1)"
           stroke="rgba(239, 68, 68, 0.8)"
           stroke-width="2"
@@ -1364,17 +815,13 @@ const getRegionColor = (region) => {
     <!-- Magnifier (shows when resizing) -->
     <Teleport to="body">
       <div
-        v-if="showMagnifier && imageUrl"
+        v-if="magnifier.showMagnifier.value && imageUrl"
         class="magnifier"
       >
         <div class="magnifier-content">
           <div
             class="magnifier-image"
-            :style="{
-              backgroundImage: `url(${imageUrl})`,
-              backgroundPosition: `-${magnifierTarget.x * 2.5 - 60}px -${magnifierTarget.y * 2.5 - 60}px`,
-              backgroundSize: `${imageDimensions.width * 2.5}px ${imageDimensions.height * 2.5}px`
-            }"
+            :style="magnifier.magnifierStyle.value"
           ></div>
           <!-- Crosshair -->
           <div class="magnifier-crosshair-h"></div>
@@ -1386,20 +833,20 @@ const getRegionColor = (region) => {
     <!-- Selection Confirm Dialog (fixed at bottom center) -->
     <Teleport to="body">
       <div
-        v-if="selectionRect && selectedRegionIndices.length > 0 && !isSelecting"
+        v-if="selectionTool.selectionRect.value && selectionTool.selectedRegionIndices.value.length > 0 && !selectionTool.isSelecting.value"
         class="selection-confirm-bar"
       >
         <span class="selection-count">
-          {{ t('slideToPptx.regionEditor.selectionConfirm', { count: selectedRegionIndices.length }) }}
+          {{ t('slideToPptx.regionEditor.selectionConfirm', { count: selectionTool.selectedRegionIndices.value.length }) }}
         </span>
         <div class="selection-actions">
-          <button @click="cancelSelection" class="selection-btn selection-btn-cancel">
+          <button @click="selectionTool.cancelSelection" class="selection-btn selection-btn-cancel">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
             <span>{{ t('common.cancel') }}</span>
           </button>
-          <button @click="confirmBatchDelete" class="selection-btn selection-btn-confirm">
+          <button @click="selectionTool.confirmBatchDelete" class="selection-btn selection-btn-confirm">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -1412,9 +859,9 @@ const getRegionColor = (region) => {
     <!-- Text Input Dialog -->
     <Teleport to="body">
       <div
-        v-if="showTextDialog"
+        v-if="textDialog.showTextDialog.value"
         class="text-dialog-overlay"
-        @click.self="cancelTextDialog"
+        @click.self="textDialog.cancelTextDialog"
       >
         <div class="text-dialog">
           <h3 class="text-dialog-title">
@@ -1424,19 +871,19 @@ const getRegionColor = (region) => {
             {{ t('slideToPptx.regionEditor.textHint') }}
           </p>
           <input
-            v-model="newRegionText"
+            v-model="textDialog.newRegionText.value"
             type="text"
             class="text-dialog-input"
             :placeholder="t('slideToPptx.regionEditor.textPlaceholder')"
-            @keydown.enter="confirmNewRegion"
-            @keydown.esc="cancelTextDialog"
+            @keydown.enter="textDialog.confirmNewRegion"
+            @keydown.esc="textDialog.cancelTextDialog"
             autofocus
           />
           <div class="text-dialog-actions">
-            <button @click="skipTextInput" class="dialog-btn dialog-btn-secondary">
+            <button @click="textDialog.skipTextInput" class="dialog-btn dialog-btn-secondary">
               {{ t('slideToPptx.regionEditor.skip') }}
             </button>
-            <button @click="confirmNewRegion" class="dialog-btn dialog-btn-primary">
+            <button @click="textDialog.confirmNewRegion" class="dialog-btn dialog-btn-primary">
               {{ t('slideToPptx.regionEditor.add') }}
             </button>
           </div>
