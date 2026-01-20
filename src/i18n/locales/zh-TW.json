@@ -1116,11 +1116,6 @@
         "description": "RGB 歐式距離閾值。超過此值的顏色視為不同顏色（保留螢光筆等標註）。",
         "effect": "調高：更多顏色視為相同｜調低：更精確保留顏色差異"
       },
-      "textWidthExpansion": {
-        "label": "文字寬度擴展係數",
-        "description": "Canvas 測量結果乘以此係數以補償 PPTX 較寬的渲染。",
-        "effect": "調高：文字框更寬，避免換行｜調低：文字框更緊湊"
-      },
       "lineHeightRatio": {
         "label": "行高比例",
         "description": "將偵測到的行高轉換為字體大小時使用的比例係數。",

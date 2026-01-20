@@ -1116,11 +1116,6 @@
         "description": "RGB Euclidean distance threshold. Colors beyond this are considered distinct (preserves highlights).",
         "effect": "Higher: more colors treated as same | Lower: preserves more color differences"
       },
-      "textWidthExpansion": {
-        "label": "Text Width Expansion",
-        "description": "Canvas measurement multiplier to compensate for PPTX rendering wider.",
-        "effect": "Higher: wider text boxes, prevents wrapping | Lower: more compact boxes"
-      },
       "lineHeightRatio": {
         "label": "Line Height Ratio",
         "description": "Ratio for converting detected line height to font size.",

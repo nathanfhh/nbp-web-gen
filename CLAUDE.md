@@ -134,24 +134,25 @@ Raw OCR detections (single lines) must be merged into logical paragraphs. This i
 
 #### 6. PPTX Text Box Font Sizing
 
-Font size calculation uses **Canvas measureText API** for accurate width measurement:
+Font size calculation uses **height-based** approach for simplicity and reliability:
 
 | File | Description |
 |------|-------------|
-| `utils/text-measure.js` | Canvas-based text measurement utility |
 | `composables/usePptxExport.js` | PPTX generation with font size calculation |
 
 **Algorithm:**
-1. **Binary search** to find optimal font size that fits text within box width
-2. **Expansion factor** (1.15×) applied to Canvas measurement to account for PPTX rendering wider
-3. **Height-based fallback** caps font size if width-based result is too large (> 1.5× OCR height)
-4. **Spaces preserved** - all whitespace characters are included in width measurement
+1. **Height-based calculation** - Use max line height from OCR detection as the basis
+2. **Line height ratio** (`lineHeightRatio`) - Convert detected height to font size (default: 1.2)
+3. **Clamp to range** - Apply `minFontSize` and `maxFontSize` limits
 
-**Key Constants** (`text-measure.js`):
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `TEXT_WIDTH_EXPANSION` | 1.15 | Multiplier for Canvas width → accounts for PPTX rendering wider. Increase if text wraps, decrease if too much whitespace. |
-| `PPTX_FONT_STACK` | `Arial, "Microsoft YaHei", "PingFang SC", sans-serif` | Cross-platform font fallback |
+**Key Parameters** (configurable in OCR Settings → Export):
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `lineHeightRatio` | 1.2 | Ratio for converting detected line height to font size |
+| `minFontSize` | 8 | Minimum font size (points) |
+| `maxFontSize` | 120 | Maximum font size (points) |
+
+**Note:** Text box width uses OCR detection bounds directly. If text overflows, users can manually adjust in PowerPoint (wrap is disabled by default).
 
 #### 7. Slide to PPTX Settings & Edit Mode Behavior
 

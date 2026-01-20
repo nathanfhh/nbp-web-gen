@@ -120,10 +120,6 @@ export const OCR_DEFAULTS = {
   colorDiffThreshold: 50,
 
   // === PPTX Export ===
-  // Text width expansion factor
-  // Canvas measures text narrower than PPTX renders, so we expand
-  textWidthExpansion: 1.05,
-
   // Line height ratio (font size to line height)
   // Used to calculate font size from detected line height
   lineHeightRatio: 1.2,
@@ -208,12 +204,6 @@ export const OCR_PARAM_RULES = {
     category: 'layout',
   },
   // PPTX Export parameters
-  textWidthExpansion: {
-    min: 1.0,
-    max: 1.5,
-    step: 0.01,
-    category: 'export',
-  },
   lineHeightRatio: {
     min: 1.0,
     max: 2.0,
@@ -249,7 +239,6 @@ export const OCR_PARAM_ORDER = [
   'sameLineThreshold',
   'fontSizeDiffThreshold',
   'colorDiffThreshold',
-  'textWidthExpansion',
   'lineHeightRatio',
   'minFontSize',
   'maxFontSize',
@@ -274,7 +263,7 @@ export const OCR_CATEGORIES = [
   },
   {
     key: 'export',
-    params: ['textWidthExpansion', 'lineHeightRatio', 'minFontSize', 'maxFontSize'],
+    params: ['lineHeightRatio', 'minFontSize', 'maxFontSize'],
   },
 ]
 
