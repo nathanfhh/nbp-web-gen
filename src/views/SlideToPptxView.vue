@@ -13,6 +13,7 @@ import SlideFileUploader from '@/components/SlideFileUploader.vue'
 import OcrRegionEditor from '@/components/OcrRegionEditor.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import OcrSettingsModal from '@/components/OcrSettingsModal.vue'
+import ApiKeyModal from '@/components/ApiKeyModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -27,8 +28,19 @@ const apiKeyManager = useApiKeyManager()
 const { settings: ocrSettings, updateSetting: updateOcrSetting, modelSizeOptions } = useOcrSettings()
 
 // API Key availability for Gemini options
-const canUseGemini = computed(() => apiKeyManager.hasPaidApiKey() || apiKeyManager.hasFreeTierApiKey())
-const canUseGemini30 = computed(() => apiKeyManager.hasPaidApiKey())
+// Use a version trigger to force re-evaluation when API keys change
+const apiKeyVersion = ref(0)
+const refreshApiKeyStatus = () => {
+  apiKeyVersion.value++
+}
+const canUseGemini = computed(() => {
+  apiKeyVersion.value // dependency trigger
+  return apiKeyManager.hasPaidApiKey() || apiKeyManager.hasFreeTierApiKey()
+})
+const canUseGemini30 = computed(() => {
+  apiKeyVersion.value // dependency trigger
+  return apiKeyManager.hasPaidApiKey()
+})
 
 // View mode: 'loading' | 'upload' | 'processing' | 'error'
 const viewMode = ref('loading')
@@ -48,6 +60,7 @@ const logContainer = ref(null)
 const confirmModalRef = ref(null)
 const ocrSettingsModalRef = ref(null)
 const ocrRegionEditorRef = ref(null)
+const apiKeyModalRef = ref(null)
 
 // Thumbnail refs for auto-scroll
 const thumbnailContainer = ref(null)
@@ -1388,7 +1401,18 @@ const getSlideStatus = (index) => {
 
             <!-- Inpaint Method -->
             <div class="space-y-3 mb-6">
-              <label class="block text-sm text-text-muted">{{ $t('slideToPptx.inpaintMethod') }}</label>
+              <div class="flex items-center justify-between">
+                <label class="block text-sm text-text-muted">{{ $t('slideToPptx.inpaintMethod') }}</label>
+                <button
+                  @click="apiKeyModalRef?.open()"
+                  class="flex items-center gap-1.5 px-2 py-1 text-xs text-text-muted hover:text-mode-generate transition-colors rounded-lg hover:bg-mode-generate-muted/30"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                  {{ $t('slideToPptx.manageApiKeys') }}
+                </button>
+              </div>
 
               <label class="flex items-start gap-3 cursor-pointer group p-3 rounded-lg border border-border-muted hover:border-mode-generate transition-colors"
                 :class="{ 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('inpaintMethod') === 'opencv' }">
@@ -1407,28 +1431,44 @@ const getSlideStatus = (index) => {
                 </div>
               </label>
 
-              <label class="flex items-start gap-3 p-3 rounded-lg border border-border-muted transition-colors"
-                :class="[
-                  canUseGemini ? 'cursor-pointer group hover:border-mode-generate' : 'opacity-50 cursor-not-allowed',
-                  { 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('inpaintMethod') === 'gemini' }
-                ]">
-                <input
-                  type="radio"
-                  name="inpaintMethod"
-                  value="gemini"
-                  :checked="getSettingValue('inpaintMethod') === 'gemini'"
-                  :disabled="!canUseGemini"
-                  @change="updateSetting('inpaintMethod', 'gemini')"
-                  class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
-                />
-                <div>
-                  <span class="text-text-primary font-medium">Gemini API</span>
-                  <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
-                  <p class="text-xs text-text-muted mt-1">
-                    {{ canUseGemini ? $t('slideToPptx.geminiDesc') : $t('slideToPptx.geminiNoApiKey') }}
-                  </p>
+              <!-- Gemini API option with tooltip for disabled state -->
+              <div class="relative gemini-option-wrapper">
+                <label class="flex items-start gap-3 p-3 rounded-lg border border-border-muted transition-colors"
+                  :class="[
+                    canUseGemini ? 'cursor-pointer group hover:border-mode-generate' : 'opacity-50 cursor-not-allowed',
+                    { 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('inpaintMethod') === 'gemini' }
+                  ]">
+                  <input
+                    type="radio"
+                    name="inpaintMethod"
+                    value="gemini"
+                    :checked="getSettingValue('inpaintMethod') === 'gemini'"
+                    :disabled="!canUseGemini"
+                    @change="updateSetting('inpaintMethod', 'gemini')"
+                    class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
+                  />
+                  <div>
+                    <span class="text-text-primary font-medium">Gemini API</span>
+                    <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
+                    <p class="text-xs text-text-muted mt-1">
+                      {{ canUseGemini ? $t('slideToPptx.geminiDesc') : $t('slideToPptx.geminiNoApiKey') }}
+                    </p>
+                  </div>
+                </label>
+                <!-- Tooltip for disabled Gemini option -->
+                <div
+                  v-if="!canUseGemini"
+                  class="gemini-tooltip absolute left-0 right-0 bottom-full mb-2 p-3 rounded-xl glass-strong shadow-lg z-10 opacity-0 invisible transition-all duration-200"
+                >
+                  <p class="text-sm text-text-primary mb-2">{{ $t('slideToPptx.geminiTooltip.noKey') }}</p>
+                  <button
+                    @click="apiKeyModalRef?.open()"
+                    class="w-full py-2 px-3 text-sm font-medium rounded-lg bg-mode-generate text-text-on-brand hover:opacity-90 transition-opacity"
+                  >
+                    {{ $t('slideToPptx.geminiTooltip.setupKey') }}
+                  </button>
                 </div>
-              </label>
+              </div>
             </div>
 
             <!-- OpenCV Algorithm (only when opencv selected) -->
@@ -1488,28 +1528,44 @@ const getSlideStatus = (index) => {
                 </div>
               </label>
 
-              <label class="flex items-start gap-3 p-3 rounded-lg border border-border-muted transition-colors"
-                :class="[
-                  canUseGemini30 ? 'cursor-pointer group hover:border-mode-generate' : 'opacity-50 cursor-not-allowed',
-                  { 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('geminiModel') === '3.0' }
-                ]">
-                <input
-                  type="radio"
-                  name="geminiModel"
-                  value="3.0"
-                  :checked="getSettingValue('geminiModel') === '3.0'"
-                  :disabled="!canUseGemini30"
-                  @change="updateSetting('geminiModel', '3.0')"
-                  class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
-                />
-                <div>
-                  <span class="text-text-primary font-medium">Nano Banana Pro (3.0)</span>
-                  <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
-                  <p class="text-xs text-text-muted mt-1">
-                    {{ canUseGemini30 ? $t('slideToPptx.gemini30Desc') : $t('slideToPptx.gemini30NoPaidKey') }}
-                  </p>
+              <!-- Gemini 3.0 option with tooltip for disabled state -->
+              <div class="relative gemini-option-wrapper">
+                <label class="flex items-start gap-3 p-3 rounded-lg border border-border-muted transition-colors"
+                  :class="[
+                    canUseGemini30 ? 'cursor-pointer group hover:border-mode-generate' : 'opacity-50 cursor-not-allowed',
+                    { 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('geminiModel') === '3.0' }
+                  ]">
+                  <input
+                    type="radio"
+                    name="geminiModel"
+                    value="3.0"
+                    :checked="getSettingValue('geminiModel') === '3.0'"
+                    :disabled="!canUseGemini30"
+                    @change="updateSetting('geminiModel', '3.0')"
+                    class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
+                  />
+                  <div>
+                    <span class="text-text-primary font-medium">Nano Banana Pro (3.0)</span>
+                    <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
+                    <p class="text-xs text-text-muted mt-1">
+                      {{ canUseGemini30 ? $t('slideToPptx.gemini30Desc') : $t('slideToPptx.gemini30NoPaidKey') }}
+                    </p>
+                  </div>
+                </label>
+                <!-- Tooltip for disabled Gemini 3.0 option -->
+                <div
+                  v-if="!canUseGemini30"
+                  class="gemini-tooltip absolute left-0 right-0 bottom-full mb-2 p-3 rounded-xl glass-strong shadow-lg z-10 opacity-0 invisible transition-all duration-200"
+                >
+                  <p class="text-sm text-text-primary mb-2">{{ $t('slideToPptx.geminiTooltip.noPaidKey') }}</p>
+                  <button
+                    @click="apiKeyModalRef?.open()"
+                    class="w-full py-2 px-3 text-sm font-medium rounded-lg bg-mode-generate text-text-on-brand hover:opacity-90 transition-opacity"
+                  >
+                    {{ $t('slideToPptx.geminiTooltip.setupKey') }}
+                  </button>
                 </div>
-              </label>
+              </div>
 
               <!-- Image Quality (only for 3.0 model) -->
               <div v-if="getSettingValue('geminiModel') === '3.0'" class="mt-4">
@@ -1704,6 +1760,9 @@ const getSlideStatus = (index) => {
 
     <!-- OCR Settings Modal -->
     <OcrSettingsModal ref="ocrSettingsModalRef" />
+
+    <!-- API Key Modal -->
+    <ApiKeyModal ref="apiKeyModalRef" @close="refreshApiKeyStatus" />
   </div>
 </template>
 
@@ -1723,5 +1782,31 @@ const getSlideStatus = (index) => {
 /* Each thumbnail snaps to start */
 .thumbnail-scroll-hidden > * {
   scroll-snap-align: center;
+}
+
+/* Gemini option tooltip - show on hover/focus/touch */
+.gemini-option-wrapper:hover .gemini-tooltip,
+.gemini-option-wrapper:focus-within .gemini-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Touch device support - show tooltip on tap */
+@media (hover: none) {
+  .gemini-option-wrapper:active .gemini-tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Tooltip arrow */
+.gemini-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: var(--color-bg-elevated);
 }
 </style>

@@ -68,6 +68,10 @@
     "showKey": "顯示金鑰",
     "hideKey": "隱藏金鑰"
   },
+  "apiKeyModal": {
+    "title": "設定 Gemini 金鑰",
+    "subtitle": "管理您的 Google Gemini API 金鑰"
+  },
   "modes": {
     "title": "生成模式",
     "generate": {
@@ -1176,6 +1180,12 @@
       "selectionConfirm": "已選取 {count} 個區域，點擊 ✓ 確認刪除"
     },
     "inpaintMethod": "文字移除方式",
+    "manageApiKeys": "管理 Gemini 金鑰",
+    "geminiTooltip": {
+      "noKey": "需要設定 API 金鑰才能使用 Gemini",
+      "noPaidKey": "需要設定付費金鑰才能使用此模型",
+      "setupKey": "設定金鑰"
+    },
     "free": "免費",
     "paid": "付費",
     "opencvDesc": "使用本地 OpenCV.js 處理，不消耗 API 配額",

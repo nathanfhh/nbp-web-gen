@@ -68,6 +68,10 @@
     "showKey": "Show API Key",
     "hideKey": "Hide API Key"
   },
+  "apiKeyModal": {
+    "title": "Set Up Gemini Keys",
+    "subtitle": "Manage your Google Gemini API keys"
+  },
   "modes": {
     "title": "Generation Mode",
     "generate": {
@@ -1176,6 +1180,12 @@
       "selectionConfirm": "{count} region(s) selected, click ✓ to delete"
     },
     "inpaintMethod": "Text Removal Method",
+    "manageApiKeys": "Manage Gemini Keys",
+    "geminiTooltip": {
+      "noKey": "API key required to use Gemini",
+      "noPaidKey": "Paid key required for this model",
+      "setupKey": "Set Up Key"
+    },
     "free": "Free",
     "paid": "Paid",
     "opencvDesc": "Runs locally using OpenCV.js, no API quota consumed",
