@@ -153,6 +153,18 @@ Font size calculation uses **Canvas measureText API** for accurate width measure
 | `TEXT_WIDTH_EXPANSION` | 1.15 | Multiplier for Canvas width → accounts for PPTX rendering wider. Increase if text wraps, decrease if too much whitespace. |
 | `PPTX_FONT_STACK` | `Arial, "Microsoft YaHei", "PingFang SC", sans-serif` | Cross-platform font fallback |
 
+#### 7. Slide to PPTX Settings & Edit Mode Behavior
+
+The Slide to PPTX feature has complex interactions between settings changes and edit mode operations.
+
+> **Behavior Details**: See [`docs/slide-to-pptx-settings-behavior.md`](docs/slide-to-pptx-settings-behavior.md)
+
+Key points:
+- **OCR Settings (版面分析/匯出)**: Changes trigger `remergeAllSlides()` on modal close - no re-OCR needed
+- **OCR Settings (前處理/偵測/後處理)**: Changes require re-processing (next "Start")
+- **Edit Mode**: Region changes require inpaint; separator-only changes only need remerge
+- **Gemini Confirmation Modal**: Shows when regions changed + Gemini method; user must choose action (no X button, no ESC close)
+
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.
 
