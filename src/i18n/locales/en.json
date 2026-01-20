@@ -1035,8 +1035,8 @@
     }
   },
   "ocrSettings": {
-    "title": "OCR Advanced Settings",
-    "subtitle": "Configure text detection and recognition parameters",
+    "title": "Conversion Settings",
+    "subtitle": "Configure OCR detection and PPTX export parameters",
     "advancedSettings": "Advanced",
     "resetToDefaults": "Reset to defaults",
     "modified": "Modified",
@@ -1045,7 +1045,9 @@
       "model": "Model",
       "preprocessing": "Preprocessing",
       "detection": "Text Detection",
-      "postprocessing": "Post-processing"
+      "postprocessing": "Post-processing",
+      "layout": "Layout Analysis",
+      "export": "Export Settings"
     },
     "modelSize": {
       "server": {
@@ -1088,6 +1090,51 @@
         "label": "Vertical Dilation",
         "description": "Morphological vertical dilation iterations. Connects strokes but may merge different lines if too high.",
         "effect": "Higher: connects strokes but may merge lines | Lower: avoids cross-line merging"
+      },
+      "verticalCutThreshold": {
+        "label": "Vertical Cut Threshold",
+        "description": "XY-Cut algorithm threshold for column detection (multiplier of line height).",
+        "effect": "Higher: fewer vertical cuts, columns may merge | Lower: more aggressive column splitting"
+      },
+      "horizontalCutThreshold": {
+        "label": "Horizontal Cut Threshold",
+        "description": "XY-Cut algorithm threshold for paragraph detection (multiplier of line height).",
+        "effect": "Higher: fewer horizontal cuts, paragraphs may merge | Lower: more aggressive paragraph splitting"
+      },
+      "sameLineThreshold": {
+        "label": "Same Line Threshold",
+        "description": "Threshold to determine if two regions are on the same line (multiplier of min height).",
+        "effect": "Higher: more lenient same-line detection | Lower: stricter, may split into multiple lines"
+      },
+      "fontSizeDiffThreshold": {
+        "label": "Font Size Diff Threshold",
+        "description": "Regions with height ratio exceeding this won't be merged (prevents title/body merging).",
+        "effect": "Higher: allows larger size differences to merge | Lower: different sizes stay separate"
+      },
+      "colorDiffThreshold": {
+        "label": "Color Diff Threshold",
+        "description": "RGB Euclidean distance threshold. Colors beyond this are considered distinct (preserves highlights).",
+        "effect": "Higher: more colors treated as same | Lower: preserves more color differences"
+      },
+      "textWidthExpansion": {
+        "label": "Text Width Expansion",
+        "description": "Canvas measurement multiplier to compensate for PPTX rendering wider.",
+        "effect": "Higher: wider text boxes, prevents wrapping | Lower: more compact boxes"
+      },
+      "lineHeightRatio": {
+        "label": "Line Height Ratio",
+        "description": "Ratio for converting detected line height to font size.",
+        "effect": "Higher: smaller fonts (assumes wider line spacing) | Lower: larger fonts"
+      },
+      "minFontSize": {
+        "label": "Min Font Size",
+        "description": "Minimum font size (points) for PPTX text boxes.",
+        "effect": "Higher: prevents very small text | Lower: allows smaller fonts"
+      },
+      "maxFontSize": {
+        "label": "Max Font Size",
+        "description": "Maximum font size (points) for PPTX text boxes.",
+        "effect": "Higher: allows larger titles | Lower: caps font size"
       }
     }
   },
@@ -1247,6 +1294,7 @@
     "original": "Original",
     "processed": "Processed",
     "downloadPptx": "Download PPTX",
+    "conversionSettings": "Conversion Settings",
     "downloadSuccess": "PPTX downloaded successfully!",
     "prevPage": "Previous",
     "nextPage": "Next",
@@ -1298,7 +1346,8 @@
       "pptxGenerationFailed": "PPTX generation failed: {error}",
       "ocrEngine": "Using engine: {engine}",
       "gpuMemoryError": "GPU memory insufficient, switching to CPU mode...",
-      "gpuFallbackComplete": "Switched to CPU mode, continuing processing"
+      "gpuFallbackComplete": "Switched to CPU mode, continuing processing",
+      "settingsRemerged": "Re-merged text blocks for {count} slides with new settings"
     }
   },
   "tour": {

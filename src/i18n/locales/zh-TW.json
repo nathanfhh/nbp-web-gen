@@ -1035,8 +1035,8 @@
     }
   },
   "ocrSettings": {
-    "title": "OCR 進階設定",
-    "subtitle": "調整文字偵測與辨識參數",
+    "title": "轉換設定",
+    "subtitle": "調整 OCR 偵測與 PPTX 輸出參數",
     "advancedSettings": "進階設定",
     "resetToDefaults": "重置為預設值",
     "modified": "已修改",
@@ -1045,7 +1045,9 @@
       "model": "模型設定",
       "preprocessing": "預處理",
       "detection": "文字偵測",
-      "postprocessing": "後處理"
+      "postprocessing": "後處理",
+      "layout": "版面分析",
+      "export": "輸出設定"
     },
     "modelSize": {
       "server": {
@@ -1088,6 +1090,51 @@
         "label": "縱向膨脹",
         "description": "形態學縱向膨脹迭代次數。用於連接筆劃，但過大會合併不同行。",
         "effect": "調高：筆劃更易連接但可能合併行｜調低：避免跨行合併"
+      },
+      "verticalCutThreshold": {
+        "label": "垂直切割閾值",
+        "description": "XY-Cut 演算法中偵測多欄分隔的閾值（相對於行高的倍數）。",
+        "effect": "調高：較少垂直切割，多欄可能合併｜調低：更積極分欄"
+      },
+      "horizontalCutThreshold": {
+        "label": "水平切割閾值",
+        "description": "XY-Cut 演算法中偵測段落分隔的閾值（相對於行高的倍數）。",
+        "effect": "調高：較少水平切割，段落可能合併｜調低：更積極分段"
+      },
+      "sameLineThreshold": {
+        "label": "同行判定閾值",
+        "description": "判斷兩個文字區域是否在同一行的閾值（相對於較小行高的倍數）。",
+        "effect": "調高：更寬鬆的同行判定｜調低：更嚴格，可能拆成多行"
+      },
+      "fontSizeDiffThreshold": {
+        "label": "字體大小差異閾值",
+        "description": "區域高度比例超過此值時不會合併（避免標題與內文合併）。",
+        "effect": "調高：允許更大的字體差異合併｜調低：不同大小的文字分開"
+      },
+      "colorDiffThreshold": {
+        "label": "顏色差異閾值",
+        "description": "RGB 歐式距離閾值。超過此值的顏色視為不同顏色（保留螢光筆等標註）。",
+        "effect": "調高：更多顏色視為相同｜調低：更精確保留顏色差異"
+      },
+      "textWidthExpansion": {
+        "label": "文字寬度擴展係數",
+        "description": "Canvas 測量結果乘以此係數以補償 PPTX 較寬的渲染。",
+        "effect": "調高：文字框更寬，避免換行｜調低：文字框更緊湊"
+      },
+      "lineHeightRatio": {
+        "label": "行高比例",
+        "description": "將偵測到的行高轉換為字體大小時使用的比例係數。",
+        "effect": "調高：字體變小（假設行距更寬）｜調低：字體變大"
+      },
+      "minFontSize": {
+        "label": "最小字體大小",
+        "description": "PPTX 文字框的最小字體大小（點）。",
+        "effect": "調高：避免產生過小的文字｜調低：允許更小的字體"
+      },
+      "maxFontSize": {
+        "label": "最大字體大小",
+        "description": "PPTX 文字框的最大字體大小（點）。",
+        "effect": "調高：允許更大的標題｜調低：限制最大字體"
       }
     }
   },
@@ -1247,6 +1294,7 @@
     "original": "原圖",
     "processed": "處理後",
     "downloadPptx": "下載 PPTX",
+    "conversionSettings": "轉換設定",
     "downloadSuccess": "PPTX 下載完成！",
     "prevPage": "上一頁",
     "nextPage": "下一頁",
@@ -1301,7 +1349,8 @@
       "pptxGenerationFailed": "PPTX 產生失敗：{error}",
       "ocrEngine": "使用引擎：{engine}",
       "gpuMemoryError": "GPU 記憶體不足，自動切換至 CPU 模式...",
-      "gpuFallbackComplete": "已切換至 CPU 模式繼續處理"
+      "gpuFallbackComplete": "已切換至 CPU 模式繼續處理",
+      "settingsRemerged": "已根據新設定重新合併 {count} 張投影片的文字區塊"
     }
   }
 }

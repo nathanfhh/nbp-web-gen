@@ -97,6 +97,42 @@ export const OCR_DEFAULTS = {
 
   // Morphological dilation iterations - vertical (connects strokes, less aggressive)
   dilationV: 1,
+
+  // === Layout Analysis (Text Block Merging) ===
+  // Vertical cut threshold (multiplier of median line height)
+  // Used to detect column separators in XY-Cut algorithm
+  verticalCutThreshold: 1.5,
+
+  // Horizontal cut threshold (multiplier of median line height)
+  // Used to detect paragraph separators in XY-Cut algorithm
+  horizontalCutThreshold: 0.3,
+
+  // Same line threshold (multiplier of min line height)
+  // Lines with Y-center difference < this * minHeight are considered same line
+  sameLineThreshold: 0.7,
+
+  // Font size difference threshold (ratio)
+  // Regions with height ratio > this won't be merged (different heading levels)
+  fontSizeDiffThreshold: 1.5,
+
+  // Color difference threshold (Euclidean distance in RGB, 0-441.67)
+  // Colors with distance > this are considered distinct (preserve highlights)
+  colorDiffThreshold: 50,
+
+  // === PPTX Export ===
+  // Text width expansion factor
+  // Canvas measures text narrower than PPTX renders, so we expand
+  textWidthExpansion: 1.05,
+
+  // Line height ratio (font size to line height)
+  // Used to calculate font size from detected line height
+  lineHeightRatio: 1.2,
+
+  // Minimum font size (points) for PPTX text boxes
+  minFontSize: 8,
+
+  // Maximum font size (points) for PPTX text boxes
+  maxFontSize: 120,
 }
 
 /**
@@ -140,6 +176,62 @@ export const OCR_PARAM_RULES = {
     step: 1,
     category: 'postprocessing',
   },
+  // Layout Analysis parameters
+  verticalCutThreshold: {
+    min: 0.5,
+    max: 5.0,
+    step: 0.1,
+    category: 'layout',
+  },
+  horizontalCutThreshold: {
+    min: 0.1,
+    max: 2.0,
+    step: 0.05,
+    category: 'layout',
+  },
+  sameLineThreshold: {
+    min: 0.3,
+    max: 1.5,
+    step: 0.05,
+    category: 'layout',
+  },
+  fontSizeDiffThreshold: {
+    min: 1.1,
+    max: 3.0,
+    step: 0.1,
+    category: 'layout',
+  },
+  colorDiffThreshold: {
+    min: 10,
+    max: 150,
+    step: 5,
+    category: 'layout',
+  },
+  // PPTX Export parameters
+  textWidthExpansion: {
+    min: 1.0,
+    max: 1.5,
+    step: 0.01,
+    category: 'export',
+  },
+  lineHeightRatio: {
+    min: 1.0,
+    max: 2.0,
+    step: 0.05,
+    category: 'export',
+  },
+  minFontSize: {
+    min: 4,
+    max: 24,
+    step: 1,
+    category: 'export',
+  },
+  maxFontSize: {
+    min: 48,
+    max: 200,
+    step: 4,
+    category: 'export',
+  },
 }
 
 /**
@@ -152,6 +244,15 @@ export const OCR_PARAM_ORDER = [
   'unclipRatio',
   'dilationH',
   'dilationV',
+  'verticalCutThreshold',
+  'horizontalCutThreshold',
+  'sameLineThreshold',
+  'fontSizeDiffThreshold',
+  'colorDiffThreshold',
+  'textWidthExpansion',
+  'lineHeightRatio',
+  'minFontSize',
+  'maxFontSize',
 ]
 
 /**
@@ -161,6 +262,20 @@ export const OCR_CATEGORIES = [
   { key: 'preprocessing', params: ['maxSideLen'] },
   { key: 'detection', params: ['threshold', 'boxThreshold'] },
   { key: 'postprocessing', params: ['unclipRatio', 'dilationH', 'dilationV'] },
+  {
+    key: 'layout',
+    params: [
+      'verticalCutThreshold',
+      'horizontalCutThreshold',
+      'sameLineThreshold',
+      'fontSizeDiffThreshold',
+      'colorDiffThreshold',
+    ],
+  },
+  {
+    key: 'export',
+    params: ['textWidthExpansion', 'lineHeightRatio', 'minFontSize', 'maxFontSize'],
+  },
 ]
 
 /**
