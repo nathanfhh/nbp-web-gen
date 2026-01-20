@@ -201,21 +201,24 @@ const exitEditMode = async () => {
   // This requires inpaint (background regeneration)
 
   // Special case: If regions are back to original state (no edits, no separators)
-  // and cleanImage is not original, restore the original cleanImage
   const isBackToOriginal = state.editedRawRegions === null &&
                            (state.separatorLines?.length || 0) === 0
-  const canRestoreOriginal = isBackToOriginal &&
-                             !state.cleanImageIsOriginal &&
-                             state.originalCleanImage
 
-  if (canRestoreOriginal) {
-    // Restore original cleanImage (no API call needed)
-    state.cleanImage = state.originalCleanImage
-    state.cleanImageIsOriginal = true
-    state.regionsSnapshotAtCleanImage = null
-    slideToPptx.remergeMergedRegions(currentIndex.value)
-    toast.success(t('slideToPptx.regionEditor.reprocessSuccess'))
-    return
+  if (isBackToOriginal) {
+    if (state.cleanImageIsOriginal) {
+      // Already at original state with original cleanImage - nothing to do
+      // This happens when user resets regions (which sets cleanImageIsOriginal = true)
+      slideToPptx.remergeMergedRegions(currentIndex.value)
+      return
+    } else if (state.originalCleanImage) {
+      // Restore original cleanImage (no API call needed)
+      state.cleanImage = state.originalCleanImage
+      state.cleanImageIsOriginal = true
+      state.regionsSnapshotAtCleanImage = null
+      slideToPptx.remergeMergedRegions(currentIndex.value)
+      toast.success(t('slideToPptx.regionEditor.reprocessSuccess'))
+      return
+    }
   }
 
   // Regions have changed - need to reprocess (inpaint)

@@ -1452,7 +1452,9 @@ Output: A single clean image with all text removed.`
         }
 
         try {
-          state.cleanImage = await removeTextWithGeminiWithSettings(state.originalImage, state.regions, effectiveSettings, state.customInpaintPrompt, state.width, state.height)
+          // Use regionsToUse (latest edited regions) instead of state.regions (old merged regions)
+          // This ensures Gemini prompt matches the mask we generated from regionsToUse
+          state.cleanImage = await removeTextWithGeminiWithSettings(state.originalImage, regionsToUse, effectiveSettings, state.customInpaintPrompt, state.width, state.height)
         } catch (geminiError) {
           addLog(t('slideToPptx.logs.geminiFailed', { slide: slideIndex + 1, error: geminiError.message }), 'warning')
           const { imageData: inpaintedData } = await inpainting.inpaint(imageData, state.mask, {
