@@ -73,12 +73,13 @@ const translateOcrMessage = (message) => {
  * @property {Object|null} cachedOcrSettings - Cached OCR settings for cache invalidation
  * @property {ImageData} mask - Generated mask
  * @property {string} cleanImage - Text-removed image data URL
+ * @property {string} originalCleanImage - Original cleanImage from first processing (for reset)
+ * @property {boolean} cleanImageIsOriginal - Whether cleanImage is based on original rawRegions (true) or editedRawRegions (false)
  * @property {string} originalImage - Original image data URL (for comparison)
  * @property {number} width - Image width
  * @property {number} height - Image height
  * @property {string} error - Error message if failed
  * @property {Object|null} overrideSettings - Per-page settings override (null = use global)
- * @property {boolean} isRegionsEdited - Flag: user has manually edited regions
  * @property {Array|null} editedRawRegions - User-modified regions (null = use original rawRegions)
  * @property {Array} separatorLines - Manual separator lines to prevent region merging
  * @property {Object} editHistory - Undo/redo history for region editing
@@ -576,6 +577,10 @@ Output: A single clean image with all text removed.`
 
       addLog(t('slideToPptx.logs.textRemovalComplete', { slide: index + 1 }), 'success')
 
+      // Save original cleanImage for reset functionality
+      state.originalCleanImage = state.cleanImage
+      state.cleanImageIsOriginal = true
+
       state.status = 'done'
       return state
     } catch (error) {
@@ -618,13 +623,14 @@ Output: A single clean image with all text removed.`
         cachedOcrSettings: existingState?.cachedOcrSettings || null,
         mask: null,
         cleanImage: null,
+        originalCleanImage: null,
+        cleanImageIsOriginal: true,
         originalImage: null,
         width: 0,
         height: 0,
         error: null,
         overrideSettings: existingState?.overrideSettings || null,
-        // Preserve region editing state
-        isRegionsEdited: existingState?.isRegionsEdited || false,
+        // Region editing state
         editedRawRegions: existingState?.editedRawRegions || null,
         // Preserve separator lines
         separatorLines: existingState?.separatorLines || [],
@@ -835,12 +841,13 @@ Output: A single clean image with all text removed.`
         cachedOcrSettings: null,
         mask: null,
         cleanImage: null,
+        originalCleanImage: null,
+        cleanImageIsOriginal: true,
         originalImage: null,
         width: 0,
         height: 0,
         error: null,
         overrideSettings: null,
-        isRegionsEdited: false,
         editedRawRegions: null,
         separatorLines: [],
         editHistory: { undoStack: [], redoStack: [] },
@@ -904,7 +911,6 @@ Output: A single clean image with all text removed.`
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: newRegions,
-      isRegionsEdited: true,
     }
 
     addLog(t('slideToPptx.logs.regionDeleted', { slide: slideIndex + 1 }), 'info')
@@ -937,7 +943,6 @@ Output: A single clean image with all text removed.`
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: newRegions,
-      isRegionsEdited: true,
     }
 
     addLog(t('slideToPptx.logs.regionsBatchDeleted', { count: validIndices.length, slide: slideIndex + 1 }), 'info')
@@ -986,7 +991,6 @@ Output: A single clean image with all text removed.`
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: newRegions,
-      isRegionsEdited: true,
     }
 
     addLog(t('slideToPptx.logs.regionAdded', { slide: slideIndex + 1 }), 'info')
@@ -1001,13 +1005,18 @@ Output: A single clean image with all text removed.`
     if (!state) return
 
     // Clear edited regions, separator lines, and edit history
+    // Restore original cleanImage (background based on original rawRegions)
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: null,
-      isRegionsEdited: false,
       separatorLines: [],
       editHistory: { undoStack: [], redoStack: [] },
+      cleanImage: state.originalCleanImage || state.cleanImage,
+      cleanImageIsOriginal: true,
     }
+
+    // Re-merge with original rawRegions to update display
+    remergeMergedRegions(slideIndex)
 
     addLog(t('slideToPptx.logs.regionsReset', { slide: slideIndex + 1 }), 'info')
   }
@@ -1078,13 +1087,15 @@ Output: A single clean image with all text removed.`
     // Pop from undo stack and restore
     const previousSnapshot = state.editHistory.undoStack.pop()
 
-    // Apply the snapshot
+    // Apply the snapshot (exitEditMode will determine if reprocess is needed based on cleanImageIsOriginal)
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: previousSnapshot.editedRawRegions,
       separatorLines: previousSnapshot.separatorLines,
-      isRegionsEdited: previousSnapshot.editedRawRegions !== null || previousSnapshot.separatorLines.length > 0,
     }
+
+    // Re-merge to update display
+    remergeMergedRegions(slideIndex)
 
     return true
   }
@@ -1107,13 +1118,15 @@ Output: A single clean image with all text removed.`
     // Pop from redo stack and restore
     const nextSnapshot = state.editHistory.redoStack.pop()
 
-    // Apply the snapshot
+    // Apply the snapshot (exitEditMode will determine if reprocess is needed based on cleanImageIsOriginal)
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: nextSnapshot.editedRawRegions,
       separatorLines: nextSnapshot.separatorLines,
-      isRegionsEdited: nextSnapshot.editedRawRegions !== null || nextSnapshot.separatorLines.length > 0,
     }
+
+    // Re-merge to update display
+    remergeMergedRegions(slideIndex)
 
     return true
   }
@@ -1186,7 +1199,6 @@ Output: A single clean image with all text removed.`
     slideStates.value[slideIndex] = {
       ...state,
       editedRawRegions: newRegions,
-      isRegionsEdited: true,
     }
   }
 
@@ -1218,7 +1230,6 @@ Output: A single clean image with all text removed.`
     slideStates.value[slideIndex] = {
       ...state,
       separatorLines: [...(state.separatorLines || []), newSeparator],
-      isRegionsEdited: true,
     }
   }
 
@@ -1237,7 +1248,6 @@ Output: A single clean image with all text removed.`
     slideStates.value[slideIndex] = {
       ...state,
       separatorLines: (state.separatorLines || []).filter((s) => s.id !== separatorId),
-      isRegionsEdited: true,
     }
   }
 
@@ -1327,9 +1337,14 @@ Output: A single clean image with all text removed.`
         }
       }
 
+      // Mark that cleanImage is now based on edited regions
+      state.cleanImageIsOriginal = false
+
       // Re-merge for PPTX export (with separator lines as forced cut boundaries)
       // This happens AFTER color extraction so colors are available for merge logic
-      const mergedRegions = mergeTextRegions(regionsToUse, separatorLines)
+      // Pass layout settings from OCR Settings (WYSIWYG - settings apply immediately)
+      const currentOcrSettings = getOcrSettings()
+      const mergedRegions = mergeTextRegions(regionsToUse, separatorLines, currentOcrSettings)
       state.regions = mergedRegions
       state.ocrResults = mergedRegions
 
@@ -1340,6 +1355,48 @@ Output: A single clean image with all text removed.`
     } catch (error) {
       addLog(t('slideToPptx.logs.reprocessingFailed', { slide: slideIndex + 1, error: error.message }), 'error')
       throw error
+    }
+  }
+
+  /**
+   * Re-merge regions for a single slide (lightweight, no inpainting)
+   * Used for WYSIWYG when layout settings change
+   * @param {number} slideIndex - Slide index
+   */
+  const remergeMergedRegions = (slideIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state || !state.rawRegions || state.rawRegions.length === 0) {
+      return // Not processed yet, skip
+    }
+
+    // Use edited regions if available, otherwise original
+    const regionsToUse = state.editedRawRegions || state.rawRegions
+    const separatorLines = state.separatorLines || []
+
+    // Re-merge with current settings
+    const currentOcrSettings = getOcrSettings()
+    const mergedRegions = mergeTextRegions(regionsToUse, separatorLines, currentOcrSettings)
+    state.regions = mergedRegions
+    state.ocrResults = mergedRegions
+
+    // Trigger reactivity update
+    slideStates.value[slideIndex] = { ...state }
+  }
+
+  /**
+   * Re-merge all processed slides (WYSIWYG when settings change)
+   */
+  const remergeAllSlides = () => {
+    let remergedCount = 0
+    for (let i = 0; i < slideStates.value.length; i++) {
+      const state = slideStates.value[i]
+      if (state && state.status === 'done' && state.rawRegions?.length > 0) {
+        remergeMergedRegions(i)
+        remergedCount++
+      }
+    }
+    if (remergedCount > 0) {
+      addLog(t('slideToPptx.logs.settingsRemerged', { count: remergedCount }), 'info')
     }
   }
 
@@ -1450,5 +1507,9 @@ Output: A single clean image with all text removed.`
     canUndo,
     canRedo,
     clearEditHistory,
+
+    // WYSIWYG layout re-merge
+    remergeMergedRegions,
+    remergeAllSlides,
   }
 }

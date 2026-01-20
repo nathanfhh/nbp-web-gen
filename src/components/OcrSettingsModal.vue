@@ -6,33 +6,49 @@ import { useOcrSettings } from '@/composables/useOcrSettings'
 const { t } = useI18n()
 const { settings, updateSetting, resetToDefaults, defaults, rules, categories } = useOcrSettings()
 
+const emit = defineEmits(['close'])
+
 const isOpen = ref(false)
 const localSettings = ref({})
+const hasUnsavedChanges = ref(false)
 
 // Copy settings to local state when opening
 const open = () => {
   localSettings.value = { ...settings }
+  hasUnsavedChanges.value = false
   isOpen.value = true
 }
 
+// Apply all pending changes and close
 const close = () => {
+  // Apply all local changes to actual settings
+  if (hasUnsavedChanges.value) {
+    Object.entries(localSettings.value).forEach(([key, value]) => {
+      if (settings[key] !== value) {
+        updateSetting(key, value)
+      }
+    })
+  }
   isOpen.value = false
+  emit('close')
 }
 
 const handleReset = () => {
   resetToDefaults()
   localSettings.value = { ...settings }
+  hasUnsavedChanges.value = true
 }
 
 const handleSliderInput = (key, event) => {
   const value = parseFloat(event.target.value)
   localSettings.value[key] = value
-  updateSetting(key, value)
+  hasUnsavedChanges.value = true
+  // Don't call updateSetting here - only update on close
 }
 
-// Check if current value differs from default
+// Check if current value differs from default (use localSettings for real-time display)
 const isModified = (key) => {
-  return settings[key] !== defaults[key]
+  return localSettings.value[key] !== defaults[key]
 }
 
 // Format value for display
@@ -156,7 +172,7 @@ defineExpose({ open, close })
                     <div class="flex items-center gap-2">
                       <!-- Current Value -->
                       <span class="text-sm font-mono text-text-primary min-w-[3.5rem] text-right">
-                        {{ formatValue(key, settings[key]) }}
+                        {{ formatValue(key, localSettings[key]) }}
                       </span>
                       <!-- Default Value -->
                       <span class="text-xs text-text-muted">
@@ -168,7 +184,7 @@ defineExpose({ open, close })
                   <!-- Slider -->
                   <input
                     type="range"
-                    :value="settings[key]"
+                    :value="localSettings[key]"
                     :min="rules[key].min"
                     :max="rules[key].max"
                     :step="rules[key].step"

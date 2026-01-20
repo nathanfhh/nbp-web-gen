@@ -95,6 +95,9 @@ const showMergedRegions = ref(true)
 const showRawRegions = ref(true)
 const showFailedRegions = ref(true) // Show regions where recognition failed
 
+// Download button dropdown state
+const showDownloadDropdown = ref(false)
+
 // OCR JSON overlay (shows raw OCR result data)
 const showOcrJsonOverlay = ref(false)
 
@@ -138,9 +141,25 @@ const exitEditMode = async () => {
   isRegionEditMode.value = false
   lightboxOpen.value = false // Close lightbox when finishing edits
 
-  // Check if regions were edited and reprocess if needed
+  // Check if current regions match the cleanImage's basis
+  // - editedRawRegions === null means using original rawRegions
+  // - cleanImageIsOriginal === true means cleanImage is based on original rawRegions
   const state = slideStates.value[currentIndex.value]
-  if (state?.isRegionsEdited) {
+  if (!state) return
+
+  const currentIsOriginal = state.editedRawRegions === null
+  const backgroundIsOriginal = state.cleanImageIsOriginal
+
+  if (currentIsOriginal && !backgroundIsOriginal) {
+    // Regions restored to original, but background is based on edited regions
+    // → Restore original background (no API call needed)
+    state.cleanImage = state.originalCleanImage || state.cleanImage
+    state.cleanImageIsOriginal = true
+    slideToPptx.remergeMergedRegions(currentIndex.value)
+    toast.success(t('slideToPptx.regionEditor.reprocessSuccess'))
+  } else if (!currentIsOriginal && backgroundIsOriginal) {
+    // Regions are edited, but background is based on original regions
+    // → Need to reprocess (inpaint with new regions)
     try {
       isReprocessing.value = true
       await slideToPptx.reprocessSlide(currentIndex.value)
@@ -151,6 +170,7 @@ const exitEditMode = async () => {
       isReprocessing.value = false
     }
   }
+  // else: regions and background match, no action needed
 }
 
 // Region editing event handlers
@@ -251,10 +271,11 @@ const currentEditableRegions = computed(() => {
   return slideToPptx.getEditableRegions(currentIndex.value)
 })
 
-// Check if current slide has been edited
+// Check if current slide has been edited (derived from state)
 const currentSlideIsEdited = computed(() => {
   const state = slideStates.value[currentIndex.value]
-  return state?.isRegionsEdited || false
+  if (!state) return false
+  return state.editedRawRegions !== null || (state.separatorLines?.length > 0)
 })
 
 // Sync settings with composable
@@ -408,13 +429,24 @@ const handleBeforeUnload = (e) => {
   }
 }
 
+// Subscribe to OCR settings changes for WYSIWYG
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
+  // Close dropdown when clicking outside
+  document.addEventListener('click', closeDropdownOnOutsideClick)
 })
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  document.removeEventListener('click', closeDropdownOnOutsideClick)
 })
+
+// Handle settings modal close - re-merge regions with new settings (WYSIWYG)
+const handleSettingsModalClose = () => {
+  if (slideStates.value.some(s => s.status === 'done' && s.rawRegions?.length > 0)) {
+    slideToPptx.remergeAllSlides()
+  }
+}
 
 const goBack = () => {
   router.push('/')
@@ -497,9 +529,29 @@ const successfulSlides = computed(() => {
 
 // Download PPTX
 const downloadPptx = async () => {
+  showDownloadDropdown.value = false
   const success = await slideToPptx.downloadPptx()
   if (success) {
     toast.success(t('slideToPptx.downloadSuccess'))
+  }
+}
+
+// Open conversion settings modal
+const openConversionSettings = () => {
+  showDownloadDropdown.value = false
+  ocrSettingsModalRef.value?.open()
+}
+
+// Toggle download dropdown
+const toggleDownloadDropdown = () => {
+  showDownloadDropdown.value = !showDownloadDropdown.value
+}
+
+// Close dropdown when clicking outside
+const closeDropdownOnOutsideClick = (event) => {
+  const dropdown = event.target.closest('.download-dropdown-container')
+  if (!dropdown) {
+    showDownloadDropdown.value = false
   }
 }
 
@@ -1671,17 +1723,76 @@ const getSlideStatus = (index) => {
                 {{ $t('slideToPptx.actions.cancel') }}
               </button>
 
-              <!-- Download PPTX Button (shows after processing complete) -->
-              <button
+              <!-- Download PPTX Split Button (shows after processing complete) -->
+              <div
                 v-if="!isProcessing && successfulSlides.length > 0"
-                @click="downloadPptx"
-                class="w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 bg-status-success hover:bg-status-success/80 text-white"
+                class="relative download-dropdown-container w-full"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                {{ $t('slideToPptx.downloadPptx') }} ({{ successfulSlides.length }})
-              </button>
+                <div class="flex w-full">
+                  <!-- Main Download Button -->
+                  <button
+                    @click="downloadPptx"
+                    class="flex-1 py-3 rounded-l-xl font-semibold transition-all flex items-center justify-center gap-2 bg-status-success hover:bg-status-success/80 text-white"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {{ $t('slideToPptx.downloadPptx') }} ({{ successfulSlides.length }})
+                  </button>
+                  <!-- Dropdown Toggle Button -->
+                  <button
+                    @click="toggleDownloadDropdown"
+                    class="px-3 py-3 rounded-r-xl border-l border-white/20 font-semibold transition-all bg-status-success hover:bg-status-success/80 text-white"
+                  >
+                    <svg
+                      class="w-4 h-4 transition-transform"
+                      :class="{ 'rotate-180': showDownloadDropdown }"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Dropdown Menu -->
+                <Transition
+                  enter-active-class="transition ease-out duration-100"
+                  enter-from-class="transform opacity-0 scale-95"
+                  enter-to-class="transform opacity-100 scale-100"
+                  leave-active-class="transition ease-in duration-75"
+                  leave-from-class="transform opacity-100 scale-100"
+                  leave-to-class="transform opacity-0 scale-95"
+                >
+                  <div
+                    v-if="showDownloadDropdown"
+                    class="absolute bottom-full left-0 right-0 mb-1 rounded-xl overflow-hidden shadow-lg glass-strong border border-border-muted z-20"
+                  >
+                    <!-- Download Option -->
+                    <button
+                      @click="downloadPptx"
+                      class="w-full px-4 py-3 text-left text-sm font-medium text-text-primary hover:bg-bg-interactive transition-colors flex items-center gap-3"
+                    >
+                      <svg class="w-4 h-4 text-status-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      {{ $t('slideToPptx.downloadPptx') }}
+                    </button>
+                    <!-- Settings Option -->
+                    <button
+                      @click="openConversionSettings"
+                      class="w-full px-4 py-3 text-left text-sm font-medium text-text-primary hover:bg-bg-interactive transition-colors flex items-center gap-3 border-t border-border-muted"
+                    >
+                      <svg class="w-4 h-4 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {{ $t('slideToPptx.conversionSettings') }}
+                    </button>
+                  </div>
+                </Transition>
+              </div>
             </div>
           </div>
 
@@ -1759,7 +1870,7 @@ const getSlideStatus = (index) => {
     <ConfirmModal ref="confirmModalRef" />
 
     <!-- OCR Settings Modal -->
-    <OcrSettingsModal ref="ocrSettingsModalRef" />
+    <OcrSettingsModal ref="ocrSettingsModalRef" @close="handleSettingsModalClose" />
 
     <!-- API Key Modal -->
     <ApiKeyModal ref="apiKeyModalRef" @close="refreshApiKeyStatus" />
