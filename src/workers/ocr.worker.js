@@ -25,17 +25,16 @@ import {
 // OCR default settings and model configuration
 import { OCR_DEFAULTS, getModelConfig } from '../constants/ocrDefaults.js'
 
+// OPFS model cache utilities (shared with useOcrMainThread.js)
+import {
+  modelExists,
+  readModel,
+  writeModel,
+  downloadModel as downloadModelBase,
+} from '../utils/ocrUtils.js'
+
 // Configure ONNX Runtime WASM paths (must be set before any session creation)
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/'
-
-// ============================================================================
-// Model Configuration
-// ============================================================================
-
-// Model configuration is now centralized in ocrDefaults.js
-// Use getModelConfig(modelSize) to get URLs based on current settings
-
-const OPFS_DIR = 'ocr-models'
 
 // ============================================================================
 // Singleton State
@@ -67,71 +66,6 @@ const reportProgress = (stage, value, message, requestId = null) => {
 // OPFS Model Cache
 // ============================================================================
 
-async function getModelsDirectory() {
-  const root = await navigator.storage.getDirectory()
-  return await root.getDirectoryHandle(OPFS_DIR, { create: true })
-}
-
-async function modelExists(filename) {
-  try {
-    const dir = await getModelsDirectory()
-    await dir.getFileHandle(filename, { create: false })
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function readModel(filename) {
-  const dir = await getModelsDirectory()
-  const fileHandle = await dir.getFileHandle(filename, { create: false })
-  const file = await fileHandle.getFile()
-  return filename.endsWith('.txt') ? await file.text() : await file.arrayBuffer()
-}
-
-async function writeModel(filename, data) {
-  const dir = await getModelsDirectory()
-  const fileHandle = await dir.getFileHandle(filename, { create: true })
-  const writable = await fileHandle.createWritable()
-  await writable.write(data)
-  await writable.close()
-}
-
-async function downloadModel(url, filename, expectedSize) {
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Failed to download ${filename}: ${response.status}`)
-  }
-
-  const contentLength = response.headers.get('content-length')
-  const total = contentLength ? parseInt(contentLength, 10) : expectedSize
-
-  const reader = response.body.getReader()
-  const chunks = []
-  let received = 0
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    chunks.push(value)
-    received += value.length
-
-    const fileProgress = Math.min(100, Math.round((received / total) * 100))
-    const sizeMB = Math.round(received / 1024 / 1024)
-    reportProgress('model', fileProgress, `下載中 ${sizeMB}MB... ${fileProgress}%`)
-  }
-
-  const data = new Uint8Array(received)
-  let offset = 0
-  for (const chunk of chunks) {
-    data.set(chunk, offset)
-    offset += chunk.length
-  }
-
-  return filename.endsWith('.txt') ? new TextDecoder().decode(data) : data.buffer
-}
-
 /**
  * Get model from OPFS cache or download
  * @param {string} modelType - 'detection', 'recognition', or 'dictionary'
@@ -147,7 +81,15 @@ async function getModel(modelType, modelConfig, statusMessage) {
     return { data: await readModel(model.filename), fromCache: true }
   }
 
-  const data = await downloadModel(model.url, model.filename, model.size)
+  // Use shared downloadModelBase, convert progress format
+  const data = await downloadModelBase(
+    model.url,
+    model.filename,
+    model.size,
+    (percent, sizeMB) => {
+      reportProgress('model', percent, `下載中 ${sizeMB}MB... ${percent}%`)
+    }
+  )
   await writeModel(model.filename, data)
   return { data, fromCache: false }
 }

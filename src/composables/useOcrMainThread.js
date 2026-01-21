@@ -14,72 +14,13 @@ import { ref, onUnmounted, getCurrentInstance } from 'vue'
 import Tesseract from 'tesseract.js'
 import { getSettings } from '@/composables/useOcrSettings'
 
-// ============================================================================ 
-// GPU Memory Error Detection
-// ============================================================================ 
-
-/**
- * Custom error class for GPU memory issues
- * Used to trigger automatic fallback to CPU/WASM mode
- */
-export class GpuOutOfMemoryError extends Error {
-  constructor(originalMessage) {
-    super(`GPU out of memory: ${originalMessage}`)
-    this.name = 'GpuOutOfMemoryError'
-    this.originalMessage = originalMessage
-  }
-}
-
-/**
- * Custom error class for GPU buffer size limit exceeded
- * Distinct from OOM - this is a hard WebGPU limit that can be resolved by using smaller models
- */
-export class GpuBufferSizeError extends Error {
-  constructor(originalMessage) {
-    super(`GPU buffer size exceeded: ${originalMessage}`)
-    this.name = 'GpuBufferSizeError'
-    this.originalMessage = originalMessage
-  }
-}
-
-/**
- * Check if an error message indicates GPU buffer size limit exceeded
- * This is a hard WebGPU limit (e.g., 134MB max storage buffer binding size on mobile)
- */
-function isGpuBufferSizeError(errorMessage) {
-  if (!errorMessage) return false
-  const msg = errorMessage.toLowerCase()
-  return (
-    msg.includes('larger than the maximum storage buffer binding size') ||
-    msg.includes('exceeds the max buffer size') ||
-    msg.includes('buffer size') && msg.includes('exceed')
-  )
-}
-
-/**
- * Check if an error message indicates GPU memory exhaustion
- * Common patterns from WebGPU/ONNX Runtime when VRAM is insufficient
- */
-function isGpuMemoryError(errorMessage) {
-  if (!errorMessage) return false
-  const msg = errorMessage.toLowerCase()
-  return (
-    msg.includes('out of memory') ||
-    msg.includes('allocation failed') ||
-    msg.includes('device lost') ||
-    msg.includes('buffer allocation') ||
-    msg.includes('memory exhausted') ||
-    msg.includes('oom') ||
-    msg.includes('gpu memory') ||
-    msg.includes('vram') ||
-    // WebGPU specific errors
-    msg.includes('createbuffer') ||
-    msg.includes('mapasync') ||
-    // ONNX Runtime specific
-    msg.includes('failed to allocate') ||
-    msg.includes('gpubufferoffset')
-  )
-}
+// GPU error utilities (shared module)
+import {
+  GpuOutOfMemoryError,
+  GpuBufferSizeError,
+  isGpuBufferSizeError,
+  isGpuMemoryError,
+} from '@/utils/gpuErrors'
 
 // ============================================================================ 
 // ONNX Runtime Configuration
@@ -129,97 +70,24 @@ import {
 // Use getModelConfig(modelSize) to get URLs based on current settings
 import { getModelConfig } from '@/constants/ocrDefaults'
 
-const OPFS_DIR = 'ocr-models'
+// OPFS model cache utilities (shared with ocr.worker.js)
+import {
+  modelExists,
+  readModel,
+  writeModel,
+  downloadModel as downloadModelBase,
+  clearModelCache,
+} from '@/utils/ocrUtils'
 
-// ============================================================================ 
+// ============================================================================
 // OPFS Model Cache
-// ============================================================================ 
-
-async function getModelsDirectory() {
-  const root = await navigator.storage.getDirectory()
-  return await root.getDirectoryHandle(OPFS_DIR, { create: true })
-}
-
-async function modelExists(filename) {
-  try {
-    const dir = await getModelsDirectory()
-    await dir.getFileHandle(filename)
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function readModel(filename) {
-  const dir = await getModelsDirectory()
-  const fileHandle = await dir.getFileHandle(filename)
-  const file = await fileHandle.getFile()
-  return file.arrayBuffer()
-}
-
-async function writeModel(filename, data) {
-  const dir = await getModelsDirectory()
-  const fileHandle = await dir.getFileHandle(filename, { create: true })
-  const writable = await fileHandle.createWritable()
-  await writable.write(data)
-  await writable.close()
-}
-
-/**
- * Clear all cached models from OPFS
- * @returns {Promise<boolean>} - true if cleared successfully
- */
-async function clearModelCache() {
-  try {
-    const root = await navigator.storage.getDirectory()
-    await root.removeEntry(OPFS_DIR, { recursive: true })
-    return true
-  } catch (e) {
-    // Directory might not exist, which is fine
-    if (e.name === 'NotFoundError') return true
-    console.warn('Failed to clear model cache:', e)
-    return false
-  }
-}
-
-async function downloadModel(url, filename, expectedSize, onProgress) {
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Failed to download model: ${response.status}`)
-  }
-
-  const reader = response.body.getReader()
-  const chunks = []
-  let receivedLength = 0
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-
-    chunks.push(value)
-    receivedLength += value.length
-
-    if (onProgress && expectedSize) {
-      onProgress(Math.min(receivedLength / expectedSize, 1))
-    }
-  }
-
-  const data = new Uint8Array(receivedLength)
-  let position = 0
-  for (const chunk of chunks) {
-    data.set(chunk, position)
-    position += chunk.length
-  }
-
-  await writeModel(filename, data)
-  return data.buffer
-}
+// ============================================================================
 
 /**
  * Get model from OPFS cache or download
  * @param {string} modelType - 'detection', 'recognition', or 'dictionary'
  * @param {Object} modelConfig - Model configuration from getModelConfig()
- * @param {function} onProgress - Progress callback
+ * @param {function} onProgress - Progress callback (0-1 range)
  */
 async function getModel(modelType, modelConfig, onProgress) {
   const config = modelConfig[modelType]
@@ -229,7 +97,14 @@ async function getModel(modelType, modelConfig, onProgress) {
     return { data: await readModel(config.filename), cached: true }
   }
 
-  const data = await downloadModel(config.url, config.filename, config.size, onProgress)
+  // Convert ocrUtils progress format (percent 0-100) to local format (0-1)
+  const data = await downloadModelBase(
+    config.url,
+    config.filename,
+    config.size,
+    (percent) => onProgress && onProgress(percent / 100)
+  )
+  await writeModel(config.filename, data)
   return { data, cached: false }
 }
 
@@ -342,7 +217,10 @@ export function useOcrMainThread() {
         ])
 
         // Parse dictionary
-        const dictText = new TextDecoder().decode(dictResult.data)
+        // Note: ocrUtils.readModel() returns string for .txt files, ArrayBuffer for others
+        const dictText = typeof dictResult.data === 'string'
+          ? dictResult.data
+          : new TextDecoder().decode(dictResult.data)
         dictionary = dictText.split(/\r?\n/)
         if (dictionary[dictionary.length - 1] === '') dictionary.pop()
         dictionary.unshift('blank')
@@ -730,3 +608,6 @@ export function useOcrMainThread() {
 
 // Export for convenience
 export { hasWebGPU, isMobile, clearModelCache }
+
+// Re-export GPU error classes for backwards compatibility
+export { GpuOutOfMemoryError, GpuBufferSizeError } from '@/utils/gpuErrors'
