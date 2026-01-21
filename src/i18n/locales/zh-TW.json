@@ -579,7 +579,29 @@
   "imageUploader": {
     "title": "參考圖片",
     "dragDrop": "拖放圖片、點擊選擇或貼上",
-    "maxImages": "最多 {count} 張，支援 JPG、PNG、WebP"
+    "maxImages": "最多 {count} 張，支援 JPG、PNG、WebP",
+    "upload": "上傳圖片",
+    "sketch": "手繪草圖",
+    "removeConfirmTitle": "移除圖片",
+    "removeConfirmMessage": "確定要移除這張圖片嗎？"
+  },
+  "sketch": {
+    "save": "完成",
+    "undo": "撤銷",
+    "redo": "重做",
+    "brush": "筆刷",
+    "eraser": "橡皮擦",
+    "color": "顏色",
+    "customColor": "自訂顏色",
+    "lineWidth": "筆刷粗細",
+    "aspectRatio": "畫布比例",
+    "clear": "清空畫布",
+    "clearConfirmTitle": "清空畫布",
+    "clearConfirmMessage": "確定要清空畫布嗎？此操作無法撤銷。",
+    "cancelConfirmTitle": "放棄變更？",
+    "cancelConfirmMessage": "你有未儲存的繪圖內容，確定要放棄嗎？",
+    "discard": "放棄",
+    "keepEditing": "繼續編輯"
   },
   "generate": {
     "button": "開始生成",

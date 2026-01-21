@@ -579,7 +579,29 @@
   "imageUploader": {
     "title": "Reference Images",
     "dragDrop": "Drag & drop, click to select, or paste",
-    "maxImages": "Max {count} images, supports JPG, PNG, WebP"
+    "maxImages": "Max {count} images, supports JPG, PNG, WebP",
+    "upload": "Upload image",
+    "sketch": "Draw sketch",
+    "removeConfirmTitle": "Remove Image",
+    "removeConfirmMessage": "Are you sure you want to remove this image?"
+  },
+  "sketch": {
+    "save": "Done",
+    "undo": "Undo",
+    "redo": "Redo",
+    "brush": "Brush",
+    "eraser": "Eraser",
+    "color": "Color",
+    "customColor": "Custom Color",
+    "lineWidth": "Line Width",
+    "aspectRatio": "Aspect Ratio",
+    "clear": "Clear Canvas",
+    "clearConfirmTitle": "Clear Canvas",
+    "clearConfirmMessage": "Are you sure you want to clear the canvas? This action cannot be undone.",
+    "cancelConfirmTitle": "Discard Changes?",
+    "cancelConfirmMessage": "You have unsaved drawing content. Are you sure you want to discard it?",
+    "discard": "Discard",
+    "keepEditing": "Keep Editing"
   },
   "generate": {
     "button": "Generate",

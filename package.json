@@ -16,6 +16,7 @@
   "dependencies": {
     "@google/genai": "^1.36.0",
     "dayjs": "^1.11.19",
+    "fabric": "^7.1.0",
     "image-q": "^4.0.0",
     "jszip": "^3.10.1",
     "onnxruntime-web": "^1.23.2",

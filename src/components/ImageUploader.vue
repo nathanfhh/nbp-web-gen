@@ -2,9 +2,29 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
+import SketchCanvas from '@/components/SketchCanvas.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
-useI18n() // Enable $t in template
+const { t } = useI18n()
 const store = useGeneratorStore()
+
+// Refs
+const confirmModalRef = ref(null)
+
+// Sketch canvas state
+const showSketchCanvas = ref(false)
+
+const openSketchCanvas = () => {
+  showSketchCanvas.value = true
+}
+
+const handleSketchSave = (imageData) => {
+  store.addReferenceImage(imageData)
+}
+
+const closeSketchCanvas = () => {
+  showSketchCanvas.value = false
+}
 const isDragging = ref(false)
 const fileInput = ref(null)
 
@@ -72,8 +92,26 @@ const handlePaste = (e) => {
   }
 }
 
-const removeImage = (index) => {
-  store.removeReferenceImage(index)
+const removeImage = async (index) => {
+  const confirmed = await confirmModalRef.value.show({
+    title: t('imageUploader.removeConfirmTitle'),
+    message: t('imageUploader.removeConfirmMessage'),
+    confirmText: t('common.remove'),
+    cancelText: t('common.cancel'),
+  })
+
+  if (confirmed) {
+    store.removeReferenceImage(index)
+  }
+}
+
+const downloadImage = (image) => {
+  const link = document.createElement('a')
+  link.href = image.preview
+  link.download = image.name || `image-${Date.now()}.png`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 const clearAll = () => {
@@ -120,11 +158,20 @@ const triggerFileInput = () => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
         </div>
-        <!-- Delete button (only for non-locked images) -->
-        <div v-if="!image.isCharacterLocked" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <!-- Action buttons (only for non-locked images) -->
+        <div v-if="!image.isCharacterLocked" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+          <button
+            @click="downloadImage(image)"
+            class="p-1.5 rounded-full bg-bg-elevated hover:bg-bg-interactive text-text-primary transition-colors"
+            :title="$t('common.download')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
           <button
             @click="removeImage(index)"
-            class="p-1.5 rounded-full bg-status-error-solid hover:bg-status-error-solid text-text-primary transition-colors"
+            class="p-1.5 rounded-full bg-status-error-solid hover:opacity-80 text-text-primary transition-colors"
             :title="$t('common.remove')"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,38 +185,63 @@ const triggerFileInput = () => {
         </div>
       </div>
 
-      <!-- Add more button (if slots available) -->
-      <div
-        v-if="canAddMore"
-        @click="triggerFileInput"
-        class="aspect-square rounded-lg border-2 border-dashed border-border-muted hover:border-mode-generate flex items-center justify-center cursor-pointer transition-colors"
-      >
-        <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
+      <!-- Add more buttons (if slots available) -->
+      <div v-if="canAddMore" class="flex gap-1">
+        <!-- Upload button -->
+        <div
+          @click="triggerFileInput"
+          class="aspect-square rounded-lg border-2 border-dashed border-border-muted hover:border-mode-generate flex items-center justify-center cursor-pointer transition-colors flex-1"
+          :title="$t('imageUploader.upload')"
+        >
+          <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+        </div>
+        <!-- Sketch button -->
+        <div
+          @click="openSketchCanvas"
+          class="aspect-square rounded-lg border-2 border-dashed border-border-muted hover:border-mode-generate flex items-center justify-center cursor-pointer transition-colors flex-1"
+          :title="$t('imageUploader.sketch')"
+        >
+          <svg class="w-6 h-6 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+        </div>
       </div>
     </div>
 
-    <!-- Empty state drop zone -->
-    <div
-      v-else
-      @dragover="handleDragOver"
-      @dragleave="handleDragLeave"
-      @drop="handleDrop"
-      @click="triggerFileInput"
-      class="upload-zone-compact"
-      :class="{ dragover: isDragging }"
-    >
-      <div class="flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-mode-generate-muted flex items-center justify-center flex-shrink-0">
-          <svg class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+    <!-- Empty state -->
+    <div v-else class="flex gap-2">
+      <!-- Drop zone -->
+      <div
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
+        @click="triggerFileInput"
+        class="upload-zone-compact flex-1"
+        :class="{ dragover: isDragging }"
+      >
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-mode-generate-muted flex items-center justify-center flex-shrink-0">
+            <svg class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div class="text-left">
+            <p class="text-text-secondary text-sm font-medium">{{ $t('imageUploader.dragDrop') }}</p>
+            <p class="text-xs text-text-muted mt-0.5">{{ $t('imageUploader.maxImages', { count: MAX_IMAGES }) }}</p>
+          </div>
         </div>
-        <div class="text-left">
-          <p class="text-text-secondary text-sm font-medium">{{ $t('imageUploader.dragDrop') }}</p>
-          <p class="text-xs text-text-muted mt-0.5">{{ $t('imageUploader.maxImages', { count: MAX_IMAGES }) }}</p>
-        </div>
+      </div>
+      <!-- Sketch button -->
+      <div
+        @click="openSketchCanvas"
+        class="upload-zone-compact flex items-center justify-center w-16 flex-shrink-0"
+        :title="$t('imageUploader.sketch')"
+      >
+        <svg class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
       </div>
     </div>
 
@@ -182,6 +254,16 @@ const triggerFileInput = () => {
       class="hidden"
       @change="handleFileSelect"
     />
+
+    <!-- Sketch Canvas Modal -->
+    <SketchCanvas
+      v-if="showSketchCanvas"
+      @save="handleSketchSave"
+      @close="closeSketchCanvas"
+    />
+
+    <!-- Confirm Modal -->
+    <ConfirmModal ref="confirmModalRef" />
   </div>
 </template>
 
