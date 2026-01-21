@@ -29,9 +29,13 @@ export function useInpaintingWorker() {
   const error = ref(null)
   const worker = shallowRef(null)
 
-  // Pending promises for async operations
-  let pendingResolve = null
-  let pendingReject = null
+  // Pending requests map for handling multiple concurrent requests
+  const pendingRequests = new Map()
+  let requestCounter = 0
+
+  // Separate variables for initialization (special case)
+  let initResolve = null
+  let initReject = null
 
   /**
    * Initialize the inpainting worker
@@ -59,16 +63,16 @@ export function useInpaintingWorker() {
 
       // Set up message handler
       newWorker.onmessage = (e) => {
-        const { type, message, imageData, maskData } = e.data
+        const { type, requestId, message, imageData, maskData } = e.data
 
         switch (type) {
           case 'ready':
             isReady.value = true
             status.value = 'Inpainting worker ready'
-            if (pendingResolve) {
-              pendingResolve()
-              pendingResolve = null
-              pendingReject = null
+            if (initResolve) {
+              initResolve()
+              initResolve = null
+              initReject = null
             }
             break
 
@@ -77,40 +81,43 @@ export function useInpaintingWorker() {
             break
 
           case 'result':
-            if (pendingResolve) {
-              // Return both imageData and textColors (if available)
-              pendingResolve({
+            if (requestId && pendingRequests.has(requestId)) {
+              const request = pendingRequests.get(requestId)
+              request.resolve({
                 imageData,
                 textColors: e.data.textColors || null,
               })
-              pendingResolve = null
-              pendingReject = null
+              pendingRequests.delete(requestId)
             }
             break
 
           case 'colorsResult':
-            if (pendingResolve) {
-              pendingResolve(e.data.textColors || [])
-              pendingResolve = null
-              pendingReject = null
+            if (requestId && pendingRequests.has(requestId)) {
+              const request = pendingRequests.get(requestId)
+              request.resolve(e.data.textColors || [])
+              pendingRequests.delete(requestId)
             }
             break
 
           case 'maskResult':
-            if (pendingResolve) {
-              pendingResolve(maskData)
-              pendingResolve = null
-              pendingReject = null
+            if (requestId && pendingRequests.has(requestId)) {
+              const request = pendingRequests.get(requestId)
+              request.resolve(maskData)
+              pendingRequests.delete(requestId)
             }
             break
 
           case 'error':
             error.value = message
             status.value = `Error: ${message}`
-            if (pendingReject) {
-              pendingReject(new Error(message))
-              pendingResolve = null
-              pendingReject = null
+            if (requestId && pendingRequests.has(requestId)) {
+              const request = pendingRequests.get(requestId)
+              request.reject(new Error(message))
+              pendingRequests.delete(requestId)
+            } else if (initReject) {
+              initReject(new Error(message))
+              initResolve = null
+              initReject = null
             }
             break
         }
@@ -120,10 +127,15 @@ export function useInpaintingWorker() {
         const errorMessage = e.message || 'Worker error'
         error.value = errorMessage
         status.value = `Worker error: ${errorMessage}`
-        if (pendingReject) {
-          pendingReject(new Error(errorMessage))
-          pendingResolve = null
-          pendingReject = null
+        // Reject all pending requests
+        for (const [, request] of pendingRequests) {
+          request.reject(new Error(errorMessage))
+        }
+        pendingRequests.clear()
+        if (initReject) {
+          initReject(new Error(errorMessage))
+          initResolve = null
+          initReject = null
         }
       }
 
@@ -131,8 +143,8 @@ export function useInpaintingWorker() {
 
       // Initialize OpenCV in the worker
       await new Promise((resolve, reject) => {
-        pendingResolve = resolve
-        pendingReject = reject
+        initResolve = resolve
+        initReject = reject
         newWorker.postMessage({ type: 'init' })
       })
     } catch (err) {
@@ -161,10 +173,11 @@ export function useInpaintingWorker() {
     status.value = 'Processing inpainting...'
     error.value = null
 
+    const requestId = `inpaint-${++requestCounter}-${Date.now()}`
+
     try {
       const result = await new Promise((resolve, reject) => {
-        pendingResolve = resolve
-        pendingReject = reject
+        pendingRequests.set(requestId, { resolve, reject })
 
         // Clone the data before sending (worker will transfer ownership)
         const imageClone = new ImageData(
@@ -194,6 +207,7 @@ export function useInpaintingWorker() {
         worker.value.postMessage(
           {
             type: 'inpaint',
+            requestId,
             imageData: imageClone,
             maskData: maskClone,
             options: {
@@ -238,10 +252,11 @@ export function useInpaintingWorker() {
     status.value = 'Extracting text colors...'
     error.value = null
 
+    const requestId = `colors-${++requestCounter}-${Date.now()}`
+
     try {
       const result = await new Promise((resolve, reject) => {
-        pendingResolve = resolve
-        pendingReject = reject
+        pendingRequests.set(requestId, { resolve, reject })
 
         // Clone the image data
         const imageClone = new ImageData(
@@ -263,6 +278,7 @@ export function useInpaintingWorker() {
         worker.value.postMessage(
           {
             type: 'extractColors',
+            requestId,
             imageData: imageClone,
             regions: serializableRegions,
           },
@@ -313,9 +329,10 @@ export function useInpaintingWorker() {
       await initialize()
     }
 
+    const requestId = `mask-${++requestCounter}-${Date.now()}`
+
     return new Promise((resolve, reject) => {
-      pendingResolve = resolve
-      pendingReject = reject
+      pendingRequests.set(requestId, { resolve, reject })
 
       const maskClone = new ImageData(
         new Uint8ClampedArray(maskData.data),
@@ -326,6 +343,7 @@ export function useInpaintingWorker() {
       worker.value.postMessage(
         {
           type: 'dilateMask',
+          requestId,
           maskData: maskClone,
           options: { iterations },
         },
@@ -378,6 +396,11 @@ export function useInpaintingWorker() {
    */
   const terminate = () => {
     if (worker.value) {
+      // Reject all pending requests
+      for (const [, request] of pendingRequests) {
+        request.reject(new Error('Worker terminated'))
+      }
+      pendingRequests.clear()
       worker.value.terminate()
       worker.value = null
       isReady.value = false

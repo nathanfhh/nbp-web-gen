@@ -406,13 +406,13 @@ function dilateMask(maskData, iterations = 2) {
 
 // Handle messages from main thread
 self.onmessage = async function (e) {
-  const { type, imageData, maskData, options, regions } = e.data
+  const { type, requestId, imageData, maskData, options, regions } = e.data
 
   try {
     switch (type) {
       case 'init':
         await loadOpenCV()
-        self.postMessage({ type: 'ready' })
+        self.postMessage({ type: 'ready', requestId })
         break
 
       case 'inpaint': {
@@ -440,6 +440,7 @@ self.onmessage = async function (e) {
         self.postMessage(
           {
             type: 'result',
+            requestId,
             imageData: result,
             textColors, // Array of hex color strings, or null
           },
@@ -453,6 +454,7 @@ self.onmessage = async function (e) {
         if (!regions || regions.length === 0) {
           self.postMessage({
             type: 'colorsResult',
+            requestId,
             textColors: [],
           })
           break
@@ -463,6 +465,7 @@ self.onmessage = async function (e) {
 
         self.postMessage({
           type: 'colorsResult',
+          requestId,
           textColors,
         })
         break
@@ -477,6 +480,7 @@ self.onmessage = async function (e) {
         self.postMessage(
           {
             type: 'maskResult',
+            requestId,
             maskData: dilatedMask,
           },
           [dilatedMask.data.buffer]
@@ -485,11 +489,12 @@ self.onmessage = async function (e) {
       }
 
       default:
-        self.postMessage({ type: 'error', message: `Unknown command: ${type}` })
+        self.postMessage({ type: 'error', requestId, message: `Unknown command: ${type}` })
     }
   } catch (error) {
     self.postMessage({
       type: 'error',
+      requestId,
       message: error.message || 'Unknown error occurred',
     })
   }
