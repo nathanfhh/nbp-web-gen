@@ -421,6 +421,12 @@ export function useOcrMainThread() {
     isLoading.value = true
     error.value = null
 
+    // Declare bitmap and tensors outside try block for cleanup in finally
+    // CRITICAL: Tensors hold GPU/CPU memory that won't be GC'd without explicit dispose()
+    let bitmap = null
+    let detTensor = null
+    let detOutputTensor = null
+
     try {
       // Convert to data URL if needed
       let imageDataUrl = image
@@ -445,14 +451,15 @@ export function useOcrMainThread() {
       }
 
       if (onProgress) onProgress(0, 'Loading image...', 'detection')
-      const bitmap = await loadImage(imageDataUrl)
+      bitmap = await loadImage(imageDataUrl)
 
       // Get current OCR settings
       const ocrSettings = getSettings()
 
       if (onProgress) onProgress(10, 'Detecting text regions...', 'detection')
-      const { tensor: detTensor, width, height, originalWidth, originalHeight, scaleX, scaleY } =
-        preprocessForDetection(bitmap, ocrSettings, ort.Tensor)
+      const detResult = preprocessForDetection(bitmap, ocrSettings, ort.Tensor)
+      detTensor = detResult.tensor
+      const { width, height, originalWidth, originalHeight, scaleX, scaleY } = detResult
 
       let detOutput
       try {
@@ -473,11 +480,11 @@ export function useOcrMainThread() {
         throw e
       }
       // Use dynamic output name (same as CPU worker for consistency)
-      const outputTensor = detOutput[detSession.outputNames[0]]
+      detOutputTensor = detOutput[detSession.outputNames[0]]
 
       if (onProgress) onProgress(30, 'Processing detection results...', 'detection')
       const detectedBoxes = postProcessDetection(
-        outputTensor,
+        detOutputTensor,
         ocrSettings,
         width,
         height,
@@ -486,6 +493,16 @@ export function useOcrMainThread() {
         originalWidth,
         originalHeight
       )
+
+      // Dispose detection tensors early - no longer needed after postProcessDetection
+      if (detTensor) {
+        detTensor.dispose()
+        detTensor = null
+      }
+      if (detOutputTensor) {
+        detOutputTensor.dispose()
+        detOutputTensor = null
+      }
 
       if (onProgress) onProgress(50, `Found ${detectedBoxes.length} regions`, 'recognition')
 
@@ -513,11 +530,33 @@ export function useOcrMainThread() {
           continue
         }
 
-        let recOutput
+        let recOutputTensor = null
         try {
           // Use dynamic input name (same as CPU worker for consistency)
           const recFeeds = { [recSession.inputNames[0]]: recTensor }
-          recOutput = await recSession.run(recFeeds)
+          const recOutput = await recSession.run(recFeeds)
+          // Use dynamic output name (same as CPU worker for consistency)
+          recOutputTensor = recOutput[recSession.outputNames[0]]
+          const { text, confidence } = decodeRecognition(recOutputTensor, dictionary)
+
+          // Don't trim! Preserving leading/trailing spaces is crucial for layout analysis.
+          // Also normalize special spaces.
+          const rawText = text.replace(/\u3000/g, ' ').replace(/\u00A0/g, ' ')
+
+          rawResults.push({
+            text: rawText,
+            confidence,
+            bounds: {
+              x: Math.min(...box.map((p) => p[0])),
+              y: Math.min(...box.map((p) => p[1])),
+              width: Math.max(...box.map((p) => p[0])) - Math.min(...box.map((p) => p[0])),
+              height: Math.max(...box.map((p) => p[1])) - Math.min(...box.map((p) => p[1])),
+            },
+            polygon: box,
+            detectionScore: score,
+            recognitionFailed: !rawText.trim(),
+            failureReason: !rawText.trim() ? 'empty_text' : null,
+          })
         } catch (e) {
           const errorMsg = e.message || String(e)
           // Check for GPU buffer size error first (more specific)
@@ -530,29 +569,14 @@ export function useOcrMainThread() {
             throw new GpuOutOfMemoryError(errorMsg)
           }
           throw e
+        } finally {
+          // CRITICAL: Dispose recognition tensors immediately after each region
+          // This prevents memory accumulation during the recognition loop
+          recTensor.dispose()
+          if (recOutputTensor) {
+            recOutputTensor.dispose()
+          }
         }
-        // Use dynamic output name (same as CPU worker for consistency)
-        const recTensorOutput = recOutput[recSession.outputNames[0]]
-        const { text, confidence } = decodeRecognition(recTensorOutput, dictionary)
-
-        // Don't trim! Preserving leading/trailing spaces is crucial for layout analysis.
-        // Also normalize special spaces.
-        const rawText = text.replace(/\u3000/g, ' ').replace(/\u00A0/g, ' ')
-        
-        rawResults.push({
-          text: rawText,
-          confidence,
-          bounds: {
-            x: Math.min(...box.map((p) => p[0])),
-            y: Math.min(...box.map((p) => p[1])),
-            width: Math.max(...box.map((p) => p[0])) - Math.min(...box.map((p) => p[0])),
-            height: Math.max(...box.map((p) => p[1])) - Math.min(...box.map((p) => p[1])),
-          },
-          polygon: box,
-          detectionScore: score,
-          recognitionFailed: !rawText.trim(),
-          failureReason: !rawText.trim() ? 'empty_text' : null,
-        })
 
         if (onProgress) {
           const prog = 50 + Math.round((i / detectedBoxes.length) * 40)
@@ -579,6 +603,20 @@ export function useOcrMainThread() {
       error.value = err.message
       throw err
     } finally {
+      // CRITICAL: Release ImageBitmap to free GPU/CPU memory
+      // Each uncompressed bitmap can consume 50-100MB for high-res images
+      if (bitmap) {
+        bitmap.close()
+      }
+
+      // Dispose any remaining tensors (in case of early return or error)
+      if (detTensor) {
+        detTensor.dispose()
+      }
+      if (detOutputTensor) {
+        detOutputTensor.dispose()
+      }
+
       isLoading.value = false
     }
   }

@@ -232,91 +232,128 @@ async function recognize(imageDataUrl, requestId) {
   reportProgress('detection', 0, 'Loading image...', requestId)
   const bitmap = await loadImage(imageDataUrl)
 
-  reportProgress('detection', 10, 'Detecting text regions...', requestId)
-  // Use shared preprocessForDetection with settings and TensorClass
-  const { tensor: detTensor, width, height, originalWidth, originalHeight, scaleX, scaleY } = preprocessForDetection(
-    bitmap,
-    ocrSettings,
-    ort.Tensor
-  )
+  // Track tensors for cleanup - CRITICAL for memory management
+  // Each tensor holds GPU/CPU memory that won't be GC'd without explicit dispose()
+  let detTensor = null
+  let detOutput = null
 
-  const detFeeds = { [detSession.inputNames[0]]: detTensor }
-  const detResults = await detSession.run(detFeeds)
-  const detOutput = detResults[detSession.outputNames[0]]
+  try {
+    reportProgress('detection', 10, 'Detecting text regions...', requestId)
+    // Use shared preprocessForDetection with settings and TensorClass
+    const detResult = preprocessForDetection(bitmap, ocrSettings, ort.Tensor)
+    detTensor = detResult.tensor
+    const { width, height, originalWidth, originalHeight, scaleX, scaleY } = detResult
 
-  reportProgress('detection', 40, 'Processing detection results...', requestId)
-  // Use shared postProcessDetection with settings
-  const detectedBoxes = postProcessDetection(detOutput, ocrSettings, width, height, scaleX, scaleY, originalWidth, originalHeight)
+    const detFeeds = { [detSession.inputNames[0]]: detTensor }
+    const detResults = await detSession.run(detFeeds)
+    detOutput = detResults[detSession.outputNames[0]]
 
-  if (detectedBoxes.length === 0) {
-    return { regions: [], rawRegions: [] }
-  }
+    reportProgress('detection', 40, 'Processing detection results...', requestId)
+    // Use shared postProcessDetection with settings
+    const detectedBoxes = postProcessDetection(detOutput, ocrSettings, width, height, scaleX, scaleY, originalWidth, originalHeight)
 
-  reportProgress('recognition', 50, `Recognizing ${detectedBoxes.length} text regions...`, requestId)
-
-  const rawResults = []
-  for (let i = 0; i < detectedBoxes.length; i++) {
-    const { box, score: detectionScore } = detectedBoxes[i]
-
-    // Use shared preprocessForRecognition with TensorClass
-    const recTensor = preprocessForRecognition(bitmap, box, ort.Tensor)
-
-    // Calculate bounds regardless of recognition result
-    const xs = box.map((p) => p[0])
-    const ys = box.map((p) => p[1])
-    const bounds = {
-      x: Math.min(...xs),
-      y: Math.min(...ys),
-      width: Math.max(...xs) - Math.min(...xs),
-      height: Math.max(...ys) - Math.min(...ys),
+    // Dispose detection tensors early - no longer needed after postProcessDetection
+    if (detTensor) {
+      detTensor.dispose()
+      detTensor = null
+    }
+    if (detOutput) {
+      detOutput.dispose()
+      detOutput = null
     }
 
-    if (!recTensor) {
-      rawResults.push({
-        text: '',
-        confidence: 0,
-        bounds,
-        polygon: box,
-        detectionScore,
-        recognitionFailed: true,
-        failureReason: 'preprocessing_failed',
-      })
-      continue
+    if (detectedBoxes.length === 0) {
+      return { regions: [], rawRegions: [] }
     }
 
-    const recFeeds = { [recSession.inputNames[0]]: recTensor }
-    const recResults = await recSession.run(recFeeds)
-    const recOutput = recResults[recSession.outputNames[0]]
+    reportProgress('recognition', 50, `Recognizing ${detectedBoxes.length} text regions...`, requestId)
 
-    // Use shared decodeRecognition with dictionary
-    const { text, confidence } = decodeRecognition(recOutput, dictionary)
-    const rawText = text.replace(/\u3000/g, ' ').replace(/\u00A0/g, ' ')
+    const rawResults = []
+    for (let i = 0; i < detectedBoxes.length; i++) {
+      const { box, score: detectionScore } = detectedBoxes[i]
 
-    rawResults.push({
-      text: rawText,
-      confidence,
-      bounds,
-      polygon: box,
-      detectionScore,
-      recognitionFailed: !rawText.trim(),
-      failureReason: !rawText.trim() ? 'empty_text' : null,
-    })
+      // Use shared preprocessForRecognition with TensorClass
+      const recTensor = preprocessForRecognition(bitmap, box, ort.Tensor)
 
-    const recognitionProgress = 50 + Math.round((i / detectedBoxes.length) * 40)
-    reportProgress('recognition', recognitionProgress, `Recognizing ${i + 1}/${detectedBoxes.length}...`, requestId)
-  }
+      // Calculate bounds regardless of recognition result
+      const xs = box.map((p) => p[0])
+      const ys = box.map((p) => p[1])
+      const bounds = {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      }
 
-  await applyTesseractFallback(bitmap, rawResults)
+      if (!recTensor) {
+        rawResults.push({
+          text: '',
+          confidence: 0,
+          bounds,
+          polygon: box,
+          detectionScore,
+          recognitionFailed: true,
+          failureReason: 'preprocessing_failed',
+        })
+        continue
+      }
 
-  reportProgress('merge', 95, 'Analyzing layout...', requestId)
-  // Pass layout settings for WYSIWYG support (settings updated via postMessage)
-  const mergedResults = mergeTextRegions(rawResults, [], ocrSettings)
+      let recOutput = null
+      try {
+        const recFeeds = { [recSession.inputNames[0]]: recTensor }
+        const recResults = await recSession.run(recFeeds)
+        recOutput = recResults[recSession.outputNames[0]]
 
-  reportProgress('merge', 100, `Found ${mergedResults.length} text blocks`, requestId)
+        // Use shared decodeRecognition with dictionary
+        const { text, confidence } = decodeRecognition(recOutput, dictionary)
+        const rawText = text.replace(/\u3000/g, ' ').replace(/\u00A0/g, ' ')
 
-  return {
-    regions: mergedResults,
-    rawRegions: rawResults,
+        rawResults.push({
+          text: rawText,
+          confidence,
+          bounds,
+          polygon: box,
+          detectionScore,
+          recognitionFailed: !rawText.trim(),
+          failureReason: !rawText.trim() ? 'empty_text' : null,
+        })
+      } finally {
+        // CRITICAL: Dispose recognition tensors immediately after each region
+        // This prevents memory accumulation during the recognition loop
+        recTensor.dispose()
+        if (recOutput) {
+          recOutput.dispose()
+        }
+      }
+
+      const recognitionProgress = 50 + Math.round((i / detectedBoxes.length) * 40)
+      reportProgress('recognition', recognitionProgress, `Recognizing ${i + 1}/${detectedBoxes.length}...`, requestId)
+    }
+
+    await applyTesseractFallback(bitmap, rawResults)
+
+    reportProgress('merge', 95, 'Analyzing layout...', requestId)
+    // Pass layout settings for WYSIWYG support (settings updated via postMessage)
+    const mergedResults = mergeTextRegions(rawResults, [], ocrSettings)
+
+    reportProgress('merge', 100, `Found ${mergedResults.length} text blocks`, requestId)
+
+    return {
+      regions: mergedResults,
+      rawRegions: rawResults,
+    }
+  } finally {
+    // CRITICAL: Release ImageBitmap to free GPU/CPU memory
+    // Each uncompressed bitmap can consume 50-100MB for high-res images
+    bitmap.close()
+
+    // Dispose any remaining tensors (in case of early return or error)
+    if (detTensor) {
+      detTensor.dispose()
+    }
+    if (detOutput) {
+      detOutput.dispose()
+    }
   }
 }
 
