@@ -55,7 +55,7 @@ defineExpose({ show })
     <Transition name="modal">
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+        class="fixed inset-0 z-[10010] flex items-center justify-center p-4"
       >
         <!-- Backdrop (no click to close - user must choose an option) -->
         <div class="absolute inset-0 bg-bg-overlay backdrop-blur-sm"></div>

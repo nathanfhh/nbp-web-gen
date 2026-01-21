@@ -297,6 +297,16 @@ src/theme/
 - Selected states, buttons, icons, focus rings → use `mode-generate`, `mode-generate-muted`, `brand-primary` (or `mode-video` for video-only interactions).
 - This ensures a consistent look across all themes (warm=orange, espresso=coffee, dark=blue, etc.) while allowing video mode to be visually distinct where needed.
 
+### UI Z-Index Layers
+
+Lightbox 及 OCR 編輯器相關元素使用高 z-index 值（9999+）以確保正確堆疊。
+
+> **層級規範**: 詳見 [`docs/z-index-layers.md`](docs/z-index-layers.md)
+
+**⚠️ 用戶偏好**:
+- `region-sidebar` (10003) **必須在** `edit-toolbar` (10002) **之上**
+- 當用戶打開側邊欄時，它應該覆蓋部分工具列
+
 ### User Tour (Onboarding)
 First-time user guidance system:
 - `composables/useTour.js` - Tour state management (Singleton pattern)

@@ -720,70 +720,6 @@ const goToSlideToPptx = async () => {
         </div>
 
 
-        <!-- Region Sidebar Toggle Button (outside content for proper positioning) -->
-        <button
-          v-if="showRegionSidebar"
-          @click.stop="toggleRegionSidebar"
-          class="region-sidebar-toggle"
-          :class="{ 'is-open': isRegionSidebarOpen }"
-          :title="$t('lightbox.regionList.toggle')"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              :d="isRegionSidebarOpen ? 'M15 19l-7-7 7-7' : 'M4 6h16M4 12h16M4 18h16'"
-            />
-          </svg>
-        </button>
-
-        <!-- Region List Sidebar (outside content for proper positioning) -->
-        <!-- Using v-show to preserve scroll position when closed -->
-        <div
-          v-show="showRegionSidebar"
-          class="region-sidebar"
-          :class="{ 'is-open': isRegionSidebarOpen }"
-          @click.stop
-          @mousedown.stop
-          @touchstart.stop
-          @wheel.stop
-        >
-          <div class="region-sidebar-header">
-            <span class="text-sm font-medium text-text-primary">
-              {{ $t('lightbox.regionList.title') }}
-            </span>
-            <span class="text-xs text-text-muted">
-              ({{ visibleRegions.length }})
-            </span>
-          </div>
-          <div class="region-sidebar-list">
-            <button
-              v-for="(region, idx) in visibleRegions"
-              :key="`${region.type}-${region.originalIndex}`"
-              @click="handleRegionClick(region)"
-              @mousedown.stop
-              @touchstart.stop
-              class="region-sidebar-item"
-            >
-              <span
-                class="region-color-dot"
-                :class="{
-                  'bg-green-500': region.color === 'green',
-                  'bg-red-500': region.color === 'red',
-                }"
-              ></span>
-              <div class="region-item-content">
-                <span class="region-item-index">#{{ idx + 1 }}</span>
-                <span class="region-item-label">{{ region.label }}</span>
-                <span v-if="region.text" class="region-item-text">
-                  {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
-                </span>
-              </div>
-            </button>
-          </div>
-        </div>
-
         <!-- Navigation: Previous -->
         <button
           v-if="images.length > 1"
@@ -831,7 +767,7 @@ const goToSlideToPptx = async () => {
               <svg
                 v-if="showOcrOverlay && imageDimensions.width > 0 && (ocrRegions.merged.length > 0 || ocrRegions.raw.length > 0 || ocrRegions.failed?.length > 0)"
                 class="lightbox-image pointer-events-none"
-                style="grid-area: stack; width: 100%; height: 100%;"
+                style="grid-area: stack; width: 100%; height: 100%; position: relative; z-index: 1;"
                 :viewBox="`0 0 ${imageDimensions.width} ${imageDimensions.height}`"
                 preserveAspectRatio="none"
               >
@@ -972,6 +908,72 @@ const goToSlideToPptx = async () => {
       @close="closeCropper"
       @extract-character="handleExtractCharacter"
     />
+  </Teleport>
+
+  <!-- Region Sidebar - Teleported to body to be above edit-toolbar -->
+  <Teleport to="body">
+    <!-- Region Sidebar Toggle Button -->
+    <button
+      v-if="isVisible && showRegionSidebar"
+      @click.stop="toggleRegionSidebar"
+      class="region-sidebar-toggle"
+      :class="{ 'is-open': isRegionSidebarOpen }"
+      :title="$t('lightbox.regionList.toggle')"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          :d="isRegionSidebarOpen ? 'M15 19l-7-7 7-7' : 'M4 6h16M4 12h16M4 18h16'"
+        />
+      </svg>
+    </button>
+
+    <!-- Region List Sidebar -->
+    <div
+      v-if="isVisible && showRegionSidebar"
+      class="region-sidebar"
+      :class="{ 'is-open': isRegionSidebarOpen }"
+      @click.stop
+      @mousedown.stop
+      @touchstart.stop
+      @wheel.stop
+    >
+      <div class="region-sidebar-header">
+        <span class="text-sm font-medium text-text-primary">
+          {{ $t('lightbox.regionList.title') }}
+        </span>
+        <span class="text-xs text-text-muted">
+          ({{ visibleRegions.length }})
+        </span>
+      </div>
+      <div class="region-sidebar-list">
+        <button
+          v-for="(region, idx) in visibleRegions"
+          :key="`${region.type}-${region.originalIndex}`"
+          @click="handleRegionClick(region)"
+          @mousedown.stop
+          @touchstart.stop
+          class="region-sidebar-item"
+        >
+          <span
+            class="region-color-dot"
+            :class="{
+              'bg-green-500': region.color === 'green',
+              'bg-red-500': region.color === 'red',
+            }"
+          ></span>
+          <div class="region-item-content">
+            <span class="region-item-index">#{{ idx + 1 }}</span>
+            <span class="region-item-label">{{ region.label }}</span>
+            <span v-if="region.text" class="region-item-text">
+              {{ region.text.slice(0, 20) }}{{ region.text.length > 20 ? '...' : '' }}
+            </span>
+          </div>
+        </button>
+      </div>
+    </div>
   </Teleport>
 </template>
 
@@ -1313,7 +1315,7 @@ const goToSlideToPptx = async () => {
 
 /* Region Sidebar - positioned at lightbox-overlay level */
 .region-sidebar {
-  position: absolute;
+  position: fixed;
   top: 4.5rem; /* Below toolbar */
   left: 0;
   bottom: 4rem; /* Above dots/info */
@@ -1325,7 +1327,7 @@ const goToSlideToPptx = async () => {
   border-radius: 0 0.75rem 0.75rem 0;
   display: flex;
   flex-direction: column;
-  z-index: 30;
+  z-index: 10003; /* Above edit-toolbar (10002) */
   overflow: hidden;
   /* Default: hidden (slide out) */
   transform: translateX(-100%);
@@ -1427,7 +1429,7 @@ const goToSlideToPptx = async () => {
 
 /* Sidebar Toggle Button - positioned at lightbox-overlay level */
 .region-sidebar-toggle {
-  position: absolute;
+  position: fixed;
   top: 4.5rem; /* Align with sidebar top */
   left: 0.75rem;
   width: 2.5rem;
@@ -1439,7 +1441,7 @@ const goToSlideToPptx = async () => {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 0.5rem;
   color: white;
-  z-index: 31; /* Above sidebar */
+  z-index: 10004; /* Above sidebar (10003) */
   transition: all 0.2s;
 }
 
