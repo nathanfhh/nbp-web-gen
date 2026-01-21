@@ -48,7 +48,7 @@ export function useOcr() {
   // Detected capabilities
   const canUseWebGPU = ref(false)
   const isMobileDevice = ref(false)
-  const isDetecting = ref(true)
+  const isDetecting = ref(false)
 
   // Active engine info
   const activeEngine = ref(null)
@@ -81,29 +81,17 @@ export function useOcr() {
   // Capability Detection
   // ============================================================================
 
-  async function detectCapabilities() {
-    isDetecting.value = true
-    try {
-      isMobileDevice.value = isMobile()
-      
-      if (!navigator.gpu) {
-        console.log('[useOcr] WebGPU not supported by browser (navigator.gpu missing)')
-        canUseWebGPU.value = false
-      } else {
-        const adapter = await navigator.gpu.requestAdapter()
-        if (adapter) {
-          console.log('[useOcr] WebGPU detected:', adapter.info)
-          canUseWebGPU.value = true
-        } else {
-          console.warn('[useOcr] WebGPU supported but no adapter found')
-          canUseWebGPU.value = false
-        }
-      }
-    } catch (e) {
-      console.warn('[useOcr] Error detecting capabilities:', e)
-      canUseWebGPU.value = false
-    } finally {
-      isDetecting.value = false
+  function detectCapabilities() {
+    // Lightweight detection: only check navigator.gpu existence (synchronous)
+    // Do NOT call requestAdapter() here - it allocates GPU resources and causes
+    // memory leaks when pages are rapidly refreshed
+    isMobileDevice.value = isMobile()
+    canUseWebGPU.value = !!navigator.gpu
+
+    if (navigator.gpu) {
+      console.log('[useOcr] WebGPU API available')
+    } else {
+      console.log('[useOcr] WebGPU not supported by browser')
     }
   }
 
@@ -412,16 +400,13 @@ export function useOcr() {
   // Lifecycle
   // ============================================================================
 
-  // Track if capabilities have been detected
-  let capabilitiesDetected = false
-
   /**
-   * Ensure capabilities are detected (call before ensureInstance)
+   * Ensure capabilities are detected (no-op, detection is done at init)
+   * Kept for API compatibility
    */
-  async function ensureCapabilitiesDetected() {
-    if (capabilitiesDetected) return
-    await detectCapabilities()
-    capabilitiesDetected = true
+  function ensureCapabilitiesDetected() {
+    // Detection is now synchronous and done at composable creation
+    // This function is kept for API compatibility
   }
 
   // Register settings change listener to sync settings when they change
@@ -438,8 +423,7 @@ export function useOcr() {
     })
   }
 
-  // Eagerly detect capabilities so UI can show correct state immediately
-  // This is non-blocking - UI will update reactively when detection completes
+  // Detect capabilities immediately (lightweight, no GPU resource allocation)
   detectCapabilities()
 
   // ============================================================================
