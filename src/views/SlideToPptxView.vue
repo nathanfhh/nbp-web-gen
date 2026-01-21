@@ -1063,8 +1063,8 @@ const getSlideStatus = (index) => {
 
                 <!-- Right: Processed Image (Transition Entry) -->
                 <div
-                  class="transition-all duration-500 ease-in-out flex flex-col overflow-hidden"
-                  :class="currentSlideState?.cleanImage ? 'flex-1 mt-4 sm:mt-0 sm:ml-4 opacity-100' : 'w-0 mt-0 ml-0 opacity-0'"
+                  class="transition-all duration-500 ease-in-out flex flex-col"
+                  :class="currentSlideState?.cleanImage ? 'flex-1 mt-4 sm:mt-0 sm:ml-4 opacity-100' : 'w-0 mt-0 ml-0 opacity-0 overflow-hidden'"
                 >
                   <div class="h-6 mb-2 flex-shrink-0">
                     <h4 class="text-xs font-medium text-text-muted text-center whitespace-nowrap">{{ $t('slideToPptx.processed') }}</h4>
@@ -1087,42 +1087,55 @@ const getSlideStatus = (index) => {
                       <span class="text-sm font-medium text-text-primary animate-pulse">{{ $t('slideToPptx.settling') }}</span>
                     </div>
 
-                    <!-- Delete Version Button (only for non-original versions) -->
-                    <button
-                      v-if="currentCleanImageHistory.length > 1 && !currentCleanImageHistory[currentActiveHistoryIndex]?.isOriginal"
-                      @click.stop="handleDeleteCurrentVersion"
-                      class="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-black/60 hover:bg-red-600 text-white transition-colors"
-                      :title="$t('slideToPptx.versionHistory.delete')"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
                   </div>
 
                   <!-- Version History Thumbnails -->
                   <div
                     v-if="currentCleanImageHistory.length > 1"
-                    class="mt-3 flex gap-2 overflow-x-auto pb-1"
+                    class="mt-0.5 -mx-1.5 px-1.5 flex gap-2 overflow-x-auto py-1.5"
                   >
-                    <button
+                    <div
                       v-for="(version, idx) in currentCleanImageHistory"
                       :key="idx"
-                      @click="handleSelectVersion(idx)"
-                      class="flex-shrink-0 w-16 h-9 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:opacity-90"
-                      :class="currentActiveHistoryIndex === idx
-                        ? 'border-mode-generate ring-2 ring-mode-generate ring-offset-1 ring-offset-bg-elevated'
-                        : 'border-border-muted hover:border-text-muted'"
-                      :title="version.isOriginal
-                        ? $t('slideToPptx.versionHistory.original')
-                        : $t('slideToPptx.versionHistory.version', { n: idx })"
+                      class="relative flex-shrink-0"
                     >
-                      <img
-                        :src="version.image"
-                        :alt="version.isOriginal ? 'Original' : `Version ${idx}`"
-                        class="w-full h-full object-contain bg-bg-muted"
-                      />
-                    </button>
+                      <button
+                        @click="handleSelectVersion(idx)"
+                        class="relative w-16 h-9 rounded-lg overflow-hidden border-2 transition-all duration-200"
+                        :class="currentActiveHistoryIndex === idx
+                          ? 'border-mode-generate ring-2 ring-mode-generate ring-offset-1 ring-offset-bg-elevated'
+                          : 'border-border-muted hover:border-text-muted hover:opacity-90'"
+                        :title="version.isOriginal
+                          ? $t('slideToPptx.versionHistory.original')
+                          : $t('slideToPptx.versionHistory.version', { n: idx })"
+                      >
+                        <img
+                          :src="version.image"
+                          :alt="version.isOriginal ? 'Original' : `Version ${idx}`"
+                          class="w-full h-full object-contain bg-bg-muted"
+                        />
+                        <!-- Selected overlay with checkmark -->
+                        <div
+                          v-if="currentActiveHistoryIndex === idx"
+                          class="absolute inset-0 bg-black/40 flex items-center justify-center"
+                        >
+                          <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      </button>
+                      <!-- Delete button on non-original versions -->
+                      <button
+                        v-if="!version.isOriginal && currentActiveHistoryIndex === idx"
+                        @click.stop="handleDeleteCurrentVersion"
+                        class="absolute -top-1 -right-1 z-10 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-colors shadow-sm"
+                        :title="$t('slideToPptx.versionHistory.delete')"
+                      >
+                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1140,7 +1153,7 @@ const getSlideStatus = (index) => {
               <button
                 v-if="currentOcrFullData"
                 @click.stop="showOcrJsonOverlay = !showOcrJsonOverlay"
-                class="absolute top-2 right-2 z-30 p-2 rounded-lg transition-colors"
+                class="absolute top-0 right-0 z-30 p-2 rounded-lg transition-colors"
                 :class="showOcrJsonOverlay ? 'bg-mode-generate text-white' : 'bg-black/50 hover:bg-black/70 text-white'"
                 :title="$t('slideToPptx.toggleOcrJson')"
               >
@@ -1150,70 +1163,58 @@ const getSlideStatus = (index) => {
               </button>
             </div>
 
-            <!-- OCR Toggle Controls -->
-            <div class="mt-4 flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-              <label class="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  v-model="showOcrOverlay"
-                  class="w-4 h-4 rounded border-border-muted accent-mode-generate focus:ring-mode-generate"
-                />
-                <span class="text-sm text-text-secondary">{{ $t('slideToPptx.showOcrResult') }}</span>
-              </label>
+            <!-- OCR Region Toggle Buttons -->
+            <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
+              <!-- Merged Regions Toggle -->
+              <button
+                @click="showMergedRegions = !showMergedRegions"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
+                :class="showMergedRegions
+                  ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                  : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
+              >
+                <span class="w-2 h-2 rounded-full" :class="showMergedRegions ? 'bg-blue-500' : 'bg-transparent border border-current'"></span>
+                {{ $t('slideToPptx.overlayMode.merged') }}
+              </button>
 
-              <!-- Toggle Buttons (only when enabled) -->
-              <div v-if="showOcrOverlay" class="flex flex-wrap items-center gap-2">
-                <!-- Merged Regions Toggle -->
-                <button
-                  @click="showMergedRegions = !showMergedRegions"
-                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
-                  :class="showMergedRegions
-                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                    : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
-                >
-                  <span class="w-2 h-2 rounded-full" :class="showMergedRegions ? 'bg-blue-500' : 'bg-transparent border border-current'"></span>
-                  {{ $t('slideToPptx.overlayMode.merged') }}
-                </button>
+              <!-- Raw Regions Toggle -->
+              <button
+                @click="showRawRegions = !showRawRegions"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
+                :class="showRawRegions
+                  ? 'border-green-500 bg-green-500/10 text-green-400'
+                  : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
+              >
+                <span class="w-2 h-2 rounded-full" :class="showRawRegions ? 'bg-green-500' : 'bg-transparent border border-current'"></span>
+                {{ $t('slideToPptx.overlayMode.raw') }}
+              </button>
 
-                <!-- Raw Regions Toggle -->
-                <button
-                  @click="showRawRegions = !showRawRegions"
-                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
-                  :class="showRawRegions
-                    ? 'border-green-500 bg-green-500/10 text-green-400'
-                    : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
-                >
-                  <span class="w-2 h-2 rounded-full" :class="showRawRegions ? 'bg-green-500' : 'bg-transparent border border-current'"></span>
-                  {{ $t('slideToPptx.overlayMode.raw') }}
-                </button>
+              <!-- Failed Regions Toggle (Debug) -->
+              <button
+                v-if="currentOcrRegions.failed.length > 0"
+                @click="showFailedRegions = !showFailedRegions"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
+                :class="showFailedRegions
+                  ? 'border-red-500 bg-red-500/10 text-red-400'
+                  : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
+              >
+                <span class="w-2 h-2 rounded-full" :class="showFailedRegions ? 'bg-red-500' : 'bg-transparent border border-current'"></span>
+                {{ $t('slideToPptx.overlayMode.failed') }} ({{ currentOcrRegions.failed.length }})
+              </button>
 
-                <!-- Failed Regions Toggle (Debug) -->
-                <button
-                  v-if="currentOcrRegions.failed.length > 0"
-                  @click="showFailedRegions = !showFailedRegions"
-                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5"
-                  :class="showFailedRegions
-                    ? 'border-red-500 bg-red-500/10 text-red-400'
-                    : 'border-border-muted bg-transparent text-text-muted hover:border-text-muted'"
-                >
-                  <span class="w-2 h-2 rounded-full" :class="showFailedRegions ? 'bg-red-500' : 'bg-transparent border border-current'"></span>
-                  {{ $t('slideToPptx.overlayMode.failed') }} ({{ currentOcrRegions.failed.length }})
-                </button>
-
-                <!-- Edit Regions Button -->
-                <button
-                  v-if="currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0"
-                  @click="openLightboxForEdit"
-                  class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5 border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                  :class="{ 'ring-2 ring-amber-500/50': currentSlideIsEdited }"
-                >
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  {{ $t('slideToPptx.regionEditor.editButton') }}
-                  <span v-if="currentSlideIsEdited" class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                </button>
-              </div>
+              <!-- Edit Regions Button -->
+              <button
+                v-if="currentOcrRegions.raw.length > 0 || currentOcrRegions.failed.length > 0"
+                @click="openLightboxForEdit"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200 flex items-center gap-1.5 border-amber-500 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                :class="{ 'ring-2 ring-amber-500/50': currentSlideIsEdited }"
+              >
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                {{ $t('slideToPptx.regionEditor.editButton') }}
+                <span v-if="currentSlideIsEdited" class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              </button>
             </div>
 
             <!-- Thumbnail Strip - Full Width Below -->
