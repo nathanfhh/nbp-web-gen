@@ -1222,7 +1222,9 @@
       "redo": "重做",
       "selectArea": "框選",
       "selectionHint": "拖曳框選要批次刪除的區域",
-      "selectionConfirm": "已選取 {count} 個區域，點擊 ✓ 確認刪除"
+      "selectionConfirm": "已選取 {count} 個區域，點擊 ✓ 確認刪除",
+      "confirmReset": "確定要重設所有編輯嗎？此操作無法復原。",
+      "dragHint": "拖曳移動工具列"
     },
     "inpaintMethod": "文字移除方式",
     "manageApiKeys": "管理 Gemini 金鑰",

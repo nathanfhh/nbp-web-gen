@@ -198,6 +198,7 @@ const separatorTool = useSeparatorTool({
 
 const selectionTool = useSelectionTool({
   getImageCoords: core.getImageCoords,
+  getTouchImageCoords: core.getTouchImageCoords,
   getRegions: () => props.regions,
   rectsIntersect: core.rectsIntersect,
   onBatchDelete: (indices) => {
@@ -346,6 +347,7 @@ const onMouseUp = () => {
  * Handle touch start on SVG
  */
 const onTouchStart = (e) => {
+  if (selectionTool.onTouchStart(e)) return
   if (drawTool.onTouchStart(e)) return
 }
 
@@ -368,6 +370,7 @@ const onTouchMove = (e) => {
     return
   }
 
+  if (selectionTool.onTouchMove(e)) return
   if (drawTool.onTouchMove(e)) return
 }
 
@@ -376,6 +379,7 @@ const onTouchMove = (e) => {
  */
 const onTouchEnd = (e) => {
   if (resizeTool.onResizeTouchEnd(e)) return
+  if (selectionTool.onTouchEnd(e)) return
   if (drawTool.onTouchEnd(e)) return
 }
 
@@ -389,6 +393,7 @@ const onDone = () => {
 }
 
 const onReset = () => {
+  if (!window.confirm(t('slideToPptx.regionEditor.confirmReset'))) return
   drawTool.toggleDrawMode(false)
   deleteTool.clearSelection()
   emit('reset')
@@ -521,6 +526,18 @@ defineExpose({
               · {{ t('slideToPptx.regionEditor.separatorCount', { count: separatorLines.length }) }}
             </template>
           </span>
+        </span>
+
+        <!-- Drag handle -->
+        <span class="drag-handle" :title="t('slideToPptx.regionEditor.dragHint')">
+          <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+            <circle cx="2" cy="2" r="1.5" opacity="0.5"/>
+            <circle cx="8" cy="2" r="1.5" opacity="0.5"/>
+            <circle cx="2" cy="8" r="1.5" opacity="0.5"/>
+            <circle cx="8" cy="8" r="1.5" opacity="0.5"/>
+            <circle cx="2" cy="14" r="1.5" opacity="0.5"/>
+            <circle cx="8" cy="14" r="1.5" opacity="0.5"/>
+          </svg>
         </span>
 
         <!-- Hint text (Attached to toolbar) -->
@@ -903,7 +920,7 @@ defineExpose({
 /* Toolbar */
 .edit-toolbar {
   position: fixed;
-  z-index: 9999; /* Ensure it's above lightbox */
+  z-index: 29; /* Below region-sidebar (30) but above other lightbox elements */
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem; /* Smaller gap on mobile */
@@ -997,6 +1014,23 @@ defineExpose({
   padding: 0 0.5rem;
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  margin-left: 0.25rem;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: move;
+  border-radius: 0.25rem;
+  transition: color 0.15s, background 0.15s;
+}
+
+.drag-handle:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Hint text */

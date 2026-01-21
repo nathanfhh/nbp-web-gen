@@ -1222,7 +1222,9 @@
       "redo": "Redo",
       "selectArea": "Select",
       "selectionHint": "Drag to select regions for batch deletion",
-      "selectionConfirm": "{count} region(s) selected, click ✓ to delete"
+      "selectionConfirm": "{count} region(s) selected, click ✓ to delete",
+      "confirmReset": "Reset all edits? This cannot be undone.",
+      "dragHint": "Drag to move toolbar"
     },
     "inpaintMethod": "Text Removal Method",
     "manageApiKeys": "Manage Gemini Keys",

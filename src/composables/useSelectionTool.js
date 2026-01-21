@@ -10,6 +10,7 @@ import { ref, computed } from 'vue'
 /**
  * @param {Object} options
  * @param {Function} options.getImageCoords - Function to convert event to image coords: (e) => {x, y}
+ * @param {Function} options.getTouchImageCoords - Function to convert touch to image coords: (touch) => {x, y}
  * @param {Function} options.getRegions - Function to get current regions: () => Array
  * @param {Function} options.rectsIntersect - Function to check rect intersection: (r1, r2) => boolean
  * @param {Function} options.onBatchDelete - Callback when batch delete is confirmed: (indices) => void
@@ -18,6 +19,7 @@ import { ref, computed } from 'vue'
  */
 export function useSelectionTool({
   getImageCoords,
+  getTouchImageCoords,
   getRegions,
   rectsIntersect,
   onBatchDelete,
@@ -152,6 +154,70 @@ export function useSelectionTool({
   }
 
   // ============================================================================
+  // Touch Events
+  // ============================================================================
+
+  /**
+   * Handle touch start - start selection
+   * @param {TouchEvent} e
+   * @returns {boolean} True if event was handled
+   */
+  const onTouchStart = (e) => {
+    if (!isSelectionModeActive.value) return false
+    if (e.touches.length !== 1) return false
+    if (!getTouchImageCoords) return false
+
+    e.preventDefault()
+    e.stopPropagation()
+
+    const coords = getTouchImageCoords(e.touches[0])
+    selectionStart.value = coords
+    isSelecting.value = true
+    selectionRect.value = { x: coords.x, y: coords.y, width: 0, height: 0 }
+    selectedRegionIndices.value = []
+    return true
+  }
+
+  /**
+   * Handle touch move - update selection rect
+   * @param {TouchEvent} e
+   * @returns {boolean} True if event was handled
+   */
+  const onTouchMove = (e) => {
+    if (!isSelecting.value || !selectionStart.value) return false
+    if (e.touches.length !== 1) return false
+
+    e.preventDefault()
+    const current = getTouchImageCoords(e.touches[0])
+    selectionRect.value = {
+      x: Math.min(selectionStart.value.x, current.x),
+      y: Math.min(selectionStart.value.y, current.y),
+      width: Math.abs(current.x - selectionStart.value.x),
+      height: Math.abs(current.y - selectionStart.value.y),
+    }
+    updateSelectedRegions()
+    return true
+  }
+
+  /**
+   * Handle touch end - finish selection
+   * @param {TouchEvent} e
+   * @returns {boolean} True if event was handled
+   */
+  const onTouchEnd = (e) => {
+    if (!isSelecting.value) return false
+
+    e.preventDefault()
+    isSelecting.value = false
+    // If no regions selected, cancel selection
+    if (selectedRegionIndices.value.length === 0) {
+      cancelSelection()
+    }
+    // Otherwise keep selectionRect visible for confirmation UI
+    return true
+  }
+
+  // ============================================================================
   // Actions
   // ============================================================================
 
@@ -203,6 +269,10 @@ export function useSelectionTool({
     onMouseDown,
     onMouseMove,
     onMouseUp,
+    // Touch events
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
     // Actions
     confirmBatchDelete,
     cancelSelection,
