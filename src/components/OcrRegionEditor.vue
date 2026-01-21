@@ -24,8 +24,12 @@ import { useSeparatorTool } from '@/composables/useSeparatorTool'
 import { useSelectionTool } from '@/composables/useSelectionTool'
 import { useResizeTool } from '@/composables/useResizeTool'
 import { useEditorKeyboard } from '@/composables/useEditorKeyboard'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const { t } = useI18n()
+
+// Confirm modal ref
+const confirmModalRef = ref(null)
 
 const props = defineProps({
   // Regions to display and edit
@@ -392,8 +396,12 @@ const onDone = () => {
   emit('done')
 }
 
-const onReset = () => {
-  if (!window.confirm(t('slideToPptx.regionEditor.confirmReset'))) return
+const onReset = async () => {
+  const confirmed = await confirmModalRef.value?.show({
+    title: t('slideToPptx.regionEditor.resetTitle'),
+    message: t('slideToPptx.regionEditor.confirmReset'),
+  })
+  if (!confirmed) return
   drawTool.toggleDrawMode(false)
   deleteTool.clearSelection()
   emit('reset')
@@ -907,6 +915,9 @@ defineExpose({
         </div>
       </div>
     </Teleport>
+
+    <!-- Confirm Modal -->
+    <ConfirmModal ref="confirmModalRef" />
   </div>
 </template>
 
@@ -920,7 +931,7 @@ defineExpose({
 /* Toolbar */
 .edit-toolbar {
   position: fixed;
-  z-index: 29; /* Below region-sidebar (30) but above other lightbox elements */
+  z-index: 10002; /* Above lightbox overlay (9999) and dialogs */
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem; /* Smaller gap on mobile */

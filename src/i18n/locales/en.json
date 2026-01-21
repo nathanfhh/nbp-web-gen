@@ -1224,6 +1224,7 @@
       "selectionHint": "Drag to select regions for batch deletion",
       "selectionConfirm": "{count} region(s) selected, click ✓ to delete",
       "confirmReset": "Reset all edits? This cannot be undone.",
+      "resetTitle": "Reset Edits",
       "dragHint": "Drag to move toolbar"
     },
     "inpaintMethod": "Text Removal Method",
