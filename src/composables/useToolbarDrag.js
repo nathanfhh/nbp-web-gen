@@ -20,16 +20,15 @@ export function useToolbarDrag({ toolbarRef }) {
 
   /**
    * Initialize toolbar position (centered horizontally)
-   * On mobile (< 640px), position lower to avoid Lightbox header buttons
+   * Position below Lightbox header toolbar (~60px) to avoid overlap
    */
   const initializePosition = () => {
     if (!toolbarRef.value) return
 
     const rect = toolbarRef.value.getBoundingClientRect()
-    const isMobile = window.innerWidth < 640
     toolbarPos.value = {
       x: (window.innerWidth - rect.width) / 2,
-      y: isMobile ? 72 : 16, // 4.5rem on mobile (below Lightbox toolbar ~60px), 1rem on desktop
+      y: 72, // 4.5rem = ~72px, below Lightbox toolbar (~60px)
     }
   }
 

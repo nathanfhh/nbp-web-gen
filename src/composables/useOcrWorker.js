@@ -361,8 +361,3 @@ export function useOcrWorker() {
     modelCache,
   }
 }
-
-// Export available languages
-export const OCR_LANGUAGES = [{ code: 'ch', label: '中文/English (Chinese + English)' }]
-
-export const OCR_MODEL_VERSIONS = [{ code: 'PP-OCRv5', label: 'PP-OCRv5 Server (PaddleOCR)' }]
