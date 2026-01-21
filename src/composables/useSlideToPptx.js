@@ -17,10 +17,7 @@ import { usePptxExport } from './usePptxExport'
 import { useApiKeyManager } from './useApiKeyManager'
 import { getSettings as getOcrSettings } from './useOcrSettings'
 import { mergeTextRegions } from '@/utils/ocr-core'
-import i18n from '@/i18n'
-
-// Helper for i18n translation in composable
-const t = (key, params) => i18n.global.t(key, params)
+import { t } from '@/i18n'
 
 // Translate OCR status messages (format: "ocr:key" or "ocr:key:param1:param2")
 const translateOcrMessage = (message) => {

@@ -39,4 +39,8 @@ const i18n = createI18n({
   },
 })
 
+// Helper for non-component contexts (composables, utils)
+// Usage: import { t } from '@/i18n'
+export const t = (key, params) => i18n.global.t(key, params)
+
 export default i18n

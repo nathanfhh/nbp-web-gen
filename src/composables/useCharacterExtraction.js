@@ -1,10 +1,7 @@
 import { ref } from 'vue'
 import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
-import i18n from '@/i18n'
-
-// Helper to get translated error messages
-const t = (key, params) => i18n.global.t(key, params)
+import { t } from '@/i18n'
 
 // Models that support free tier (no API key required or free quota)
 export const EXTRACTION_MODELS = [

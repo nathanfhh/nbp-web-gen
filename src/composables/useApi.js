@@ -3,10 +3,7 @@ import { GoogleGenAI, Modality } from '@google/genai'
 import { useLocalStorage } from './useLocalStorage'
 import { useApiKeyManager } from './useApiKeyManager'
 import { DEFAULT_MODEL, RATIO_API_MAP, RESOLUTION_API_MAP } from '@/constants'
-import i18n from '@/i18n'
-
-// Helper to get translated error messages
-const t = (key, params) => i18n.global.t(key, params)
+import { t } from '@/i18n'
 
 // ============================================================================
 // Sticker Mode Constants
