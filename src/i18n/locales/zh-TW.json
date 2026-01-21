@@ -1368,5 +1368,35 @@
       "gpuFallbackComplete": "已切換至 CPU 模式繼續處理",
       "settingsRemerged": "已根據新設定重新合併 {count} 張投影片的文字區塊"
     }
+  },
+  "tour": {
+    "help": "功能導覽",
+    "skip": "跳過導覽",
+    "prev": "上一步",
+    "next": "下一步",
+    "finish": "完成",
+    "keyboardHint": "按 ← → 切換，ESC 跳過",
+    "steps": {
+      "apiKey": {
+        "title": "設定 API Key",
+        "description": "首先，輸入您的 Google Gemini API Key。這是使用工具的必要條件。您的 API Key 僅儲存在瀏覽器本地，不會傳送至任何伺服器。"
+      },
+      "modeSelector": {
+        "title": "選擇生成模式",
+        "description": "我們提供 6 種不同的模式：生成、貼圖、編輯、故事、圖表和影片。請選擇最適合您需求的模式。"
+      },
+      "promptInput": {
+        "title": "輸入 Prompt",
+        "description": "在此描述您想要生成的圖片。描述越詳細，生成效果越好！您可以使用任何語言。更多進階選項在下方。"
+      },
+      "generateButton": {
+        "title": "開始生成",
+        "description": "準備好了嗎？點擊此按鈕開始生成圖片！生成過程中可以看到 AI 的思考過程。"
+      },
+      "history": {
+        "title": "歷史紀錄",
+        "description": "所有生成的圖片都會儲存在這裡。點擊紀錄可重新載入設定，點擊縮圖可預覽圖片。右上角的傳輸圖示（⇄）可匯出或匯入歷史紀錄。"
+      }
+    }
   }
 }
