@@ -151,7 +151,6 @@ const imageTransformStyle = computed(() => ({
 
 const currentIndex = ref(props.initialIndex)
 const isAnimating = ref(false)
-const slideDirection = ref('') // 'left' or 'right'
 const isVisible = ref(false)
 const isClosing = ref(false)
 
@@ -279,43 +278,46 @@ const close = () => {
   emit('close')
 }
 
+/**
+ * Navigate with View Transition API (crossfade effect)
+ * Falls back to instant change for unsupported browsers (Firefox)
+ */
+const navigateWithTransition = (updateFn) => {
+  // Fallback for browsers without View Transition API
+  if (!document.startViewTransition) {
+    updateFn()
+    return
+  }
+
+  isAnimating.value = true
+  const transition = document.startViewTransition(() => {
+    updateFn()
+  })
+
+  transition.finished.finally(() => {
+    isAnimating.value = false
+  })
+}
+
 const goToPrev = () => {
   if (!hasPrev.value || isAnimating.value) return
-  slideDirection.value = 'right'
-  isAnimating.value = true
-  setTimeout(() => {
+  navigateWithTransition(() => {
     currentIndex.value--
-    setTimeout(() => {
-      isAnimating.value = false
-      slideDirection.value = ''
-    }, 300)
-  }, 150)
+  })
 }
 
 const goToNext = () => {
   if (!hasNext.value || isAnimating.value) return
-  slideDirection.value = 'left'
-  isAnimating.value = true
-  setTimeout(() => {
+  navigateWithTransition(() => {
     currentIndex.value++
-    setTimeout(() => {
-      isAnimating.value = false
-      slideDirection.value = ''
-    }, 300)
-  }, 150)
+  })
 }
 
 const goToIndex = (index) => {
   if (index === currentIndex.value || isAnimating.value) return
-  slideDirection.value = index > currentIndex.value ? 'left' : 'right'
-  isAnimating.value = true
-  setTimeout(() => {
+  navigateWithTransition(() => {
     currentIndex.value = index
-    setTimeout(() => {
-      isAnimating.value = false
-      slideDirection.value = ''
-    }, 300)
-  }, 150)
+  })
 }
 
 // Keyboard navigation
@@ -806,15 +808,7 @@ const goToSlideToPptx = async () => {
           @touchmove="handleTouchMove"
           @touchend="handleTouchEnd"
         >
-          <div
-            class="lightbox-image-wrapper relative"
-            :class="{
-              'slide-out-left': isAnimating && slideDirection === 'left',
-              'slide-out-right': isAnimating && slideDirection === 'right',
-              'slide-in-left': !isAnimating && slideDirection === 'left',
-              'slide-in-right': !isAnimating && slideDirection === 'right',
-            }"
-          >
+          <div class="lightbox-image-wrapper relative">
             <!-- Grid container to stack Image and SVG perfectly -->
             <div 
               class="grid" 
@@ -824,10 +818,11 @@ const goToSlideToPptx = async () => {
               <img
                 v-if="currentImage"
                 ref="imageRef"
+                :key="currentIndex"
                 :src="getImageSrc(currentImage)"
                 :alt="`Image ${currentIndex + 1}`"
                 class="lightbox-image"
-                style="grid-area: stack;"
+                style="grid-area: stack; view-transition-name: lightbox-img;"
                 draggable="false"
                 @load="onImageLoad"
               />
@@ -1129,59 +1124,6 @@ const goToSlideToPptx = async () => {
   }
 }
 
-/* Slide animations */
-.slide-out-left {
-  animation: slide-out-left 0.15s ease-in forwards;
-}
-
-.slide-out-right {
-  animation: slide-out-right 0.15s ease-in forwards;
-}
-
-.slide-in-left {
-  animation: slide-in-left 0.15s ease-out;
-}
-
-.slide-in-right {
-  animation: slide-in-right 0.15s ease-out;
-}
-
-@keyframes slide-out-left {
-  to {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-}
-
-@keyframes slide-out-right {
-  to {
-    opacity: 0;
-    transform: translateX(50px);
-  }
-}
-
-@keyframes slide-in-left {
-  from {
-    opacity: 0;
-    transform: translateX(50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 .lightbox-image {
   max-width: 90vw;
   max-height: 85vh;
@@ -1233,6 +1175,7 @@ const goToSlideToPptx = async () => {
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.5);
   border-radius: 0.5rem;
+  view-transition-name: lightbox-info;
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
@@ -1520,4 +1463,26 @@ const goToSlideToPptx = async () => {
   }
 }
 
+</style>
+
+<!-- Global styles for View Transition API (cannot be scoped) -->
+<style>
+/* Crossfade animation for lightbox image */
+::view-transition-old(lightbox-img),
+::view-transition-new(lightbox-img) {
+  animation-duration: 0.2s;
+  animation-timing-function: ease-out;
+}
+
+/* Keep info bar stable during transition */
+::view-transition-old(lightbox-info),
+::view-transition-new(lightbox-info) {
+  animation: none;
+}
+
+/* Disable root transition to only animate the image */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
 </style>
