@@ -328,11 +328,16 @@ const currentSeparatorLines = computed(() => {
   return slideToPptx.getSeparatorLines(currentIndex.value)
 })
 
-// Get current image URL for magnifier
-const currentImageUrl = computed(() => {
-  const state = slideStates.value[currentIndex.value]
-  return state?.originalImage || ''
-})
+// Get image URL for a slide (Single Source of Truth)
+// Priority: slideStates[].originalImage (after processing) > images[].preview (before processing)
+const getImageUrl = (idx) => {
+  const state = slideStates.value[idx]
+  if (state?.originalImage) return state.originalImage
+  return images.value[idx]?.preview || ''
+}
+
+// Get current image URL for magnifier and main display
+const currentImageUrl = computed(() => getImageUrl(currentIndex.value))
 
 // Undo/Redo handlers
 const handleUndo = () => {
@@ -367,8 +372,7 @@ const currentSlideIsEdited = computed(() => {
 // Sync settings with composable
 const settings = slideToPptx.settings
 
-// Current image and slide state
-const currentImage = computed(() => images.value[currentIndex.value])
+// Current slide state
 const currentSlideState = computed(() => slideStates.value[currentIndex.value])
 
 // Clean image version history for current slide
@@ -755,13 +759,17 @@ watch(slideToPptx.ocrModelSizeFallbackOccurred, (occurred) => {
   }
 })
 
-// Prepare images for processing (load from OPFS if needed)
+// Prepare images for processing (load from various sources)
+// Priority: img.data > img.opfsPath > img.preview > slideStates[].originalImage
 const prepareImagesForProcessing = async () => {
   const preparedImages = []
 
-  for (const img of images.value) {
+  for (let idx = 0; idx < images.value.length; idx++) {
+    const img = images.value[idx]
+    const state = slideStates.value[idx]
+
     if (img.data) {
-      // Already has base64 data (from sessionStorage)
+      // Already has base64 data (from sessionStorage or upload)
       preparedImages.push({
         data: img.data,
         mimeType: img.mimeType,
@@ -776,7 +784,7 @@ const prepareImagesForProcessing = async () => {
         })
       }
     } else if (img.preview) {
-      // Use preview URL (blob URL) - convert to base64
+      // Use preview URL (data URL or blob URL) - convert to base64
       const response = await fetch(img.preview)
       const blob = await response.blob()
       const base64 = await new Promise((resolve) => {
@@ -786,7 +794,15 @@ const prepareImagesForProcessing = async () => {
       })
       preparedImages.push({
         data: base64.split(',')[1],
-        mimeType: img.mimeType,
+        mimeType: img.mimeType || 'image/png',
+      })
+    } else if (state?.originalImage) {
+      // Fallback: use slideStates[].originalImage (Single Source of Truth after first processing)
+      // This handles re-processing after images array has been cleared
+      const dataUrl = state.originalImage
+      preparedImages.push({
+        data: dataUrl.split(',')[1],
+        mimeType: dataUrl.split(';')[0].split(':')[1] || 'image/png',
       })
     }
   }
@@ -831,6 +847,13 @@ const startProcessing = async () => {
           .join('\n')
         toast.warning(t('slideToPptx.ocrWarning.title') + '\n' + warningMessage, { duration: 8000 })
       }
+
+      // Release all image data to free memory (~30MB per slide: data + preview)
+      // After processing, slideStates[].originalImage is the Single Source of Truth
+      // UI uses getImageUrl() which reads from slideStates first
+      // Keep images array structure (id only) for v-for iteration
+      uploadedImages.value = []
+      images.value = images.value.map(img => ({ id: img.id }))
     },
     onError: () => {
       toast.error(t('slideToPptx.errors.pptxFailed'))
@@ -978,11 +1001,11 @@ const getSlideStatus = (index) => {
 
                   <div
                     class="relative aspect-video rounded-xl overflow-hidden bg-bg-muted border border-border-muted cursor-pointer hover:border-mode-generate transition-colors"
-                    @click="currentImage && openLightbox(currentImage.preview)"
+                    @click="currentImageUrl && openLightbox(currentImageUrl)"
                   >
                     <img
-                      v-if="currentImage"
-                      :src="currentImage.preview"
+                      v-if="currentImageUrl"
+                      :src="currentImageUrl"
                       alt="Original"
                       class="absolute inset-0 w-full h-full object-contain"
                     />
@@ -1250,7 +1273,7 @@ const getSlideStatus = (index) => {
                       ? 'ring-2 ring-mode-generate ring-offset-2 ring-offset-bg-elevated scale-105 shadow-lg'
                       : 'opacity-70 hover:opacity-100 hover:scale-102'"
                   >
-                    <img :src="img.preview" alt="" class="w-full h-full object-cover" />
+                    <img :src="getImageUrl(idx)" alt="" class="w-full h-full object-cover" />
 
                     <!-- Page number badge -->
                     <div class="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold"

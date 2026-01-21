@@ -126,6 +126,51 @@ OCR 有兩種執行模式（WebGPU 主執行緒 / WASM Worker），核心邏輯�
 >
 > **⚠️ 維護提醒**：修改 OCR 相關邏輯時，請同步更新 `docs/ocr-architecture.md`
 
+#### 4.1 ONNX Tensor 記憶體管理 - 必須手動 dispose
+
+**⚠️ CRITICAL: ONNX Runtime Web Tensor 不會被 GC 自動回收！**
+
+```javascript
+// ❌ 錯誤 - Tensor 會累積，每次 OCR 增加 ~50MB
+const { tensor: detTensor } = preprocessForDetection(bitmap, settings, ort.Tensor)
+const detOutput = await detSession.run({ input: detTensor })
+// tensor 永遠不會被釋放...
+
+// ✅ 正確 - 使用完立即 dispose
+let detTensor = null
+let detOutput = null
+try {
+  const result = preprocessForDetection(bitmap, settings, ort.Tensor)
+  detTensor = result.tensor
+  const detResults = await detSession.run({ input: detTensor })
+  detOutput = detResults[detSession.outputNames[0]]
+  // ... 處理結果 ...
+
+  // 儘早釋放（postProcess 後就不需要了）
+  detTensor.dispose()
+  detTensor = null
+  detOutput.dispose()
+  detOutput = null
+} finally {
+  // 確保錯誤時也能清理
+  if (detTensor) detTensor.dispose()
+  if (detOutput) detOutput.dispose()
+}
+```
+
+**記憶體影響（Server 模型，9 張 1920x1080 slides）：**
+| Tensor 類型 | 大小/個 | 數量 | 未 dispose 累積 |
+|-------------|---------|------|-----------------|
+| Detection Input | ~18 MB | 9 | ~160 MB |
+| Detection Output | ~6 MB | 9 | ~54 MB |
+| Recognition Input | ~0.7 MB | ~180 | ~130 MB |
+| Recognition Output | ~2 MB | ~180 | ~360 MB |
+| **總計** | - | - | **~700 MB** |
+
+**修改位置：**
+- `src/workers/ocr.worker.js` - WASM Worker 模式
+- `src/composables/useOcrMainThread.js` - WebGPU 主執行緒模式
+
 #### 5. Layout Analysis - Text Block Merging
 
 Raw OCR detections (single lines) must be merged into logical paragraphs. This is done using a Recursive XY-Cut algorithm combined with heuristic line grouping.
