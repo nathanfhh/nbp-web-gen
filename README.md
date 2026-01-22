@@ -45,6 +45,7 @@ This project is a testament to the power of AI-assisted development:
 ## ✨ Key Features
 
 *   **Advanced Generation:** Full support for styles (Watercolor, Pixar 3D, Pixel Art, etc.) and variations (Lighting, Angle, Composition).
+*   **Sketch Canvas:** Draw your own reference sketches directly in the browser using Fabric.js. Supports drawing on uploaded images, multiple brush colors/sizes, undo/redo history, and zoom controls.
 *   **AI Video Generation:** Generate videos using Google's Veo 3.1 API with multiple sub-modes:
     *   **Text-to-Video:** Generate videos from text prompts with camera motion and style controls.
     *   **Frames-to-Video:** Create videos from start/end frame images for precise transitions.
@@ -177,6 +178,7 @@ npm run build
 ## ✨ 核心特色
 
 *   **進階圖像生成：** 支援多種藝術風格（水彩、Pixar 3D、像素風等）與變體控制（光影、角度、構圖）。
+*   **手繪畫布：** 使用 Fabric.js 直接在瀏覽器中繪製參考草圖。支援在上傳圖片上繪製、多種筆刷顏色與粗細、復原/重做歷程、縮放控制。
 *   **AI 影片生成：** 使用 Google Veo 3.1 API 生成影片，支援多種子模式：
     *   **文字轉影片：** 透過文字描述生成影片，可控制鏡頭運動與風格。
     *   **關鍵幀轉影片：** 從起始/結束畫面圖片創建影片，實現精確的畫面過渡。
