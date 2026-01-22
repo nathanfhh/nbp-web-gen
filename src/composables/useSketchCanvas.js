@@ -6,7 +6,7 @@
  */
 
 import { ref, computed, shallowRef, onUnmounted } from 'vue'
-import { Canvas, PencilBrush } from 'fabric'
+import { Canvas, PencilBrush, FabricImage } from 'fabric'
 
 // Canvas output dimensions per aspect ratio
 const CANVAS_SIZES = {
@@ -79,10 +79,23 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
   // Store original brush color when switching to eraser
   let savedBrushColor = '#000000'
 
+  // Store custom canvas size (for background image editing)
+  const customCanvasSize = ref(null)
+
+  // Zoom state
+  const zoomLevel = ref(1)
+  const MIN_ZOOM = 0.25
+  const MAX_ZOOM = 4
+
   // ============================================================================
   // Computed
   // ============================================================================
-  const canvasSize = computed(() => CANVAS_SIZES[aspectRatio.value] || CANVAS_SIZES['1:1'])
+  const canvasSize = computed(() => {
+    if (aspectRatio.value === 'custom' && customCanvasSize.value) {
+      return customCanvasSize.value
+    }
+    return CANVAS_SIZES[aspectRatio.value] || CANVAS_SIZES['1:1']
+  })
 
   // ============================================================================
   // Canvas Setup
@@ -90,8 +103,10 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
 
   /**
    * Initialize Fabric.js canvas with white background
+   * @param {Object} options
+   * @param {boolean} options.skipInitialSnapshot - Skip saving initial snapshot (for edit mode)
    */
-  const initCanvas = () => {
+  const initCanvas = ({ skipInitialSnapshot = false } = {}) => {
     if (!canvasRef.value) return
 
     // Create Fabric.js canvas
@@ -125,8 +140,10 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
 
     fabricCanvas.value = canvas
 
-    // Save initial state
-    historyManager?.saveSnapshot()
+    // Save initial state (skip if loading content later)
+    if (!skipInitialSnapshot) {
+      historyManager?.saveSnapshot()
+    }
   }
 
   /**
@@ -171,9 +188,209 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
   }
 
   /**
+   * Get image data with Fabric.js JSON for later editing
+   * Extends getImageData with fabricJson for preserving stroke data
+   */
+  const getImageDataWithJson = () => {
+    const imageData = getImageData()
+    if (!imageData || !fabricCanvas.value) return imageData
+
+    // Serialize Fabric.js canvas to JSON
+    const fabricJson = JSON.stringify(fabricCanvas.value.toJSON())
+
+    return {
+      ...imageData,
+      fabricJson,
+      aspectRatio: aspectRatio.value,
+      // Include custom canvas size for non-preset ratios (e.g., background image editing)
+      ...(aspectRatio.value === 'custom' && customCanvasSize.value
+        ? { canvasWidth: customCanvasSize.value.width, canvasHeight: customCanvasSize.value.height }
+        : {}),
+    }
+  }
+
+  /**
+   * Load canvas from Fabric.js JSON (for continuing sketch editing)
+   * @param {string} json - Fabric.js JSON string
+   * @param {string} ratio - Aspect ratio when saved
+   * @param {Object} options - Additional options
+   * @param {number} options.canvasWidth - Custom canvas width (for 'custom' ratio)
+   * @param {number} options.canvasHeight - Custom canvas height (for 'custom' ratio)
+   * @param {boolean} options.skipSnapshot - Skip saving initial snapshot (when history exists)
+   */
+  const loadFromJson = async (json, ratio, options = {}) => {
+    if (!fabricCanvas.value || !json) return false
+
+    try {
+      let targetWidth, targetHeight
+
+      // Determine canvas dimensions
+      if (ratio === 'custom' && options.canvasWidth && options.canvasHeight) {
+        // Custom size from background image editing
+        targetWidth = options.canvasWidth
+        targetHeight = options.canvasHeight
+        customCanvasSize.value = { width: targetWidth, height: targetHeight }
+        aspectRatio.value = 'custom'
+      } else if (ratio && CANVAS_SIZES[ratio]) {
+        // Preset ratio
+        targetWidth = CANVAS_SIZES[ratio].width
+        targetHeight = CANVAS_SIZES[ratio].height
+        aspectRatio.value = ratio
+      } else {
+        // Fallback: try to get size from JSON, or use default
+        const jsonData = JSON.parse(json)
+        targetWidth = jsonData.width || CANVAS_SIZES['1:1'].width
+        targetHeight = jsonData.height || CANVAS_SIZES['1:1'].height
+        aspectRatio.value = '1:1'
+      }
+
+      // Reset canvas state
+      fabricCanvas.value.clear()
+      fabricCanvas.value.setViewportTransform([1, 0, 0, 1, 0, 0])
+
+      // Set canvas dimensions (internal only)
+      fabricCanvas.value.setDimensions(
+        { width: targetWidth, height: targetHeight },
+        { backstoreOnly: true },
+      )
+
+      // Load the JSON
+      await fabricCanvas.value.loadFromJSON(JSON.parse(json))
+      fabricCanvas.value.renderAll()
+
+      // Save initial state for history (skip if history already exists)
+      if (!options.skipSnapshot) {
+        historyManager?.saveSnapshot()
+      }
+
+      return true
+    } catch (error) {
+      console.error('Failed to load Fabric JSON:', error)
+      return false
+    }
+  }
+
+  /**
+   * Load an image as background for drawing on top
+   * Used when editing an uploaded image (not a sketch)
+   * Uses original image dimensions instead of forcing preset ratios
+   * @param {string} imageDataUrl - Image data URL to use as background
+   * @param {Object} options - Additional options
+   * @param {boolean} options.skipSnapshot - Skip saving initial snapshot (when history exists)
+   */
+  const loadImageAsBackground = async (imageDataUrl, options = {}) => {
+    if (!fabricCanvas.value || !imageDataUrl) {
+      throw new Error('Canvas or image data not available')
+    }
+
+    try {
+      // Load image using Fabric.js v7 API
+      const fabricImg = await FabricImage.fromURL(imageDataUrl)
+
+      // Use original image dimensions (capped at reasonable max for performance)
+      const maxDimension = 2048
+      let imgWidth = fabricImg.width
+      let imgHeight = fabricImg.height
+
+      // Scale down if too large
+      if (imgWidth > maxDimension || imgHeight > maxDimension) {
+        const scale = maxDimension / Math.max(imgWidth, imgHeight)
+        imgWidth = Math.round(imgWidth * scale)
+        imgHeight = Math.round(imgHeight * scale)
+      }
+
+      // Store custom size and mark as custom aspect ratio BEFORE setDimensions
+      // so that canvasSize computed updates correctly
+      customCanvasSize.value = { width: imgWidth, height: imgHeight }
+      aspectRatio.value = 'custom'
+
+      // Reset canvas: clear all objects and reset viewport transform
+      fabricCanvas.value.clear()
+      fabricCanvas.value.setViewportTransform([1, 0, 0, 1, 0, 0])
+
+      // Set canvas to match image dimensions (internal only, CSS handled separately)
+      fabricCanvas.value.setDimensions(
+        { width: imgWidth, height: imgHeight },
+        { backstoreOnly: true },
+      )
+
+      // Configure background image position and scale
+      fabricImg.set({
+        left: 0,
+        top: 0,
+        originX: 'left',
+        originY: 'top',
+        scaleX: imgWidth / fabricImg.width,
+        scaleY: imgHeight / fabricImg.height,
+      })
+
+      // Set as background image
+      fabricCanvas.value.backgroundImage = fabricImg
+      fabricCanvas.value.backgroundColor = '#FFFFFF'
+      fabricCanvas.value.renderAll()
+
+      // Save initial state for history (skip if history already exists)
+      if (!options.skipSnapshot) {
+        historyManager?.saveSnapshot()
+      }
+
+      return { width: imgWidth, height: imgHeight }
+    } catch (error) {
+      console.error('Failed to load image as background:', error)
+      throw error
+    }
+  }
+
+  /**
    * Get Fabric.js canvas instance (for history management)
    */
   const getFabricCanvas = () => fabricCanvas.value
+
+  /**
+   * Update display size for CSS scaling (fixes coordinate conversion)
+   * Fabric.js needs to know the CSS size to correctly translate pointer events
+   * @param {number} width - CSS width in pixels
+   * @param {number} height - CSS height in pixels
+   */
+  const updateDisplaySize = (width, height) => {
+    if (!fabricCanvas.value) return
+
+    // Set CSS dimensions only - keeps internal resolution intact
+    fabricCanvas.value.setDimensions({ width, height }, { cssOnly: true })
+  }
+
+  // ============================================================================
+  // Zoom Controls
+  // ============================================================================
+
+  /**
+   * Set zoom level
+   * @param {number} level - Zoom level (0.25 to 4)
+   */
+  const setZoom = (level) => {
+    zoomLevel.value = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level))
+  }
+
+  /**
+   * Zoom in by a step
+   */
+  const zoomIn = () => {
+    setZoom(zoomLevel.value * 1.25)
+  }
+
+  /**
+   * Zoom out by a step
+   */
+  const zoomOut = () => {
+    setZoom(zoomLevel.value / 1.25)
+  }
+
+  /**
+   * Reset zoom to 100%
+   */
+  const resetZoom = () => {
+    zoomLevel.value = 1
+  }
 
   // ============================================================================
   // Tool Settings
@@ -273,6 +490,7 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
     lineWidth,
     aspectRatio,
     isDrawing,
+    zoomLevel,
 
     // Computed
     canvasSize,
@@ -282,11 +500,19 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
     clearCanvas,
     toDataURL,
     getImageData,
+    getImageDataWithJson,
+    loadFromJson,
+    loadImageAsBackground,
     getFabricCanvas,
     setTool,
     setColor,
     setLineWidth,
     setAspectRatio,
+    updateDisplaySize,
+    setZoom,
+    zoomIn,
+    zoomOut,
+    resetZoom,
     dispose,
   }
 }

@@ -582,6 +582,7 @@
     "maxImages": "Max {count} images, supports JPG, PNG, WebP",
     "upload": "Upload image",
     "sketch": "Draw sketch",
+    "sketchSource": "Sketch image (can continue editing)",
     "removeConfirmTitle": "Remove Image",
     "removeConfirmMessage": "Are you sure you want to remove this image?"
   },
@@ -595,6 +596,9 @@
     "customColor": "Custom Color",
     "lineWidth": "Line Width",
     "aspectRatio": "Aspect Ratio",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "resetZoom": "Reset Zoom",
     "clear": "Clear Canvas",
     "clearConfirmTitle": "Clear Canvas",
     "clearConfirmMessage": "Are you sure you want to clear the canvas? This action cannot be undone.",

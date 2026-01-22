@@ -62,6 +62,12 @@ export const useGeneratorStore = defineStore('generator', () => {
   // Reference images (shared across all modes, max 5)
   const referenceImages = ref([])
 
+  // Sketch history (for undo/redo across edit sessions, stored in RAM)
+  const sketchHistory = ref([])
+  const sketchHistoryIndex = ref(-1)
+  const sketchEditingImageIndex = ref(null) // Track which image is being edited
+  const MAX_SKETCH_HISTORY = 30
+
   // Selected character for generation
   const selectedCharacter = ref(null)
 
@@ -499,9 +505,94 @@ export const useGeneratorStore = defineStore('generator', () => {
     return true
   }
 
+  const updateReferenceImage = (index, newImageData) => {
+    const image = referenceImages.value[index]
+    // Prevent updating character-locked images
+    if (image?.isCharacterLocked) return false
+    if (index < 0 || index >= referenceImages.value.length) return false
+    referenceImages.value.splice(index, 1, newImageData)
+    return true
+  }
+
   const clearReferenceImages = () => {
     // Keep character-locked images when clearing
     referenceImages.value = referenceImages.value.filter((img) => img.isCharacterLocked)
+  }
+
+  // ============================================================================
+  // Sketch History (RAM-based, persists until page refresh)
+  // ============================================================================
+
+  const sketchCanUndo = computed(() => sketchHistoryIndex.value > 0)
+  const sketchCanRedo = computed(() => sketchHistoryIndex.value < sketchHistory.value.length - 1)
+  const hasSketchHistory = computed(() => sketchHistory.value.length > 0)
+
+  /**
+   * Start editing an image - reset history if different image
+   */
+  const startSketchEdit = (imageIndex) => {
+    if (sketchEditingImageIndex.value !== imageIndex) {
+      // Different image, reset history
+      sketchHistory.value = []
+      sketchHistoryIndex.value = -1
+      sketchEditingImageIndex.value = imageIndex
+    }
+    // Same image - keep existing history
+  }
+
+  /**
+   * Save a snapshot to sketch history
+   */
+  const saveSketchSnapshot = (json) => {
+    // Truncate future states if not at the end
+    if (sketchHistoryIndex.value < sketchHistory.value.length - 1) {
+      sketchHistory.value = sketchHistory.value.slice(0, sketchHistoryIndex.value + 1)
+    }
+
+    // Add new snapshot
+    sketchHistory.value.push(json)
+
+    // Trim if exceeds max
+    if (sketchHistory.value.length > MAX_SKETCH_HISTORY) {
+      sketchHistory.value.shift()
+      sketchHistoryIndex.value--
+    }
+
+    // Update index
+    sketchHistoryIndex.value = sketchHistory.value.length - 1
+  }
+
+  /**
+   * Get snapshot at specific index
+   */
+  const getSketchSnapshot = (index) => {
+    if (index < 0 || index >= sketchHistory.value.length) return null
+    return sketchHistory.value[index]
+  }
+
+  /**
+   * Set current history index (for undo/redo)
+   */
+  const setSketchHistoryIndex = (index) => {
+    if (index >= 0 && index < sketchHistory.value.length) {
+      sketchHistoryIndex.value = index
+    }
+  }
+
+  /**
+   * Clear sketch history
+   */
+  const clearSketchHistory = () => {
+    sketchHistory.value = []
+    sketchHistoryIndex.value = -1
+    sketchEditingImageIndex.value = null
+  }
+
+  /**
+   * Update the editing image index (after saving a new sketch)
+   */
+  const setSketchEditingImageIndex = (index) => {
+    sketchEditingImageIndex.value = index
   }
 
   // ============================================================================
@@ -570,6 +661,10 @@ export const useGeneratorStore = defineStore('generator', () => {
     videoPromptOptions,
     slidesOptions,
     referenceImages,
+    sketchHistoryIndex,
+    sketchCanUndo,
+    sketchCanRedo,
+    hasSketchHistory,
     selectedCharacter,
     isGenerating,
     generationError,
@@ -615,7 +710,14 @@ export const useGeneratorStore = defineStore('generator', () => {
     resetCurrentOptions,
     addReferenceImage,
     removeReferenceImage,
+    updateReferenceImage,
     clearReferenceImages,
+    startSketchEdit,
+    saveSketchSnapshot,
+    getSketchSnapshot,
+    setSketchHistoryIndex,
+    clearSketchHistory,
+    setSketchEditingImageIndex,
     selectCharacter,
     deselectCharacter,
     imageStorage,

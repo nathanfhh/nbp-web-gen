@@ -1,12 +1,29 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useSketchCanvas, SKETCH_COLORS, ASPECT_RATIOS } from '@/composables/useSketchCanvas'
+import { useGeneratorStore } from '@/stores/generator'
+import { useSketchCanvas, ASPECT_RATIOS } from '@/composables/useSketchCanvas'
 import { useSketchHistory } from '@/composables/useSketchHistory'
 import { useToolbarDrag } from '@/composables/useToolbarDrag'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import { Swatches } from '@lk77/vue3-color'
 
 const { t } = useI18n()
+const store = useGeneratorStore()
+
+const props = defineProps({
+  // Edit mode: 'fabric' = continue editing strokes, 'background' = image as background
+  editMode: {
+    type: String,
+    default: null,
+    validator: (value) => [null, 'fabric', 'background'].includes(value),
+  },
+  // Image data for editing (used with editMode)
+  editImageData: {
+    type: Object,
+    default: null,
+  },
+})
 
 const emit = defineEmits(['save', 'close'])
 
@@ -49,22 +66,42 @@ const initToolbarPosition = () => {
 // UI State
 const showSizePicker = ref(false)
 const showRatioPicker = ref(false)
+const showColorPicker = ref(false)
 
 // Preset line widths
 const LINE_WIDTHS = [2, 5, 10, 15, 20, 30, 40, 50]
 
+// Color swatches configuration - organized rows for mobile-friendly display
+const colorSwatches = [
+  // Row 1: Basics
+  ['#000000', '#434343', '#666666', '#999999', '#CCCCCC', '#FFFFFF'],
+  // Row 2: Warm colors
+  ['#FF0000', '#FF6B6B', '#FF9500', '#FFB84D', '#FFCC00', '#FFE066'],
+  // Row 3: Cool colors
+  ['#00C853', '#69F0AE', '#00BCD4', '#80DEEA', '#2196F3', '#90CAF9'],
+  // Row 4: Purple & Pink
+  ['#9C27B0', '#CE93D8', '#E91E63', '#F48FB1', '#795548', '#BCAAA4'],
+]
+
 // Track if canvas has been modified
 const hasDrawn = computed(() => historyManager.canUndo.value)
 
-// Computed display size for canvas (fit within viewport)
-const displaySize = computed(() => {
+// Computed base scale to fit canvas within viewport
+const baseScale = computed(() => {
   const { width, height } = sketchCanvas.canvasSize.value
   const maxWidth = window.innerWidth - 32 // 16px padding on each side
   const maxHeight = window.innerHeight - 100 // Space for toolbar + mt-16
 
   const scaleX = maxWidth / width
   const scaleY = maxHeight / height
-  const scale = Math.min(scaleX, scaleY, 1) // Don't scale up
+  return Math.min(scaleX, scaleY, 1) // Don't scale up beyond 1
+})
+
+// Computed display size for canvas (considers zoom)
+const displaySize = computed(() => {
+  const { width, height } = sketchCanvas.canvasSize.value
+  const zoom = sketchCanvas.zoomLevel.value
+  const scale = baseScale.value * zoom
 
   return {
     width: Math.floor(width * scale),
@@ -107,7 +144,8 @@ const handleKeyDown = (e) => {
 
 // Actions
 const handleSave = () => {
-  const imageData = sketchCanvas.getImageData()
+  // Use getImageDataWithJson to preserve Fabric JSON for later editing
+  const imageData = sketchCanvas.getImageDataWithJson()
   if (imageData) {
     emit('save', imageData)
   }
@@ -144,7 +182,10 @@ const handleClear = async () => {
 }
 
 const handleColorSelect = (color) => {
-  sketchCanvas.setColor(color)
+  // Handle color from Swatches picker (object with hex property)
+  const colorValue = typeof color === 'object' && color.hex ? color.hex : color
+  sketchCanvas.setColor(colorValue)
+  showColorPicker.value = false
 }
 
 const handleSizeSelect = (size) => {
@@ -162,19 +203,72 @@ const handleOverlayClick = (e) => {
   if (e.target === e.currentTarget) {
     showSizePicker.value = false
     showRatioPicker.value = false
+    showColorPicker.value = false
   }
 }
 
 // Lifecycle
 onMounted(async () => {
   await nextTick()
-  sketchCanvas.initCanvas()
+
+  // Skip initial snapshot if we're going to load content (edit mode)
+  const isEditMode = props.editMode && props.editImageData
+  sketchCanvas.initCanvas({ skipInitialSnapshot: isEditMode })
+
+  // Apply CSS display size for correct coordinate transformation
+  sketchCanvas.updateDisplaySize(displaySize.value.width, displaySize.value.height)
+
+  // Load edit data if in edit mode
+  if (isEditMode) {
+    // Skip snapshot if history already exists (resuming previous edit session)
+    const skipSnapshot = store.hasSketchHistory
+
+    if (props.editMode === 'fabric' && props.editImageData.fabricJson) {
+      // Continue editing strokes from Fabric JSON
+      await sketchCanvas.loadFromJson(
+        props.editImageData.fabricJson,
+        props.editImageData.aspectRatio,
+        {
+          canvasWidth: props.editImageData.canvasWidth,
+          canvasHeight: props.editImageData.canvasHeight,
+          skipSnapshot,
+        },
+      )
+      // Re-apply display size after loading
+      await nextTick()
+      sketchCanvas.updateDisplaySize(displaySize.value.width, displaySize.value.height)
+    } else if (props.editMode === 'background' && props.editImageData.preview) {
+      // Load image as background for drawing on top
+      await sketchCanvas.loadImageAsBackground(props.editImageData.preview, { skipSnapshot })
+      // Re-apply display size after loading
+      await nextTick()
+      sketchCanvas.updateDisplaySize(displaySize.value.width, displaySize.value.height)
+    }
+  }
+
   initToolbarPosition()
   window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('resize', handleResize)
 })
+
+// Watch for display size changes (window resize, aspect ratio change)
+watch(
+  displaySize,
+  (newSize) => {
+    sketchCanvas.updateDisplaySize(newSize.width, newSize.height)
+  },
+  { deep: true },
+)
+
+// Handle window resize
+const handleResize = () => {
+  // displaySize is a computed property that will automatically recalculate
+  // The watch above will call updateDisplaySize
+}
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -256,32 +350,39 @@ onUnmounted(() => {
 
         <div class="w-px h-6 bg-border-muted mx-1"></div>
 
-        <!-- Color Palette (inline) -->
-        <div class="flex items-center gap-0.5">
+        <!-- Color Picker Button -->
+        <div class="relative">
           <button
-            v-for="color in SKETCH_COLORS"
-            :key="color"
-            @click="handleColorSelect(color)"
-            class="w-6 h-6 rounded transition-transform hover:scale-110 border"
-            :class="sketchCanvas.strokeColor.value === color ? 'ring-2 ring-mode-generate ring-offset-1 ring-offset-bg-elevated' : 'border-border-muted'"
-            :style="{ backgroundColor: color }"
+            @click.stop="showColorPicker = !showColorPicker; showSizePicker = false; showRatioPicker = false"
+            class="w-8 h-8 rounded-lg border-2 transition-transform hover:scale-105"
+            :class="showColorPicker ? 'ring-2 ring-mode-generate ring-offset-1 ring-offset-bg-elevated' : 'border-border-muted'"
+            :style="{ backgroundColor: sketchCanvas.strokeColor.value }"
             :title="t('sketch.color')"
           ></button>
-          <!-- Custom color picker -->
-          <label
-            class="w-6 h-6 rounded border border-border-muted cursor-pointer transition-transform hover:scale-110 flex items-center justify-center overflow-hidden relative"
-            :title="t('sketch.customColor')"
+          <!-- Color picker dropdown -->
+          <div
+            v-if="showColorPicker"
+            class="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-3 rounded-xl glass-strong shadow-lg z-10"
+            @click.stop
           >
-            <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-            </svg>
-            <input
-              type="color"
-              :value="sketchCanvas.strokeColor.value"
-              @input="handleColorSelect($event.target.value)"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            <Swatches
+              :model-value="{ hex: sketchCanvas.strokeColor.value }"
+              @update:model-value="handleColorSelect"
+              :swatches="colorSwatches"
             />
-          </label>
+            <!-- Custom color input fallback -->
+            <div class="mt-2 pt-2 border-t border-border-muted">
+              <label class="flex items-center gap-2 text-xs text-text-muted">
+                <span>{{ t('sketch.customColor') }}:</span>
+                <input
+                  type="color"
+                  :value="sketchCanvas.strokeColor.value"
+                  @input="handleColorSelect($event.target.value)"
+                  class="w-6 h-6 rounded cursor-pointer"
+                />
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="w-px h-6 bg-border-muted mx-1"></div>
@@ -301,8 +402,12 @@ onUnmounted(() => {
           <!-- Size dropdown -->
           <div
             v-if="showSizePicker"
-            class="absolute top-full left-0 mt-2 py-1 rounded-lg glass-strong shadow-lg min-w-[60px]"
+            class="absolute top-full left-0 mt-2 py-1 rounded-lg glass-strong shadow-lg min-w-[80px]"
           >
+            <!-- Header -->
+            <div class="px-3 py-1.5 text-xs text-text-muted border-b border-border-muted mb-1">
+              {{ t('sketch.lineWidth') }}
+            </div>
             <button
               v-for="size in LINE_WIDTHS"
               :key="size"
@@ -310,13 +415,13 @@ onUnmounted(() => {
               class="w-full px-3 py-1.5 text-center text-sm transition-colors"
               :class="sketchCanvas.lineWidth.value === size ? 'bg-mode-generate-muted text-mode-generate' : 'text-text-secondary hover:bg-bg-interactive'"
             >
-              {{ size }}
+              {{ size }} px
             </button>
           </div>
         </div>
 
-        <!-- Aspect Ratio Picker -->
-        <div class="relative">
+        <!-- Aspect Ratio Picker (hidden when custom) -->
+        <div v-if="sketchCanvas.aspectRatio.value !== 'custom'" class="relative">
           <button
             @click.stop="showRatioPicker = !showRatioPicker; showSizePicker = false"
             class="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-bg-interactive text-sm text-text-secondary transition-colors"
@@ -342,6 +447,37 @@ onUnmounted(() => {
               {{ ratio }}
             </button>
           </div>
+        </div>
+
+        <div class="w-px h-6 bg-border-muted mx-1"></div>
+
+        <!-- Zoom Controls -->
+        <div class="flex items-center gap-1">
+          <button
+            @click="sketchCanvas.zoomOut()"
+            class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-secondary transition-colors"
+            :title="t('sketch.zoomOut')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+            </svg>
+          </button>
+          <button
+            @click="sketchCanvas.resetZoom()"
+            class="px-1.5 py-0.5 rounded text-xs text-text-secondary hover:bg-bg-interactive transition-colors min-w-[40px] text-center"
+            :title="t('sketch.resetZoom')"
+          >
+            {{ Math.round(sketchCanvas.zoomLevel.value * 100) }}%
+          </button>
+          <button
+            @click="sketchCanvas.zoomIn()"
+            class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-secondary transition-colors"
+            :title="t('sketch.zoomIn')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+            </svg>
+          </button>
         </div>
 
         <!-- Clear -->
@@ -375,7 +511,6 @@ onUnmounted(() => {
       >
         <canvas
           ref="canvasRef"
-          class="w-full h-full"
           :style="{ touchAction: 'none' }"
         ></canvas>
       </div>

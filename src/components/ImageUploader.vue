@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import SketchCanvas from '@/components/SketchCanvas.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import ThumbnailActionMenu from '@/components/ThumbnailActionMenu.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -14,16 +15,101 @@ const confirmModalRef = ref(null)
 // Sketch canvas state
 const showSketchCanvas = ref(false)
 
+// Edit mode state
+const editMode = ref(null) // 'fabric' | 'background' | null
+const editingImageIndex = ref(null)
+const editImageData = ref(null)
+
+// Action menu state
+const actionMenuOpen = ref(false)
+const actionMenuTriggerRect = ref(null)
+const actionMenuImageIndex = ref(null)
+
 const openSketchCanvas = () => {
+  // Reset edit state for new sketch
+  editMode.value = null
+  editingImageIndex.value = null
+  editImageData.value = null
+  // Use -1 to indicate new sketch (will reset history)
+  store.startSketchEdit(-1)
   showSketchCanvas.value = true
 }
 
 const handleSketchSave = (imageData) => {
-  store.addReferenceImage(imageData)
+  if (editingImageIndex.value !== null) {
+    // Replace existing image
+    store.updateReferenceImage(editingImageIndex.value, imageData)
+  } else {
+    // Add new image
+    store.addReferenceImage(imageData)
+    // Update sketch editing index so history is preserved for this new image
+    const newIndex = store.referenceImages.length - 1
+    store.setSketchEditingImageIndex(newIndex)
+    editingImageIndex.value = newIndex
+  }
 }
 
 const closeSketchCanvas = () => {
   showSketchCanvas.value = false
+  editMode.value = null
+  editingImageIndex.value = null
+  editImageData.value = null
+}
+
+// Edit image - determine mode based on source
+const editImage = (index) => {
+  const image = store.referenceImages[index]
+  if (!image) return
+
+  editingImageIndex.value = index
+  editImageData.value = image
+
+  // Determine edit mode
+  if (image.fabricJson) {
+    // Has Fabric JSON - can continue editing strokes
+    editMode.value = 'fabric'
+  } else {
+    // Uploaded image - use as background
+    editMode.value = 'background'
+  }
+
+  // Initialize or reuse history for this image
+  store.startSketchEdit(index)
+  showSketchCanvas.value = true
+}
+
+// Open action menu for a thumbnail
+const openActionMenu = (index, event) => {
+  const target = event.currentTarget
+  const rect = target.getBoundingClientRect()
+  actionMenuTriggerRect.value = rect
+  actionMenuImageIndex.value = index
+  actionMenuOpen.value = true
+}
+
+const closeActionMenu = () => {
+  actionMenuOpen.value = false
+  actionMenuTriggerRect.value = null
+  actionMenuImageIndex.value = null
+}
+
+// Action menu handlers
+const handleMenuEdit = () => {
+  if (actionMenuImageIndex.value !== null) {
+    editImage(actionMenuImageIndex.value)
+  }
+}
+
+const handleMenuDownload = () => {
+  if (actionMenuImageIndex.value !== null) {
+    downloadImage(store.referenceImages[actionMenuImageIndex.value])
+  }
+}
+
+const handleMenuDelete = () => {
+  if (actionMenuImageIndex.value !== null) {
+    removeImage(actionMenuImageIndex.value)
+  }
 }
 const isDragging = ref(false)
 const fileInput = ref(null)
@@ -144,8 +230,9 @@ const triggerFileInput = () => {
       <div
         v-for="(image, index) in store.referenceImages"
         :key="index"
-        class="relative aspect-square rounded-lg overflow-hidden group"
+        class="relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
         :class="{ 'ring-2 ring-brand-primary': image.isCharacterLocked }"
+        @click="!image.isCharacterLocked && openActionMenu(index, $event)"
       >
         <img
           :src="image.preview"
@@ -158,29 +245,24 @@ const triggerFileInput = () => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
         </div>
-        <!-- Action buttons (only for non-locked images) -->
-        <div v-if="!image.isCharacterLocked" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <button
-            @click="downloadImage(image)"
-            class="p-1.5 rounded-full bg-bg-elevated hover:bg-bg-interactive text-text-primary transition-colors"
-            :title="$t('common.download')"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </button>
-          <button
-            @click="removeImage(index)"
-            class="p-1.5 rounded-full bg-status-error-solid hover:opacity-80 text-text-primary transition-colors"
-            :title="$t('common.remove')"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <!-- Fabric source indicator (pencil icon) - for sketch images -->
+        <div
+          v-else-if="image.fabricJson"
+          class="absolute top-1 left-1 p-1 rounded bg-mode-generate text-text-on-brand"
+          :title="$t('imageUploader.sketchSource')"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+        </div>
+        <!-- Tap hint overlay (for non-locked images) -->
+        <div v-if="!image.isCharacterLocked" class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
         </div>
         <!-- Hover overlay for locked images (show character name) -->
-        <div v-else class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <div v-if="image.isCharacterLocked" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <span class="text-text-primary text-xs font-medium text-center px-2">{{ image.name }}</span>
         </div>
       </div>
@@ -211,14 +293,14 @@ const triggerFileInput = () => {
     </div>
 
     <!-- Empty state -->
-    <div v-else class="flex gap-2">
+    <div v-else class="empty-state-container">
       <!-- Drop zone -->
       <div
         @dragover="handleDragOver"
         @dragleave="handleDragLeave"
         @drop="handleDrop"
         @click="triggerFileInput"
-        class="upload-zone-compact flex-1"
+        class="upload-zone-compact"
         :class="{ dragover: isDragging }"
       >
         <div class="flex items-center gap-4">
@@ -233,10 +315,10 @@ const triggerFileInput = () => {
           </div>
         </div>
       </div>
-      <!-- Sketch button -->
+      <!-- Sketch button (square, same height as upload zone) -->
       <div
         @click="openSketchCanvas"
-        class="upload-zone-compact flex items-center justify-center w-16 flex-shrink-0"
+        class="sketch-button-square upload-zone-compact flex items-center justify-center"
         :title="$t('imageUploader.sketch')"
       >
         <svg class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,8 +340,21 @@ const triggerFileInput = () => {
     <!-- Sketch Canvas Modal -->
     <SketchCanvas
       v-if="showSketchCanvas"
+      :edit-mode="editMode"
+      :edit-image-data="editImageData"
       @save="handleSketchSave"
       @close="closeSketchCanvas"
+    />
+
+    <!-- Action Menu -->
+    <ThumbnailActionMenu
+      v-if="actionMenuOpen && actionMenuTriggerRect"
+      :trigger-rect="actionMenuTriggerRect"
+      :is-fabric-source="store.referenceImages[actionMenuImageIndex]?.fabricJson != null"
+      @edit="handleMenuEdit"
+      @download="handleMenuDownload"
+      @delete="handleMenuDelete"
+      @close="closeActionMenu"
     />
 
     <!-- Confirm Modal -->
@@ -284,5 +379,17 @@ const triggerFileInput = () => {
 .upload-zone-compact.dragover {
   border-color: var(--color-brand-primary);
   background: color-mix(in srgb, var(--color-brand-primary), transparent 90%);
+}
+
+/* Empty state container using CSS Grid for proper square button sizing */
+.empty-state-container {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+/* Sketch button: square with side length equal to row height */
+.sketch-button-square {
+  aspect-ratio: 1;
 }
 </style>

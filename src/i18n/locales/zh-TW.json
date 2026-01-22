@@ -582,6 +582,7 @@
     "maxImages": "最多 {count} 張，支援 JPG、PNG、WebP",
     "upload": "上傳圖片",
     "sketch": "手繪草圖",
+    "sketchSource": "手繪圖片（可繼續編輯）",
     "removeConfirmTitle": "移除圖片",
     "removeConfirmMessage": "確定要移除這張圖片嗎？"
   },
@@ -595,6 +596,9 @@
     "customColor": "自訂顏色",
     "lineWidth": "筆刷粗細",
     "aspectRatio": "畫布比例",
+    "zoomIn": "放大",
+    "zoomOut": "縮小",
+    "resetZoom": "重設縮放",
     "clear": "清空畫布",
     "clearConfirmTitle": "清空畫布",
     "clearConfirmMessage": "確定要清空畫布嗎？此操作無法撤銷。",

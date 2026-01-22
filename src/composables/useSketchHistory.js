@@ -1,35 +1,33 @@
 /**
  * Sketch History composable for undo/redo functionality
  *
- * Manages canvas state snapshots using Fabric.js JSON serialization.
- * Uses a fixed-size history buffer to limit memory usage.
+ * Uses the generator store for state persistence across edit sessions.
+ * History is stored in RAM and persists until page refresh.
  */
 
-import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useGeneratorStore } from '@/stores/generator'
 
 /**
  * @param {Object} options
  * @param {Function} options.getFabricCanvas - Function to get the Fabric.js canvas instance
- * @param {number} options.maxHistory - Maximum number of history entries (default: 30)
  */
-export function useSketchHistory({ getFabricCanvas, maxHistory = 30 }) {
-  // ============================================================================
-  // State
-  // ============================================================================
+export function useSketchHistory({ getFabricCanvas }) {
+  const store = useGeneratorStore()
 
-  // History stores JSON snapshots of canvas state
-  const history = ref([])
-  const historyIndex = ref(-1)
+  // Use storeToRefs to maintain reactivity for computed properties
+  const { sketchCanUndo, sketchCanRedo, sketchHistoryIndex } = storeToRefs(store)
 
   // Flag to prevent saving during restore operations
   let isRestoring = false
 
   // ============================================================================
-  // Computed
+  // Computed (delegate to store)
   // ============================================================================
 
-  const canUndo = computed(() => historyIndex.value > 0)
-  const canRedo = computed(() => historyIndex.value < history.value.length - 1)
+  // Alias for external use
+  const canUndo = sketchCanUndo
+  const canRedo = sketchCanRedo
 
   // ============================================================================
   // Methods
@@ -44,25 +42,10 @@ export function useSketchHistory({ getFabricCanvas, maxHistory = 30 }) {
     if (!canvas || isRestoring) return
 
     // Get current canvas state as JSON
-    const json = JSON.stringify(canvas.toJSON())
+    // Include backgroundImage explicitly to preserve it during undo/redo
+    const json = JSON.stringify(canvas.toJSON(['backgroundImage']))
 
-    // If we're not at the end of history, truncate future states
-    if (historyIndex.value < history.value.length - 1) {
-      history.value = history.value.slice(0, historyIndex.value + 1)
-    }
-
-    // Add new snapshot
-    history.value.push(json)
-
-    // Trim history if it exceeds max size
-    if (history.value.length > maxHistory) {
-      history.value.shift()
-      // Adjust index since we removed from the beginning
-      historyIndex.value--
-    }
-
-    // Update index to point to latest
-    historyIndex.value = history.value.length - 1
+    store.saveSketchSnapshot(json)
   }
 
   /**
@@ -70,9 +53,9 @@ export function useSketchHistory({ getFabricCanvas, maxHistory = 30 }) {
    */
   const restoreSnapshot = async (index) => {
     const canvas = getFabricCanvas()
-    if (!canvas || index < 0 || index >= history.value.length) return
+    if (!canvas) return
 
-    const json = history.value[index]
+    const json = store.getSketchSnapshot(index)
     if (!json) return
 
     isRestoring = true
@@ -80,7 +63,7 @@ export function useSketchHistory({ getFabricCanvas, maxHistory = 30 }) {
     try {
       await canvas.loadFromJSON(json)
       canvas.renderAll()
-      historyIndex.value = index
+      store.setSketchHistoryIndex(index)
     } finally {
       isRestoring = false
     }
@@ -91,7 +74,7 @@ export function useSketchHistory({ getFabricCanvas, maxHistory = 30 }) {
    */
   const undo = () => {
     if (!canUndo.value) return
-    restoreSnapshot(historyIndex.value - 1)
+    restoreSnapshot(sketchHistoryIndex.value - 1)
   }
 
   /**
@@ -99,23 +82,21 @@ export function useSketchHistory({ getFabricCanvas, maxHistory = 30 }) {
    */
   const redo = () => {
     if (!canRedo.value) return
-    restoreSnapshot(historyIndex.value + 1)
+    restoreSnapshot(sketchHistoryIndex.value + 1)
   }
 
   /**
    * Reset history (clear all snapshots)
    */
   const reset = () => {
-    history.value = []
-    historyIndex.value = -1
+    store.clearSketchHistory()
   }
 
   /**
    * Get current history stats (for debugging)
    */
   const getStats = () => ({
-    total: history.value.length,
-    current: historyIndex.value,
+    current: sketchHistoryIndex.value,
     canUndo: canUndo.value,
     canRedo: canRedo.value,
   })
