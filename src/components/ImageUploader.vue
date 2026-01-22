@@ -381,15 +381,15 @@ const triggerFileInput = () => {
   background: color-mix(in srgb, var(--color-brand-primary), transparent 90%);
 }
 
-/* Empty state container using CSS Grid for proper square button sizing */
+/* Empty state container using CSS Grid */
 .empty-state-container {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.5rem;
 }
 
-/* Sketch button: square with side length equal to row height */
+/* Sketch button: fixed width, stretch height to match upload zone */
 .sketch-button-square {
-  aspect-ratio: 1;
+  width: 56px;
 }
 </style>
