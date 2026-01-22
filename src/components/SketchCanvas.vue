@@ -32,6 +32,7 @@ const canvasRef = ref(null)
 const toolbarRef = ref(null)
 const confirmModalRef = ref(null)
 const canvasContainerRef = ref(null)
+const scrollContainerRef = ref(null)
 
 // Initialize history manager first (needs getFabricCanvas function)
 const historyManager = useSketchHistory({
@@ -67,6 +68,71 @@ const initToolbarPosition = () => {
 const showSizePicker = ref(false)
 const showRatioPicker = ref(false)
 const showColorPicker = ref(false)
+
+// Pan state
+const isPanning = ref(false)
+const panStartPos = ref({ x: 0, y: 0 })
+const panStartScroll = ref({ left: 0, top: 0 })
+
+// Pan event handlers
+const onPanStart = (clientX, clientY) => {
+  if (sketchCanvas.currentTool.value !== 'pan') return
+  if (!scrollContainerRef.value) return
+
+  isPanning.value = true
+  panStartPos.value = { x: clientX, y: clientY }
+  panStartScroll.value = {
+    left: scrollContainerRef.value.scrollLeft,
+    top: scrollContainerRef.value.scrollTop,
+  }
+}
+
+const onPanMove = (clientX, clientY) => {
+  if (!isPanning.value || !scrollContainerRef.value) return
+
+  const deltaX = panStartPos.value.x - clientX
+  const deltaY = panStartPos.value.y - clientY
+
+  scrollContainerRef.value.scrollLeft = panStartScroll.value.left + deltaX
+  scrollContainerRef.value.scrollTop = panStartScroll.value.top + deltaY
+}
+
+const onPanEnd = () => {
+  isPanning.value = false
+}
+
+// Mouse handlers for pan
+const onCanvasMouseDown = (e) => {
+  onPanStart(e.clientX, e.clientY)
+}
+
+const onCanvasMouseMove = (e) => {
+  onPanMove(e.clientX, e.clientY)
+}
+
+const onCanvasMouseUp = () => {
+  onPanEnd()
+}
+
+// Touch handlers for pan
+const onCanvasTouchStart = (e) => {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0]
+    onPanStart(touch.clientX, touch.clientY)
+  }
+}
+
+const onCanvasTouchMove = (e) => {
+  if (e.touches.length === 1 && isPanning.value) {
+    e.preventDefault() // Prevent page scroll
+    const touch = e.touches[0]
+    onPanMove(touch.clientX, touch.clientY)
+  }
+}
+
+const onCanvasTouchEnd = () => {
+  onPanEnd()
+}
 
 // Preset line widths
 const LINE_WIDTHS = [2, 5, 10, 15, 20, 30, 40, 50]
@@ -106,6 +172,14 @@ const displaySize = computed(() => {
   return {
     width: Math.floor(width * scale),
     height: Math.floor(height * scale),
+  }
+})
+
+// Computed viewport max size (for scroll container)
+const viewportMaxSize = computed(() => {
+  return {
+    width: window.innerWidth - 32, // 16px padding on each side
+    height: window.innerHeight - 100, // Space for toolbar + mt-16
   }
 })
 
@@ -326,7 +400,7 @@ onUnmounted(() => {
 
         <div class="w-px h-6 bg-border-muted mx-1"></div>
 
-        <!-- Brush/Eraser -->
+        <!-- Brush/Eraser/Pan -->
         <button
           @click="sketchCanvas.setTool('brush')"
           class="p-1.5 rounded-lg transition-colors"
@@ -347,6 +421,16 @@ onUnmounted(() => {
             <path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.008 4.008 0 01-5.66 0L2.81 17c-.78-.79-.78-2.05 0-2.84l10.6-10.6c.79-.78 2.05-.78 2.83 0M4.22 15.58l3.54 3.53c.78.79 2.04.79 2.83 0l3.53-3.53-4.95-4.95-4.95 4.95z" />
           </svg>
         </button>
+        <button
+          @click="sketchCanvas.setTool('pan')"
+          class="p-1.5 rounded-lg transition-colors"
+          :class="sketchCanvas.currentTool.value === 'pan' ? 'bg-mode-generate-muted text-mode-generate' : 'hover:bg-bg-interactive text-text-secondary'"
+          :title="t('sketch.pan')"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+          </svg>
+        </button>
 
         <div class="w-px h-6 bg-border-muted mx-1"></div>
 
@@ -364,6 +448,8 @@ onUnmounted(() => {
             v-if="showColorPicker"
             class="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-3 rounded-xl glass-strong shadow-lg z-10"
             @click.stop
+            @touchstart.stop
+            @touchmove.stop
           >
             <Swatches
               :model-value="{ hex: sketchCanvas.strokeColor.value }"
@@ -403,6 +489,8 @@ onUnmounted(() => {
           <div
             v-if="showSizePicker"
             class="absolute top-full left-0 mt-2 py-1 rounded-lg glass-strong shadow-lg min-w-[80px]"
+            @touchstart.stop
+            @touchmove.stop
           >
             <!-- Header -->
             <div class="px-3 py-1.5 text-xs text-text-muted border-b border-border-muted mb-1">
@@ -436,6 +524,8 @@ onUnmounted(() => {
           <div
             v-if="showRatioPicker"
             class="absolute top-full left-0 mt-2 py-1 rounded-lg glass-strong shadow-lg min-w-[80px]"
+            @touchstart.stop
+            @touchmove.stop
           >
             <button
               v-for="ratio in ASPECT_RATIOS"
@@ -503,16 +593,33 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <!-- Canvas Container -->
+      <!-- Canvas Scroll Container (enables panning when zoomed in) -->
       <div
-        ref="canvasContainerRef"
-        class="relative rounded-lg overflow-hidden shadow-2xl bg-white mt-16"
-        :style="{ width: `${displaySize.width}px`, height: `${displaySize.height}px` }"
+        ref="scrollContainerRef"
+        class="canvas-scroll-container relative rounded-lg shadow-2xl mt-16"
+        :class="{ 'cursor-grab': sketchCanvas.currentTool.value === 'pan', 'cursor-grabbing': isPanning }"
+        :style="{
+          maxWidth: `${viewportMaxSize.width}px`,
+          maxHeight: `${viewportMaxSize.height}px`,
+        }"
+        @mousedown="onCanvasMouseDown"
+        @mousemove="onCanvasMouseMove"
+        @mouseup="onCanvasMouseUp"
+        @mouseleave="onCanvasMouseUp"
+        @touchstart="onCanvasTouchStart"
+        @touchmove="onCanvasTouchMove"
+        @touchend="onCanvasTouchEnd"
       >
-        <canvas
-          ref="canvasRef"
-          :style="{ touchAction: 'none' }"
-        ></canvas>
+        <div
+          ref="canvasContainerRef"
+          class="bg-white"
+          :style="{ width: `${displaySize.width}px`, height: `${displaySize.height}px` }"
+        >
+          <canvas
+            ref="canvasRef"
+            :style="{ touchAction: 'none' }"
+          ></canvas>
+        </div>
       </div>
 
       <!-- Confirm Modal -->
@@ -520,3 +627,33 @@ onUnmounted(() => {
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+/* Canvas scroll container - enables panning when zoomed in */
+.canvas-scroll-container {
+  overflow: auto;
+  /* Use touch-pan for smooth scrolling on mobile */
+  overscroll-behavior: contain;
+  /* Hide scrollbar but keep functionality (optional, can be removed if you want visible scrollbar) */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
+}
+
+.canvas-scroll-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.canvas-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.canvas-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 3px;
+}
+
+.canvas-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.5);
+}
+</style>

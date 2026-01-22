@@ -592,6 +592,7 @@
     "redo": "Redo",
     "brush": "Brush",
     "eraser": "Eraser",
+    "pan": "Pan",
     "color": "Color",
     "customColor": "Custom Color",
     "lineWidth": "Line Width",

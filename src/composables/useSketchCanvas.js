@@ -67,7 +67,7 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
   // ============================================================================
   // State
   // ============================================================================
-  const currentTool = ref('brush') // 'brush' | 'eraser'
+  const currentTool = ref('brush') // 'brush' | 'eraser' | 'pan'
   const strokeColor = ref('#000000')
   const lineWidth = ref(5)
   const aspectRatio = ref(getSavedAspectRatio())
@@ -401,15 +401,21 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
 
     if (tool === 'brush') {
       currentTool.value = 'brush'
+      fabricCanvas.value.isDrawingMode = true
       // Restore saved color
       fabricCanvas.value.freeDrawingBrush.color = savedBrushColor
       strokeColor.value = savedBrushColor
     } else if (tool === 'eraser') {
       currentTool.value = 'eraser'
+      fabricCanvas.value.isDrawingMode = true
       // Save current color and switch to white (simulated eraser)
       savedBrushColor = strokeColor.value
       fabricCanvas.value.freeDrawingBrush.color = '#FFFFFF'
       strokeColor.value = '#FFFFFF'
+    } else if (tool === 'pan') {
+      currentTool.value = 'pan'
+      // Disable drawing mode so touches/drags don't draw
+      fabricCanvas.value.isDrawingMode = false
     }
   }
 
