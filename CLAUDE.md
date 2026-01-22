@@ -327,6 +327,26 @@ First-time user guidance system:
 - `useStyleOptions.js` - Style/variation option definitions
 - `useTour.js` - User tour/onboarding state (Singleton pattern, localStorage persistence)
 - `useApiKeyManager.js` - Dual API key management with automatic fallback
+- `useSketchCanvas.js` - Fabric.js canvas for hand-drawing (see Sketch Canvas section)
+- `useSketchHistory.js` - Undo/redo using Pinia store (see Sketch Canvas section)
+
+### Sketch Canvas (Hand-Drawing Feature)
+
+**⚠️ CRITICAL: 修改 Sketch Canvas 相關邏輯前，必須先閱讀 [`docs/sketch-history.md`](docs/sketch-history.md)**
+
+手繪功能的 undo/redo 歷程管理有多個容易出錯的邊界條件：
+- 歷程保留（同一張圖片再次編輯）
+- 初始快照跳過（避免 undo 回到空白）
+- 背景圖片序列化（`toJSON(['backgroundImage'])`）
+- Pinia computed 響應式（必須用 `storeToRefs`）
+
+| 檔案 | 職責 |
+|------|------|
+| `stores/generator.js` | `sketchHistory`, `sketchHistoryIndex`, `sketchEditingImageIndex` 狀態 |
+| `composables/useSketchHistory.js` | undo/redo 邏輯，使用 store 狀態 |
+| `composables/useSketchCanvas.js` | Fabric.js canvas 操作，`skipSnapshot` 參數 |
+| `components/SketchCanvas.vue` | UI，決定何時跳過快照 |
+| `components/ImageUploader.vue` | 呼叫 `startSketchEdit`，保存時更新 index |
 
 ### API Key 分流機制
 
