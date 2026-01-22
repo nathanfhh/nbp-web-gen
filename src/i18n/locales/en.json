@@ -1319,6 +1319,7 @@
     "original": "Original",
     "processed": "Processed",
     "downloadPptx": "Download PPTX",
+    "pagesUnit": "pages",
     "conversionSettings": "Conversion Settings",
     "downloadSuccess": "PPTX downloaded successfully!",
     "prevPage": "Previous",
