@@ -19,7 +19,8 @@
     "back": "Back",
     "images": "images",
     "optional": "Optional",
-    "confirmLeave": "Generation in progress. Are you sure you want to leave?"
+    "confirmLeave": "Generation in progress. Are you sure you want to leave?",
+    "docs": "Documentation"
   },
   "hero": {
     "subtitle": "AI Image & Video Generator",
@@ -1427,6 +1428,10 @@
       "history": {
         "title": "Generation History",
         "description": "All generated images are saved here. Click a record to reload its settings, click the thumbnail to preview images. The transfer icon (⇄) in the top right lets you export or import your history."
+      },
+      "docs": {
+        "title": "Documentation",
+        "description": "Want to learn more? Click the book icon in the footer to access the complete documentation, including detailed guides for each mode, prompt tips, and advanced settings."
       }
     }
   }

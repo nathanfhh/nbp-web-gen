@@ -17,6 +17,7 @@ import ImagePreview from '@/components/ImagePreview.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import GitHubLink from '@/components/GitHubLink.vue'
 import YouTubeLink from '@/components/YouTubeLink.vue'
+import DocsLink from '@/components/DocsLink.vue'
 import HeroTitle from '@/components/HeroTitle.vue'
 
 // Lazy loaded: Mode-specific options (only one shown at a time)
@@ -610,9 +611,10 @@ const handleAddToReferences = (referenceData) => {
           <span class="text-sm px-3 py-1 rounded-full bg-mode-generate-muted text-mode-generate font-mono">
             v{{ appVersion }}
           </span>
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1" data-tour="docs-link">
             <GitHubLink size="md" />
             <YouTubeLink size="md" />
+            <DocsLink size="md" />
           </div>
         </div>
       </div>
@@ -895,6 +897,7 @@ const handleAddToReferences = (referenceData) => {
         <div class="flex items-center justify-center gap-1">
           <GitHubLink size="md" />
           <YouTubeLink size="md" />
+          <DocsLink size="md" />
         </div>
       </footer>
     </section>

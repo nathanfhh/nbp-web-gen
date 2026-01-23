@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 
 const TOUR_COMPLETED_KEY = 'nbp-tour-completed'
-const TOUR_VERSION = 1 // 若 tour 更新可升版，強制用戶重新觀看
+const TOUR_VERSION = 2 // 若 tour 更新可升版，強制用戶重新觀看
 
 /**
  * Tour 步驟定義
@@ -40,6 +40,11 @@ const TOUR_STEP_CONFIG = [
     id: 'history',
     selector: '[data-panel-id="history"]',
     placement: 'right',
+  },
+  {
+    id: 'docs',
+    selector: '[data-tour="docs-link"]',
+    placement: 'bottom',
   },
 ]
 
