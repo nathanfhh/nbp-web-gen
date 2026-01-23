@@ -1,9 +1,7 @@
 import { defineConfig } from 'vitepress'
 
-// Base path from environment variable
-// In GitHub Actions: VITEPRESS_BASE should be set to '/nbp-web-gen/docs/'
-// In local dev: defaults to '/'
-const base = process.env.VITEPRESS_BASE || '/'
+// Base path: use /nbp-web-gen/docs/ in GitHub Actions, / in local dev
+const base = process.env.GITHUB_ACTIONS ? '/nbp-web-gen/docs/' : '/'
 
 // App base path for "return to app" link
 const appBase = process.env.GITHUB_ACTIONS ? '/nbp-web-gen/' : '/'
