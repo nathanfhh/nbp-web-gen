@@ -40,7 +40,7 @@ jobs:
         run: npm run build
 
       - name: Build docs
-        run: npm run docs:build -- --outDir ../dist/docs
+        run: npm run docs:build -- --outDir ./dist/docs
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
