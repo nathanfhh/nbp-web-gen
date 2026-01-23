@@ -379,6 +379,8 @@
       "noStartFrame": "Please upload a start frame image",
       "noReferenceImages": "Please upload at least one reference image",
       "noInputVideo": "Please select a video to extend",
+      "promptRequired": "Prompt is required for references-to-video mode",
+      "noVideoGenerated": "No video generated, please try again",
       "generationFailed": "Video generation failed",
       "downloadFailed": "Video download failed",
       "operationExpired": "Operation expired, please regenerate"

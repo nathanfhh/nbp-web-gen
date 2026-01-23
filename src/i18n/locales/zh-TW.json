@@ -379,6 +379,8 @@
       "noStartFrame": "請上傳起始幀圖片",
       "noReferenceImages": "請上傳至少一張參考圖片",
       "noInputVideo": "請選擇要延伸的影片",
+      "promptRequired": "參考圖生成模式需要輸入提示詞",
+      "noVideoGenerated": "未生成任何影片，請重試",
       "generationFailed": "影片生成失敗",
       "downloadFailed": "影片下載失敗",
       "operationExpired": "操作已過期，請重新生成"
