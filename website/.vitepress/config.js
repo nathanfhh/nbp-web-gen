@@ -9,6 +9,9 @@ const appBase = process.env.GITHUB_ACTIONS ? '/nbp-web-gen/' : '/'
 // Sitemap hostname (VitePress automatically appends base path)
 const sitemapHostname = 'https://nathanfhh.github.io'
 
+// Google Analytics 4 Measurement ID (same as main app)
+const gtagId = 'G-3SX3YT6Y5J'
+
 // Shared sidebar for zh-TW
 const zhTWSidebar = [
   {
@@ -81,13 +84,22 @@ export default defineConfig({
     hostname: sitemapHostname,
     transformItems: (items) => {
       // VitePress doesn't auto-prepend base to sitemap URLs, so we do it manually
-      return items.map(item => {
-        // Ensure URL has leading slash and prepend base
-        const itemUrl = item.url.startsWith('/') ? item.url : '/' + item.url
-        const fullUrl = base.replace(/\/$/, '') + itemUrl
+      const prependBase = (url) => {
+        const normalizedUrl = url.startsWith('/') ? url : '/' + url
+        return base.replace(/\/$/, '') + normalizedUrl
+      }
+
+      return items.map((item) => {
+        // Transform alternate language links (xhtml:link)
+        const transformedLinks = item.links?.map((link) => ({
+          ...link,
+          url: prependBase(link.url),
+        }))
+
         return {
           ...item,
-          url: fullUrl,
+          url: prependBase(item.url),
+          links: transformedLinks,
           lastmod: new Date().toISOString().split('T')[0],
           changefreq: 'weekly',
           priority: item.url.includes('getting-started') ? 0.9 : 0.8,
@@ -110,6 +122,19 @@ export default defineConfig({
   // Head tags
   head: [
     ['link', { rel: 'icon', href: `${base}favicon.ico` }],
+    // Google Analytics 4
+    [
+      'script',
+      { async: '', src: `https://www.googletagmanager.com/gtag/js?id=${gtagId}` },
+    ],
+    [
+      'script',
+      {},
+      `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${gtagId}');`,
+    ],
   ],
 
   // i18n locales
