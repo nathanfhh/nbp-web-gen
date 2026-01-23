@@ -131,15 +131,34 @@ const processImage = (file, newImages) => {
       const dataUrl = e.target.result
       const base64 = dataUrl.split(',')[1]
 
-      newImages.push({
-        id: generateId(),
-        data: base64,
-        mimeType: file.type,
-        preview: dataUrl,
-        source: 'image',
-        fileName: file.name,
-      })
-      resolve()
+      // Load image to get dimensions
+      const img = new Image()
+      img.onload = () => {
+        newImages.push({
+          id: generateId(),
+          data: base64,
+          mimeType: file.type,
+          preview: dataUrl,
+          source: 'image',
+          fileName: file.name,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        })
+        resolve()
+      }
+      img.onerror = () => {
+        // Fallback: add without dimensions
+        newImages.push({
+          id: generateId(),
+          data: base64,
+          mimeType: file.type,
+          preview: dataUrl,
+          source: 'image',
+          fileName: file.name,
+        })
+        resolve()
+      }
+      img.src = dataUrl
     }
     reader.onerror = () => resolve() // Skip on error
     reader.readAsDataURL(file)
@@ -175,6 +194,8 @@ const processPdf = async (file, newImages) => {
             source: 'pdf',
             pdfPage: page.index + 1,
             fileName: `${file.name} - Page ${page.index + 1}`,
+            width: page.width,
+            height: page.height,
           })
         },
       }

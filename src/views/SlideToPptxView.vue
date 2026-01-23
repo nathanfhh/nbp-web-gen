@@ -874,10 +874,26 @@ onUnmounted(() => {
 
 // Detect slide ratio from first image
 const detectedRatio = computed(() => {
-  if (images.value.length === 0) return null
-  // Try to detect from image dimensions if available
-  // For now, return a default
-  return '16:9'
+  // Check uploadedImages first (upload mode), then images (processing mode)
+  const sourceImages = uploadedImages.value.length > 0 ? uploadedImages.value : images.value
+  if (sourceImages.length === 0) return null
+
+  const firstImage = sourceImages[0]
+  if (!firstImage.width || !firstImage.height) return null
+
+  const ratio = firstImage.width / firstImage.height
+
+  // Match to standard ratios with tolerance
+  if (ratio >= 1.7 && ratio <= 1.85) {
+    return '16:9' // 1.777...
+  } else if (ratio >= 1.25 && ratio <= 1.4) {
+    return '4:3' // 1.333...
+  } else if (ratio >= 0.5 && ratio <= 0.6) {
+    return '9:16' // 0.5625
+  } else {
+    // Return actual ratio for non-standard sizes
+    return `${firstImage.width}:${firstImage.height}`
+  }
 })
 
 // Get slide status badge
@@ -885,6 +901,29 @@ const getSlideStatus = (index) => {
   if (!slideStates.value[index]) return 'pending'
   return slideStates.value[index].status
 }
+
+// Check if selected ratio differs from detected ratio
+const ratioMismatch = computed(() => {
+  if (!detectedRatio.value) return null
+  if (settings.slideRatio === 'auto') return null
+
+  // Standard ratios that can be compared
+  const standardRatios = ['16:9', '4:3', '9:16']
+  const selectedRatio = settings.slideRatio
+  const detected = detectedRatio.value
+
+  // If detected is a standard ratio and doesn't match selected
+  if (standardRatios.includes(detected) && detected !== selectedRatio) {
+    return { imageRatio: detected, slideRatio: selectedRatio }
+  }
+
+  // If detected is non-standard (e.g., "1920:1080"), always show warning
+  if (!standardRatios.includes(detected)) {
+    return { imageRatio: detected, slideRatio: selectedRatio }
+  }
+
+  return null
+})
 </script>
 
 <template>
@@ -1869,6 +1908,18 @@ const getSlideStatus = (index) => {
                 <option value="4:3" class="bg-bg-elevated">4:3</option>
                 <option value="9:16" class="bg-bg-elevated">9:16</option>
               </select>
+              <!-- Ratio mismatch warning -->
+              <div
+                v-if="ratioMismatch"
+                class="mt-2 p-3 rounded-lg bg-status-warning-muted border border-status-warning text-sm text-status-warning"
+              >
+                <div class="flex items-start gap-2">
+                  <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>{{ $t('slideToPptx.ratioMismatchWarning', ratioMismatch) }}</span>
+                </div>
+              </div>
             </div>
 
             <!-- Start/Cancel Button -->

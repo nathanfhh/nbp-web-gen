@@ -1281,6 +1281,7 @@
     "maskPadding": "Mask Padding",
     "slideRatio": "Slide Ratio",
     "autoDetect": "Auto Detect",
+    "ratioMismatchWarning": "Image ratio ({imageRatio}) differs from selected slide ratio ({slideRatio}). Images will be centered and maintain their original aspect ratio.",
     "progress": "Progress",
     "ready": "Ready",
     "infoText": "This tool uses OCR to detect text positions, removes text from the background, then generates an editable PPTX file. Text will be overlaid as separate text boxes on the background image.",

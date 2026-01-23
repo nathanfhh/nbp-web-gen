@@ -1281,6 +1281,7 @@
     "maskPadding": "遮罩擴展",
     "slideRatio": "簡報比例",
     "autoDetect": "自動偵測",
+    "ratioMismatchWarning": "圖片比例 ({imageRatio}) 與選擇的簡報比例 ({slideRatio}) 不同，圖片將置中顯示並保持原始比例。",
     "progress": "處理進度",
     "ready": "準備就緒",
     "infoText": "本工具會先使用 OCR 辨識文字位置，再移除背景中的文字，最後產生可編輯的 PPTX 檔案。文字會以獨立文字框疊加在背景圖上。",

@@ -112,6 +112,43 @@ export function usePptxExport() {
   }
 
   /**
+   * Calculate letterbox/pillarbox positioning for image
+   * Maintains aspect ratio and centers the image within the slide
+   * @param {number} imageWidth - Original image width
+   * @param {number} imageHeight - Original image height
+   * @param {number} slideWidth - Slide width in inches
+   * @param {number} slideHeight - Slide height in inches
+   * @returns {{x: number, y: number, w: number, h: number}} Position and size in inches
+   */
+  const calculateFitPosition = (imageWidth, imageHeight, slideWidth, slideHeight) => {
+    const imageRatio = imageWidth / imageHeight
+    const slideRatio = slideWidth / slideHeight
+
+    let w, h, x, y
+
+    if (Math.abs(imageRatio - slideRatio) < 0.01) {
+      // Ratios match (within 1% tolerance) - fill entire slide
+      return { x: 0, y: 0, w: slideWidth, h: slideHeight }
+    }
+
+    if (imageRatio > slideRatio) {
+      // Image is wider than slide - letterbox (black bars top/bottom)
+      w = slideWidth
+      h = slideWidth / imageRatio
+      x = 0
+      y = (slideHeight - h) / 2
+    } else {
+      // Image is taller than slide - pillarbox (black bars left/right)
+      h = slideHeight
+      w = slideHeight * imageRatio
+      x = (slideWidth - w) / 2
+      y = 0
+    }
+
+    return { x, y, w, h }
+  }
+
+  /**
    * Generate a PPTX file from slide data
    * @param {SlideData[]} slides - Array of slide data
    * @param {PptxOptions} options - PPTX options
@@ -162,14 +199,23 @@ export function usePptxExport() {
         const slideData = slides[i]
         const slide = pptx.addSlide()
 
+        // Calculate image position for letterbox/pillarbox positioning
+        const imgPos = calculateFitPosition(
+          slideData.width,
+          slideData.height,
+          slideSize.width,
+          slideSize.height
+        )
+
         // Add background image (text removed)
+        // Use letterbox/pillarbox positioning to maintain aspect ratio
         if (slideData.backgroundImage) {
           slide.addImage({
             data: slideData.backgroundImage,
-            x: 0,
-            y: 0,
-            w: '100%',
-            h: '100%',
+            x: imgPos.x,
+            y: imgPos.y,
+            w: imgPos.w,
+            h: imgPos.h,
           })
         }
 
@@ -179,10 +225,11 @@ export function usePptxExport() {
             if (!region.text || !region.text.trim()) continue
 
             // Convert pixel coordinates to inches
-            const x = pxToInches(region.bounds.x, slideData.width, slideSize.width)
-            const y = pxToInches(region.bounds.y, slideData.height, slideSize.height)
-            const w = pxToInches(region.bounds.width, slideData.width, slideSize.width)
-            const h = pxToInches(region.bounds.height, slideData.height, slideSize.height)
+            // Map to image position (not full slide) to match letterbox/pillarbox positioning
+            const x = imgPos.x + pxToInches(region.bounds.x, slideData.width, imgPos.w)
+            const y = imgPos.y + pxToInches(region.bounds.y, slideData.height, imgPos.h)
+            const w = pxToInches(region.bounds.width, slideData.width, imgPos.w)
+            const h = pxToInches(region.bounds.height, slideData.height, imgPos.h)
 
             // Calculate Font Size
             // Strategy: Use height-based calculation with median of original line heights
@@ -214,8 +261,9 @@ export function usePptxExport() {
                 const maxHeight = Math.max(...lineHeights)
 
                 // Convert max height to font size in points
+                // Use imgPos.h (actual image height on slide) for correct scaling
                 fontSize =
-                  ((maxHeight / slideData.height) * slideSize.height * 72) / lineHeightRatio
+                  ((maxHeight / slideData.height) * imgPos.h * 72) / lineHeightRatio
               } else {
                 // Fallback if no valid lines
                 fontSize = (h * 72) / lineHeightRatio
@@ -223,7 +271,7 @@ export function usePptxExport() {
             } else {
               // Single line or no lines data: use region height directly
               const heightPx = region.fontSize || region.bounds.height
-              fontSize = ((heightPx / slideData.height) * slideSize.height * 72) / lineHeightRatio
+              fontSize = ((heightPx / slideData.height) * imgPos.h * 72) / lineHeightRatio
               debugLines.push({
                 text: region.text.substring(0, 30) + (region.text.length > 30 ? '...' : ''),
                 heightPx: Math.round(heightPx),
