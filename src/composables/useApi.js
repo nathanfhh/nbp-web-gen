@@ -549,6 +549,7 @@ export function useApi() {
   const generateStory = async (prompt, options = {}, referenceImages = [], onThinkingChunk = null) => {
     const steps = options.steps || 4
     const results = []
+    let previousStepImage = null // Store the previous step's generated image
 
     for (let i = 1; i <= steps; i++) {
       let stepPrompt = prompt
@@ -564,15 +565,27 @@ export function useApi() {
       }
 
       try {
-        // Only pass reference images for the first step
-        const stepImages = i === 1 ? referenceImages : []
+        // Build step reference images:
+        // Step 1: original reference images only
+        // Step 2+: original reference images + previous step's result (for continuity)
+        let stepReferenceImages = [...referenceImages]
+        if (i > 1 && previousStepImage) {
+          stepReferenceImages = [...referenceImages, previousStepImage]
+        }
+
         const result = await generateImageStream(
           stepPrompt,
           { ...options, step: i },
           'story',
-          stepImages,
+          stepReferenceImages,
           onThinkingChunk,
         )
+
+        // Store the first generated image for the next step's reference
+        if (result.images && result.images.length > 0) {
+          previousStepImage = result.images[0]
+        }
+
         results.push({
           step: i,
           success: true,
@@ -580,6 +593,7 @@ export function useApi() {
         })
       } catch (stepErr) {
         // Step failed - record error but continue to next step
+        // Note: previousStepImage remains unchanged, so next step will use last successful image
         console.warn(`Story step ${i} failed:`, stepErr.message)
         results.push({
           step: i,
