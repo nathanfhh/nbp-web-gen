@@ -6,6 +6,9 @@ const base = process.env.GITHUB_ACTIONS ? '/nbp-web-gen/docs/' : '/'
 // App base path for "return to app" link
 const appBase = process.env.GITHUB_ACTIONS ? '/nbp-web-gen/' : '/'
 
+// Sitemap hostname (VitePress automatically appends base path)
+const sitemapHostname = 'https://nathanfhh.github.io'
+
 // Shared sidebar for zh-TW
 const zhTWSidebar = [
   {
@@ -75,15 +78,21 @@ export default defineConfig({
 
   // Sitemap generation
   sitemap: {
-    hostname: 'https://nathanfhh.github.io',
+    hostname: sitemapHostname,
     transformItems: (items) => {
-      // Add lastmod to all items
-      return items.map(item => ({
-        ...item,
-        lastmod: new Date().toISOString().split('T')[0],
-        changefreq: 'weekly',
-        priority: item.url.includes('getting-started') ? 0.9 : 0.8,
-      }))
+      // VitePress doesn't auto-prepend base to sitemap URLs, so we do it manually
+      return items.map(item => {
+        // Ensure URL has leading slash and prepend base
+        const itemUrl = item.url.startsWith('/') ? item.url : '/' + item.url
+        const fullUrl = base.replace(/\/$/, '') + itemUrl
+        return {
+          ...item,
+          url: fullUrl,
+          lastmod: new Date().toISOString().split('T')[0],
+          changefreq: 'weekly',
+          priority: item.url.includes('getting-started') ? 0.9 : 0.8,
+        }
+      })
     },
   },
 
