@@ -75,6 +75,20 @@ const enSidebar = [
 export default defineConfig({
   base,
 
+  // Sitemap generation
+  sitemap: {
+    hostname: 'https://nathanfhh.github.io',
+    transformItems: (items) => {
+      // Add lastmod to all items
+      return items.map(item => ({
+        ...item,
+        lastmod: new Date().toISOString().split('T')[0],
+        changefreq: 'weekly',
+        priority: item.url.includes('getting-started') ? 0.9 : 0.8,
+      }))
+    },
+  },
+
   // Dev server on different port than main app (5173)
   vite: {
     server: {
