@@ -1,0 +1,210 @@
+# Slide Conversion
+
+Slide conversion can transform PDFs or images into editable PPTX files with OCR text recognition.
+
+## How to Access
+
+There are two ways to access the "PPTX Converter Tool":
+
+### Option 1: From Slides Mode
+
+In "Slides" mode, click the "PPTX Converter Tool" card to enter.
+
+![PPTX Converter Tool Entry](/images/slide-conversion-entry.webp)
+
+### Option 2: From History
+
+Click any image in the history, and you'll see a "Convert to PPTX" button. Clicking it will bring that record's images into the conversion tool.
+
+## Interface Overview
+
+![PPTX Converter Tool Interface](/images/slide-conversion-landing.webp)
+
+The interface is divided into two main sections:
+
+### Image Preview
+
+The left section displays your uploaded slide images. You can navigate through each page. The "Merged" and "Raw" buttons at the bottom toggle between different OCR result display modes.
+
+### Settings
+
+The right section provides various conversion settings:
+
+| Setting | Description |
+|---------|-------------|
+| Model | Choose Server (higher accuracy) or Mobile (lightweight) |
+| OCR Engine | WebGPU uses GPU acceleration; Worker runs in background thread |
+| Setting Mode | Apply to All or Per Page settings |
+| Text Removal Method | OpenCV.js (free) or Gemini API (consumes API quota) |
+| Algorithm | Text removal algorithm: NS or TELEA |
+
+::: tip Advanced Settings
+Click the "Advanced" button next to OCR Engine to adjust detailed OCR parameters such as detection threshold, dilation factor, layout analysis settings, etc.
+:::
+
+Once configured, click "Start PPTX Conversion" to begin processing.
+
+## Basic Usage
+
+1. Upload PDF file or images
+2. Wait for OCR processing
+3. Preview and edit results
+4. Download PPTX file
+
+## Processing Flow
+
+### 1. PDF to Images
+
+First converts each page of the PDF to high-resolution images.
+
+### 2. OCR Text Recognition
+
+Uses PaddleOCR models for text detection and recognition:
+
+- **Text Detection**: Locates text positions in the image
+- **Text Recognition**: Converts image text to editable text
+- **Layout Analysis**: Merges nearby text blocks into paragraphs
+
+### 3. Text Removal
+
+Uses OpenCV.js or Gemini API inpainting algorithm to remove original text from images.
+
+::: tip Automatic Fallback
+When using Gemini API for text removal, if an API error occurs (such as RECITATION, quota exceeded, etc.), the system automatically falls back to OpenCV.js to continue processing, ensuring the conversion flow doesn't get interrupted.
+:::
+
+### 4. Generate PPTX
+
+Combines processed background images with recognized text into a PPTX file.
+
+## OCR Settings
+
+### Execution Mode
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| WebGPU | GPU accelerated | Modern browsers, faster |
+| WASM | CPU only | Better compatibility |
+
+### Model Selection
+
+| Model | Size | Accuracy | Speed |
+|-------|------|----------|-------|
+| Server | ~172MB | Higher | Slower |
+| Mobile | ~21MB | Normal | Faster |
+
+::: info Automatic Fallback
+The system has multiple automatic fallback mechanisms:
+- **GPU Memory Insufficient**: When WebGPU runs out of memory, it automatically switches to WASM Worker (CPU mode) to continue processing
+- **Model Size Fallback**: If the device cannot load the Server model, it automatically switches to the Mobile model
+
+Notifications will be displayed during fallback so you know the current execution status.
+:::
+
+### Advanced Parameters
+
+- **Detection Threshold**: Adjust text detection sensitivity
+- **Dilation Factor**: Adjust text box size
+- **Line Spacing Threshold**: Affects paragraph merging
+
+## Conversion Complete
+
+![Conversion Result](/images/slide-conversion-result.webp)
+
+After conversion completes, the interface shows:
+
+- **Original**: The original image
+- **Processed**: The processed image (text removed)
+- **Thumbnails**: All pages shown at bottom, green checkmark indicates success
+
+Bottom button descriptions:
+
+| Button | Description |
+|--------|-------------|
+| Merged | Show merged text blocks after layout analysis |
+| Raw | Show original OCR detection boxes |
+| Failed | Show regions that failed recognition (if any) |
+| Edit Regions | Enter edit mode to adjust text regions |
+
+## Edit Mode
+
+Click "Edit Regions" to enter edit mode and fine-tune the OCR results.
+
+![Edit Mode](/images/slide-conversion-edit-mode.webp)
+
+### Toolbar
+
+A toolbar appears at the top in edit mode with these tools:
+
+| Tool | Description |
+|------|-------------|
+| Draw Rectangle | Drag to draw a new text region |
+| Separator | Click two points to draw a separator line |
+| Select | Drag to select regions for batch deletion |
+| Undo / Redo | Undo or redo edit operations |
+| Reset | Reset all edits to original OCR results |
+| Done | Save edits and exit edit mode |
+
+### Selecting and Adjusting Regions
+
+Click any text region to select it. Once selected, you can:
+
+- **Drag corners**: Resize the region
+- **Click center ✕**: Delete the region
+
+::: tip Deleting Failed Recognition Regions
+If a region failed recognition (e.g., an icon was mistakenly detected as text), it's recommended to delete it. Once deleted, that region won't go through Inpaint processing, preserving the original background image.
+:::
+
+### Separator Lines
+
+Separator lines prevent layout analysis from merging unrelated text blocks.
+
+**When to use:**
+- When two unrelated text blocks are incorrectly merged
+- When a title and body text are merged together
+
+**How to use:**
+1. Select the "Separator" tool
+2. Click the first point
+3. Click the second point to complete
+
+The separator line prevents regions on either side from being merged.
+
+### Sidebar
+
+Click items in the right sidebar's region list to quickly locate and select the corresponding text region. This is particularly useful when dealing with many text blocks.
+
+### Batch Deletion
+
+Use the "Select" tool to select multiple regions at once:
+
+1. Select the "Select" tool
+2. Drag to select regions to delete
+3. Click ✓ to confirm deletion
+
+## Export Options
+
+### PPTX Settings
+
+| Option | Description |
+|--------|-------------|
+| Line Height Ratio | Adjust text line spacing |
+| Min Font Size | Limit minimum font size |
+| Max Font Size | Limit maximum font size |
+
+## Supported Formats
+
+- Input: PDF, PNG, JPG, WebP
+- Output: PPTX (compatible with PowerPoint, Google Slides, Keynote)
+
+## Notes
+
+- Complex layouts (multi-column, overlapping text) may need manual adjustment
+- Handwritten text has lower recognition accuracy
+- Special fonts may be replaced with system fonts
+
+## Next Steps
+
+- [Diagram Generation](./diagram-generation) - Generate new diagrams for presentations
+- [Image Editing](./image-editing) - Edit presentation images
