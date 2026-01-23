@@ -240,6 +240,30 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 ```
 If you update `pdfjs-dist` in package.json, you **MUST** also update the CDN URL in the worker file.
 
+**⚠️ PDF.js Worker DOM Mock**
+
+Web Worker 環境沒有 `document` 物件，但 PDF.js 內部會呼叫 DOM API（字體載入、annotation 等）。解決方案是提供 `mockDocument`：
+
+```javascript
+// pdfToImages.worker.js
+const pdf = await pdfjsLib.getDocument({
+  data: pdfData,
+  ownerDocument: mockDocument,  // 注入假的 document
+}).promise
+```
+
+**為何不用現成的 DOM 模擬庫？**
+| 方案 | 結果 | 原因 |
+|------|------|------|
+| `linkedom/worker` | ❌ 失敗 | 不支援 canvas（回傳 null） |
+| `jsdom` | ❌ 不適用 | 太重（~1GB heap），且不支援 Worker |
+| 自己的 mock | ✅ 可用 | 特別處理 `OffscreenCanvas` |
+
+**Mock 實作重點：**
+- `createElement('canvas')` → 回傳 `OffscreenCanvas`（Worker 可用）
+- 其他元素 → 回傳空操作的假物件
+- 只實作 PDF.js 需要的最小 API
+
 ### Internationalization
 - `i18n/index.js` with locale files in `i18n/locales/`
 - Supports `zh-TW` and `en`, auto-detects from browser

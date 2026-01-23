@@ -13,6 +13,70 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 let isReady = false
 
 /**
+ * Mock document for PDF.js in Web Worker environment
+ * PDF.js internally uses DOM APIs for fonts, annotations, etc.
+ * Since Workers don't have access to DOM, we provide a mock implementation.
+ */
+const mockDocument = (() => {
+  const createElement = (tagName) => {
+    // Canvas needs special handling - use OffscreenCanvas
+    if (tagName === 'canvas') {
+      const canvas = new OffscreenCanvas(1, 1)
+      canvas.style = {}
+      return canvas
+    }
+
+    // Generic mock element for other tags
+    const children = []
+    return {
+      tagName: tagName.toUpperCase(),
+      style: {},
+      children,
+      childNodes: children,
+      setAttribute: () => {},
+      getAttribute: () => null,
+      setAttributeNS: () => {},
+      getAttributeNS: () => null,
+      appendChild: (c) => { children.push(c); return c },
+      removeChild: (c) => c,
+      append: (...nodes) => children.push(...nodes),
+      prepend: (...nodes) => children.unshift(...nodes),
+      remove: () => {},
+      cloneNode: () => createElement(tagName),
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      getElementsByTagName: () => [],
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
+      classList: {
+        add: () => {},
+        remove: () => {},
+        contains: () => false,
+        toggle: () => {},
+      },
+    }
+  }
+
+  return {
+    fonts: self.fonts,
+    documentElement: createElement('html'),
+    body: createElement('body'),
+    head: createElement('head'),
+    createElement,
+    createElementNS: (ns, name) => createElement(name),
+    createTextNode: (text) => ({ nodeType: 3, textContent: text }),
+    createDocumentFragment: () => createElement('fragment'),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getElementsByTagName: () => [],
+    getElementById: () => null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }
+})()
+
+/**
  * Convert ArrayBuffer to base64 string
  * @param {Blob} blob
  * @returns {Promise<string>}
@@ -74,7 +138,10 @@ async function convertPdf(requestId, pdfData, options = {}) {
       stage: 'loading',
     })
 
-    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
+    const pdf = await pdfjsLib.getDocument({
+      data: pdfData,
+      ownerDocument: mockDocument,
+    }).promise
     const totalPages = Math.min(pdf.numPages, maxPages)
 
     self.postMessage({
