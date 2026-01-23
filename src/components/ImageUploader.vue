@@ -1,10 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import SketchCanvas from '@/components/SketchCanvas.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ThumbnailActionMenu from '@/components/ThumbnailActionMenu.vue'
+
+// Lazy load SketchCanvas (includes heavy deps: fabric ~300KB, vue3-color ~100KB)
+const SketchCanvas = defineAsyncComponent(() => import('@/components/SketchCanvas.vue'))
 
 const { t } = useI18n()
 const store = useGeneratorStore()
