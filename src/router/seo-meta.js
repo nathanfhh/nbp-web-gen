@@ -26,6 +26,6 @@ export const routeSeoMeta = {
   '/slide-to-pptx': {
     title: 'Slide to PPTX Converter | Mediator - OCR & Text Extraction',
     description:
-      'Convert slide images or PDFs to editable PowerPoint files. Client-side OCR with PaddleOCR, text removal with OpenCV.js or Gemini API. All processing in browser.',
+      'Convert NotebookLM slides, PDF presentations, or images to editable PowerPoint files. Client-side OCR with PaddleOCR, text removal with OpenCV.js or Gemini API. All processing in browser.',
   },
 }
