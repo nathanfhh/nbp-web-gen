@@ -11,7 +11,11 @@
     "build": "vite build && node scripts/postbuild.js",
     "preview": "vite preview",
     "lint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "docs:dev": "vitepress dev website",
+    "docs:build": "vitepress build website",
+    "docs:preview": "vitepress preview website",
+    "build:all": "npm run build && npm run docs:build -- --outDir ../dist/docs"
   },
   "dependencies": {
     "@google/genai": "^1.36.0",
@@ -45,6 +49,7 @@
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.0",
     "vite-plugin-pwa": "^1.2.0",
-    "vite-plugin-vue-devtools": "^8.0.5"
+    "vite-plugin-vue-devtools": "^8.0.5",
+    "vitepress": "^1.6.4"
   }
 }

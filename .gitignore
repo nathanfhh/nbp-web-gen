@@ -40,3 +40,7 @@ __screenshots__/
 .gemini-clipboard/
 __pycache__/
 *.onnx
+
+# VitePress
+website/.vitepress/dist/
+website/.vitepress/cache/

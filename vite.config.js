@@ -36,7 +36,7 @@ export default defineConfig({
       },
     },
     vue(),
-    vueDevTools(),
+    // vueDevTools(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -87,6 +87,9 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
+    watch: {
+      ignored: ['**/website/**'],
+    },
   },
   build: {
     rollupOptions: {

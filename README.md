@@ -8,6 +8,8 @@
 
 **🚀 [Live Demo: https://nathanfhh.github.io/nbp-web-gen/](https://nathanfhh.github.io/nbp-web-gen/)**
 
+**📖 Documentation: [繁體中文](https://nathanfhh.github.io/nbp-web-gen/docs/) | [English](https://nathanfhh.github.io/nbp-web-gen/docs/en/)**
+
 ### 📺 Video Introduction | 影片介紹
 
 [![Mediator Demo](https://img.youtube.com/vi/w7yAHJq66Pk/maxresdefault.jpg)](https://youtu.be/w7yAHJq66Pk)
@@ -149,6 +151,8 @@ npm run build
 > **🔒 100% 純前端 | 無後端伺服器 | 資料完全留在您的瀏覽器**
 
 **🚀 [線上體驗: https://nathanfhh.github.io/nbp-web-gen/](https://nathanfhh.github.io/nbp-web-gen/)**
+
+**📖 文件：[繁體中文](https://nathanfhh.github.io/nbp-web-gen/docs/) | [English](https://nathanfhh.github.io/nbp-web-gen/docs/en/)**
 
 ## 🎬 關於本專案
 
