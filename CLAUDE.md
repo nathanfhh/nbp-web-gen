@@ -413,8 +413,8 @@ if (hasApiKeyFor('text')) { ... }
 **注意事項：**
 - 圖片/影片生成必須使用 `usage='image'`
 - 文字處理使用 `usage='text'` 或 `callWithFallback`
-- Free Tier 額度耗盡時（429 錯誤）會自動切換到付費金鑰
-- 額度狀態會在 1 小時後自動重置
+- Free Tier 免費額度用罄時（429 錯誤）會自動切換到付費金鑰
+- 免費額度狀態會在 1 小時後自動重置
 
 ### Constants
 - `constants/defaults.js` - Default options per mode (`getDefaultOptions()`)

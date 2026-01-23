@@ -11,7 +11,7 @@ import { useLocalStorage } from './useLocalStorage'
  *
  * Usage Types:
  * - 'image': 圖片/影片生成，強制使用付費金鑰
- * - 'text': 文字處理，優先 Free Tier，額度不足時 fallback 到付費
+ * - 'text': 文字處理，優先 Free Tier，免費額度用罄時 fallback 到付費
  */
 export function useApiKeyManager() {
   const {
@@ -124,7 +124,7 @@ export function useApiKeyManager() {
         const fallbackKey = getPaidApiKey()
         if (fallbackKey) {
           lastUsedKeyType.value = 'paid'
-          console.info('[API] Free Tier 額度不足，自動切換到付費金鑰')
+          console.info('[API] Free Tier 免費額度用罄，自動切換到付費金鑰')
           return await apiCall(fallbackKey)
         }
       }
