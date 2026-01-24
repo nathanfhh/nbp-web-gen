@@ -1,10 +1,6 @@
 # Diagram Mode
 
-<TryItButton mode="diagram" prompt="User login flow:
-1. Enter username and password
-2. Validate credentials
-3. If successful, go to homepage
-4. If failed, show error message and retry" />
+<TryItButton mode="diagram" prompt="User login flow:\n1. Enter username and password\n2. Validate credentials\n3. If successful, go to homepage\n4. If failed, show error message and retry" />
 
 Diagram mode is designed for generating technical diagrams, flowcharts, architecture diagrams, and other visual content.
 
@@ -125,11 +121,7 @@ Add a legend below the diagram
 Each node should have labels in the desired language
 ```
 
-<TryItButton mode="diagram" prompt="User login flow:
-1. Enter username and password
-2. Validate credentials
-3. If successful, go to homepage
-4. If failed, show error message and retry" />
+<TryItButton mode="diagram" prompt="User login flow:\n1. Enter username and password\n2. Validate credentials\n3. If successful, go to homepage\n4. If failed, show error message and retry" />
 
 ## Next Steps
 

@@ -1,10 +1,6 @@
 # 圖表模式
 
-<TryItButton mode="diagram" prompt="使用者登入流程：
-1. 輸入帳號密碼
-2. 驗證資料
-3. 成功則進入首頁
-4. 失敗則顯示錯誤訊息並重試" />
+<TryItButton mode="diagram" prompt="使用者登入流程：\n1. 輸入帳號密碼\n2. 驗證資料\n3. 成功則進入首頁\n4. 失敗則顯示錯誤訊息並重試" />
 
 圖表模式專門用於生成技術圖表、流程圖、架構圖等視覺化內容。
 
@@ -125,11 +121,7 @@ Client -> API Gateway -> Auth Service -> Database
 每個節點都要有中文標籤
 ```
 
-<TryItButton mode="diagram" prompt="使用者登入流程：
-1. 輸入帳號密碼
-2. 驗證資料
-3. 成功則進入首頁
-4. 失敗則顯示錯誤訊息並重試" />
+<TryItButton mode="diagram" prompt="使用者登入流程：\n1. 輸入帳號密碼\n2. 驗證資料\n3. 成功則進入首頁\n4. 失敗則顯示錯誤訊息並重試" />
 
 ## 下一步
 

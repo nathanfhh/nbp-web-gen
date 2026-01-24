@@ -1,13 +1,6 @@
 # Story Mode
 
-<TryItButton mode="story" prompt="Characters: Three best friends — an orange Shiba Inu, a gray-white Husky, and a black-white Border Collie
-Style: Pixar 3D animation style, warm and bright colors
-
-Story flow:
-1. The three dogs excitedly walk out of the airplane, with the iconic LAX architecture in the background
-2. They stand before dry desert rocks, with Joshua Tree National Park's unique vegetation behind them
-3. They stand at a Grand Canyon overlook, the majestic canyon landscape stretching behind them
-4. At sunset, the three dogs sit on a beach, watching the Pacific Ocean sunset, ending their wonderful journey" />
+<TryItButton mode="story" prompt="Characters: Three best friends — an orange Shiba Inu, a gray-white Husky, and a black-white Border Collie\nStyle: Pixar 3D animation style, warm and bright colors\n\nStory flow:\n1. The three dogs excitedly walk out of the airplane, with the iconic LAX architecture in the background\n2. They stand before dry desert rocks, with Joshua Tree National Park's unique vegetation behind them\n3. They stand at a Grand Canyon overlook, the majestic canyon landscape stretching behind them\n4. At sunset, the three dogs sit on a beach, watching the Pacific Ocean sunset, ending their wonderful journey" />
 
 Story mode lets you create multi-step visual narratives while maintaining character and style consistency.
 
@@ -144,14 +137,7 @@ Completed stories can be:
 - Downloaded as ZIP (all images)
 - Generated as PDF
 
-<TryItButton mode="story" prompt="Characters: Three best friends — an orange Shiba Inu, a gray-white Husky, and a black-white Border Collie
-Style: Pixar 3D animation style, warm and bright colors
-
-Story flow:
-1. The three dogs excitedly walk out of the airplane, with the iconic LAX architecture in the background
-2. They stand before dry desert rocks, with Joshua Tree National Park's unique vegetation behind them
-3. They stand at a Grand Canyon overlook, the majestic canyon landscape stretching behind them
-4. At sunset, the three dogs sit on a beach, watching the Pacific Ocean sunset, ending their wonderful journey" />
+<TryItButton mode="story" prompt="Characters: Three best friends — an orange Shiba Inu, a gray-white Husky, and a black-white Border Collie\nStyle: Pixar 3D animation style, warm and bright colors\n\nStory flow:\n1. The three dogs excitedly walk out of the airplane, with the iconic LAX architecture in the background\n2. They stand before dry desert rocks, with Joshua Tree National Park's unique vegetation behind them\n3. They stand at a Grand Canyon overlook, the majestic canyon landscape stretching behind them\n4. At sunset, the three dogs sit on a beach, watching the Pacific Ocean sunset, ending their wonderful journey" />
 
 ## Next Steps
 
