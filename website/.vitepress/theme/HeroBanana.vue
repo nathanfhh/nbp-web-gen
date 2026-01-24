@@ -53,22 +53,22 @@ function init() {
   renderer.setClearColor(0x000000, 0)
   renderer.outputColorSpace = SRGBColorSpace
   renderer.toneMapping = ACESFilmicToneMapping
-  renderer.toneMappingExposure = 2.5
+  renderer.toneMappingExposure = 2.1
   container.appendChild(renderer.domElement)
 
-  // Lighting - very bright setup for vibrant banana
-  const ambientLight = new AmbientLight(0xffffff, 3.5)
+  // Lighting - balanced brightness with good color saturation
+  const ambientLight = new AmbientLight(0xffffff, 2.8)
   scene.add(ambientLight)
 
-  const directionalLight = new DirectionalLight(0xffffff, 4.0)
+  const directionalLight = new DirectionalLight(0xffffff, 3.2)
   directionalLight.position.set(5, 5, 5)
   scene.add(directionalLight)
 
-  const backLight = new DirectionalLight(0xffffff, 2.5)
+  const backLight = new DirectionalLight(0xffffff, 2.0)
   backLight.position.set(-5, -3, -5)
   scene.add(backLight)
 
-  const fillLight = new DirectionalLight(0xffffff, 2.0)
+  const fillLight = new DirectionalLight(0xffffff, 1.6)
   fillLight.position.set(0, -5, 3)
   scene.add(fillLight)
 
@@ -123,14 +123,24 @@ function animate() {
   renderer.render(scene, camera)
 }
 
-function onMouseMove(event) {
-  // Calculate normalized mouse position (-1 to 1)
-  mouseX = (event.clientX / window.innerWidth) * 2 - 1
-  mouseY = (event.clientY / window.innerHeight) * 2 - 1
+function updateRotation(clientX, clientY) {
+  // Calculate normalized position (-1 to 1)
+  mouseX = (clientX / window.innerWidth) * 2 - 1
+  mouseY = (clientY / window.innerHeight) * 2 - 1
 
   // Update target rotation (based on default + mouse offset)
   targetRotationY = BASE_ROTATION_Y + mouseX * MAX_ROTATION
   targetRotationX = BASE_ROTATION_X + -mouseY * MAX_ROTATION
+}
+
+function onMouseMove(event) {
+  updateRotation(event.clientX, event.clientY)
+}
+
+function onTouchMove(event) {
+  if (event.touches.length > 0) {
+    updateRotation(event.touches[0].clientX, event.touches[0].clientY)
+  }
 }
 
 function onResize() {
@@ -170,11 +180,13 @@ onMounted(() => {
   animate()
 
   window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('touchmove', onTouchMove, { passive: true })
   window.addEventListener('resize', onResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('touchmove', onTouchMove)
   window.removeEventListener('resize', onResize)
 
   if (animationId) {
