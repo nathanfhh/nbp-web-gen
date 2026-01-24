@@ -4,7 +4,7 @@
 
 ## 取得 API Key
 
-Mediator 使用 Google AI Studio 的 API，你需要先取得一個免費的 API Key。
+Mediator 使用 Google AI Studio 的 API，你需要先取得 API Key。
 
 ::: tip 影片教學
 如果你偏好看影片學習，可以參考 [API Key 管理](./api-key-management) 頁面的教學影片，了解如何申請 API Key 並獲得 **$300 美元的免費額度**。
@@ -48,6 +48,8 @@ Mediator 使用 Gemini 3 Pro Image（gemini-3-pro-image-preview）進行圖片�
 
 ## 你的第一張圖片
 
+<TryItButton mode="generate" prompt="一隻可愛的橘貓坐在窗台上，陽光灑落" />
+
 設定好 API Key 後，讓我們來生成第一張圖片：
 
 1. 確認模式為「生成」（Generate，預設）
@@ -70,7 +72,7 @@ Mediator 使用 Gemini 3 Pro Image（gemini-3-pro-image-preview）進行圖片�
 
 如果你有付費帳號，可以設定兩組 API Key：
 
-- **主要 Key**：用於圖片和影片生成（消耗較多額度）
+- **主要 Key**：用於圖片和影片生成（需要啟用付費帳戶）
 - **Free Tier Key**：用於文字處理（角色萃取、風格分析、簡報風格生成、簡報內容生成）
 
 這樣可以節省付費額度的消耗。詳見 [API Key 管理](./api-key-management)。

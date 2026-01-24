@@ -93,7 +93,7 @@ Click on any generated image to open the lightbox viewer, where you can:
 
 - Zoom in or zoom out to examine details
 - Download the image in multiple formats:
-  - Original format (PNG)
+  - Original format
   - WebP compressed version (smaller file size)
 - Batch download all images:
   - ZIP archive

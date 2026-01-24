@@ -161,7 +161,7 @@ Click to enter the LINE Sticker Tool page.
 
 ### Features
 
-- **Batch Resize**: Automatically resize stickers to LINE's required dimensions (max 370px width or height)
+- **Batch Resize**: Automatically resize stickers to LINE's required dimensions (max 370×320 pixels, even dimensions required)
 - **File Compression**: Ensure each sticker meets LINE's file size limits
 - **One-Click Download**: Package all processed stickers into a ZIP archive
 

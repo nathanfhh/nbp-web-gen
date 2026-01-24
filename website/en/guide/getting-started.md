@@ -4,7 +4,7 @@ In just a few minutes, you can start using Mediator for AI creation.
 
 ## Get an API Key
 
-Mediator uses the Google AI Studio API. You need to get a free API Key first.
+Mediator uses the Google AI Studio API. You need to get an API Key first.
 
 ::: tip Video Tutorial
 Prefer learning by video? Check out the tutorial on the [API Key Management](./api-key-management) page to learn how to get an API Key and claim **$300 in free credits**.
@@ -48,6 +48,8 @@ Keep your API Key safe. Don't share it with others or expose it publicly online.
 
 ## Your First Image
 
+<TryItButton mode="generate" prompt="A cute orange cat sitting on a windowsill, with sunlight streaming in" />
+
 After setting up your API Key, let's generate your first image:
 
 1. Make sure the mode is "Generate" (default)
@@ -58,7 +60,7 @@ A cute orange cat sitting on a windowsill, with sunlight streaming in
 ```
 
 3. Click the "Generate" button
-4. Wait a few seconds, and your image will appear!
+4. Wait a few seconds, and voilà, your image will appear!
 
 ![Generation Result Example](/images/generation-result.webp)
 
@@ -70,7 +72,7 @@ For more detailed interface explanations, see [Generate Mode](./image-generation
 
 If you have a paid account, you can set up two API Keys:
 
-- **Primary Key**: For image and video generation (consumes more quota)
+- **Primary Key**: For image and video generation (requires billing enabled)
 - **Free Tier Key**: For text processing (character extraction, style analysis, slide styling, slide content generation)
 
 This helps save your paid quota. See [API Key Management](./api-key-management) for details.

@@ -147,7 +147,7 @@ A toolbar appears at the top in edit mode with these tools:
 | Tool | Description |
 |------|-------------|
 | Draw Rectangle | Drag to draw a new text region |
-| Separator | Click two points to draw a separator line |
+| Separator | Click two points to draw a separator line that prevents adjacent regions from merging |
 | Select | Drag to select regions for batch deletion |
 | Undo / Redo | Undo or redo edit operations |
 | Reset | Reset all edits to original OCR results |
@@ -166,18 +166,18 @@ If a region failed recognition (e.g., an icon was mistakenly detected as text), 
 
 ### Separator Lines
 
-Separator lines prevent layout analysis from merging unrelated text blocks.
+During layout analysis, nearby text regions are automatically merged into a single text block (which becomes one text box in the PPTX output). Separator lines prevent this automatic merging—regions on opposite sides of a separator will become separate text boxes.
 
 **When to use:**
-- When two unrelated text blocks are incorrectly merged
-- When a title and body text are merged together
+- When two unrelated text blocks are incorrectly merged into one
+- When a title and body text should be separate text boxes
 
 **How to use:**
 1. Select the "Separator" tool
 2. Click the first point
-3. Click the second point to complete
+3. Click the second point to complete the line
 
-The separator line prevents regions on either side from being merged.
+Regions on either side of the separator line will be output as separate text boxes in the PPTX file.
 
 ### Sidebar
 
