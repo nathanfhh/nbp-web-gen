@@ -29,7 +29,9 @@ const tryItUrl = computed(() => {
   const params = new URLSearchParams()
   params.set('mode', props.mode)
   if (props.prompt) {
-    params.set('prompt', props.prompt)
+    // Convert literal \n strings to actual newlines (for multiline prompts in markdown)
+    const processedPrompt = props.prompt.replace(/\\n/g, '\n')
+    params.set('prompt', processedPrompt)
   }
   return `${appBaseUrl}?${params.toString()}`
 })
