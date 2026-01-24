@@ -3,8 +3,8 @@ import { defineConfig } from 'vitepress'
 // Base path: use /nbp-web-gen/docs/ in GitHub Actions, / in local dev
 const base = process.env.GITHUB_ACTIONS ? '/nbp-web-gen/docs/' : '/'
 
-// App base path for "return to app" link
-const appBase = process.env.GITHUB_ACTIONS ? '/nbp-web-gen/' : '/'
+// App base path for "return to app" link (use full URL to avoid VitePress adding base path)
+const appBase = process.env.GITHUB_ACTIONS ? 'https://nathanfhh.github.io/nbp-web-gen/' : '/'
 
 // Sitemap hostname (VitePress automatically appends base path)
 const sitemapHostname = 'https://nathanfhh.github.io'

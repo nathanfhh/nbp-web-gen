@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Mediator
   text: AI 圖片與影片生成器
-  tagline: Media + Creator = Mediator。使用 Google Gemini 和 Veo 3.1 的 AI 創作工具
+  tagline: "Media + Creator = Mediator。<br>使用 Google Gemini 和 Veo 3.1 的 AI 創作工具"
   image:
     src: /logo.webp
     alt: Mediator Logo
