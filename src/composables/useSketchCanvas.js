@@ -411,11 +411,18 @@ export function useSketchCanvas({ canvasRef, historyManager = null }) {
       // Save current color and switch to white (simulated eraser)
       savedBrushColor = strokeColor.value
       fabricCanvas.value.freeDrawingBrush.color = '#FFFFFF'
-      strokeColor.value = '#FFFFFF'
     } else if (tool === 'pan') {
       currentTool.value = 'pan'
-      // Disable drawing mode so touches/drags don't draw
+      // Disable drawing mode
       fabricCanvas.value.isDrawingMode = false
+      // Skip target finding entirely - prevents any object selection/interaction
+      fabricCanvas.value.skipTargetFind = true
+      fabricCanvas.value.selection = false
+    }
+
+    // Re-enable target finding when not in pan mode
+    if (tool !== 'pan' && fabricCanvas.value.skipTargetFind) {
+      fabricCanvas.value.skipTargetFind = false
     }
   }
 
