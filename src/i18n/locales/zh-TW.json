@@ -1404,6 +1404,14 @@
       "settingsRemerged": "已根據新設定重新合併 {count} 張投影片的文字區塊"
     }
   },
+  "promptConfirm": {
+    "title": "Prompt 已有內容",
+    "description": "目前的 Prompt 輸入框已有內容。請選擇要如何處理從連結帶入的新 Prompt：",
+    "existingPrompt": "現有內容",
+    "newPrompt": "連結帶入的內容",
+    "replace": "覆蓋",
+    "append": "追加"
+  },
   "tour": {
     "help": "功能導覽",
     "skip": "跳過導覽",

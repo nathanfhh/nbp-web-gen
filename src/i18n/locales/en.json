@@ -1401,6 +1401,14 @@
       "settingsRemerged": "Re-merged text blocks for {count} slides with new settings"
     }
   },
+  "promptConfirm": {
+    "title": "Prompt Already Has Content",
+    "description": "The prompt input already contains content. Choose how to handle the new prompt from the link:",
+    "existingPrompt": "Existing Content",
+    "newPrompt": "Content from Link",
+    "replace": "Replace",
+    "append": "Append"
+  },
   "tour": {
     "help": "Take a Tour",
     "skip": "Skip Tour",

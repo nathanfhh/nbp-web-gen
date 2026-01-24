@@ -1,6 +1,7 @@
 <script setup>
 import { defineAsyncComponent, onMounted, onUnmounted, ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
 import { useToast } from '@/composables/useToast'
@@ -36,12 +37,91 @@ const ThinkingProcess = defineAsyncComponent(() => import('@/components/Thinking
 const PromptDebug = defineAsyncComponent(() => import('@/components/PromptDebug.vue'))
 const CharacterCarousel = defineAsyncComponent(() => import('@/components/CharacterCarousel.vue'))
 const UserTour = defineAsyncComponent(() => import('@/components/UserTour.vue'))
+const PromptConfirmModal = defineAsyncComponent(() => import('@/components/PromptConfirmModal.vue'))
 
 const store = useGeneratorStore()
 const { handleGenerate: executeGenerate } = useGeneration()
 const { t, locale } = useI18n()
 const toast = useToast()
 const tour = useTour()
+const route = useRoute()
+const router = useRouter()
+
+// ============================================================================
+// URL Query Params Handling (for deep linking from docs)
+// ============================================================================
+const VALID_MODES = ['generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides']
+
+// Modal state for prompt confirmation
+const showPromptConfirmModal = ref(false)
+const pendingPromptFromUrl = ref('')
+
+// Handle URL query params
+const handleUrlParams = async (queryParams) => {
+  const { mode, prompt } = queryParams || route.query
+
+  // No params to handle
+  if (!mode && !prompt) return
+
+  // Handle mode param
+  if (mode && typeof mode === 'string' && VALID_MODES.includes(mode)) {
+    store.currentMode = mode
+  }
+
+  // Handle prompt param (Vue Router already decodes query params)
+  if (prompt && typeof prompt === 'string') {
+    if (store.prompt && store.prompt.trim()) {
+      // Existing prompt is not empty, show confirmation modal
+      pendingPromptFromUrl.value = prompt
+      showPromptConfirmModal.value = true
+    } else {
+      // Existing prompt is empty, set directly
+      store.prompt = prompt
+    }
+  }
+
+  // Clean up URL query params after handling
+  if (mode || prompt) {
+    router.replace({ query: {} })
+  }
+}
+
+// Watch for store initialization to handle URL params
+// This ensures prompt is loaded from localStorage before we check it
+watch(
+  () => store.isInitialized,
+  (initialized) => {
+    if (initialized && (route.query.mode || route.query.prompt)) {
+      handleUrlParams()
+    }
+  },
+  { immediate: true },
+)
+
+// Watch for route query changes (for same-tab navigation after initialization)
+watch(
+  () => route.query,
+  (newQuery) => {
+    if (store.isInitialized && (newQuery.mode || newQuery.prompt)) {
+      handleUrlParams(newQuery)
+    }
+  },
+)
+
+// Modal action handlers
+const handlePromptReplace = () => {
+  store.prompt = pendingPromptFromUrl.value
+  pendingPromptFromUrl.value = ''
+}
+
+const handlePromptAppend = () => {
+  store.prompt = store.prompt + '\n\n' + pendingPromptFromUrl.value
+  pendingPromptFromUrl.value = ''
+}
+
+const handlePromptCancel = () => {
+  pendingPromptFromUrl.value = ''
+}
 
 // Build hash for update detection (injected by Vite)
 const buildHash = __BUILD_HASH__
@@ -383,6 +463,7 @@ onMounted(() => {
   checkAppUpdate()
   setupClickOutside()
   tour.autoStartIfNeeded()
+  // URL query params are handled by watch on store.isInitialized
 })
 
 onUnmounted(() => {
@@ -904,6 +985,16 @@ const handleAddToReferences = (referenceData) => {
 
     <!-- User Tour (Onboarding) -->
     <UserTour />
+
+    <!-- Prompt Confirm Modal (for URL deep linking) -->
+    <PromptConfirmModal
+      v-model="showPromptConfirmModal"
+      :existing-prompt="store.prompt"
+      :new-prompt="pendingPromptFromUrl"
+      @replace="handlePromptReplace"
+      @append="handlePromptAppend"
+      @cancel="handlePromptCancel"
+    />
   </div>
 </template>
 

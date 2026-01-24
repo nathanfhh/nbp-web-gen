@@ -24,8 +24,8 @@ export const useGeneratorStore = defineStore('generator', () => {
   const videoStorage = useVideoStorage()
   const characterStorage = useCharacterStorage()
 
-  // Flag to prevent saving during initialization
-  let isInitialized = false
+  // Flag to prevent saving during initialization (exposed as ref for external watchers)
+  const isInitialized = ref(false)
 
   // ============================================================================
   // State
@@ -128,6 +128,10 @@ export const useGeneratorStore = defineStore('generator', () => {
     const savedSeed = getQuickSetting('seed')
     if (savedSeed !== null) seed.value = savedSeed
 
+    // Load prompt from localStorage
+    const savedPrompt = getQuickSetting('prompt')
+    if (savedPrompt) prompt.value = savedPrompt
+
     // Load mode-specific options
     const modeOptionsToLoad = [
       'generateOptions',
@@ -195,7 +199,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     await updateStorageUsage()
 
     // Mark as initialized - now watchers can save
-    isInitialized = true
+    isInitialized.value = true
 
     // Setup watchers for auto-save
     setupWatchers()
@@ -238,11 +242,12 @@ export const useGeneratorStore = defineStore('generator', () => {
       ['currentMode', currentMode],
       ['temperature', temperature],
       ['seed', seed],
+      ['prompt', prompt],
     ]
 
     simpleWatchers.forEach(([key, refValue]) => {
       watch(refValue, (newVal) => {
-        if (isInitialized) {
+        if (isInitialized.value) {
           updateQuickSetting(key, newVal)
         }
       })
@@ -262,7 +267,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       watch(
         refValue,
         (newVal) => {
-          if (isInitialized) {
+          if (isInitialized.value) {
             updateQuickSetting(key, { ...newVal })
           }
         },
@@ -274,7 +279,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     watch(
       slidesOptions,
       (newVal) => {
-        if (isInitialized) {
+        if (isInitialized.value) {
           updateQuickSetting('slidesOptions', sanitizeSlidesOptionsForStorage(newVal))
         }
       },
@@ -285,7 +290,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     watch(
       () => editOptions.value.resolution,
       (newVal) => {
-        if (isInitialized) {
+        if (isInitialized.value) {
           updateQuickSetting('editOptions', { resolution: newVal })
         }
       },
@@ -645,6 +650,7 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   return {
     // State
+    isInitialized,
     apiKey,
     hasApiKey,
     theme,
