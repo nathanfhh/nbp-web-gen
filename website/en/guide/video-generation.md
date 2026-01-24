@@ -1,5 +1,7 @@
 # Video Mode
 
+<TryItButton mode="video" prompt="A butterfly slowly takes off from a flower, sunlight through the wings creates a rainbow halo, background is a blurred garden" />
+
 Video mode uses Google Veo 3.1 API to generate AI videos.
 
 ## Basic Usage
@@ -177,6 +179,8 @@ Completed videos can be:
 - Downloaded as MP4 file
 - Previewed and played
 - Saved to history
+
+<TryItButton mode="video" prompt="A butterfly slowly takes off from a flower, sunlight through the wings creates a rainbow halo, background is a blurred garden" />
 
 ## Next Steps
 

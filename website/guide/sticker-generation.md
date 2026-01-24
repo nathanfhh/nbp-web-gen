@@ -1,5 +1,7 @@
 # 貼圖模式
 
+<TryItButton mode="sticker" prompt="一隻毛茸茸的橘色柴犬，圓圓的臉蛋，Q版可愛風格" />
+
 貼圖模式可以一次生成多個表情貼圖，並自動分割成獨立圖片。
 
 ## 基本用法
@@ -172,6 +174,8 @@
 ::: tip 提示
 LINE 貼圖的詳細規格與上架流程，請參考 [LINE Creators Market 官方指南](https://creator.line.me/zh-hant/)。
 :::
+
+<TryItButton mode="sticker" prompt="一隻毛茸茸的橘色柴犬，圓圓的臉蛋，Q版可愛風格" />
 
 ## 下一步
 

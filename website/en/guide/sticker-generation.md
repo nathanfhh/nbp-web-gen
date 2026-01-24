@@ -1,5 +1,7 @@
 # Sticker Mode
 
+<TryItButton mode="sticker" prompt="A fluffy orange Shiba Inu with a round face, cute chibi style" />
+
 Sticker mode can generate multiple expression stickers at once and automatically split them into individual images.
 
 ## Basic Usage
@@ -172,6 +174,8 @@ Click to enter the LINE Sticker Tool page.
 ::: tip Tip
 For detailed LINE sticker specifications and submission guidelines, refer to the [LINE Creators Market Official Guide](https://creator.line.me/en/).
 :::
+
+<TryItButton mode="sticker" prompt="A fluffy orange Shiba Inu with a round face, cute chibi style" />
 
 ## Next Steps
 

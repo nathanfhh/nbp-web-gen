@@ -1,5 +1,7 @@
 # Image Editing
 
+<TryItButton mode="edit" prompt="Convert to Studio Ghibli animation style" showUploadNote />
+
 Image editing mode lets you upload reference images for style transfer or content modification.
 
 ## Basic Usage
@@ -98,6 +100,8 @@ If you want to use a hand-drawn sketch as reference:
 ::: tip Draggable Toolbar
 The toolbar can be dragged to any position on screen for when you need more canvas space.
 :::
+
+<TryItButton mode="edit" prompt="Convert to Studio Ghibli animation style" showUploadNote />
 
 ## Next Steps
 

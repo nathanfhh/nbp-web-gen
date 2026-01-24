@@ -1,5 +1,7 @@
 # 圖片編輯
 
+<TryItButton mode="edit" prompt="將這張照片轉換成吉卜力動畫風格" :show-upload-note="true" />
+
 圖片編輯模式讓你上傳參考圖片，進行風格轉換或內容修改。
 
 ## 基本用法
@@ -98,6 +100,8 @@
 ::: tip 工具欄可拖曳
 工具欄可以被拖曳到畫面上任何位置，方便你在需要更多畫布空間時調整。
 :::
+
+<TryItButton mode="edit" prompt="將這張照片轉換成吉卜力動畫風格" :show-upload-note="true" />
 
 ## 下一步
 

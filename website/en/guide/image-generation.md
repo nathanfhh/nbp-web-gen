@@ -1,5 +1,7 @@
 # Generate Mode
 
+<TryItButton mode="generate" prompt="A white Shiba Inu sitting on grass under a cherry blossom tree, Japanese watercolor style, sunlight filtering through the petals, soft warm tones" />
+
 Generate is the most basic feature of Mediator, allowing you to create AI images from text descriptions.
 
 ## Basic Usage
@@ -107,6 +109,8 @@ The left panel contains a history section that lets you trace back prompts you'v
 - When clicking a history thumbnail to load a record, any unsaved content in the prompt input or related fields will be overwritten.
 - The lightbox opened from history thumbnails only allows downloading compressed formats (WebP), not the original format, because images are converted to WebP to save storage space.
 :::
+
+<TryItButton mode="generate" prompt="A white Shiba Inu sitting on grass under a cherry blossom tree, Japanese watercolor style, sunlight filtering through the petals, soft warm tones" />
 
 ## Next Steps
 
