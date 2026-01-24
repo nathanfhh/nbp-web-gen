@@ -6,6 +6,10 @@
 
 Mediator 使用 Google AI Studio 的 API，你需要先取得一個免費的 API Key。
 
+::: tip 影片教學
+如果你偏好看影片學習，可以參考 [API Key 管理](./api-key-management) 頁面的教學影片，了解如何申請 API Key 並獲得 **$300 美元的免費額度**。
+:::
+
 ### 步驟 1：前往 Google AI Studio
 
 1. 開啟 [Google AI Studio](https://aistudio.google.com/)

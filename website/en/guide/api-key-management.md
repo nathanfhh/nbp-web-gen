@@ -2,6 +2,12 @@
 
 Mediator supports a dual API Key architecture to help you use API quota more efficiently.
 
+## Video Tutorial: How to Get an API Key
+
+<iframe width="100%" style="aspect-ratio: 16/9;" src="https://www.youtube.com/embed/BLqoM78ISdw" title="How to Get Gemini API Key" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+This video shows you how to get an API Key and link your Google Cloud account. First-time users receive **$300 in free credits** that can be used with all Mediator features (image generation, video generation, etc.) and other Google AI APIs.
+
 ## Single API Key
 
 The simplest setup:

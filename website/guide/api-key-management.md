@@ -2,6 +2,12 @@
 
 Mediator 支援雙 API Key 架構，幫助你更有效率地使用 API 額度。
 
+## 影片教學：如何申請 API Key
+
+<iframe width="100%" style="aspect-ratio: 16/9;" src="https://www.youtube.com/embed/bBhEVJjb8lQ" title="如何申請 Gemini API Key" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+這部影片教你如何申請 API Key 以及連結 Google Cloud 帳戶。首次申請的用戶可以獲得 **$300 美元的免費折抵額度**，可以用於 Mediator 的所有功能（圖片生成、影片生成等）以及其他 Google AI API。
+
 ## 單一 API Key
 
 最簡單的設定方式：

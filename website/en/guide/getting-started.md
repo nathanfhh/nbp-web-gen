@@ -6,6 +6,10 @@ In just a few minutes, you can start using Mediator for AI creation.
 
 Mediator uses the Google AI Studio API. You need to get a free API Key first.
 
+::: tip Video Tutorial
+Prefer learning by video? Check out the tutorial on the [API Key Management](./api-key-management) page to learn how to get an API Key and claim **$300 in free credits**.
+:::
+
 ### Step 1: Go to Google AI Studio
 
 1. Open [Google AI Studio](https://aistudio.google.com/)
