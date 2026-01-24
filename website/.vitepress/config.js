@@ -42,6 +42,12 @@ const zhTWSidebar = [
       { text: '歷史紀錄', link: '/guide/history' },
     ],
   },
+  {
+    text: '開發者資源',
+    items: [
+      { text: '技術細節 (DeepWiki)', link: 'https://deepwiki.com/nathanfhh/nbp-web-gen' },
+    ],
+  },
 ]
 
 // Shared sidebar for English
@@ -72,6 +78,12 @@ const enSidebar = [
       { text: 'API Key Management', link: '/en/guide/api-key-management' },
       { text: 'Character Library', link: '/en/guide/character-library' },
       { text: 'History', link: '/en/guide/history' },
+    ],
+  },
+  {
+    text: 'Developer Resources',
+    items: [
+      { text: 'Technical Details (DeepWiki)', link: 'https://deepwiki.com/nathanfhh/nbp-web-gen' },
     ],
   },
 ]
