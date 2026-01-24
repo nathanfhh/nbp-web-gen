@@ -825,6 +825,17 @@ const startProcessing = async () => {
     return
   }
 
+  // Callback to confirm reprocessing Gemini slides (only when Gemini → Gemini)
+  const onConfirmGeminiReprocess = async (slideIndex, state) => {
+    return await inpaintConfirmModalRef.value?.show({
+      originalImage: state.originalImage,
+      cleanImage: state.cleanImage,
+      existingPrompt: state.customInpaintPrompt || '',
+      slideIndex,
+      showApplyToRemaining: true, // Enable "apply to remaining" option in batch mode
+    })
+  }
+
   await slideToPptx.processAll(preparedImages, {
     onComplete: (successCount, failCount) => {
       if (failCount === 0) {
@@ -858,6 +869,8 @@ const startProcessing = async () => {
     onError: () => {
       toast.error(t('slideToPptx.errors.pptxFailed'))
     },
+  }, {
+    onConfirmGeminiReprocess,
   })
 }
 

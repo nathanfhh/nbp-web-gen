@@ -9,6 +9,9 @@ const cleanImage = ref(null)
 const customPrompt = ref('')
 const slideIndex = ref(0)
 const resolvePromise = ref(null)
+// "Apply to remaining" option - only shown in batch processing mode
+const showApplyToRemaining = ref(false)
+const applyToRemaining = ref(false)
 
 /**
  * Show the confirmation modal
@@ -17,13 +20,16 @@ const resolvePromise = ref(null)
  * @param {string|null} options.cleanImage - Current clean image (or null if not generated)
  * @param {string} options.existingPrompt - Pre-fill custom prompt from previous session
  * @param {number} options.slideIndex - Slide index (0-based)
- * @returns {Promise<{action: 'regenerate'|'skip', customPrompt: string}|null>}
+ * @param {boolean} options.showApplyToRemaining - Whether to show "apply to remaining" checkbox
+ * @returns {Promise<{action: 'regenerate'|'skip', customPrompt: string, applyToRemaining: boolean}|null>}
  */
 const show = (options = {}) => {
   originalImage.value = options.originalImage || null
   cleanImage.value = options.cleanImage || null
   customPrompt.value = options.existingPrompt || ''
   slideIndex.value = options.slideIndex ?? 0
+  showApplyToRemaining.value = options.showApplyToRemaining || false
+  applyToRemaining.value = false
   isOpen.value = true
 
   return new Promise((resolve) => {
@@ -36,6 +42,7 @@ const regenerate = () => {
   resolvePromise.value?.({
     action: 'regenerate',
     customPrompt: customPrompt.value.trim(),
+    applyToRemaining: applyToRemaining.value,
   })
 }
 
@@ -44,6 +51,7 @@ const skip = () => {
   resolvePromise.value?.({
     action: 'skip',
     customPrompt: customPrompt.value.trim(),
+    applyToRemaining: applyToRemaining.value,
   })
 }
 
@@ -138,6 +146,21 @@ defineExpose({ show })
               {{ t('slideToPptx.inpaintConfirm.customPromptHint') }}
             </p>
           </div>
+
+          <!-- Apply to remaining checkbox (only in batch mode) -->
+          <label
+            v-if="showApplyToRemaining"
+            class="flex items-center gap-2 mb-4 cursor-pointer group"
+          >
+            <input
+              v-model="applyToRemaining"
+              type="checkbox"
+              class="w-4 h-4 rounded border-border-muted bg-bg-input text-mode-generate focus:ring-mode-generate focus:ring-offset-0"
+            />
+            <span class="text-sm text-text-secondary group-hover:text-text-primary transition-colors">
+              {{ t('slideToPptx.inpaintConfirm.applyToRemaining') }}
+            </span>
+          </label>
 
           <!-- Buttons -->
           <div class="flex gap-3 justify-end">

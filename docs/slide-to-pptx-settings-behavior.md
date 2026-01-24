@@ -228,3 +228,183 @@
 
 - **只切換 cleanImage**：不影響 regions 或其他編輯狀態
 - **更新 cleanImageIsOriginal**：根據選中版本的 `isOriginal` 更新
+
+---
+
+## 七、重新處理確認邏輯（Gemini API 費用保護）
+
+### 核心問題
+
+當使用者按下「開始轉換」時，如果投影片**已經**使用 Gemini API 處理過，重新處理會產生額外費用。系統必須在以下情況**詢問使用者**：
+
+- **Gemini → Gemini**：之前用 Gemini 處理，現在還是用 Gemini → **必須詢問**（會花錢）
+- **Gemini → OpenCV**：之前用 Gemini 處理，現在改用 OpenCV → **不用詢問**（免費）
+- **OpenCV → Gemini**：之前用 OpenCV 處理，現在改用 Gemini → **不用詢問**（首次用 Gemini，用戶預期要付費）
+- **OpenCV → OpenCV**：之前用 OpenCV 處理，現在還是用 OpenCV → **不用詢問**（免費）
+
+### 狀態追蹤
+
+每張投影片使用 `inpaintMethodUsed` 欄位追蹤上次使用的處理方法：
+
+```javascript
+// slideState 欄位
+{
+  inpaintMethodUsed: 'gemini' | 'opencv' | null,  // 上次使用的方法
+  cleanImage: 'data:...',                          // 處理後的背景圖
+  status: 'done' | 'pending' | 'error',           // 處理狀態
+}
+```
+
+**設定時機**：
+
+| 位置 | 時機 | 設定值 |
+|------|------|--------|
+| `processSlide()` | 首次處理完成 | 根據使用的方法設定 |
+| `reprocessSlide()` | 編輯模式重新處理完成 | 根據使用的方法設定 |
+
+### 確認流程（processAll）
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    processAll() 處理流程                          │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │ 初始化 slideStates │
+                    │ (保留 Gemini 處理  │
+                    │  過的投影片資料)    │
+                    └─────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │ 迴圈處理每張投影片 │
+                    └─────────────────┘
+                              │
+                              ▼
+           ┌──────────────────────────────────────┐
+           │ 檢查條件：                             │
+           │ • state.inpaintMethodUsed === 'gemini' │
+           │ • effectiveSettings.inpaintMethod === 'gemini' │
+           │ • state.cleanImage 存在               │
+           └──────────────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              │ 不符合                        │ 符合
+              ▼                               ▼
+       ┌─────────────┐              ┌─────────────────────┐
+       │ 直接處理     │              │ 已有「套用至剩餘」決策？│
+       │ (不詢問)     │              └─────────────────────┘
+       └─────────────┘                        │
+                                   ┌──────────┴──────────┐
+                                   │ 是                  │ 否
+                                   ▼                     ▼
+                            ┌─────────────┐       ┌─────────────┐
+                            │ 套用該決策   │       │ 顯示確認 Modal │
+                            │ (不再詢問)   │       └─────────────┘
+                            └─────────────┘              │
+                                                         ▼
+                                                  ┌─────────────┐
+                                                  │ 使用者選擇   │
+                                                  └─────────────┘
+                                                         │
+                                   ┌─────────────────────┼─────────────────────┐
+                                   │                     │                     │
+                                   ▼                     ▼                     ▼
+                            ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+                            │ 使用現有圖片 │       │ 重新生成     │       │ 取消        │
+                            │ (skip)      │       │ (regenerate) │       │ (cancel)    │
+                            └─────────────┘       └─────────────┘       └─────────────┘
+                                   │                     │                     │
+                                   ▼                     ▼                     ▼
+                            ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+                            │ 保留 cleanImage │     │ 呼叫 Gemini │       │ 中止所有處理 │
+                            │ 標記為 done   │       │ 更新 cleanImage │    └─────────────┘
+                            └─────────────┘       └─────────────┘
+```
+
+### 「套用至剩餘投影片」功能
+
+當使用者勾選「套用至剩餘投影片」時：
+
+1. 系統記錄使用者的決策（`regenerate` 或 `skip`）
+2. 後續符合條件的投影片**自動套用該決策**，不再顯示 Modal
+3. 節省使用者逐張確認的時間
+
+```javascript
+// useSlideToPptx.js - processAll() 中的邏輯
+let applyToRemainingAction = null  // 追蹤「套用至剩餘」決策
+
+for (let i = 0; i < images.length; i++) {
+  if (shouldAskUser) {
+    if (applyToRemainingAction) {
+      // 已有決策，直接套用
+      decision = { action: applyToRemainingAction }
+    } else {
+      // 顯示 Modal，取得使用者決策
+      decision = await onConfirmGeminiReprocess(i, state)
+      if (decision.applyToRemaining) {
+        applyToRemainingAction = decision.action  // 記錄決策
+      }
+    }
+  }
+}
+```
+
+### slideStates 初始化邏輯（關鍵！）
+
+在 `processAll()` 開始時，會重新初始化 `slideStates`，**必須正確保留**已處理投影片的資料：
+
+```javascript
+slideStates.value = images.map((_, index) => {
+  const existingState = slideStates.value[index]
+
+  // 判斷是否為任何方法處理過（用於保留 originalImage）
+  // Note: originalImage 在 processSlide 開始時就設定，所以有值就代表處理過
+  const wasProcessed = existingState?.originalImage
+
+  // 判斷是否為 Gemini 處理成功的投影片（用於確認 Modal）
+  // Note: inpaintMethodUsed 和 cleanImage 只有在 inpaint 成功後才會設定
+  // 所以不需要檢查 status === 'done'（這兩個欄位有值就代表成功）
+  const hasGeminiCleanImage =
+    existingState?.inpaintMethodUsed === 'gemini' &&
+    existingState?.cleanImage
+
+  return {
+    status: 'pending',  // 重置狀態
+
+    // ⚠️ 關鍵：Gemini 處理過的投影片必須保留這些資料
+    cleanImage: hasGeminiCleanImage ? existingState?.cleanImage : null,
+    inpaintMethodUsed: existingState?.inpaintMethodUsed || null,
+
+    // ⚠️ 關鍵：所有處理過的投影片都必須保留 originalImage（用於 thumbnail 顯示）
+    originalImage: wasProcessed ? existingState?.originalImage : null,
+    width: wasProcessed ? existingState?.width : 0,
+    height: wasProcessed ? existingState?.height : 0,
+
+    // ... 其他欄位
+  }
+})
+```
+
+### 常見錯誤與檢查清單
+
+⚠️ **開發此功能時必須檢查以下項目**：
+
+| 檢查項目 | 說明 | 檔案位置 |
+|----------|------|----------|
+| `inpaintMethodUsed` 是否正確設定 | 每次 inpaint 完成後必須設定 | `useSlideToPptx.js` processSlide/reprocessSlide |
+| `cleanImage` 是否正確保留 | Gemini 處理過的投影片在初始化時必須保留 | `useSlideToPptx.js` processAll 初始化 |
+| `originalImage` 是否正確保留 | 所有處理過的投影片都必須保留（否則 thumbnail 會消失） | `useSlideToPptx.js` processAll 初始化 |
+| 確認 Modal 是否正確顯示 | 條件：`inpaintMethodUsed === 'gemini' && inpaintMethod === 'gemini' && cleanImage` | `useSlideToPptx.js` processAll 迴圈 |
+| 編輯模式確認是否獨立 | 編輯模式不使用「套用至剩餘」功能 | `SlideToPptxView.vue` exitEditMode |
+
+### 測試情境
+
+| 情境 | 預期行為 |
+|------|----------|
+| 10 張圖，8 張 Gemini + 2 張 OpenCV，按第二次「開始轉換」 | 8 張 Gemini 逐張詢問，2 張 OpenCV 不問 |
+| 第一張選「重新生成」+ 勾選「套用至剩餘」 | 第 2-8 張自動重新生成，不再詢問 |
+| 第一張選「使用現有圖片」+ 勾選「套用至剩餘」 | 第 2-8 張自動跳過，不再詢問 |
+| 編輯模式調整區塊後退出 | 如果用 Gemini，顯示確認 Modal（無「套用至剩餘」選項） |
+| 編輯模式調整區塊後，再按「開始轉換」 | 該張投影片會再次詢問（因為是 Gemini → Gemini） |

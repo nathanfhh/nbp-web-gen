@@ -20,7 +20,8 @@
     "images": "張圖片",
     "optional": "可選",
     "confirmLeave": "正在生成中，確定要離開嗎？",
-    "docs": "使用文件"
+    "docs": "使用文件",
+    "recommended": "推薦"
   },
   "hero": {
     "subtitle": "AI 圖像與影片生成工具",
@@ -1348,7 +1349,8 @@
       "customPromptHint": "此說明會附加到基本提示詞後，幫助 AI 更精確地處理特定區域。",
       "regenerate": "重新生成",
       "useExisting": "使用現有圖片",
-      "skipped": "已跳過重新生成，僅更新文字框位置"
+      "skipped": "已跳過重新生成，僅更新文字框位置",
+      "applyToRemaining": "套用至剩餘投影片"
     },
     "versionHistory": {
       "original": "原始版本（首次處理）",
@@ -1384,6 +1386,7 @@
       "regionsBatchDeleted": "第 {slide} 頁：已批次刪除 {count} 個區域",
       "regionAdded": "第 {slide} 頁：已新增手動區域",
       "regionsReset": "第 {slide} 頁：已重設為原始 OCR 結果",
+      "keepingExisting": "第 {slide} 頁：保留現有結果",
       "slideError": "第 {slide} 頁：錯誤 - {error}",
       "startingProcessing": "開始處理 {count} 張投影片...",
       "initializingOcr": "初始化 OCR 引擎...",

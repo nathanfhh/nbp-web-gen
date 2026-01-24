@@ -20,7 +20,8 @@
     "images": "images",
     "optional": "Optional",
     "confirmLeave": "Generation in progress. Are you sure you want to leave?",
-    "docs": "Documentation"
+    "docs": "Documentation",
+    "recommended": "Recommended"
   },
   "hero": {
     "subtitle": "AI Image & Video Generator",
@@ -1345,7 +1346,8 @@
       "customPromptHint": "These instructions will be appended to the base prompt to help AI process specific areas more precisely.",
       "regenerate": "Regenerate",
       "useExisting": "Use Existing Image",
-      "skipped": "Skipped regeneration, text box positions updated only"
+      "skipped": "Skipped regeneration, text box positions updated only",
+      "applyToRemaining": "Apply to remaining slides"
     },
     "versionHistory": {
       "original": "Original (first processing)",
@@ -1381,6 +1383,7 @@
       "regionsBatchDeleted": "Slide {slide}: Batch deleted {count} region(s)",
       "regionAdded": "Slide {slide}: Added manual region",
       "regionsReset": "Slide {slide}: Reset to original OCR results",
+      "keepingExisting": "Slide {slide}: Keeping existing result",
       "slideError": "Slide {slide}: Error - {error}",
       "startingProcessing": "Starting processing of {count} slides...",
       "initializingOcr": "Initializing OCR engine...",

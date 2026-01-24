@@ -84,6 +84,7 @@ const translateOcrMessage = (message) => {
  * @property {string|null} customInpaintPrompt - User's custom prompt for Gemini inpainting
  * @property {Array} cleanImageHistory - Version history of clean images [{image, timestamp, prompt, isOriginal}]
  * @property {number} activeHistoryIndex - Currently selected version index in cleanImageHistory
+ * @property {'opencv'|'gemini'|null} inpaintMethodUsed - Which inpaint method was used for current cleanImage
  */
 
 // Maximum history depth per slide
@@ -597,6 +598,7 @@ Output: A single clean image with all text removed.`
 
         // Convert ImageData to data URL
         state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
+        state.inpaintMethodUsed = 'opencv'
       } else {
         // Gemini API method with fallback to OpenCV
         const modelName = effectiveSettings.geminiModel === '2.0' ? 'Nano Banana (2.0)' : 'Nano Banana Pro (3.0)'
@@ -611,7 +613,9 @@ Output: A single clean image with all text removed.`
         }
 
         try {
-          state.cleanImage = await removeTextWithGeminiWithSettings(imageDataUrl, state.regions, effectiveSettings, null, width, height)
+          // Use customInpaintPrompt if available (e.g., from ask_each mode)
+          state.cleanImage = await removeTextWithGeminiWithSettings(imageDataUrl, state.regions, effectiveSettings, state.customInpaintPrompt, width, height)
+          state.inpaintMethodUsed = 'gemini'
         } catch (geminiError) {
           // Fallback to OpenCV when Gemini fails (RECITATION, quota, etc.)
           addLog(t('slideToPptx.logs.geminiFailed', { slide: index + 1, error: geminiError.message }), 'warning')
@@ -625,6 +629,7 @@ Output: A single clean image with all text removed.`
           // Note: colors already extracted above, no need to re-extract
 
           state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
+          state.inpaintMethodUsed = 'opencv'
           addLog(t('slideToPptx.logs.opencvFallbackComplete', { slide: index + 1 }), 'success')
         }
       }
@@ -639,7 +644,7 @@ Output: A single clean image with all text removed.`
       state.cleanImageHistory = [{
         image: state.cleanImage,
         timestamp: Date.now(),
-        prompt: null,
+        prompt: state.customInpaintPrompt || null,
         isOriginal: true,
       }]
       state.activeHistoryIndex = 0
@@ -658,10 +663,15 @@ Output: A single clean image with all text removed.`
    * Process all slides and generate PPTX
    * @param {Array<{data: string, mimeType: string}>} images - Array of image data
    * @param {Object} callbacks - Callbacks for progress updates
+   * @param {Object} options - Processing options
+   * @param {Function|null} options.onConfirmGeminiReprocess - Callback when a Gemini-processed slide is about to be reprocessed with Gemini
+   *        (slideIndex, state) => Promise<{action: 'regenerate'|'skip', customPrompt?: string}|null>
    * @returns {Promise<boolean>} Success status
    */
-  const processAll = async (images, callbacks = {}) => {
+  const processAll = async (images, callbacks = {}, options = {}) => {
     if (isProcessing.value) return false
+
+    const { onConfirmGeminiReprocess = null } = options
 
     isProcessing.value = true
     isCancelled.value = false
@@ -672,9 +682,21 @@ Output: A single clean image with all text removed.`
     startTimer()
 
     // Initialize slide states with extended structure
-    // IMPORTANT: Preserve existing overrideSettings (per-page settings), OCR cache, and region edits
+    // IMPORTANT: Preserve existing state for Gemini-processed slides (for confirmation modal)
     slideStates.value = images.map((_, index) => {
       const existingState = slideStates.value[index]
+
+      // Check if this slide was processed at all (need to preserve originalImage for thumbnail)
+      // Note: originalImage is set at the start of processSlide, so it exists even if processing failed midway
+      const wasProcessed = existingState?.originalImage
+
+      // Check if this slide was processed with Gemini (need to preserve for confirmation modal)
+      // If inpaintMethodUsed is 'gemini' AND cleanImage exists, processing was successful
+      // (these fields are only set after successful inpaint completion)
+      const hasGeminiCleanImage =
+        existingState?.inpaintMethodUsed === 'gemini' &&
+        existingState?.cleanImage
+
       return {
         status: 'pending',
         ocrResults: [],
@@ -684,24 +706,26 @@ Output: A single clean image with all text removed.`
         cachedImageUrl: existingState?.cachedImageUrl || null,
         cachedOcrEngine: existingState?.cachedOcrEngine || null,
         cachedOcrSettings: existingState?.cachedOcrSettings || null,
-        mask: null,
-        cleanImage: null,
-        originalCleanImage: null,
-        cleanImageIsOriginal: true,
-        regionsSnapshotAtCleanImage: null,
-        originalImage: null,
-        width: 0,
-        height: 0,
+        // Preserve these for Gemini confirmation modal
+        // Use more lenient check: preserve if inpaintMethodUsed is 'gemini'
+        mask: hasGeminiCleanImage ? existingState?.mask : null,
+        cleanImage: hasGeminiCleanImage ? existingState?.cleanImage : null,
+        originalCleanImage: hasGeminiCleanImage ? existingState?.originalCleanImage : null,
+        cleanImageIsOriginal: hasGeminiCleanImage ? existingState?.cleanImageIsOriginal : true,
+        regionsSnapshotAtCleanImage: hasGeminiCleanImage ? existingState?.regionsSnapshotAtCleanImage : null,
+        // ALWAYS preserve originalImage if slide was processed (for thumbnail display)
+        originalImage: wasProcessed ? existingState?.originalImage : null,
+        width: wasProcessed ? existingState?.width : 0,
+        height: wasProcessed ? existingState?.height : 0,
         error: null,
         overrideSettings: existingState?.overrideSettings || null,
-        // Region editing state
         editedRawRegions: existingState?.editedRawRegions || null,
-        // Preserve separator lines
         separatorLines: existingState?.separatorLines || [],
-        // Preserve edit history
         editHistory: existingState?.editHistory || { undoStack: [], redoStack: [] },
-        // Preserve custom inpaint prompt
         customInpaintPrompt: existingState?.customInpaintPrompt || null,
+        inpaintMethodUsed: existingState?.inpaintMethodUsed || null,
+        cleanImageHistory: hasGeminiCleanImage ? existingState?.cleanImageHistory : [],
+        activeHistoryIndex: hasGeminiCleanImage ? existingState?.activeHistoryIndex : 0,
       }
     })
 
@@ -730,8 +754,58 @@ Output: A single clean image with all text removed.`
       await inpainting.initialize()
 
       // Process each slide
+      // Track "apply to remaining" decision from user
+      let applyToRemainingAction = null // null | 'regenerate' | 'skip'
+
       for (let i = 0; i < images.length; i++) {
         if (isCancelled.value) break
+
+        const state = slideStates.value[i]
+        const effectiveSettings = getEffectiveSettings(i)
+
+        // Check if this slide was processed with Gemini AND we're about to use Gemini again
+        // Only then do we need to ask the user (because it costs money)
+        if (
+          state.inpaintMethodUsed === 'gemini' &&
+          effectiveSettings.inpaintMethod === 'gemini' &&
+          state.cleanImage &&
+          onConfirmGeminiReprocess
+        ) {
+          let decision
+
+          // If user previously chose "apply to remaining", use that decision
+          if (applyToRemainingAction) {
+            decision = { action: applyToRemainingAction }
+          } else {
+            decision = await onConfirmGeminiReprocess(i, state)
+
+            if (!decision) {
+              // User cancelled - treat as cancel all
+              isCancelled.value = true
+              break
+            }
+
+            // Check if user wants to apply this decision to remaining slides
+            if (decision.applyToRemaining) {
+              applyToRemainingAction = decision.action
+            }
+          }
+
+          if (decision.action === 'skip') {
+            // Keep existing cleanImage, mark as done
+            slideStates.value[i] = {
+              ...state,
+              status: 'done',
+            }
+            addLog(t('slideToPptx.logs.keepingExisting', { slide: i + 1 }), 'info')
+            continue
+          }
+
+          // User chose regenerate - save custom prompt if provided (only from actual modal, not auto-applied)
+          if (decision.customPrompt) {
+            slideStates.value[i].customInpaintPrompt = decision.customPrompt
+          }
+        }
 
         currentSlide.value = i + 1
         progress.value = Math.round((i / images.length) * 80)
@@ -924,6 +998,8 @@ Output: A single clean image with all text removed.`
         // First entry is always the original (from initial processing), subsequent entries are regenerated versions (FIFO, max 5)
         cleanImageHistory: [],
         activeHistoryIndex: 0, // Currently selected version in history
+        // Track which inpaint method was used (for reprocess strategy detection)
+        inpaintMethodUsed: null,
       }))
     }
   }
@@ -1439,6 +1515,7 @@ Output: A single clean image with all text removed.`
         }
 
         state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
+        state.inpaintMethodUsed = 'opencv'
       } else {
         // Gemini API method - extract colors separately first
         const textColors = await inpainting.extractColors(imageData, regionsToUse)
@@ -1452,6 +1529,7 @@ Output: A single clean image with all text removed.`
           // Use regionsToUse (latest edited regions) instead of state.regions (old merged regions)
           // This ensures Gemini prompt matches the mask we generated from regionsToUse
           state.cleanImage = await removeTextWithGeminiWithSettings(state.originalImage, regionsToUse, effectiveSettings, state.customInpaintPrompt, state.width, state.height)
+          state.inpaintMethodUsed = 'gemini'
         } catch (geminiError) {
           addLog(t('slideToPptx.logs.geminiFailed', { slide: slideIndex + 1, error: geminiError.message }), 'warning')
           const { imageData: inpaintedData } = await inpainting.inpaint(imageData, state.mask, {
@@ -1461,6 +1539,7 @@ Output: A single clean image with all text removed.`
             dilateIterations: Math.ceil((effectiveSettings.maskPadding || 1) / 2),
           })
           state.cleanImage = inpainting.imageDataToDataUrl(inpaintedData)
+          state.inpaintMethodUsed = 'opencv'
         }
       }
 
