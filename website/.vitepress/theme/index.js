@@ -1,4 +1,5 @@
 import DefaultTheme from 'vitepress/theme'
+import Layout from './Layout.vue'
 import TryItButton from './TryItButton.vue'
 import mediumZoom from 'medium-zoom'
 import { onMounted, watch, nextTick } from 'vue'
@@ -7,6 +8,7 @@ import './custom.css'
 
 export default {
   extends: DefaultTheme,
+  Layout,
   enhanceApp({ app }) {
     // Register global components
     app.component('TryItButton', TryItButton)
