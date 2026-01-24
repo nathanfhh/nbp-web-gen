@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { withBase } from 'vitepress'
 import {
   Scene,
   PerspectiveCamera,
@@ -74,7 +75,7 @@ function init() {
   // Load GLB model
   const loader = new GLTFLoader()
   loader.load(
-    '/banana.glb',
+    withBase('/banana.glb'),
     (gltf) => {
       banana = gltf.scene
 
