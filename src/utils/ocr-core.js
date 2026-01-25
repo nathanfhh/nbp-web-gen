@@ -535,22 +535,45 @@ function createBlockFromRegions(regions, settings = {}) {
   // The largest line height best represents the actual text size.
   const maxHeight = Math.max(...regions.map((r) => r.bounds.height))
 
-  // Propagate polygon-mode (trapezoid) data when ALL constituent regions are
-  // polygon-mode.  Regions are already sorted in reading order (top → bottom),
-  // so the combined polygon uses the first region's top edge and the last
-  // region's bottom edge, preserving the overall slant.
+  // Propagate polygon-mode (trapezoid) data only when:
+  // 1. ALL constituent regions are polygon-mode
+  // 2. All regions have similar rotation angles (within threshold)
+  // 3. Regions are vertically stacked (not side-by-side)
+  //
+  // Otherwise, fall back to axis-aligned bounding box (no rotation).
+  const ROTATION_DIFF_THRESHOLD = 15 // degrees
+
   const allPolygonMode = regions.every((r) => r.isPolygonMode && r.polygon)
+  let usePolygonMode = false
   let polygon
-  if (allPolygonMode) {
-    const first = regions[0].polygon // [nw, ne, se, sw]
-    const last = regions[regions.length - 1].polygon
-    polygon = [
-      first[0], // nw from topmost region
-      first[1], // ne from topmost region
-      last[2], // se from bottommost region
-      last[3], // sw from bottommost region
-    ]
-  } else {
+
+  if (allPolygonMode && regions.length > 0) {
+    // Check rotation angle consistency
+    const angles = regions.map((r) => getPolygonRotationAngle(r.polygon))
+    const minAngle = Math.min(...angles)
+    const maxAngle = Math.max(...angles)
+    const angleDiff = Math.abs(maxAngle - minAngle)
+
+    if (angleDiff <= ROTATION_DIFF_THRESHOLD && isVerticallyStacked(regions)) {
+      // All conditions met: merge as polygon
+      if (regions.length === 1) {
+        // Single region: use its polygon directly
+        polygon = [...regions[0].polygon]
+        usePolygonMode = true
+      } else {
+        // Multiple regions: create a rotated bounding box using average angle
+        const avgAngle = angles.reduce((a, b) => a + b, 0) / angles.length
+        const mergedPolygon = createRotatedBoundingBox(regions, avgAngle)
+        if (mergedPolygon) {
+          polygon = mergedPolygon
+          usePolygonMode = true
+        }
+      }
+    }
+  }
+
+  if (!usePolygonMode) {
+    // Fall back to axis-aligned bounding box
     polygon = [
       [bounds.x, bounds.y],
       [bounds.x + bounds.width, bounds.y],
@@ -564,7 +587,7 @@ function createBlockFromRegions(regions, settings = {}) {
     confidence: avgConfidence,
     bounds,
     polygon,
-    ...(allPolygonMode ? { isPolygonMode: true } : {}),
+    ...(usePolygonMode ? { isPolygonMode: true } : {}),
     alignment: inferAlignment(regions),
     fontSize: maxHeight,
     // Keep original lines for potential detailed editing later
@@ -576,6 +599,102 @@ function createBlockFromRegions(regions, settings = {}) {
 // ============================================================================
 // Utilities & Data Structures
 // ============================================================================
+
+/**
+ * Calculate the rotation angle (in degrees) of a polygon region.
+ * Uses the average of top-edge and bottom-edge angles relative to horizontal.
+ *
+ * @param {Array<[number, number]>} polygon - [nw, ne, se, sw] vertices
+ * @returns {number} Rotation angle in degrees (-90 to +90)
+ */
+function getPolygonRotationAngle(polygon) {
+  if (!polygon || polygon.length !== 4) return 0
+  const [nw, ne, se, sw] = polygon
+  const topAngle = Math.atan2(ne[1] - nw[1], ne[0] - nw[0])
+  const bottomAngle = Math.atan2(se[1] - sw[1], se[0] - sw[0])
+  return ((topAngle + bottomAngle) / 2) * (180 / Math.PI)
+}
+
+/**
+ * Check if regions are arranged primarily vertically (stacked) vs horizontally (side-by-side).
+ * Compares Y-span to X-span of the first and last region centers.
+ *
+ * @param {Array} regions - Sorted regions (reading order)
+ * @returns {boolean} True if vertically stacked
+ */
+function isVerticallyStacked(regions) {
+  if (regions.length <= 1) return true
+  const first = regions[0]
+  const last = regions[regions.length - 1]
+  const firstCenterY = first.bounds.y + first.bounds.height / 2
+  const lastCenterY = last.bounds.y + last.bounds.height / 2
+  const firstCenterX = first.bounds.x + first.bounds.width / 2
+  const lastCenterX = last.bounds.x + last.bounds.width / 2
+  const yDiff = Math.abs(lastCenterY - firstCenterY)
+  const xDiff = Math.abs(lastCenterX - firstCenterX)
+  return yDiff >= xDiff
+}
+
+/**
+ * Create a rotated bounding box that encompasses all polygon regions.
+ * Uses the average rotation angle and computes the minimal enclosing rotated rectangle.
+ *
+ * @param {Array} regions - Polygon regions to merge
+ * @param {number} angleDeg - Rotation angle in degrees
+ * @returns {Array<[number, number]>} Merged polygon [nw, ne, se, sw]
+ */
+function createRotatedBoundingBox(regions, angleDeg) {
+  // Collect all vertices from all polygons
+  const allPoints = []
+  for (const r of regions) {
+    if (r.polygon && r.polygon.length === 4) {
+      allPoints.push(...r.polygon)
+    }
+  }
+
+  if (allPoints.length === 0) {
+    return null
+  }
+
+  // Convert angle to radians
+  const angleRad = (angleDeg * Math.PI) / 180
+  const cos = Math.cos(-angleRad) // Negative to rotate points to axis-aligned space
+  const sin = Math.sin(-angleRad)
+
+  // Rotate all points to axis-aligned space
+  const rotatedPoints = allPoints.map(([x, y]) => [
+    x * cos - y * sin,
+    x * sin + y * cos,
+  ])
+
+  // Find bounding box in rotated space
+  let minX = Infinity,
+    minY = Infinity
+  let maxX = -Infinity,
+    maxY = -Infinity
+  for (const [x, y] of rotatedPoints) {
+    minX = Math.min(minX, x)
+    minY = Math.min(minY, y)
+    maxX = Math.max(maxX, x)
+    maxY = Math.max(maxY, y)
+  }
+
+  // Create rectangle corners in rotated space
+  const rectCorners = [
+    [minX, minY], // nw in rotated space
+    [maxX, minY], // ne
+    [maxX, maxY], // se
+    [minX, maxY], // sw
+  ]
+
+  // Rotate back to original space
+  const cosBack = Math.cos(angleRad)
+  const sinBack = Math.sin(angleRad)
+  return rectCorners.map(([x, y]) => [
+    x * cosBack - y * sinBack,
+    x * sinBack + y * cosBack,
+  ])
+}
 
 /**
  * Get bounding box for a group of regions
