@@ -147,6 +147,7 @@ A toolbar appears at the top in edit mode with these tools:
 | Tool | Description |
 |------|-------------|
 | Draw Rectangle | Drag to draw a new text region |
+| Trapezoid | Convert selected region to a quadrilateral with adjustable vertices (appears when a region is selected) |
 | Separator | Click two points to draw a separator line that prevents adjacent regions from merging |
 | Select | Drag to select regions for batch deletion |
 | Undo / Redo | Undo or redo edit operations |
@@ -163,6 +164,49 @@ Click any text region to select it. Once selected, you can:
 ::: tip Deleting Failed Recognition Regions
 If a region failed recognition (e.g., an icon was mistakenly detected as text), it's recommended to delete it. Once deleted, that region won't go through Inpaint processing, preserving the original background image.
 :::
+
+### Trapezoid Mode (Slanted Text)
+
+When your slides contain slanted or angled text, rectangular regions cannot accurately frame them. Use "Trapezoid Mode" to convert a region into a quadrilateral with freely adjustable vertices.
+
+![Trapezoid Mode](/images/trapezoid-mode.webp)
+
+**When to use:**
+- Text arranged along diagonal lines
+- Text tilted due to perspective angles
+- Artistic or decorative text layouts
+
+**How to use:**
+1. Click any text region to select it (a blue border will appear)
+2. Once selected, the "Trapezoid" button appears in the toolbar (trapezoid-shaped icon)
+3. Click the "Trapezoid" button to convert the region from a rectangle to a quadrilateral
+4. The blue circular corner handles become **purple diamond** handles
+5. Drag the purple handles to adjust each vertex position, fitting the region to the slanted text
+6. Click the "Revert to Rectangle" button to restore the region back to a rectangle
+
+::: warning Shape Restriction
+The system automatically validates that the quadrilateral is valid (no self-intersection). If dragging a vertex causes edges to cross, the system will automatically revert to the position before dragging.
+:::
+
+**PPTX Export Behavior:**
+- Trapezoid regions automatically calculate rotation angle based on their slant
+- Text boxes will be correctly rotated, maintaining visual consistency with the original slide
+- Font size is calculated using the actual trapezoid height (not the bounding box), ensuring correct proportions
+
+**Real Example:**
+
+The image below shows a complete editing case. In this pyramid diagram, slanted text like "(Thumbnails)" couldn't be detected correctly by OCR, so we:
+1. Manually drew a rectangular region to frame the text
+2. Used trapezoid mode to adjust the region shape to fit the slanted text
+3. Used separator lines to prevent adjacent regions from being incorrectly merged
+
+![Adjusted Result](/images/trapezoid-adjusted-result.webp)
+
+::: tip Iteration is Normal
+Complex slides may require multiple adjustments to achieve ideal results. As shown below, multiple thumbnails appear beneath the processed version, representing different inpainting attempts. You can click different versions to compare results.
+:::
+
+![Multiple Inpaint Attempts](/images/inpaint-versions.webp)
 
 ### Separator Lines
 
@@ -200,6 +244,15 @@ Use the "Select" tool to select multiple regions at once:
 | Line Height Ratio | Adjust text line spacing |
 | Min Font Size | Limit minimum font size |
 | Max Font Size | Limit maximum font size |
+
+### Export Result Preview
+
+The image below shows how the exported PPTX file appears in PowerPoint:
+- Trapezoid region text boxes are correctly rotated, aligned with the original slanted text
+- All text boxes are editable and can be modified directly
+- The background image has the original text removed, showing a clean background
+
+![PowerPoint Final Result](/images/pptx-final-result.webp)
 
 ## Supported Formats
 
