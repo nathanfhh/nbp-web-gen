@@ -144,15 +144,35 @@ Click "Edit Regions" to enter edit mode and fine-tune the OCR results.
 
 A toolbar appears at the top in edit mode with these tools:
 
-| Tool | Description |
-|------|-------------|
-| Draw Rectangle | Drag to draw a new text region |
-| Trapezoid | Convert selected region to a quadrilateral with adjustable vertices (appears when a region is selected) |
-| Separator | Click two points to draw a separator line that prevents adjacent regions from merging |
-| Select | Drag to select regions for batch deletion |
-| Undo / Redo | Undo or redo edit operations |
-| Reset | Reset all edits to original OCR results |
-| Done | Save edits and exit edit mode |
+| Tool | Shortcut | Description |
+|------|----------|-------------|
+| Draw Rectangle | `D` | Drag to draw a new text region |
+| Trapezoid | `T` | Convert selected region to a quadrilateral with adjustable vertices (appears when a region is selected) |
+| Separator | `S` | Click two points to draw a separator line that prevents adjacent regions from merging |
+| Select | `V` | Drag to select regions for batch deletion |
+| Undo / Redo | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo or redo edit operations |
+| Reset | `R` | Reset all edits to original OCR results |
+| Done | - | Save edits and exit edit mode |
+
+### Keyboard Shortcuts
+
+Edit mode supports the following keyboard shortcuts for efficient operation:
+
+| Shortcut | Function |
+|----------|----------|
+| `D` | Toggle draw rectangle mode |
+| `S` | Toggle separator line mode |
+| `V` | Toggle selection mode |
+| `T` | Toggle trapezoid mode (requires a selected region) |
+| `R` | Reset all edits |
+| `Ctrl+Z` / `Cmd+Z` | Undo |
+| `Ctrl+Shift+Z` / `Cmd+Shift+Z` | Redo |
+| `Escape` | Cancel current operation or exit mode |
+| `Delete` / `Backspace` | Delete selected separator line |
+
+::: tip Quick Switching
+Use keyboard shortcuts to quickly switch between different tools without moving the mouse to click toolbar buttons.
+:::
 
 ### Selecting and Adjusting Regions
 
