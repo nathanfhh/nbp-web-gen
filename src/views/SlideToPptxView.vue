@@ -139,7 +139,7 @@ const openLightboxForEdit = () => {
 
   // Regions snapshot - changes here require inpaint
   editModeRegionsSnapshotRef.value = JSON.stringify(
-    regionsToUse.map(r => ({ bounds: r.bounds, text: r.text }))
+    regionsToUse.map(r => ({ bounds: r.bounds, text: r.text, polygon: r.polygon }))
   )
 
   // Separators snapshot - changes here only require remerge
@@ -170,7 +170,7 @@ const exitEditMode = async () => {
   const separatorLines = state.separatorLines || []
 
   const currentRegionsSnapshot = JSON.stringify(
-    regionsToUse.map(r => ({ bounds: r.bounds, text: r.text }))
+    regionsToUse.map(r => ({ bounds: r.bounds, text: r.text, polygon: r.polygon }))
   )
   const currentSeparatorsSnapshot = JSON.stringify(
     separatorLines.map(s => ({ start: s.start, end: s.end }))
@@ -306,8 +306,16 @@ const handleAddRegion = ({ bounds, text }) => {
   slideToPptx.addManualRegion(currentIndex.value, bounds, text)
 }
 
-const handleResizeRegion = ({ index, bounds }) => {
-  slideToPptx.resizeRegion(currentIndex.value, index, bounds)
+const handleResizeRegion = ({ index, bounds, polygon }) => {
+  slideToPptx.resizeRegion(currentIndex.value, index, bounds, polygon)
+}
+
+const handleTogglePolygonMode = (index) => {
+  slideToPptx.togglePolygonMode(currentIndex.value, index)
+}
+
+const handleMoveVertex = ({ index, polygon }) => {
+  slideToPptx.moveVertex(currentIndex.value, index, polygon)
 }
 
 const handleResetRegions = () => {
@@ -409,7 +417,8 @@ const handleDeleteCurrentVersion = async () => {
 // Current slide's OCR results based on mode
 const currentOcrRegions = computed(() => {
   if (!slideStates.value[currentIndex.value]) return { merged: [], raw: [], failed: [] }
-  const rawRegions = slideStates.value[currentIndex.value].rawRegions || []
+  // Use editedRawRegions when available (contains isPolygonMode and edited polygon data)
+  const rawRegions = slideStates.value[currentIndex.value].editedRawRegions || slideStates.value[currentIndex.value].rawRegions || []
   return {
     merged: slideStates.value[currentIndex.value].regions || [],
     raw: rawRegions.filter(r => !r.recognitionFailed),
@@ -1067,47 +1076,73 @@ const ratioMismatch = computed(() => {
                       <svg class="w-full h-full" :viewBox="`0 0 ${slideStates[currentIndex]?.width || 1920} ${slideStates[currentIndex]?.height || 1080}`" preserveAspectRatio="xMidYMid meet">
                         <!-- Merged Regions (Blue) -->
                         <template v-if="showMergedRegions">
-                          <rect
-                            v-for="(result, idx) in currentOcrRegions.merged"
-                            :key="`merged-${idx}`"
-                            :x="result.bounds.x"
-                            :y="result.bounds.y"
-                            :width="result.bounds.width"
-                            :height="result.bounds.height"
-                            fill="rgba(59, 130, 246, 0.2)"
-                            stroke="rgba(59, 130, 246, 0.8)"
-                            stroke-width="2"
-                          />
+                          <template v-for="(result, idx) in currentOcrRegions.merged" :key="`merged-${idx}`">
+                            <polygon
+                              v-if="result.isPolygonMode && result.polygon"
+                              :points="result.polygon.map(p => p.join(',')).join(' ')"
+                              fill="rgba(59, 130, 246, 0.2)"
+                              stroke="rgba(59, 130, 246, 0.8)"
+                              stroke-width="2"
+                            />
+                            <rect
+                              v-else
+                              :x="result.bounds.x"
+                              :y="result.bounds.y"
+                              :width="result.bounds.width"
+                              :height="result.bounds.height"
+                              fill="rgba(59, 130, 246, 0.2)"
+                              stroke="rgba(59, 130, 246, 0.8)"
+                              stroke-width="2"
+                            />
+                          </template>
                         </template>
                         <!-- Raw Regions (Green Dashed) -->
                         <template v-if="showRawRegions">
-                          <rect
-                            v-for="(result, idx) in currentOcrRegions.raw"
-                            :key="`raw-${idx}`"
-                            :x="result.bounds.x"
-                            :y="result.bounds.y"
-                            :width="result.bounds.width"
-                            :height="result.bounds.height"
-                            fill="rgba(16, 185, 129, 0.1)"
-                            stroke="rgba(16, 185, 129, 0.8)"
-                            stroke-width="1"
-                            stroke-dasharray="4"
-                          />
+                          <template v-for="(result, idx) in currentOcrRegions.raw" :key="`raw-${idx}`">
+                            <polygon
+                              v-if="result.isPolygonMode && result.polygon"
+                              :points="result.polygon.map(p => p.join(',')).join(' ')"
+                              fill="rgba(16, 185, 129, 0.1)"
+                              stroke="rgba(16, 185, 129, 0.8)"
+                              stroke-width="1"
+                              stroke-dasharray="4"
+                            />
+                            <rect
+                              v-else
+                              :x="result.bounds.x"
+                              :y="result.bounds.y"
+                              :width="result.bounds.width"
+                              :height="result.bounds.height"
+                              fill="rgba(16, 185, 129, 0.1)"
+                              stroke="rgba(16, 185, 129, 0.8)"
+                              stroke-width="1"
+                              stroke-dasharray="4"
+                            />
+                          </template>
                         </template>
                         <!-- Failed Regions (Red Dashed) -->
                         <template v-if="showFailedRegions">
-                          <rect
-                            v-for="(result, idx) in currentOcrRegions.failed"
-                            :key="`failed-${idx}`"
-                            :x="result.bounds.x"
-                            :y="result.bounds.y"
-                            :width="result.bounds.width"
-                            :height="result.bounds.height"
-                            fill="rgba(239, 68, 68, 0.15)"
-                            stroke="rgba(239, 68, 68, 0.9)"
-                            stroke-width="2"
-                            stroke-dasharray="6 3"
-                          />
+                          <template v-for="(result, idx) in currentOcrRegions.failed" :key="`failed-${idx}`">
+                            <polygon
+                              v-if="result.isPolygonMode && result.polygon"
+                              :points="result.polygon.map(p => p.join(',')).join(' ')"
+                              fill="rgba(239, 68, 68, 0.15)"
+                              stroke="rgba(239, 68, 68, 0.9)"
+                              stroke-width="2"
+                              stroke-dasharray="6 3"
+                            />
+                            <rect
+                              v-else
+                              :x="result.bounds.x"
+                              :y="result.bounds.y"
+                              :width="result.bounds.width"
+                              :height="result.bounds.height"
+                              fill="rgba(239, 68, 68, 0.15)"
+                              stroke="rgba(239, 68, 68, 0.9)"
+                              stroke-width="2"
+                              stroke-dasharray="6 3"
+                            />
+                          </template>
                         </template>
                       </svg>
                     </div>
@@ -2098,6 +2133,8 @@ const ratioMismatch = computed(() => {
           @delete-regions-batch="handleDeleteRegionsBatch"
           @add-region="handleAddRegion"
           @resize-region="handleResizeRegion"
+          @toggle-polygon-mode="handleTogglePolygonMode"
+          @move-vertex="handleMoveVertex"
           @reset="handleResetRegions"
           @done="exitEditMode"
           @add-separator="handleAddSeparator"

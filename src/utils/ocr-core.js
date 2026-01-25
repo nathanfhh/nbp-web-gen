@@ -535,16 +535,36 @@ function createBlockFromRegions(regions, settings = {}) {
   // The largest line height best represents the actual text size.
   const maxHeight = Math.max(...regions.map((r) => r.bounds.height))
 
-  return {
-    text,
-    confidence: avgConfidence,
-    bounds,
-    polygon: [
+  // Propagate polygon-mode (trapezoid) data when ALL constituent regions are
+  // polygon-mode.  Regions are already sorted in reading order (top → bottom),
+  // so the combined polygon uses the first region's top edge and the last
+  // region's bottom edge, preserving the overall slant.
+  const allPolygonMode = regions.every((r) => r.isPolygonMode && r.polygon)
+  let polygon
+  if (allPolygonMode) {
+    const first = regions[0].polygon // [nw, ne, se, sw]
+    const last = regions[regions.length - 1].polygon
+    polygon = [
+      first[0], // nw from topmost region
+      first[1], // ne from topmost region
+      last[2], // se from bottommost region
+      last[3], // sw from bottommost region
+    ]
+  } else {
+    polygon = [
       [bounds.x, bounds.y],
       [bounds.x + bounds.width, bounds.y],
       [bounds.x + bounds.width, bounds.y + bounds.height],
       [bounds.x, bounds.y + bounds.height],
-    ],
+    ]
+  }
+
+  return {
+    text,
+    confidence: avgConfidence,
+    bounds,
+    polygon,
+    ...(allPolygonMode ? { isPolygonMode: true } : {}),
     alignment: inferAlignment(regions),
     fontSize: maxHeight,
     // Keep original lines for potential detailed editing later

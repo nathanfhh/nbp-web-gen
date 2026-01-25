@@ -1022,6 +1022,42 @@ Output: A single clean image with all text removed.`
   }
 
   // ============================================================================
+  // Polygon Mode Helpers
+  // ============================================================================
+
+  /**
+   * Convert a 4-point polygon to an axis-aligned bounding box
+   * @param {Array<Array<number>>} polygon - [[x,y], [x,y], [x,y], [x,y]]
+   * @returns {{x: number, y: number, width: number, height: number}}
+   */
+  const polygonToBounds = (polygon) => {
+    const xs = polygon.map(p => p[0])
+    const ys = polygon.map(p => p[1])
+    const minX = Math.min(...xs)
+    const minY = Math.min(...ys)
+    return {
+      x: minX,
+      y: minY,
+      width: Math.max(...xs) - minX,
+      height: Math.max(...ys) - minY,
+    }
+  }
+
+  /**
+   * Convert bounds to a rectangular 4-point polygon
+   * @param {{x: number, y: number, width: number, height: number}} bounds
+   * @returns {Array<Array<number>>} [[x,y], ...] in order: nw, ne, se, sw
+   */
+  const boundsToPolygon = (bounds) => {
+    return [
+      [bounds.x, bounds.y],
+      [bounds.x + bounds.width, bounds.y],
+      [bounds.x + bounds.width, bounds.y + bounds.height],
+      [bounds.x, bounds.y + bounds.height],
+    ]
+  }
+
+  // ============================================================================
   // Region Editing Methods
   // ============================================================================
 
@@ -1131,6 +1167,7 @@ Output: A single clean image with all text removed.`
       ],
       recognitionFailed: false,
       recognitionSource: 'manual',
+      isPolygonMode: false,
     }
 
     // Add to regions
@@ -1314,12 +1351,13 @@ Output: A single clean image with all text removed.`
   }
 
   /**
-   * Resize a region's bounds
+   * Resize a region's bounds (and optionally polygon for polygon mode)
    * @param {number} slideIndex - Slide index
    * @param {number} regionIndex - Region index to resize
    * @param {Object} newBounds - New bounds { x, y, width, height }
+   * @param {Array<Array<number>>} [newPolygon] - Optional polygon for polygon mode
    */
-  const resizeRegion = (slideIndex, regionIndex, newBounds) => {
+  const resizeRegion = (slideIndex, regionIndex, newBounds, newPolygon) => {
     const state = slideStates.value[slideIndex]
     if (!state) return
 
@@ -1334,7 +1372,7 @@ Output: A single clean image with all text removed.`
     const updatedRegion = {
       ...currentRegions[regionIndex],
       bounds: { ...newBounds },
-      polygon: [
+      polygon: newPolygon || [
         [newBounds.x, newBounds.y],
         [newBounds.x + newBounds.width, newBounds.y],
         [newBounds.x + newBounds.width, newBounds.y + newBounds.height],
@@ -1351,6 +1389,81 @@ Output: A single clean image with all text removed.`
       ...state,
       editedRawRegions: newRegions,
     }
+  }
+
+  // ============================================================================
+  // Polygon Mode Methods (Trapezoid)
+  // ============================================================================
+
+  /**
+   * Toggle polygon (trapezoid) mode for a region
+   * When entering: region keeps its polygon but isPolygonMode becomes true
+   * When reverting: polygon is reset to match the rectangular bounds
+   * @param {number} slideIndex - Slide index
+   * @param {number} regionIndex - Region index
+   */
+  const togglePolygonMode = (slideIndex, regionIndex) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    const currentRegions = state.editedRawRegions || [...state.rawRegions]
+    if (regionIndex < 0 || regionIndex >= currentRegions.length) return
+
+    pushEditHistory(slideIndex)
+
+    const region = currentRegions[regionIndex]
+    const newMode = !region.isPolygonMode
+
+    const updatedRegion = { ...region, isPolygonMode: newMode }
+
+    if (!newMode) {
+      // Reverting to rectangle: reset polygon to match current bounds
+      updatedRegion.polygon = boundsToPolygon(region.bounds)
+    }
+
+    const newRegions = [...currentRegions]
+    newRegions[regionIndex] = updatedRegion
+
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: newRegions,
+    }
+
+    // Remerge so merged overlay reflects polygon mode change
+    remergeMergedRegions(slideIndex)
+  }
+
+  /**
+   * Move a polygon vertex (update polygon and recalculate bounds)
+   * @param {number} slideIndex - Slide index
+   * @param {number} regionIndex - Region index
+   * @param {Array<Array<number>>} newPolygon - New 4-point polygon
+   */
+  const moveVertex = (slideIndex, regionIndex, newPolygon) => {
+    const state = slideStates.value[slideIndex]
+    if (!state) return
+
+    const currentRegions = state.editedRawRegions || [...state.rawRegions]
+    if (regionIndex < 0 || regionIndex >= currentRegions.length) return
+
+    pushEditHistory(slideIndex)
+
+    const updatedRegion = {
+      ...currentRegions[regionIndex],
+      polygon: newPolygon,
+      bounds: polygonToBounds(newPolygon),
+    }
+
+    const newRegions = [...currentRegions]
+    newRegions[regionIndex] = updatedRegion
+
+    slideStates.value[slideIndex] = {
+      ...state,
+      editedRawRegions: newRegions,
+    }
+
+    // Remerge so merged overlay reflects vertex changes
+    remergeMergedRegions(slideIndex)
   }
 
   // ============================================================================
@@ -1813,6 +1926,10 @@ Output: A single clean image with all text removed.`
     resetRegions,
     resizeRegion,
     reprocessSlide,
+
+    // Polygon mode methods (trapezoid)
+    togglePolygonMode,
+    moveVertex,
 
     // Separator line methods
     addSeparatorLine,

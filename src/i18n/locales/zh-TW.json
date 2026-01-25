@@ -1256,7 +1256,11 @@
       "selectionConfirm": "已選取 {count} 個區域，點擊 ✓ 確認刪除",
       "confirmReset": "確定要重設所有編輯嗎？此操作無法復原。",
       "resetTitle": "重設編輯",
-      "dragHint": "拖曳移動工具列"
+      "dragHint": "拖曳移動工具列",
+      "trapezoid": "轉為梯形",
+      "trapezoidRevert": "還原矩形",
+      "trapezoidHint": "拖曳紫色頂點調整形狀",
+      "trapezoidInvalid": "形狀無效（自交叉），已還原"
     },
     "inpaintMethod": "文字移除方式",
     "manageApiKeys": "管理 Gemini 金鑰",

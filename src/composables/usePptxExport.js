@@ -148,6 +148,62 @@ export function usePptxExport() {
     return { x, y, w, h }
   }
 
+  // ============================================================================
+  // Polygon (Trapezoid) Geometry Helpers
+  // ============================================================================
+  // polygon order: [nw, ne, se, sw]
+  //   top    edge = nw → ne  (indices 0 → 1)
+  //   right  edge = ne → se  (indices 1 → 2)
+  //   bottom edge = sw → se  (indices 3 → 2)
+  //   left   edge = nw → sw  (indices 0 → 3)
+  //
+  // All helpers return null for non-polygon-mode regions so callers can
+  // fall back to the rectangle-based path.
+  // ============================================================================
+
+  const _isPolygon = (region) =>
+    region.isPolygonMode && region.polygon && region.polygon.length === 4
+
+  /** Average of left + right edge lengths (perpendicular to text direction). */
+  const getPolygonEffectiveHeight = (region) => {
+    if (!_isPolygon(region)) return null
+    const [nw, ne, se, sw] = region.polygon
+    const leftH = Math.hypot(sw[0] - nw[0], sw[1] - nw[1])
+    const rightH = Math.hypot(se[0] - ne[0], se[1] - ne[1])
+    return (leftH + rightH) / 2
+  }
+
+  /** Average of top + bottom edge lengths (along text direction). */
+  const getPolygonEffectiveWidth = (region) => {
+    if (!_isPolygon(region)) return null
+    const [nw, ne, se, sw] = region.polygon
+    const topW = Math.hypot(ne[0] - nw[0], ne[1] - nw[1])
+    const bottomW = Math.hypot(se[0] - sw[0], se[1] - sw[1])
+    return (topW + bottomW) / 2
+  }
+
+  /** Centroid (average of 4 vertices) in pixel coordinates. */
+  const getPolygonCentroid = (region) => {
+    if (!_isPolygon(region)) return null
+    const [nw, ne, se, sw] = region.polygon
+    return {
+      x: (nw[0] + ne[0] + se[0] + sw[0]) / 4,
+      y: (nw[1] + ne[1] + se[1] + sw[1]) / 4,
+    }
+  }
+
+  /**
+   * Rotation angle in degrees, derived from the average of
+   * top-edge and bottom-edge angles relative to the horizontal.
+   */
+  const getPolygonRotation = (region) => {
+    if (!_isPolygon(region)) return null
+    const [nw, ne, se, sw] = region.polygon
+    const topAngle = Math.atan2(ne[1] - nw[1], ne[0] - nw[0])
+    const bottomAngle = Math.atan2(se[1] - sw[1], se[0] - sw[0])
+    return ((topAngle + bottomAngle) / 2) * (180 / Math.PI)
+  }
+
   /**
    * Generate a PPTX file from slide data
    * @param {SlideData[]} slides - Array of slide data
@@ -226,10 +282,32 @@ export function usePptxExport() {
 
             // Convert pixel coordinates to inches
             // Map to image position (not full slide) to match letterbox/pillarbox positioning
-            const x = imgPos.x + pxToInches(region.bounds.x, slideData.width, imgPos.w)
-            const y = imgPos.y + pxToInches(region.bounds.y, slideData.height, imgPos.h)
-            const w = pxToInches(region.bounds.width, slideData.width, imgPos.w)
-            const h = pxToInches(region.bounds.height, slideData.height, imgPos.h)
+            //
+            // For polygon-mode (trapezoid) regions the text box uses:
+            //   - effective width / height  (average edge lengths, not bounding box)
+            //   - centroid-based positioning (center of the 4 vertices)
+            //   - rotation angle            (average of top/bottom edge angles)
+            const effectiveHeightPx = getPolygonEffectiveHeight(region) ?? region.bounds.height
+            const effectiveWidthPx = getPolygonEffectiveWidth(region) ?? region.bounds.width
+            const centroid = getPolygonCentroid(region)
+            const rotateDeg = getPolygonRotation(region)
+
+            let x, y, w, h
+            if (centroid) {
+              // Trapezoid: position from centroid, use effective dimensions
+              w = pxToInches(effectiveWidthPx, slideData.width, imgPos.w)
+              h = pxToInches(effectiveHeightPx, slideData.height, imgPos.h)
+              const cx = imgPos.x + pxToInches(centroid.x, slideData.width, imgPos.w)
+              const cy = imgPos.y + pxToInches(centroid.y, slideData.height, imgPos.h)
+              x = cx - w / 2
+              y = cy - h / 2
+            } else {
+              // Rectangle: original bounds-based positioning
+              x = imgPos.x + pxToInches(region.bounds.x, slideData.width, imgPos.w)
+              y = imgPos.y + pxToInches(region.bounds.y, slideData.height, imgPos.h)
+              w = pxToInches(region.bounds.width, slideData.width, imgPos.w)
+              h = pxToInches(effectiveHeightPx, slideData.height, imgPos.h)
+            }
 
             // Calculate Font Size
             // Strategy: Use height-based calculation with median of original line heights
@@ -245,15 +323,27 @@ export function usePptxExport() {
 
             if (region.lines && region.lines.length > 0) {
               // Get heights of all original lines
+              // For polygon-mode regions, use line polygon edge heights instead of
+              // axis-aligned bounds.height (which is inflated for slanted text)
+              const usePolygonHeight = _isPolygon(region)
               const lineHeights = region.lines
                 .filter((line) => line.text && line.text.trim())
                 .map((line) => {
+                  let heightPx
+                  if (usePolygonHeight && line.polygon && line.polygon.length === 4) {
+                    const [lnw, lne, lse, lsw] = line.polygon
+                    const leftH = Math.hypot(lsw[0] - lnw[0], lsw[1] - lnw[1])
+                    const rightH = Math.hypot(lse[0] - lne[0], lse[1] - lne[1])
+                    heightPx = (leftH + rightH) / 2
+                  } else {
+                    heightPx = line.bounds.height
+                  }
                   debugLines.push({
                     text: line.text.substring(0, 30) + (line.text.length > 30 ? '...' : ''),
-                    heightPx: Math.round(line.bounds.height),
+                    heightPx: Math.round(heightPx),
                     color: line.textColor || '(none)',
                   })
-                  return line.bounds.height
+                  return heightPx
                 })
 
               if (lineHeights.length > 0) {
@@ -269,8 +359,8 @@ export function usePptxExport() {
                 fontSize = (h * 72) / lineHeightRatio
               }
             } else {
-              // Single line or no lines data: use region height directly
-              const heightPx = region.fontSize || region.bounds.height
+              // Single line or no lines data: use effective height
+              const heightPx = region.fontSize || effectiveHeightPx
               fontSize = ((heightPx / slideData.height) * imgPos.h * 72) / lineHeightRatio
               debugLines.push({
                 text: region.text.substring(0, 30) + (region.text.length > 30 ? '...' : ''),
@@ -312,6 +402,8 @@ export function usePptxExport() {
               // Make text box transparent so background shows through
               fill: { type: 'none' },
               line: { type: 'none' },
+              // Rotation for trapezoid regions (degrees, clockwise)
+              ...(rotateDeg != null && Math.abs(rotateDeg) > 0.1 ? { rotate: rotateDeg } : {}),
             }
 
             if (hasMultipleColors && validLines.length > 0) {

@@ -78,6 +78,8 @@ const emit = defineEmits([
   'delete-regions-batch',
   'add-region',
   'resize-region',
+  'toggle-polygon-mode',
+  'move-vertex',
   'reset',
   'done',
   'add-separator',
@@ -230,9 +232,16 @@ const resizeTool = useResizeTool({
   },
   getSelectedIndex: () => deleteTool.selectedIndex.value,
   getImageDimensions: () => props.imageDimensions,
-  onResize: ({ index, bounds }) => {
-    emit('resize-region', { index, bounds })
+  onResize: ({ index, bounds, polygon }) => {
+    emit('resize-region', { index, bounds, polygon })
   },
+  onMoveVertex: ({ index, polygon }) => {
+    emit('move-vertex', { index, polygon })
+  },
+  onVertexInvalid: () => {
+    // Toast handled by parent or inline hint
+  },
+  isValidQuad: core.isValidQuad,
   onMagnifierShow: magnifier.show,
   onMagnifierUpdate: magnifier.updateTarget,
   onMagnifierHide: magnifier.hide,
@@ -391,6 +400,12 @@ const onTouchEnd = (e) => {
 // Toolbar Actions
 // ============================================================================
 
+const onToggleTrapezoid = () => {
+  const idx = deleteTool.selectedIndex.value
+  if (idx === null) return
+  emit('toggle-polygon-mode', idx)
+}
+
 const onDone = () => {
   drawTool.toggleDrawMode(false)
   emit('done')
@@ -521,6 +536,26 @@ defineExpose({
           <span class="hidden sm:inline">{{ t('slideToPptx.regionEditor.selectArea') }}</span>
         </button>
 
+        <!-- Trapezoid mode toggle (visible when a region is selected) -->
+        <button
+          v-if="deleteTool.selectedIndex.value !== null && regions[deleteTool.selectedIndex.value]"
+          @click.stop="onToggleTrapezoid"
+          class="toolbar-btn"
+          :class="{ 'toolbar-btn-trapezoid': regions[deleteTool.selectedIndex.value]?.isPolygonMode }"
+          :title="regions[deleteTool.selectedIndex.value]?.isPolygonMode
+            ? t('slideToPptx.regionEditor.trapezoidRevert')
+            : t('slideToPptx.regionEditor.trapezoid')"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18h12L21 6H3l3 12z" />
+          </svg>
+          <span class="hidden sm:inline">{{
+            regions[deleteTool.selectedIndex.value]?.isPolygonMode
+              ? t('slideToPptx.regionEditor.trapezoidRevert')
+              : t('slideToPptx.regionEditor.trapezoid')
+          }}</span>
+        </button>
+
         <!-- Region count indicator -->
         <span class="region-count">
           <!-- Mobile: short format -->
@@ -564,6 +599,9 @@ defineExpose({
         <div class="edit-hint" v-else-if="drawTool.isDrawModeActive.value">
           {{ t('slideToPptx.regionEditor.drawHint') }}
         </div>
+        <div class="edit-hint" v-else-if="deleteTool.selectedIndex.value !== null && regions[deleteTool.selectedIndex.value]?.isPolygonMode">
+          {{ t('slideToPptx.regionEditor.trapezoidHint') }}
+        </div>
         <div class="edit-hint" v-else-if="deleteTool.selectedIndex.value !== null">
           {{ t('slideToPptx.regionEditor.selectedHint') }}
         </div>
@@ -603,8 +641,18 @@ defineExpose({
         :class="{ 'region-selected': deleteTool.selectedIndex.value === idx }"
         pointer-events="auto"
       >
-        <!-- Region rectangle -->
+        <!-- Region shape: polygon for trapezoid mode, rect for normal -->
+        <polygon
+          v-if="region.isPolygonMode"
+          :points="region.polygon.map(p => `${p[0]},${p[1]}`).join(' ')"
+          :fill="deleteTool.selectedIndex.value === idx ? 'rgba(59, 130, 246, 0.2)' : core.getRegionColor(region).fill"
+          :stroke="deleteTool.selectedIndex.value === idx ? 'rgba(59, 130, 246, 0.9)' : core.getRegionColor(region).stroke"
+          stroke-width="2"
+          vector-effect="non-scaling-stroke"
+          class="region-rect"
+        />
         <rect
+          v-else
           :x="region.bounds.x"
           :y="region.bounds.y"
           :width="region.bounds.width"
@@ -619,33 +667,66 @@ defineExpose({
 
       <!-- Selected region controls (rendered on top) -->
       <g v-if="deleteTool.selectedIndex.value !== null && regions[deleteTool.selectedIndex.value] && !drawTool.isDrawModeActive.value" pointer-events="auto">
-        <!-- Resize handles at corners -->
-        <g
-          v-for="(pos, handle) in core.getResizeHandles(regions[deleteTool.selectedIndex.value])"
-          :key="`handle-${handle}`"
-          @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
-          @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
-          class="resize-handle"
-          :class="`resize-handle-${handle}`"
-        >
-          <!-- Larger transparent hit area -->
-          <circle
-            :cx="pos.x"
-            :cy="pos.y"
-            r="16"
-            fill="transparent"
-          />
-          <!-- Visible handle -->
-          <circle
-            :cx="pos.x"
-            :cy="pos.y"
-            r="8"
-            fill="white"
-            stroke="rgba(59, 130, 246, 0.9)"
-            stroke-width="2"
-            vector-effect="non-scaling-stroke"
-          />
-        </g>
+        <!-- Polygon mode: purple diamond vertex handles -->
+        <template v-if="regions[deleteTool.selectedIndex.value].isPolygonMode">
+          <g
+            v-for="(pos, handle) in core.getVertexHandles(regions[deleteTool.selectedIndex.value])"
+            :key="`vertex-${handle}`"
+            @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
+            @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
+            class="resize-handle vertex-handle"
+          >
+            <!-- Larger transparent hit area -->
+            <circle
+              :cx="pos.x"
+              :cy="pos.y"
+              r="18"
+              fill="transparent"
+            />
+            <!-- Visible diamond handle (rotated square) -->
+            <rect
+              :x="pos.x - 7"
+              :y="pos.y - 7"
+              width="14"
+              height="14"
+              :transform="`rotate(45 ${pos.x} ${pos.y})`"
+              fill="white"
+              stroke="rgba(168, 85, 247, 0.9)"
+              stroke-width="2"
+              vector-effect="non-scaling-stroke"
+            />
+          </g>
+        </template>
+
+        <!-- Rectangle mode: blue circle resize handles at corners -->
+        <template v-else>
+          <g
+            v-for="(pos, handle) in core.getResizeHandles(regions[deleteTool.selectedIndex.value])"
+            :key="`handle-${handle}`"
+            @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
+            @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
+            class="resize-handle"
+            :class="`resize-handle-${handle}`"
+          >
+            <!-- Larger transparent hit area -->
+            <circle
+              :cx="pos.x"
+              :cy="pos.y"
+              r="16"
+              fill="transparent"
+            />
+            <!-- Visible handle -->
+            <circle
+              :cx="pos.x"
+              :cy="pos.y"
+              r="8"
+              fill="white"
+              stroke="rgba(59, 130, 246, 0.9)"
+              stroke-width="2"
+              vector-effect="non-scaling-stroke"
+            />
+          </g>
+        </template>
 
         <!-- Delete button at center -->
         <g
@@ -1010,6 +1091,12 @@ defineExpose({
   border-color: rgba(239, 68, 68, 0.8);
 }
 
+.toolbar-btn-trapezoid {
+  color: white;
+  background: rgba(168, 85, 247, 0.8);
+  border-color: rgba(168, 85, 247, 0.8);
+}
+
 .toolbar-btn-icon {
   padding: 0.5rem;
 }
@@ -1108,6 +1195,10 @@ defineExpose({
 /* Resize handles */
 .resize-handle {
   cursor: pointer;
+}
+
+.vertex-handle {
+  cursor: move;
 }
 
 .resize-handle-nw {

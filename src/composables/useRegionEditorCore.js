@@ -8,6 +8,35 @@
 import { computed } from 'vue'
 
 /**
+ * Check if two line segments (p1-p2 and p3-p4) intersect (proper crossing only)
+ * Uses the cross product orientation test.
+ * @param {Array<number>} p1
+ * @param {Array<number>} p2
+ * @param {Array<number>} p3
+ * @param {Array<number>} p4
+ * @returns {boolean}
+ */
+function segmentsIntersect(p1, p2, p3, p4) {
+  const d1 = cross(p3, p4, p1)
+  const d2 = cross(p3, p4, p2)
+  const d3 = cross(p1, p2, p3)
+  const d4 = cross(p1, p2, p4)
+
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true
+  }
+  return false
+}
+
+/**
+ * Cross product of vectors (b - a) and (c - a)
+ */
+function cross(a, b, c) {
+  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+}
+
+/**
  * @param {Object} options
  * @param {import('vue').Ref<SVGElement|null>} options.svgRef - Reference to the SVG overlay element
  * @param {import('vue').Ref<{width: number, height: number}>|Object} options.imageDimensions - Image dimensions (reactive or plain object)
@@ -169,6 +198,39 @@ export function useRegionEditorCore({ svgRef, imageDimensions }) {
     )
   }
 
+  /**
+   * Get vertex handle positions for a polygon-mode region
+   * Returns 4 vertices from the region's polygon array
+   * @param {Object} region - Region with polygon property [[x,y], ...]
+   * @returns {{nw: {x,y}, ne: {x,y}, se: {x,y}, sw: {x,y}}} Vertex positions
+   */
+  const getVertexHandles = (region) => {
+    const poly = region.polygon
+    // polygon order: [nw, ne, se, sw] (top-left, top-right, bottom-right, bottom-left)
+    return {
+      nw: { x: poly[0][0], y: poly[0][1] },
+      ne: { x: poly[1][0], y: poly[1][1] },
+      se: { x: poly[2][0], y: poly[2][1] },
+      sw: { x: poly[3][0], y: poly[3][1] },
+    }
+  }
+
+  /**
+   * Check if a quadrilateral (4-point polygon) is valid (non-self-intersecting)
+   * Tests that no two non-adjacent edges cross each other.
+   * @param {Array<Array<number>>} polygon - 4 points [[x,y], ...]
+   * @returns {boolean} True if the quad is valid
+   */
+  const isValidQuad = (polygon) => {
+    if (!polygon || polygon.length !== 4) return false
+
+    // Check non-adjacent edge pairs: (edge 0-1 vs edge 2-3) and (edge 1-2 vs edge 3-0)
+    return (
+      !segmentsIntersect(polygon[0], polygon[1], polygon[2], polygon[3]) &&
+      !segmentsIntersect(polygon[1], polygon[2], polygon[3], polygon[0])
+    )
+  }
+
   return {
     // Computed
     hasValidDimensions,
@@ -181,6 +243,8 @@ export function useRegionEditorCore({ svgRef, imageDimensions }) {
     getDeleteButtonCenter,
     getDeleteButtonSize,
     getResizeHandles,
+    getVertexHandles,
+    isValidQuad,
     getSeparatorMidpoint,
     rectsIntersect,
   }

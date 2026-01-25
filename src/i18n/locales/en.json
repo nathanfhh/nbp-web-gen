@@ -1256,7 +1256,11 @@
       "selectionConfirm": "{count} region(s) selected, click ✓ to delete",
       "confirmReset": "Reset all edits? This cannot be undone.",
       "resetTitle": "Reset Edits",
-      "dragHint": "Drag to move toolbar"
+      "dragHint": "Drag to move toolbar",
+      "trapezoid": "Trapezoid",
+      "trapezoidRevert": "Revert to Rectangle",
+      "trapezoidHint": "Drag purple vertices to adjust shape",
+      "trapezoidInvalid": "Invalid shape (self-intersecting), reverted"
     },
     "inpaintMethod": "Text Removal Method",
     "manageApiKeys": "Manage Gemini Keys",
