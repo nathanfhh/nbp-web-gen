@@ -274,6 +274,14 @@ The image below shows how the exported PPTX file appears in PowerPoint:
 
 ![PowerPoint Final Result](/images/pptx-final-result.webp)
 
+**Inpaint Before/After Comparison:**
+
+The images below show the inpaint processing effect for trapezoid regions. Left is before processing (original image), right is after processing (text removed):
+
+| Before | After |
+|--------|-------|
+| ![Before Inpaint](/images/trapezoid-inpaint-before.webp) | ![After Inpaint](/images/trapezoid-inpaint-after.webp) |
+
 ## Supported Formats
 
 - Input: PDF, PNG, JPG, WebP

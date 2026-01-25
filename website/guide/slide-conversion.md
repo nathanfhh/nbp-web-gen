@@ -274,6 +274,14 @@
 
 ![PowerPoint 最終成果](/images/pptx-final-result.webp)
 
+**Inpaint 前後對比：**
+
+下圖展示了梯形區域的 Inpaint 處理效果。左邊是處理前（原始圖片），右邊是處理後（文字已移除）：
+
+| 處理前 | 處理後 |
+|--------|--------|
+| ![Inpaint 前](/images/trapezoid-inpaint-before.webp) | ![Inpaint 後](/images/trapezoid-inpaint-after.webp) |
+
 ## 支援格式
 
 - 輸入：PDF、PNG、JPG、WebP
