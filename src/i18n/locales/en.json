@@ -1198,6 +1198,12 @@
     "noImagesInHistory": "No images in this history record",
     "loadFailed": "Failed to load images",
     "confirmLeave": "Conversion in progress. Are you sure you want to leave?",
+    "leaveConfirm": {
+      "title": "Leave this page?",
+      "message": "Your current progress will be lost if you leave.",
+      "confirm": "Leave",
+      "cancel": "Stay"
+    },
     "noImages": "Please select images to convert",
     "showOcrResult": "Show OCR Result",
     "toggleOcrJson": "Toggle OCR JSON Data",

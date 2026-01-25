@@ -1198,6 +1198,12 @@
     "noImagesInHistory": "該歷史紀錄沒有圖片",
     "loadFailed": "載入圖片失敗",
     "confirmLeave": "正在轉換中，確定要離開嗎？",
+    "leaveConfirm": {
+      "title": "確定要離開嗎？",
+      "message": "離開後目前的處理結果將會遺失。",
+      "confirm": "離開",
+      "cancel": "留在此頁"
+    },
     "noImages": "請選擇要轉換的圖片",
     "showOcrResult": "顯示 OCR 結果",
     "toggleOcrJson": "顯示/隱藏 OCR JSON 資料",

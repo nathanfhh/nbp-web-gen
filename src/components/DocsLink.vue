@@ -1,14 +1,21 @@
 <script setup>
+import { computed } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
+import { useI18n } from 'vue-i18n'
 
-defineProps({
+const props = defineProps({
   size: {
     type: String,
     default: 'md', // 'sm' | 'md' | 'lg'
   },
+  path: {
+    type: String,
+    default: '', // e.g., 'guide/slide-conversion' - will be appended to docs URL
+  },
 })
 
 const store = useGeneratorStore()
+const { locale } = useI18n()
 
 const sizeClasses = {
   sm: 'w-5 h-5',
@@ -17,7 +24,13 @@ const sizeClasses = {
 }
 
 // Docs base URL - use relative path for same-origin docs
-const docsUrl = import.meta.env.BASE_URL + 'docs/'
+// Append locale prefix for English, then optional path
+const docsUrl = computed(() => {
+  const base = import.meta.env.BASE_URL + 'docs/'
+  const localePath = locale.value === 'en' ? 'en/' : ''
+  const pathSuffix = props.path ? props.path : ''
+  return base + localePath + pathSuffix
+})
 </script>
 
 <template>

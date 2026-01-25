@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { useApiKeyManager } from '@/composables/useApiKeyManager'
@@ -15,6 +15,7 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 import OcrSettingsModal from '@/components/OcrSettingsModal.vue'
 import ApiKeyModal from '@/components/ApiKeyModal.vue'
 import InpaintConfirmModal from '@/components/InpaintConfirmModal.vue'
+import DocsLink from '@/components/DocsLink.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -550,9 +551,14 @@ const useFileUpload = () => {
   viewMode.value = 'upload'
 }
 
-// Prevent accidental page close during processing
+// Check if user is in processing mode (OCR page) - should confirm before leaving
+const shouldConfirmLeave = computed(() => {
+  return viewMode.value === 'processing'
+})
+
+// Prevent accidental page close during processing or when images are selected
 const handleBeforeUnload = (e) => {
-  if (slideToPptx.isProcessing.value) {
+  if (slideToPptx.isProcessing.value || shouldConfirmLeave.value) {
     e.preventDefault()
     e.returnValue = t('slideToPptx.confirmLeave')
     return e.returnValue
@@ -578,9 +584,53 @@ const handleSettingsModalClose = () => {
   }
 }
 
-const goBack = () => {
-  router.push('/')
+// Flag to skip confirmation when already confirmed via goBack
+const skipLeaveConfirm = ref(false)
+
+// Show leave confirmation if there are unsaved images
+const confirmLeave = async () => {
+  if (!shouldConfirmLeave.value) return true
+
+  const confirmed = await confirmModalRef.value?.show({
+    title: t('slideToPptx.leaveConfirm.title'),
+    message: t('slideToPptx.leaveConfirm.message'),
+    confirmText: t('slideToPptx.leaveConfirm.confirm'),
+    cancelText: t('slideToPptx.leaveConfirm.cancel'),
+  })
+  return confirmed
 }
+
+const goBack = async () => {
+  const canLeave = await confirmLeave()
+  if (canLeave) {
+    skipLeaveConfirm.value = true
+    router.push('/')
+  }
+}
+
+// Vue Router navigation guard - handles browser back button and other navigation
+onBeforeRouteLeave(async () => {
+  // Skip if already confirmed via goBack button
+  if (skipLeaveConfirm.value) {
+    skipLeaveConfirm.value = false
+    return true
+  }
+
+  // No unsaved images, allow navigation
+  if (!shouldConfirmLeave.value) {
+    return true
+  }
+
+  // Show confirmation dialog
+  const confirmed = await confirmModalRef.value?.show({
+    title: t('slideToPptx.leaveConfirm.title'),
+    message: t('slideToPptx.leaveConfirm.message'),
+    confirmText: t('slideToPptx.leaveConfirm.confirm'),
+    cancelText: t('slideToPptx.leaveConfirm.cancel'),
+  })
+
+  return confirmed === true
+})
 
 // Computed properties from composable
 const isProcessing = computed(() => slideToPptx.isProcessing.value)
@@ -966,8 +1016,8 @@ const ratioMismatch = computed(() => {
         <h1 class="absolute left-1/2 -translate-x-1/2 text-xl font-semibold text-text-primary truncate max-w-[60%] sm:max-w-none">
           {{ $t('slideToPptx.title') }}
         </h1>
-        <!-- Spacer for layout balance -->
-        <div class="w-8 sm:w-24"></div>
+        <!-- Docs link -->
+        <DocsLink size="md" path="guide/slide-conversion" />
       </div>
     </header>
 
