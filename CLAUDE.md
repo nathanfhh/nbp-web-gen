@@ -476,3 +476,14 @@ This project uses a postbuild script to generate static HTML files for each rout
 - **Version bumps**: Always create git tags (do NOT use `--no-git-tag-version`)
 - **Pushing**: Always sync tags with `git push --follow-tags` or `git push && git push --tags`
 - **Self-review**: After big/complex changes, auto-run `/review-current-changes` to self-review
+- **Changelog & Version Bump Workflow**:
+  1. **Before version bump**: Update changelog files with the target version number
+     - `website/changelog.md` (zh-TW)
+     - `website/en/changelog.md` (English)
+     - Use `git log <last-tag>..HEAD --oneline --no-merges` to review commits since last release
+     - Categorize: 新功能/New Features, 修復/Fixes, 文件/Documentation, 效能/Performance, 重構/Refactor
+     - Include release date `_YYYY-MM-DD_` (use today's date)
+  2. **Commit changelog**: Stage and commit the changelog updates
+  3. **Version bump**: Run `npm version <patch|minor|major>` (creates tag automatically)
+  4. **Verify**: Confirm the new tag matches the version written in changelog
+  - **Structure**: Current minor version (e.g., v0.25.x) has detailed per-patch entries; "Earlier Versions" section contains summarized entries for previous minor versions grouped with theme descriptions

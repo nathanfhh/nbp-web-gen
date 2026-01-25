@@ -1,0 +1,399 @@
+# Changelog
+
+This page documents version updates for Mediator.
+
+## v0.25.19
+
+_2026-01-25_
+
+### Documentation
+- Add changelog pages with full version history (v0.1.0 ~ v0.25.18)
+- Add changelog maintenance workflow to CLAUDE.md
+
+## v0.25.18
+
+_2026-01-25_
+
+### New Features
+- **Slide Conversion**: Add leave confirmation to prevent accidental loss of undownloaded results
+- **Docs**: Add "Try It" button to standalone tool pages
+
+## v0.25.17
+
+_2026-01-25_
+
+### Documentation
+- Add inpaint before/after comparison images to slide conversion page
+
+### Fixes
+- **OCR**: Add rotation-aware line break detection for trapezoid regions
+
+## v0.25.16
+
+_2026-01-25_
+
+### New Features
+- **Region Editor**: Add keyboard shortcuts (Delete to remove, Escape to deselect)
+
+### Fixes
+- **Region Editor**: Fix resize handle click priority issue
+- **OCR**: Improve polygon region merging to prevent self-intersection
+
+### Documentation
+- Add keyboard shortcuts section
+
+## v0.25.15
+
+_2026-01-25_
+
+### New Features
+- **Slide Conversion**: Add trapezoid mode for slanted text regions
+
+### Documentation
+- Add trapezoid mode documentation with screenshots
+
+## v0.25.14
+
+_2026-01-24_
+
+### New Features
+- **Docs**: Add touch support and adjust lighting for 3D banana model
+
+## v0.25.13
+
+_2026-01-24_
+
+### Fixes
+- **Docs**: Fix banana.glb path for GitHub Pages
+
+## v0.25.12
+
+_2026-01-24_
+
+### New Features
+- **Docs**: Add 3D banana model to hero section
+
+### Fixes
+- **Docs**: Fix "Back to App" link and add tagline line break
+
+## v0.25.11
+
+_2026-01-24_
+
+### Fixes
+- **Sketch**: Prevent selection box appearing in pan mode
+
+### Documentation
+- Add medium-zoom lightbox effect
+- Add DeepWiki technical documentation link
+- Correct misleading documentation across multiple pages
+
+## v0.25.10
+
+_2026-01-24_
+
+### Fixes
+- **Docs**: Fix newline character handling in TryItButton
+
+## v0.25.9
+
+_2026-01-24_
+
+### Fixes
+- **Docs**: Convert multiline TryItButton prompts to single line
+
+## v0.25.8
+
+_2026-01-24_
+
+### New Features
+- **Slide Conversion**: Add Gemini reprocess confirmation dialog to prevent unexpected API charges
+
+## v0.25.7
+
+_2026-01-24_
+
+### New Features
+- **Deep Linking**: Support URL query params for docs integration
+
+### Documentation
+- Add "Try It" button to feature guide pages
+- Add API Key video tutorials
+- Add NotebookLM and other use cases to slide conversion page
+
+## v0.25.6
+
+_2026-01-24_
+
+### Performance
+- Lazy load SketchCanvas to reduce HomeView bundle size
+
+### Fixes
+- **Docs**: Correct sitemap alternate links and add GA4 tracking
+
+## v0.25.5
+
+_2026-01-24_
+
+### Fixes
+- **PWA**: Exclude /docs/ from service worker navigation fallback
+
+## v0.25.4
+
+_2026-01-24_
+
+### Fixes
+- **Docs**: Correct sitemap URLs with base path
+
+## v0.25.3
+
+_2026-01-23_
+
+### Fixes
+- **Deploy**: Correct VitePress outDir path
+
+## v0.25.2
+
+_2026-01-23_
+
+### Refactor
+- Simplify VitePress base path detection
+
+## v0.25.1
+
+_2026-01-23_
+
+### New Features
+- Add documentation link and tour step
+
+## v0.25.0
+
+_2026-01-23_
+
+### Major Updates
+- **Documentation Site**: Add VitePress documentation site
+- **Story Mode**: Use previous step image as reference for character continuity
+- **SEO**: Add sitemap index for app and docs
+
+### Fixes
+- **i18n**: Add missing video error message keys
+
+---
+
+## Earlier Versions
+
+### v0.24.x - Sketch Canvas & Slide Conversion Enhancements
+
+_2026-01-20 ~ 2026-01-23_
+
+- **v0.24.11** _(01-23)_: Fix mock document for PDF.js in Web Worker, PPTX image aspect ratio
+- **v0.24.10** _(01-22)_: Sketch UX improvements: navigation guards and color picker repositioning
+- **v0.24.9** _(01-22)_: Add pan tool for canvas navigation
+- **v0.24.8** _(01-22)_: Fix mobile layout overlap between reference images and characters
+- **v0.24.0** _(01-20)_: Slide conversion settings behavior docs, Gemini confirmation modal, WYSIWYG settings, story mode partial success handling
+
+### v0.23.x - SEO & OCR Model Selection
+
+_2026-01-19_
+
+- **v0.23.7**: Fix sticker crop button SVG, accessibility labels, LCP optimization
+- **v0.23.6**: Add static HTML generation with per-route SEO meta tags
+- **v0.23.5**: PWA fixes, canonical URL for duplicate content prevention
+- **v0.23.4**: Add JSON-LD structured data, SPA routing fixes
+- **v0.23.3**: Toast swipe-to-dismiss, region selection tool, beforeunload protection
+- **v0.23.2**: Lightbox edit regions button, OCR model size selection (Server/Mobile) with auto-fallback
+- **v0.23.1**: Smart scroll (stop auto-scroll when user scrolls up), Free Tier API key routing
+- **v0.23.0**: Extract and apply dynamic text colors in PPTX
+
+### v0.22.x - Region Editor & Unified OCR Architecture
+
+_2026-01-18 ~ 2026-01-19_
+
+- **v0.22.3** _(01-19)_: Region editor undo/redo functionality
+- **v0.22.2** _(01-19)_: Separator line tool, resize magnifier
+- **v0.22.1** _(01-18)_: Height-based font sizing
+- **v0.22.0** _(01-18)_: Canvas-measured font sizing, unified CPU/GPU OCR architecture
+
+### v0.21.x - WebGPU OCR & Region Editing
+
+_2026-01-17 ~ 2026-01-18_
+
+- **v0.21.5** _(01-18)_: Auto fallback to CPU when GPU memory insufficient
+- **v0.21.4** _(01-18)_: Pure XY-Cut layout analysis, fix BGR order
+- **v0.21.3** _(01-17)_: Improved WebGPU detection
+- **v0.21.2** _(01-17)_: Clear model cache, mobile WebGPU support
+- **v0.21.1** _(01-17)_: Draggable region editor toolbar, auto-generate PPTX filenames
+- **v0.21.0** _(01-17)_: Manual OCR region editing, Tesseract.js fallback, unified OCR interface
+
+### v0.20.x - Slide to PPTX Converter
+
+_2026-01-16_
+
+- **v0.20.3**: Exclude image data from localStorage persistence
+- **v0.20.2**: Add PPTX converter banner in slides mode
+- **v0.20.1**: File upload mode, processing timer, OCR JSON overlay
+- **v0.20.0**: Slide to PPTX converter, dual API key manager, image comparison modal
+
+### v0.19.x - AI Content Splitter
+
+_2026-01-15_
+
+- **v0.19.0**: AI content splitter modal, per-page style guides, generation progress bar with ETA
+
+### v0.18.x - Slides Mode
+
+_2026-01-15_
+
+- **v0.18.0**: Slides presentation mode with reference images support
+
+### v0.17.x - Video Generation & Rebranding
+
+_2026-01-14 ~ 2026-01-15_
+
+- **v0.17.3** _(01-15)_: Refactor video metadata
+- **v0.17.2** _(01-15)_: Migrate image generation to @google/genai SDK
+- **v0.17.1** _(01-15)_: Remove generateAudio (not supported by Gemini API)
+- **v0.17.0** _(01-14)_: Video generation mode (Veo 3.1 API), rebrand to Mediator
+
+### v0.16.x - Character Storage Migration
+
+_2026-01-14_
+
+- **v0.16.0**: Migrate character images to OPFS
+
+### v0.15.x - User Tour
+
+_2026-01-12 ~ 2026-01-13_
+
+- **v0.15.5** _(01-13)_: Prevent accidental data loss during sticker cropping
+- **v0.15.4** _(01-13)_: Fix tour tooltip overlapping with generate button
+- **v0.15.3** _(01-13)_: History filter by generation mode
+- **v0.15.2** _(01-13)_: Allow download without full compliance
+- **v0.15.1** _(01-12)_: Mobile responsive layout for tour and character info
+- **v0.15.0** _(01-12)_: User tour for first-time visitors, theme type icons, auto-scroll theme dropdown
+
+### v0.14.x - Seasonal Themes
+
+_2026-01-12_
+
+- **v0.14.0**: Add seasonal themes (spring, summer, autumn, winter)
+
+### v0.13.x - More Themes
+
+_2026-01-11 ~ 2026-01-12_
+
+- **v0.13.3** _(01-12)_: Unify mode colors to brand color
+- **v0.13.2** _(01-12)_: Use white text on dark overlay badges for light themes
+- **v0.13.1** _(01-12)_: Add Matcha, Gruvbox, and Everforest themes
+- **v0.13.0** _(01-11)_: Add Espresso, Mocha, and Nord themes
+
+### v0.12.x - Theme System Polish
+
+_2026-01-11_
+
+- **v0.12.1**: Eliminate flash at end of theme transition animation
+- **v0.12.0**: Add warm theme and semantic color tokens
+
+### v0.11.x - Semantic Color Tokens
+
+_2026-01-11_
+
+- **v0.11.1**: Sticker tool light mode text visibility, theme system enhancements
+- **v0.11.0**: Modularize theme system with semantic color tokens
+
+### v0.10.x - LINE Sticker Covers & Code Refactoring
+
+_2026-01-10 ~ 2026-01-11_
+
+- **v0.10.4** _(01-11)_: Extract HistoryTransfer into modular components
+- **v0.10.3** _(01-11)_: Extract LineStickerToolView into modular components
+- **v0.10.2** _(01-11)_: Extract ImageLightbox into modular composables
+- **v0.10.1** _(01-11)_: Extract usePeerSync, StickerCropper into modular composables
+- **v0.10.0** _(01-10)_: LINE sticker cover images, even dimension support
+
+### v0.9.x - Character Extraction & LINE Sticker Tool
+
+_2026-01-09_
+
+- **v0.9.2**: Preserve edit mode settings when switching stickers
+- **v0.9.1**: WebRTC sync support for character data
+- **v0.9.0**: Character extraction feature, LINE sticker compliance tool
+
+### v0.8.x - Dark Theme Redesign
+
+_2026-01-09_
+
+- **v0.8.0**: Slate Blue Pro dark theme
+
+### v0.7.x - WebRTC Sync & Batch Downloads
+
+_2026-01-07 ~ 2026-01-09_
+
+- **v0.7.13** _(01-09)_: Bundle size optimization with code splitting and lazy loading
+- **v0.7.12** _(01-09)_: Sticker cropper secondary background removal enhancement
+- **v0.7.11** _(01-08)_: Toast light mode high contrast design
+- **v0.7.10** _(01-08)_: Unify checkbox colors in light mode, selective export/sync
+- **v0.7.9** _(01-08)_: TURN toggle, auto-disconnect, theme fixes
+- **v0.7.8** _(01-08)_: Fix transfer stats accuracy, per-record ACK, backpressure control
+- **v0.7.7** _(01-07)_: Migrate TURN settings to Cloudflare API
+- **v0.7.6** _(01-07)_: P2P cross-device sync with TURN support
+- **v0.7.5** _(01-07)_: Unify lightbox download menu, theme fixes
+- **v0.7.4** _(01-07)_: Remove IndexedDB settings store dead code
+- **v0.7.3** _(01-07)_: History ZIP/PDF batch download, export/import functionality
+- **v0.7.2** _(01-07)_: Full datetime tooltip on history timestamps
+- **v0.7.1** _(01-07)_: Add CLAUDE.md, dayjs relative time
+- **v0.7.0** _(01-07)_: PDF batch download (Web Worker), unique sticker filenames
+
+### v0.6.x - GA4 Tracking & PWA
+
+_2026-01-05 ~ 2026-01-06_
+
+- **v0.6.7** _(01-06)_: Back gesture support for sticker cropper
+- **v0.6.6** _(01-06)_: Version number in update notification
+- **v0.6.5** _(01-06)_: Revert to projection-based sticker segmentation (YAGNI)
+- **v0.6.4** _(01-06)_: Dynamic PWA theme color, CCL filter optimization
+- **v0.6.3** _(01-06)_: Sticker segmentation Web Worker + CCL algorithm optimization
+- **v0.6.2** _(01-06)_: PWA support
+- **v0.6.1** _(01-05)_: Google Analytics 4 tracking
+- **v0.6.0** _(01-05)_: Major code refactoring and DRY improvements
+
+### v0.5.x - Sticker Mode & Internationalization
+
+_2026-01-04 ~ 2026-01-05_
+
+- **v0.5.5** _(01-05)_: SEO meta tags, GitHub Pages deployment
+- **v0.5.4** _(01-05)_: Extract GitHubLink component
+- **v0.5.3** _(01-04)_: Sticker processing overlay animation, BFS flood fill optimization
+- **v0.5.2** _(01-04)_: Sticker cropper layout and scrolling improvements
+- **v0.5.1** _(01-04)_: Sticker cropper mobile layout
+- **v0.5.0** _(01-04)_: Sticker mode with cropping and advanced options
+
+### v0.4.x - OPFS Image Storage
+
+_2026-01-04_
+
+- **v0.4.2**: Ignore .gemini-clipboard directory
+- **v0.4.1**: Generation history alignment and scrollbar spacing
+- **v0.4.0**: OPFS image storage, WebP compression
+
+### v0.3.x - Touch Gestures
+
+_2026-01-03_
+
+- **v0.3.0**: Lightbox touch gesture support
+
+### v0.2.x - Hero Section
+
+_2026-01-03_
+
+- **v0.2.0**: Hero section animations and scroll snap
+
+### v0.1.x - Initial Release
+
+_2026-01-03_
+
+- **v0.1.0**: Initial release
+  - AI image generation (Gemini API)
+  - Multi-image upload, lightbox zoom/pan
+  - Thinking process display, toast notifications
+  - History storage

@@ -46,6 +46,7 @@ const zhTWSidebar = [
     text: '開發者資源',
     items: [
       { text: '技術細節 (DeepWiki)', link: 'https://deepwiki.com/nathanfhh/nbp-web-gen' },
+      { text: '更新日誌', link: '/changelog' },
     ],
   },
 ]
@@ -84,6 +85,7 @@ const enSidebar = [
     text: 'Developer Resources',
     items: [
       { text: 'Technical Details (DeepWiki)', link: 'https://deepwiki.com/nathanfhh/nbp-web-gen' },
+      { text: 'Changelog', link: '/en/changelog' },
     ],
   },
 ]
