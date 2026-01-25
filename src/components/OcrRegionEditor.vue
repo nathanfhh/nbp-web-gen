@@ -290,6 +290,9 @@ useEditorKeyboard({
     emit('delete-separator', id)
     separatorTool.clearSelection()
   },
+  onReset: () => onReset(),
+  onToggleTrapezoid: () => onToggleTrapezoid(),
+  hasSelectedRegion: () => deleteTool.selectedIndex.value !== null,
 })
 
 // ============================================================================
@@ -492,6 +495,7 @@ defineExpose({
           class="toolbar-btn"
           :disabled="!isEdited"
           :class="{ 'opacity-50 cursor-not-allowed': !isEdited }"
+          :title="t('slideToPptx.regionEditor.reset') + ' (R)'"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -503,6 +507,7 @@ defineExpose({
           @click="drawTool.toggleDrawMode()"
           class="toolbar-btn"
           :class="{ 'toolbar-btn-active': drawTool.isDrawModeActive.value }"
+          :title="t('slideToPptx.regionEditor.drawRect') + ' (D)'"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -515,6 +520,7 @@ defineExpose({
           @click="separatorTool.toggleSeparatorMode()"
           class="toolbar-btn"
           :class="{ 'toolbar-btn-separator': separatorTool.isSeparatorModeActive.value }"
+          :title="t('slideToPptx.regionEditor.separator') + ' (S)'"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20L20 4" />
@@ -529,6 +535,7 @@ defineExpose({
           @click="selectionTool.toggleSelectionMode()"
           class="toolbar-btn"
           :class="{ 'toolbar-btn-selection': selectionTool.isSelectionModeActive.value }"
+          :title="t('slideToPptx.regionEditor.selectArea') + ' (V)'"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zM4 13a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zM15 4a1 1 0 100 2h4a1 1 0 100-2h-4zM15 12a1 1 0 100 2h4a1 1 0 100-2h-4zM4 19a1 1 0 011-1h14a1 1 0 110 2H5a1 1 0 01-1-1z" />
@@ -542,9 +549,9 @@ defineExpose({
           @click.stop="onToggleTrapezoid"
           class="toolbar-btn"
           :class="{ 'toolbar-btn-trapezoid': regions[deleteTool.selectedIndex.value]?.isPolygonMode }"
-          :title="regions[deleteTool.selectedIndex.value]?.isPolygonMode
+          :title="(regions[deleteTool.selectedIndex.value]?.isPolygonMode
             ? t('slideToPptx.regionEditor.trapezoidRevert')
-            : t('slideToPptx.regionEditor.trapezoid')"
+            : t('slideToPptx.regionEditor.trapezoid')) + ' (T)'"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18h12L21 6H3l3 12z" />
@@ -665,101 +672,6 @@ defineExpose({
         />
       </g>
 
-      <!-- Selected region controls (rendered on top) -->
-      <g v-if="deleteTool.selectedIndex.value !== null && regions[deleteTool.selectedIndex.value] && !drawTool.isDrawModeActive.value" pointer-events="auto">
-        <!-- Polygon mode: purple diamond vertex handles -->
-        <template v-if="regions[deleteTool.selectedIndex.value].isPolygonMode">
-          <g
-            v-for="(pos, handle) in core.getVertexHandles(regions[deleteTool.selectedIndex.value])"
-            :key="`vertex-${handle}`"
-            @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
-            @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
-            class="resize-handle vertex-handle"
-          >
-            <!-- Larger transparent hit area -->
-            <circle
-              :cx="pos.x"
-              :cy="pos.y"
-              r="18"
-              fill="transparent"
-            />
-            <!-- Visible diamond handle (rotated square) -->
-            <rect
-              :x="pos.x - 7"
-              :y="pos.y - 7"
-              width="14"
-              height="14"
-              :transform="`rotate(45 ${pos.x} ${pos.y})`"
-              fill="white"
-              stroke="rgba(168, 85, 247, 0.9)"
-              stroke-width="2"
-              vector-effect="non-scaling-stroke"
-            />
-          </g>
-        </template>
-
-        <!-- Rectangle mode: blue circle resize handles at corners -->
-        <template v-else>
-          <g
-            v-for="(pos, handle) in core.getResizeHandles(regions[deleteTool.selectedIndex.value])"
-            :key="`handle-${handle}`"
-            @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
-            @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
-            class="resize-handle"
-            :class="`resize-handle-${handle}`"
-          >
-            <!-- Larger transparent hit area -->
-            <circle
-              :cx="pos.x"
-              :cy="pos.y"
-              r="16"
-              fill="transparent"
-            />
-            <!-- Visible handle -->
-            <circle
-              :cx="pos.x"
-              :cy="pos.y"
-              r="8"
-              fill="white"
-              stroke="rgba(59, 130, 246, 0.9)"
-              stroke-width="2"
-              vector-effect="non-scaling-stroke"
-            />
-          </g>
-        </template>
-
-        <!-- Delete button at center -->
-        <g
-          class="delete-button-group"
-          @click.stop="deleteTool.onDeleteClick($event)"
-        >
-          <!-- Larger transparent hit area -->
-          <circle
-            :cx="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
-            :cy="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
-            :r="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).hitRadius"
-            fill="transparent"
-          />
-          <!-- Visible button -->
-          <circle
-            :cx="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
-            :cy="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
-            :r="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).radius"
-            fill="rgba(239, 68, 68, 0.9)"
-          />
-          <text
-            :x="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
-            :y="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
-            text-anchor="middle"
-            dominant-baseline="central"
-            fill="white"
-            :font-size="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).fontSize"
-            font-weight="bold"
-            class="delete-button-text"
-          >×</text>
-        </g>
-      </g>
-
       <!-- Separator lines (existing) -->
       <g
         v-for="sep in separatorLines"
@@ -870,6 +782,101 @@ defineExpose({
         stroke="white"
         stroke-width="2"
       />
+
+      <!-- Selected region controls (rendered LAST = on top of separator lines) -->
+      <g v-if="deleteTool.selectedIndex.value !== null && regions[deleteTool.selectedIndex.value] && !drawTool.isDrawModeActive.value" pointer-events="auto">
+        <!-- Polygon mode: purple diamond vertex handles -->
+        <template v-if="regions[deleteTool.selectedIndex.value].isPolygonMode">
+          <g
+            v-for="(pos, handle) in core.getVertexHandles(regions[deleteTool.selectedIndex.value])"
+            :key="`vertex-${handle}`"
+            @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
+            @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
+            class="resize-handle vertex-handle"
+          >
+            <!-- Larger transparent hit area -->
+            <circle
+              :cx="pos.x"
+              :cy="pos.y"
+              r="18"
+              fill="transparent"
+            />
+            <!-- Visible diamond handle (rotated square) -->
+            <rect
+              :x="pos.x - 7"
+              :y="pos.y - 7"
+              width="14"
+              height="14"
+              :transform="`rotate(45 ${pos.x} ${pos.y})`"
+              fill="white"
+              stroke="rgba(168, 85, 247, 0.9)"
+              stroke-width="2"
+              vector-effect="non-scaling-stroke"
+            />
+          </g>
+        </template>
+
+        <!-- Rectangle mode: blue circle resize handles at corners -->
+        <template v-else>
+          <g
+            v-for="(pos, handle) in core.getResizeHandles(regions[deleteTool.selectedIndex.value])"
+            :key="`handle-${handle}`"
+            @mousedown.stop="resizeTool.onResizeStart(handle, $event)"
+            @touchstart.stop="resizeTool.onResizeTouchStart(handle, $event)"
+            class="resize-handle"
+            :class="`resize-handle-${handle}`"
+          >
+            <!-- Larger transparent hit area -->
+            <circle
+              :cx="pos.x"
+              :cy="pos.y"
+              r="16"
+              fill="transparent"
+            />
+            <!-- Visible handle -->
+            <circle
+              :cx="pos.x"
+              :cy="pos.y"
+              r="8"
+              fill="white"
+              stroke="rgba(59, 130, 246, 0.9)"
+              stroke-width="2"
+              vector-effect="non-scaling-stroke"
+            />
+          </g>
+        </template>
+
+        <!-- Delete button at center -->
+        <g
+          class="delete-button-group"
+          @click.stop="deleteTool.onDeleteClick($event)"
+        >
+          <!-- Larger transparent hit area -->
+          <circle
+            :cx="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
+            :cy="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
+            :r="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).hitRadius"
+            fill="transparent"
+          />
+          <!-- Visible button -->
+          <circle
+            :cx="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
+            :cy="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
+            :r="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).radius"
+            fill="rgba(239, 68, 68, 0.9)"
+          />
+          <text
+            :x="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).x"
+            :y="core.getDeleteButtonCenter(regions[deleteTool.selectedIndex.value]).y"
+            text-anchor="middle"
+            dominant-baseline="central"
+            fill="white"
+            :font-size="core.getDeleteButtonSize(regions[deleteTool.selectedIndex.value]).fontSize"
+            font-weight="bold"
+            class="delete-button-text"
+          >×</text>
+        </g>
+      </g>
 
       <!-- Drawing preview -->
       <rect

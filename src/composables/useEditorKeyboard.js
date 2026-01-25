@@ -6,6 +6,11 @@
  * - Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y / Cmd+Y: Redo
  * - Escape: Exit modes or cancel actions
  * - Delete / Backspace: Delete selected separator
+ * - R: Reset
+ * - D: Draw mode (rectangle)
+ * - S: Separator mode
+ * - V: Selection mode
+ * - T: Trapezoid toggle (when region selected)
  */
 
 import { onMounted, onUnmounted } from 'vue'
@@ -31,6 +36,9 @@ import { onMounted, onUnmounted } from 'vue'
  * @param {Function} options.hasSelectedSeparator - Function to check selected separator: () => boolean
  * @param {Function} options.getSelectedSeparatorId - Function to get selected separator ID: () => string|number|null
  * @param {Function} options.deleteSeparator - Callback to delete separator: (id) => void
+ * @param {Function} options.onReset - Callback for reset action (R key)
+ * @param {Function} options.onToggleTrapezoid - Callback for trapezoid toggle (T key)
+ * @param {Function} options.hasSelectedRegion - Function to check if a region is selected: () => boolean
  */
 export function useEditorKeyboard({
   onUndo,
@@ -52,12 +60,67 @@ export function useEditorKeyboard({
   hasSelectedSeparator,
   getSelectedSeparatorId,
   deleteSeparator,
+  onReset,
+  onToggleTrapezoid,
+  hasSelectedRegion,
 }) {
   /**
    * Handle keydown events
    * @param {KeyboardEvent} e
    */
   const handleKeydown = (e) => {
+    const textDialogOpen = isTextDialogOpen()
+
+    // =========================================================================
+    // Escape: Always handle (closes text dialog if open, or exits modes)
+    // =========================================================================
+    if (e.key === 'Escape') {
+      if (textDialogOpen) {
+        cancelTextDialog()
+        return
+      }
+
+      // Cancel pending selection
+      if (hasPendingSelection()) {
+        cancelSelection()
+        return
+      }
+
+      // Exit selection mode
+      if (isSelectionModeActive()) {
+        toggleSelectionMode()
+        return
+      }
+
+      // Cancel separator drawing or exit separator mode
+      if (isSeparatorModeActive()) {
+        if (isSeparatorDrawing()) {
+          cancelSeparatorDrawing()
+        } else {
+          toggleSeparatorMode()
+        }
+        return
+      }
+
+      // Exit draw mode
+      if (isDrawModeActive()) {
+        toggleDrawMode()
+        return
+      }
+
+      return
+    }
+
+    // =========================================================================
+    // Skip all other shortcuts when text dialog is open
+    // (Let the input field handle its own keyboard events)
+    // =========================================================================
+    if (textDialogOpen) return
+
+    // =========================================================================
+    // Modifier key shortcuts (Ctrl/Cmd combinations)
+    // =========================================================================
+
     // Undo: Ctrl+Z / Cmd+Z
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       e.preventDefault()
@@ -76,44 +139,9 @@ export function useEditorKeyboard({
       return
     }
 
-    // Escape key handling (priority order)
-    if (e.key === 'Escape') {
-      // 1. Close text dialog first
-      if (isTextDialogOpen()) {
-        cancelTextDialog()
-        return
-      }
-
-      // 2. Cancel pending selection
-      if (hasPendingSelection()) {
-        cancelSelection()
-        return
-      }
-
-      // 3. Exit selection mode
-      if (isSelectionModeActive()) {
-        toggleSelectionMode()
-        return
-      }
-
-      // 4. Cancel separator drawing or exit separator mode
-      if (isSeparatorModeActive()) {
-        if (isSeparatorDrawing()) {
-          cancelSeparatorDrawing()
-        } else {
-          toggleSeparatorMode()
-        }
-        return
-      }
-
-      // 5. Exit draw mode
-      if (isDrawModeActive()) {
-        toggleDrawMode()
-        return
-      }
-    }
-
-    // Delete key to delete selected separator
+    // =========================================================================
+    // Delete/Backspace: Delete selected separator
+    // =========================================================================
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (hasSelectedSeparator()) {
         const id = getSelectedSeparatorId()
@@ -121,6 +149,48 @@ export function useEditorKeyboard({
           deleteSeparator(id)
         }
       }
+      return
+    }
+
+    // =========================================================================
+    // Single-key tool shortcuts
+    // =========================================================================
+
+    // R: Reset
+    if (e.key === 'r' || e.key === 'R') {
+      e.preventDefault()
+      onReset?.()
+      return
+    }
+
+    // D: Draw mode (rectangle)
+    if (e.key === 'd' || e.key === 'D') {
+      e.preventDefault()
+      toggleDrawMode?.()
+      return
+    }
+
+    // S: Separator mode
+    if (e.key === 's' || e.key === 'S') {
+      e.preventDefault()
+      toggleSeparatorMode?.()
+      return
+    }
+
+    // V: Selection mode
+    if (e.key === 'v' || e.key === 'V') {
+      e.preventDefault()
+      toggleSelectionMode?.()
+      return
+    }
+
+    // T: Trapezoid toggle (only when a region is selected)
+    if (e.key === 't' || e.key === 'T') {
+      if (hasSelectedRegion?.()) {
+        e.preventDefault()
+        onToggleTrapezoid?.()
+      }
+      return
     }
   }
 
