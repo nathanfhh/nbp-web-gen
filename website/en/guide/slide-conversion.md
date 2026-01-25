@@ -1,5 +1,7 @@
 # Slide Conversion
 
+<TryItButton path="slide-to-pptx" />
+
 Slide conversion can transform PDFs or images into editable PPTX files with OCR text recognition.
 
 ::: tip Use Cases
@@ -297,3 +299,5 @@ The images below show the inpaint processing effect for trapezoid regions. Left 
 
 - [Diagram Generation](./diagram-generation) - Generate new diagrams for presentations
 - [Image Editing](./image-editing) - Edit presentation images
+
+<TryItButton path="slide-to-pptx" />

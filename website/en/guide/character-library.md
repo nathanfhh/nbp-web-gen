@@ -1,5 +1,7 @@
 # Character Library
 
+<TryItButton path="character-extractor" />
+
 Character Library lets you save and reuse character settings, ensuring consistency across multiple generations.
 
 ## Basic Concept
@@ -118,3 +120,5 @@ Clearing browser data will delete all characters.
 
 - [Story Mode](./story-mode) - Create stories using characters
 - [Image Editing](./image-editing) - Edit character images
+
+<TryItButton path="character-extractor" />

@@ -149,6 +149,8 @@
 
 ## LINE 貼圖處理工具
 
+<TryItButton path="line-sticker-tool" />
+
 如果你想將生成的貼圖上架到 LINE Creators Market，可以使用內建的 LINE 貼圖處理工具，快速將貼圖調整為符合 LINE 規格的尺寸與格式。
 
 ### 進入工具
@@ -175,9 +177,9 @@
 LINE 貼圖的詳細規格與上架流程，請參考 [LINE Creators Market 官方指南](https://creator.line.me/zh-hant/)。
 :::
 
-<TryItButton mode="sticker" prompt="一隻毛茸茸的橘色柴犬，圓圓的臉蛋，Q版可愛風格" />
-
 ## 下一步
 
 - [編輯模式](./image-editing) - 編輯生成的貼圖
 - [角色庫](./character-library) - 儲存角色以保持一致性
+
+<TryItButton mode="sticker" prompt="一隻毛茸茸的橘色柴犬，圓圓的臉蛋，Q版可愛風格" />

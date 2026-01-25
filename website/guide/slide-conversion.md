@@ -1,5 +1,7 @@
 # 簡報轉換
 
+<TryItButton path="slide-to-pptx" />
+
 簡報轉換功能可以將 PDF 或圖片轉換成可編輯的 PPTX 檔案，支援 OCR 文字辨識。
 
 ::: tip 適用情境
@@ -297,3 +299,5 @@
 
 - [圖表生成](./diagram-generation) - 生成新的圖表加入簡報
 - [圖片編輯](./image-editing) - 編輯簡報中的圖片
+
+<TryItButton path="slide-to-pptx" />

@@ -1,5 +1,7 @@
 # 角色庫
 
+<TryItButton path="character-extractor" />
+
 角色庫讓你儲存和重複使用角色設定，確保跨多次生成的角色一致性。
 
 ## 基本概念
@@ -120,3 +122,5 @@
 
 - [故事模式](./story-mode) - 使用角色創作故事
 - [圖片編輯](./image-editing) - 編輯角色圖片
+
+<TryItButton path="character-extractor" />

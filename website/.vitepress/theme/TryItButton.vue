@@ -5,8 +5,13 @@ import { useData } from 'vitepress'
 const props = defineProps({
   mode: {
     type: String,
-    required: true,
-    validator: (value) => ['generate', 'sticker', 'edit', 'story', 'diagram', 'video'].includes(value),
+    default: '',
+    validator: (value) => !value || ['generate', 'sticker', 'edit', 'story', 'diagram', 'video'].includes(value),
+  },
+  // Direct path for standalone pages (e.g., 'slide-to-pptx')
+  path: {
+    type: String,
+    default: '',
   },
   prompt: {
     type: String,
@@ -26,8 +31,16 @@ const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || '/nbp-web-gen/'
 
 // Build the full URL with query params
 const tryItUrl = computed(() => {
+  // If path is provided, use it directly (for standalone pages like slide-to-pptx)
+  if (props.path) {
+    return `${appBaseUrl}${props.path}`
+  }
+
+  // Otherwise, use mode-based URL
   const params = new URLSearchParams()
-  params.set('mode', props.mode)
+  if (props.mode) {
+    params.set('mode', props.mode)
+  }
   if (props.prompt) {
     // Convert literal \n strings to actual newlines (for multiline prompts in markdown)
     const processedPrompt = props.prompt.replace(/\\n/g, '\n')

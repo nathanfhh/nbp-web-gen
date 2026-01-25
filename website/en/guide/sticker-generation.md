@@ -149,6 +149,8 @@ After splitting, you can:
 
 ## LINE Sticker Tool
 
+<TryItButton path="line-sticker-tool" />
+
 If you want to publish your stickers on LINE Creators Market, use the built-in LINE Sticker Tool to quickly resize and format your stickers to meet LINE's specifications.
 
 ### Accessing the Tool
@@ -175,9 +177,9 @@ Click to enter the LINE Sticker Tool page.
 For detailed LINE sticker specifications and submission guidelines, refer to the [LINE Creators Market Official Guide](https://creator.line.me/en/).
 :::
 
-<TryItButton mode="sticker" prompt="A fluffy orange Shiba Inu with a round face, cute chibi style" />
-
 ## Next Steps
 
 - [Edit Mode](./image-editing) - Edit generated stickers
 - [Character Library](./character-library) - Save characters for consistency
+
+<TryItButton mode="sticker" prompt="A fluffy orange Shiba Inu with a round face, cute chibi style" />
