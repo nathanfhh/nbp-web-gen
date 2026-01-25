@@ -204,6 +204,83 @@ export function usePptxExport() {
     return ((topAngle + bottomAngle) / 2) * (180 / Math.PI)
   }
 
+  // ============================================================================
+  // Line-level Geometry Helpers (for individual OCR lines within a region)
+  // ============================================================================
+
+  /** Check if a line has valid polygon data */
+  const _lineHasPolygon = (line) =>
+    line && line.polygon && line.polygon.length === 4
+
+  /** Get centroid of a line (from polygon or bounds) */
+  const getLineCentroid = (line) => {
+    if (_lineHasPolygon(line)) {
+      const [nw, ne, se, sw] = line.polygon
+      return {
+        x: (nw[0] + ne[0] + se[0] + sw[0]) / 4,
+        y: (nw[1] + ne[1] + se[1] + sw[1]) / 4,
+      }
+    }
+    // Fallback to bounds center
+    return {
+      x: line.bounds.x + line.bounds.width / 2,
+      y: line.bounds.y + line.bounds.height / 2,
+    }
+  }
+
+  /** Get effective height of a line (edge-based for polygon, bounds-based otherwise) */
+  const getLineEffectiveHeight = (line) => {
+    if (_lineHasPolygon(line)) {
+      const [nw, ne, se, sw] = line.polygon
+      const leftH = Math.hypot(sw[0] - nw[0], sw[1] - nw[1])
+      const rightH = Math.hypot(se[0] - ne[0], se[1] - ne[1])
+      return (leftH + rightH) / 2
+    }
+    return line.bounds.height
+  }
+
+  /**
+   * Determine if two lines are on the "same visual line" considering rotation.
+   * For rotated text, we project line centroids onto the axis perpendicular to
+   * the text flow direction and compare the projected distances.
+   *
+   * @param {Object} prevLine - Previous line
+   * @param {Object} currLine - Current line
+   * @param {Object} region - Parent region (to get rotation angle)
+   * @returns {boolean} True if lines should be joined with space, false for newline
+   */
+  const areLinesOnSameLine = (prevLine, currLine, region) => {
+    const threshold = Math.min(
+      getLineEffectiveHeight(prevLine),
+      getLineEffectiveHeight(currLine)
+    ) * 0.7
+
+    // For polygon-mode regions with rotated text
+    if (_isPolygon(region)) {
+      const rotationDeg = getPolygonRotation(region)
+      if (rotationDeg != null && Math.abs(rotationDeg) > 0.5) {
+        // Use rotated coordinate system
+        // Perpendicular axis = rotation + 90°
+        const perpAngleRad = (rotationDeg + 90) * (Math.PI / 180)
+
+        const prevCentroid = getLineCentroid(prevLine)
+        const currCentroid = getLineCentroid(currLine)
+
+        // Project centroids onto perpendicular axis
+        // This gives us the "vertical" distance in the rotated text coordinate system
+        const prevProj = prevCentroid.x * Math.cos(perpAngleRad) + prevCentroid.y * Math.sin(perpAngleRad)
+        const currProj = currCentroid.x * Math.cos(perpAngleRad) + currCentroid.y * Math.sin(perpAngleRad)
+
+        return Math.abs(prevProj - currProj) < threshold
+      }
+    }
+
+    // Default: use screen Y-coordinate comparison
+    const prevCenterY = prevLine.bounds.y + prevLine.bounds.height / 2
+    const currCenterY = currLine.bounds.y + currLine.bounds.height / 2
+    return Math.abs(prevCenterY - currCenterY) < threshold
+  }
+
   /**
    * Generate a PPTX file from slide data
    * @param {SlideData[]} slides - Array of slide data
@@ -416,13 +493,11 @@ export function usePptxExport() {
                 const lineColor = line.textColor || defaultColor
 
                 // Determine separator: space for same visual line, newline for different lines
+                // For rotated regions, uses projection onto perpendicular axis
                 let separator = ''
                 if (lineIdx > 0) {
                   const prev = validLines[lineIdx - 1]
-                  const prevCenterY = prev.bounds.y + prev.bounds.height / 2
-                  const currCenterY = line.bounds.y + line.bounds.height / 2
-                  const threshold = Math.min(prev.bounds.height, line.bounds.height) * 0.7
-                  const isSameLine = Math.abs(prevCenterY - currCenterY) < threshold
+                  const isSameLine = areLinesOnSameLine(prev, line, region)
                   separator = isSameLine ? ' ' : '\n'
                 }
 

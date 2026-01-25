@@ -483,38 +483,134 @@ function createBlockFromRegions(regions, settings = {}) {
 
   const sameLineThreshold = settings.sameLineThreshold ?? OCR_DEFAULTS.sameLineThreshold
 
-  // 1. Robust Sorting (Reading Order)
-  // Sort by Y-center first (lines), then by X (words in line)
-  regions.sort((a, b) => {
-    const aCenterY = a.bounds.y + a.bounds.height / 2
-    const bCenterY = b.bounds.y + b.bounds.height / 2
-    // Use configurable threshold for same-line detection
-    const threshold = Math.min(a.bounds.height, b.bounds.height) * sameLineThreshold
+  // Pre-compute rotation info for polygon-mode regions
+  // If all regions are polygon-mode with similar rotation, use rotation-aware comparison
+  const allPolygon = regions.every((r) => r.isPolygonMode && r.polygon)
+  let useRotatedComparison = false
+  let avgRotationRad = 0
 
-    // If Y-centers are close enough, they are on the same line -> Sort Left-to-Right
-    if (Math.abs(aCenterY - bCenterY) < threshold) {
-      return a.bounds.x - b.bounds.x
+  if (allPolygon && regions.length > 0) {
+    const angles = regions.map((r) => getPolygonRotationAngle(r.polygon))
+    const minAngle = Math.min(...angles)
+    const maxAngle = Math.max(...angles)
+    const angleDiff = Math.abs(maxAngle - minAngle)
+
+    // Use rotation-aware comparison if angles are consistent and rotation is significant
+    if (angleDiff <= 15 && Math.abs(angles[0]) > 0.5) {
+      useRotatedComparison = true
+      avgRotationRad = (angles.reduce((a, b) => a + b, 0) / angles.length) * (Math.PI / 180)
     }
-    // Otherwise -> Sort Top-Down
-    return aCenterY - bCenterY
+  }
+
+  /**
+   * Get effective height of a region (edge-based for polygon, bounds-based otherwise)
+   */
+  const getEffectiveHeight = (region) => {
+    if (region.isPolygonMode && region.polygon && region.polygon.length === 4) {
+      const [nw, ne, se, sw] = region.polygon
+      const leftH = Math.hypot(sw[0] - nw[0], sw[1] - nw[1])
+      const rightH = Math.hypot(se[0] - ne[0], se[1] - ne[1])
+      return (leftH + rightH) / 2
+    }
+    return region.bounds.height
+  }
+
+  /**
+   * Get centroid of a region
+   */
+  const getCentroid = (region) => {
+    if (region.isPolygonMode && region.polygon && region.polygon.length === 4) {
+      const [nw, ne, se, sw] = region.polygon
+      return {
+        x: (nw[0] + ne[0] + se[0] + sw[0]) / 4,
+        y: (nw[1] + ne[1] + se[1] + sw[1]) / 4,
+      }
+    }
+    return {
+      x: region.bounds.x + region.bounds.width / 2,
+      y: region.bounds.y + region.bounds.height / 2,
+    }
+  }
+
+  /**
+   * Project a point onto perpendicular axis (for rotated text)
+   * This gives the "vertical" position in the text's coordinate system
+   */
+  const getPerpendicularProjection = (region) => {
+    const centroid = getCentroid(region)
+    const perpAngle = avgRotationRad + Math.PI / 2
+    return centroid.x * Math.cos(perpAngle) + centroid.y * Math.sin(perpAngle)
+  }
+
+  /**
+   * Project a point onto parallel axis (for rotated text)
+   * This gives the "horizontal" position in the text's coordinate system
+   */
+  const getParallelProjection = (region) => {
+    const centroid = getCentroid(region)
+    return centroid.x * Math.cos(avgRotationRad) + centroid.y * Math.sin(avgRotationRad)
+  }
+
+  /**
+   * Check if two regions are on the same visual line
+   */
+  const areSameLine = (a, b) => {
+    const threshold = Math.min(getEffectiveHeight(a), getEffectiveHeight(b)) * sameLineThreshold
+
+    if (useRotatedComparison) {
+      // For rotated text: compare projections onto perpendicular axis
+      const aProj = getPerpendicularProjection(a)
+      const bProj = getPerpendicularProjection(b)
+      return Math.abs(aProj - bProj) < threshold
+    } else {
+      // Default: compare Y-centers
+      const aCenterY = a.bounds.y + a.bounds.height / 2
+      const bCenterY = b.bounds.y + b.bounds.height / 2
+      return Math.abs(aCenterY - bCenterY) < threshold
+    }
+  }
+
+  // 1. Robust Sorting (Reading Order)
+  // Sort by "vertical" position first (lines), then by "horizontal" (words in line)
+  // For rotated text, uses projection onto rotated axes
+  regions.sort((a, b) => {
+    const threshold = Math.min(getEffectiveHeight(a), getEffectiveHeight(b)) * sameLineThreshold
+
+    if (useRotatedComparison) {
+      // Rotated text: use projections
+      const aPerpProj = getPerpendicularProjection(a)
+      const bPerpProj = getPerpendicularProjection(b)
+
+      if (Math.abs(aPerpProj - bPerpProj) < threshold) {
+        // Same line -> sort by parallel projection (reading direction)
+        return getParallelProjection(a) - getParallelProjection(b)
+      }
+      // Different lines -> sort by perpendicular projection (line order)
+      return aPerpProj - bPerpProj
+    } else {
+      // Non-rotated: use Y-center and X
+      const aCenterY = a.bounds.y + a.bounds.height / 2
+      const bCenterY = b.bounds.y + b.bounds.height / 2
+
+      if (Math.abs(aCenterY - bCenterY) < threshold) {
+        return a.bounds.x - b.bounds.x
+      }
+      return aCenterY - bCenterY
+    }
   })
 
   // 2. Process colors: unify similar colors or preserve distinct ones (e.g., highlights)
   unifyOrPreserveColors(regions, settings)
 
   // 3. Smart Text Joining
-  // Determine whether to use space " " or newline "\n" based on vertical position
+  // Determine whether to use space " " or newline "\n" based on visual line position
   let text = regions[0].text
   for (let i = 1; i < regions.length; i++) {
     const prev = regions[i - 1]
     const curr = regions[i]
 
-    const prevCenterY = prev.bounds.y + prev.bounds.height / 2
-    const currCenterY = curr.bounds.y + curr.bounds.height / 2
-    const threshold = Math.min(prev.bounds.height, curr.bounds.height) * sameLineThreshold
-
-    // Check if on the same line
-    const isSameLine = Math.abs(prevCenterY - currCenterY) < threshold
+    // Check if on the same visual line (rotation-aware)
+    const isSameLine = areSameLine(prev, curr)
 
     // Join with space if same line, newline if logically distinct line
     const separator = isSameLine ? ' ' : '\n'
