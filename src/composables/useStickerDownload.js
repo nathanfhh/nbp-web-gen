@@ -3,7 +3,6 @@ import { useI18n } from 'vue-i18n'
 // JSZip is dynamically imported when needed to reduce initial bundle size
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useToast } from '@/composables/useToast'
-import { useAnalytics } from '@/composables/useAnalytics'
 
 /**
  * Composable for sticker download functionality
@@ -13,7 +12,6 @@ export function useStickerDownload() {
   const { t } = useI18n()
   const toast = useToast()
   const pdfGenerator = usePdfGenerator()
-  const { trackDownloadStickers } = useAnalytics()
 
   const isDownloading = ref(false)
 
@@ -29,7 +27,6 @@ export function useStickerDownload() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    trackDownloadStickers({ count: 1, format: 'single' })
   }
 
   /**
@@ -66,7 +63,6 @@ export function useStickerDownload() {
       document.body.removeChild(link)
 
       URL.revokeObjectURL(url)
-      trackDownloadStickers({ count: selected.length, format: 'zip' })
     } catch (err) {
       console.error('ZIP generation failed:', err)
       toast.error(t('stickerCropper.toast.zipError'))
@@ -98,7 +94,6 @@ export function useStickerDownload() {
       }
 
       await pdfGenerator.generateAndDownload(imageDataArray, `image-${imagePrefix}-stickers`)
-      trackDownloadStickers({ count: selected.length, format: 'pdf' })
     } catch (err) {
       console.error('PDF generation failed:', err)
       toast.error(t('stickerCropper.toast.pdfError'))

@@ -9,9 +9,6 @@ const appBase = process.env.GITHUB_ACTIONS ? 'https://nathanfhh.github.io/nbp-we
 // Sitemap hostname (VitePress automatically appends base path)
 const sitemapHostname = 'https://nathanfhh.github.io'
 
-// Google Analytics 4 Measurement ID (same as main app)
-const gtagId = 'G-3SX3YT6Y5J'
-
 // Shared sidebar for zh-TW
 const zhTWSidebar = [
   {
@@ -134,22 +131,7 @@ export default defineConfig({
   description: 'Documentation for Mediator - AI Image & Video Generator',
 
   // Head tags
-  head: [
-    ['link', { rel: 'icon', href: `${base}favicon.ico` }],
-    // Google Analytics 4
-    [
-      'script',
-      { async: '', src: `https://www.googletagmanager.com/gtag/js?id=${gtagId}` },
-    ],
-    [
-      'script',
-      {},
-      `window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', '${gtagId}');`,
-    ],
-  ],
+  head: [['link', { rel: 'icon', href: `${base}favicon.ico` }]],
 
   // i18n locales
   locales: {

@@ -2,7 +2,6 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
-import { useAnalytics } from '@/composables/useAnalytics'
 import { useHistoryState } from '@/composables/useHistoryState'
 import { useColorPicker } from '@/composables/useColorPicker'
 import { useStickerDownload } from '@/composables/useStickerDownload'
@@ -13,7 +12,6 @@ import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 
 const { t } = useI18n()
 const toast = useToast()
-const { trackCropStickers } = useAnalytics()
 
 // Composables
 const {
@@ -384,11 +382,6 @@ const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) =
       croppedStickers.value = stickers
       stickers.forEach(s => selectedStickers.value.add(s.id))
       toast.success(t('stickerCropper.toast.cropSuccess', { count: stickers.length }))
-      trackCropStickers({
-        count: stickers.length,
-        imageWidth: canvas.width,
-        imageHeight: canvas.height,
-      })
       rafId = null
       onComplete?.()
       return

@@ -7,7 +7,6 @@ import { useToast } from './useToast'
 import { useImageStorage } from './useImageStorage'
 import { useVideoStorage } from './useVideoStorage'
 import { useIndexedDB } from './useIndexedDB'
-import { useAnalytics } from './useAnalytics'
 
 /**
  * Composable for handling image generation logic
@@ -23,7 +22,6 @@ export function useGeneration() {
   const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
   const { generateVideo } = useVideoApi()
   const { generateAllPages } = useSlidesGeneration()
-  const { trackGenerateSuccess, trackGenerateFailed } = useAnalytics()
 
   /**
    * Callback for streaming thinking chunks
@@ -197,15 +195,6 @@ export function useGeneration() {
         // Video mode result - set video for preview
         store.setGeneratedVideo(result.video)
         toast.success(t('toast.videoGenerateSuccess'))
-
-        // Track GA4 event
-        trackGenerateSuccess({
-          mode: store.currentMode,
-          imageCount: 0,
-          videoGenerated: true,
-          hasReferenceImages: refImages.length > 0,
-          options,
-        })
       } else if (store.currentMode === 'slides' && result) {
         // Slides mode result - handle partial success
         const { successCount = 0, failedCount = 0, totalPages = 0 } = result
@@ -220,16 +209,6 @@ export function useGeneration() {
           toast.warning(t('toast.slidesPartialSuccess', { success: successCount, failed: failedCount }))
         } else {
           toast.error(t('toast.slidesAllFailed', { count: totalPages }))
-        }
-
-        // Track GA4 event - only if at least one page succeeded
-        if (successCount > 0) {
-          trackGenerateSuccess({
-            mode: store.currentMode,
-            imageCount: successCount,
-            hasReferenceImages: refImages.length > 0,
-            options,
-          })
         }
       } else if (store.currentMode === 'story' && result) {
         // Story mode result - handle partial success
@@ -246,29 +225,11 @@ export function useGeneration() {
         } else {
           toast.error(t('toast.storyAllFailed', { count: totalSteps }))
         }
-
-        // Track GA4 event - only if at least one step succeeded
-        if (successCount > 0) {
-          trackGenerateSuccess({
-            mode: store.currentMode,
-            imageCount: successCount,
-            hasReferenceImages: refImages.length > 0,
-            options,
-          })
-        }
       } else if (result?.images) {
         // Other image mode result
         store.setGeneratedImages(result.images)
         const imageCount = result.images.length
         toast.success(t('toast.generateSuccess', { count: imageCount }))
-
-        // Track GA4 event
-        trackGenerateSuccess({
-          mode: store.currentMode,
-          imageCount,
-          hasReferenceImages: refImages.length > 0,
-          options,
-        })
       }
 
       // Collect thinking text
@@ -360,12 +321,6 @@ export function useGeneration() {
     } catch (err) {
       const errorMessage = err.message || t('toast.generateFailed')
       store.setGenerationError(errorMessage)
-
-      // Track GA4 event
-      trackGenerateFailed({
-        mode: store.currentMode,
-        error: errorMessage,
-      })
 
       // Save failed attempt to history
       await store.addToHistory({
