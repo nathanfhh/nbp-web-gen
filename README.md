@@ -4,6 +4,19 @@
 
 [![Vue 3](https://img.shields.io/badge/Vue-3.x-green.svg)](https://vuejs.org/) [![Vite](https://img.shields.io/badge/Vite-7.x-blue.svg)](https://vitejs.dev/) [![Gemini API](https://img.shields.io/badge/Image-Gemini%20API-8E75B2.svg)](https://deepmind.google/technologies/gemini/) [![Veo 3.1](https://img.shields.io/badge/Video-Veo%203.1-FF6F00.svg)](https://deepmind.google/technologies/veo/) [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet.svg)](https://claude.ai/code) [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue.svg)](https://nathanfhh.github.io/nbp-web-gen/) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/nathanfhh/nbp-web-gen)
 
+**A Local-First, BYOK AI Workspace for Privacy-Sensitive Environments.**
+*WebGPU-powered OCR. Direct API calls. WebRTC sync. Your Keys. Your Data.*
+
+### 🔒 Why Local-First?
+Designed for environments where data privacy is non-negotiable (hospitals, enterprises, personal use).
+
+* **Local Intelligence:** Uses **WebGPU** (ONNX Runtime) for client-side OCR and Layout Analysis.
+* **No Middleman:** Connects directly to Gemini/Veo API using **your own key** (BYOK). No server stores your data.
+* **Recursive XY-Cut:** Purpose-built layout algorithm to preserve document structure for accurate text extraction.
+* **Decentralized Sync:** Uses **WebRTC** for serverless, P2P synchronization between devices.
+
+---
+
 > **🔒 100% Client-Side | No Backend | Your Data Stays in Your Browser**
 
 **🚀 [Live Demo: https://nathanfhh.github.io/nbp-web-gen/](https://nathanfhh.github.io/nbp-web-gen/)**
@@ -147,6 +160,19 @@ npm run build
 ---
 
 <a name="traditional-chinese"></a>
+
+**為注重隱私的環境打造的 Local-First、BYOK AI 工作空間。**
+*WebGPU 驅動的 OCR。直連 API。WebRTC 同步。你的金鑰。你的資料。*
+
+### 🔒 為何選擇 Local-First？
+專為資料隱私至上的環境設計（醫療院所、企業、個人使用）。
+
+* **本地智慧：** 使用 **WebGPU**（ONNX Runtime）進行客戶端 OCR 與版面分析。
+* **無中間人：** 使用**您自己的金鑰**（BYOK）直連 Gemini/Veo API，無伺服器儲存您的資料。
+* **遞迴 XY-Cut：** 專為版面分析設計的演算法，保留文件結構以提升文字擷取準確度。
+* **去中心化同步：** 使用 **WebRTC** 實現無伺服器的 P2P 跨裝置同步。
+
+---
 
 > **🔒 100% 純前端 | 無後端伺服器 | 資料完全留在您的瀏覽器**
 
