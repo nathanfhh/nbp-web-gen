@@ -2,6 +2,19 @@
 
 This page documents version updates for Mediator.
 
+## v0.25.20
+
+_2026-01-26_
+
+### Documentation
+- Add Local-First / BYOK value proposition section to README
+
+### Fixes
+- **Slide Conversion**: Use aspect-ratio adaptive font sizing to fix oversized fonts for vertical text
+
+### Removed
+- Remove Google Analytics 4 tracking to align with "No Middleman" privacy-first philosophy
+
 ## v0.25.19
 
 _2026-01-25_
