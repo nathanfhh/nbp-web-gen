@@ -179,21 +179,30 @@ Raw OCR detections (single lines) must be merged into logical paragraphs. This i
 
 #### 6. PPTX Text Box Font Sizing
 
-Font size calculation uses **height-based** approach for simplicity and reliability:
+Font size calculation uses **aspect-ratio adaptive** approach to handle both horizontal and vertical text:
 
 | File | Description |
 |------|-------------|
 | `composables/usePptxExport.js` | PPTX generation with font size calculation |
 
 **Algorithm:**
-1. **Height-based calculation** - Use max line height from OCR detection as the basis
-2. **Line height ratio** (`lineHeightRatio`) - Convert detected height to font size (default: 1.2)
-3. **Clamp to range** - Apply `minFontSize` and `maxFontSize` limits
+1. **Collect dimensions** - Get both width and height of each line from OCR detection
+2. **Aspect ratio check** - Determine text orientation based on width/height ratio:
+   - `aspectRatio < 0.5` → Vertical text (tall & narrow) → use **width** as font reference
+   - `aspectRatio > 2` → Horizontal text (wide & short) → use **height** as font reference
+   - `0.5 ≤ aspectRatio ≤ 2` → Uncertain → use **min(width, height)** for safety
+3. **Line height ratio** (`lineHeightRatio`) - Convert reference dimension to font size (default: 1.2)
+4. **Clamp to range** - Apply `minFontSize` and `maxFontSize` limits
+
+**Why this approach?**
+- Horizontal text: line height ≈ font height (use height)
+- Vertical text: line height = entire text string height, line width ≈ font width (use width)
+- Using only height would cause vertical text to have abnormally large font sizes
 
 **Key Parameters** (configurable in OCR Settings → Export):
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `lineHeightRatio` | 1.2 | Ratio for converting detected line height to font size |
+| `lineHeightRatio` | 1.2 | Ratio for converting reference dimension to font size |
 | `minFontSize` | 8 | Minimum font size (points) |
 | `maxFontSize` | 120 | Maximum font size (points) |
 

@@ -399,49 +399,97 @@ export function usePptxExport() {
             const debugLines = [] // Debug info
 
             if (region.lines && region.lines.length > 0) {
-              // Get heights of all original lines
-              // For polygon-mode regions, use line polygon edge heights instead of
-              // axis-aligned bounds.height (which is inflated for slanted text)
-              const usePolygonHeight = _isPolygon(region)
-              const lineHeights = region.lines
+              // Get dimensions of all original lines
+              // For polygon-mode regions, use line polygon edge lengths instead of
+              // axis-aligned bounds (which is inflated for slanted text)
+              const usePolygonDims = _isPolygon(region)
+              const lineDimensions = region.lines
                 .filter((line) => line.text && line.text.trim())
                 .map((line) => {
-                  let heightPx
-                  if (usePolygonHeight && line.polygon && line.polygon.length === 4) {
+                  let heightPx, widthPx
+                  if (usePolygonDims && line.polygon && line.polygon.length === 4) {
                     const [lnw, lne, lse, lsw] = line.polygon
+                    // Height: average of left/right edges (perpendicular to text)
                     const leftH = Math.hypot(lsw[0] - lnw[0], lsw[1] - lnw[1])
                     const rightH = Math.hypot(lse[0] - lne[0], lse[1] - lne[1])
                     heightPx = (leftH + rightH) / 2
+                    // Width: average of top/bottom edges (along text direction)
+                    const topW = Math.hypot(lne[0] - lnw[0], lne[1] - lnw[1])
+                    const bottomW = Math.hypot(lse[0] - lsw[0], lse[1] - lsw[1])
+                    widthPx = (topW + bottomW) / 2
                   } else {
                     heightPx = line.bounds.height
+                    widthPx = line.bounds.width
                   }
                   debugLines.push({
                     text: line.text.substring(0, 30) + (line.text.length > 30 ? '...' : ''),
                     heightPx: Math.round(heightPx),
+                    widthPx: Math.round(widthPx),
+                    aspectRatio: (widthPx / heightPx).toFixed(2),
                     color: line.textColor || '(none)',
                   })
-                  return heightPx
+                  return { heightPx, widthPx }
                 })
 
-              if (lineHeights.length > 0) {
-                // Use max height (largest line best represents actual text size)
-                const maxHeight = Math.max(...lineHeights)
+              if (lineDimensions.length > 0) {
+                // Determine font reference dimension based on aspect ratio
+                // Strategy: Use aspect ratio to detect vertical vs horizontal text
+                //   - Vertical text (tall & narrow): use width as font size reference
+                //   - Horizontal text (wide & short): use height as font size reference
+                //   - Square-ish (uncertain): use min(width, height) for safety
+                const maxHeight = Math.max(...lineDimensions.map((d) => d.heightPx))
+                const maxWidth = Math.max(...lineDimensions.map((d) => d.widthPx))
+                const aspectRatio = maxWidth / maxHeight
 
-                // Convert max height to font size in points
+                let fontReferencePx
+                let fontReferenceType
+                if (aspectRatio < 0.5) {
+                  // Very tall & narrow → likely vertical text → use width
+                  fontReferencePx = maxWidth
+                  fontReferenceType = 'width (vertical text detected)'
+                } else if (aspectRatio > 2) {
+                  // Very wide & short → clearly horizontal text → use height
+                  fontReferencePx = maxHeight
+                  fontReferenceType = 'height (horizontal text)'
+                } else {
+                  // Square-ish or uncertain → use min for safety
+                  fontReferencePx = Math.min(maxWidth, maxHeight)
+                  fontReferenceType = `min (aspect ratio ${aspectRatio.toFixed(2)})`
+                }
+
+                // Convert to font size in points
                 // Use imgPos.h (actual image height on slide) for correct scaling
                 fontSize =
-                  ((maxHeight / slideData.height) * imgPos.h * 72) / lineHeightRatio
+                  ((fontReferencePx / slideData.height) * imgPos.h * 72) / lineHeightRatio
+
+                console.log(
+                  `📐 Font reference: ${fontReferenceType}, ${Math.round(fontReferencePx)}px → ${Math.round(fontSize)}pt`
+                )
               } else {
                 // Fallback if no valid lines
                 fontSize = (h * 72) / lineHeightRatio
               }
             } else {
-              // Single line or no lines data: use effective height
+              // Single line or no lines data: use effective dimensions with aspect ratio check
               const heightPx = region.fontSize || effectiveHeightPx
-              fontSize = ((heightPx / slideData.height) * imgPos.h * 72) / lineHeightRatio
+              const widthPx = effectiveWidthPx
+              const aspectRatio = widthPx / heightPx
+
+              let fontReferencePx
+              if (aspectRatio < 0.5) {
+                fontReferencePx = widthPx
+              } else if (aspectRatio > 2) {
+                fontReferencePx = heightPx
+              } else {
+                fontReferencePx = Math.min(widthPx, heightPx)
+              }
+
+              fontSize = ((fontReferencePx / slideData.height) * imgPos.h * 72) / lineHeightRatio
               debugLines.push({
                 text: region.text.substring(0, 30) + (region.text.length > 30 ? '...' : ''),
                 heightPx: Math.round(heightPx),
+                widthPx: Math.round(widthPx),
+                aspectRatio: aspectRatio.toFixed(2),
                 color: '(single)',
               })
             }
@@ -450,7 +498,7 @@ export function usePptxExport() {
             fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.round(fontSize)))
 
             // Debug output
-            console.group(`📝 Font Size Calculation (Height-based)`)
+            console.group(`📝 Font Size Calculation (Aspect-Ratio Adaptive)`)
             console.log(`Final fontSize: ${fontSize}pt`)
             console.table(debugLines)
             console.groupEnd()
