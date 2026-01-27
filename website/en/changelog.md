@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.25.21
+
+_2026-01-27_
+
+### New Features
+- **Docs Site**: Add drag-to-rotate with physics (inertia + friction) to 3D banana model, supports mouse and touch, double-click to smoothly reset; hover follow effect preserved
+
 ## v0.25.20
 
 _2026-01-26_
