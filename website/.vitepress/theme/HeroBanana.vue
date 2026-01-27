@@ -21,26 +21,32 @@ let scene, camera, renderer, banana
 const BASE_ROTATION_X = (20 * Math.PI) / 180 // 20 degrees
 const BASE_ROTATION_Y = (200 * Math.PI) / 180 // 200 degrees
 
-// Physics parameters
-const SENSITIVITY = 0.008 // How much rotation per pixel of drag
-const FRICTION = 0.95 // Velocity decay per frame (0.95 = smooth stop)
-const MIN_VELOCITY = 0.0001 // Stop threshold
-const RETURN_SPEED = 0.03 // How fast to return to original position (lerp factor)
-const RETURN_DELAY = 300 // ms to wait before returning to original position
+// Hover parameters (mouse follow - always active)
+const MAX_HOVER_ROTATION = Math.PI / 12 // 15 degrees
+const HOVER_LERP = 0.05 // Smooth interpolation speed
 
-// Drag state
+// Drag physics parameters
+const SENSITIVITY = 0.008 // Rotation per pixel of drag
+const FRICTION = 0.95 // Velocity decay per frame
+const MIN_VELOCITY = 0.0001 // Stop threshold
+const RESET_SPEED = 0.08 // Lerp factor for double-click reset
+
+// Hover state (layer 1: always active)
+let hoverTargetX = 0
+let hoverTargetY = 0
+let hoverCurrentX = 0
+let hoverCurrentY = 0
+
+// Drag state (layer 2: additive offset from dragging)
 let isDragging = false
 let lastPointerX = 0
 let lastPointerY = 0
 let lastMoveTime = 0
-
-// Physics state
-let velocityX = 0 // Angular velocity for X rotation
-let velocityY = 0 // Angular velocity for Y rotation
-let rotationX = BASE_ROTATION_X
-let rotationY = BASE_ROTATION_Y
-let idleStartTime = 0 // When the banana became idle
-let isReturning = false // Whether we're returning to original position
+let dragOffsetX = 0 // Extra rotation from dragging
+let dragOffsetY = 0
+let dragVelocityX = 0 // Angular velocity for inertia
+let dragVelocityY = 0
+let isResetting = false // Double-click smooth reset in progress
 
 let animationId = null
 
@@ -128,76 +134,54 @@ function animate() {
   animationId = requestAnimationFrame(animate)
 
   if (banana) {
-    // Apply velocity when not dragging
+    // Layer 1: Hover (always active, smooth follow mouse)
+    hoverCurrentX += (hoverTargetX - hoverCurrentX) * HOVER_LERP
+    hoverCurrentY += (hoverTargetY - hoverCurrentY) * HOVER_LERP
+
+    // Layer 2: Drag offset
     if (!isDragging) {
-      // Apply friction
-      velocityX *= FRICTION
-      velocityY *= FRICTION
+      if (isResetting) {
+        // Smooth lerp back to zero on double-click
+        dragOffsetX += -dragOffsetX * RESET_SPEED
+        dragOffsetY += -dragOffsetY * RESET_SPEED
 
-      // Stop if velocity is negligible
-      if (Math.abs(velocityX) < MIN_VELOCITY) velocityX = 0
-      if (Math.abs(velocityY) < MIN_VELOCITY) velocityY = 0
-
-      // Update rotation from velocity
-      rotationX += velocityX
-      rotationY += velocityY
-
-      // Check if we should start returning to original position
-      const isIdle = velocityX === 0 && velocityY === 0
-      const isAtOrigin =
-        Math.abs(rotationX - BASE_ROTATION_X) < 0.001 &&
-        Math.abs(rotationY - BASE_ROTATION_Y) < 0.001
-
-      if (isIdle && !isAtOrigin) {
-        const now = performance.now()
-
-        if (!isReturning) {
-          // Start idle timer
-          if (idleStartTime === 0) {
-            idleStartTime = now
-          } else if (now - idleStartTime > RETURN_DELAY) {
-            // Delay passed, start returning
-            isReturning = true
-          }
+        if (Math.abs(dragOffsetX) < 0.005 && Math.abs(dragOffsetY) < 0.005) {
+          dragOffsetX = 0
+          dragOffsetY = 0
+          isResetting = false
         }
+      } else {
+        // Normal inertia
+        dragVelocityX *= FRICTION
+        dragVelocityY *= FRICTION
+        if (Math.abs(dragVelocityX) < MIN_VELOCITY) dragVelocityX = 0
+        if (Math.abs(dragVelocityY) < MIN_VELOCITY) dragVelocityY = 0
 
-        if (isReturning) {
-          // Smoothly lerp back to original position
-          rotationX += (BASE_ROTATION_X - rotationX) * RETURN_SPEED
-          rotationY += (BASE_ROTATION_Y - rotationY) * RETURN_SPEED
-
-          // Snap to origin if close enough
-          if (
-            Math.abs(rotationX - BASE_ROTATION_X) < 0.001 &&
-            Math.abs(rotationY - BASE_ROTATION_Y) < 0.001
-          ) {
-            rotationX = BASE_ROTATION_X
-            rotationY = BASE_ROTATION_Y
-            isReturning = false
-            idleStartTime = 0
-          }
-        }
-      } else if (!isIdle) {
-        // Reset idle timer when moving
-        idleStartTime = 0
-        isReturning = false
+        dragOffsetX += dragVelocityX
+        dragOffsetY += dragVelocityY
       }
     }
 
-    // Apply rotation to banana
-    banana.rotation.x = rotationX
-    banana.rotation.y = rotationY
+    // Final rotation = base + hover + drag
+    banana.rotation.x = BASE_ROTATION_X + hoverCurrentX + dragOffsetX
+    banana.rotation.y = BASE_ROTATION_Y + hoverCurrentY + dragOffsetY
   }
 
   renderer.render(scene, camera)
 }
 
+// Hover handler (mouse follow - works on whole window)
+function onMouseMove(event) {
+  const mouseX = (event.clientX / window.innerWidth) * 2 - 1
+  const mouseY = (event.clientY / window.innerHeight) * 2 - 1
+
+  hoverTargetY = mouseX * MAX_HOVER_ROTATION
+  hoverTargetX = -mouseY * MAX_HOVER_ROTATION
+}
+
 // Pointer event handlers (unified for mouse & touch)
 function onPointerDown(event) {
-  // Only handle primary pointer (left mouse button or first touch)
   if (event.pointerType === 'mouse' && event.button !== 0) return
-
-  // Prevent double-click/tap delay
   event.preventDefault()
 
   isDragging = true
@@ -205,41 +189,33 @@ function onPointerDown(event) {
   lastPointerY = event.clientY
   lastMoveTime = performance.now()
 
-  // Reset velocity and return state on new drag
-  velocityX = 0
-  velocityY = 0
-  idleStartTime = 0
-  isReturning = false
+  // Stop inertia and reset animation on new drag
+  dragVelocityX = 0
+  dragVelocityY = 0
+  isResetting = false
 
-  // Capture pointer for smooth dragging outside element
   containerRef.value?.setPointerCapture(event.pointerId)
 }
 
 function onPointerMove(event) {
   if (!isDragging) return
-
   event.preventDefault()
 
   const currentTime = performance.now()
   const deltaTime = currentTime - lastMoveTime
-
-  // Calculate movement delta
   const deltaX = event.clientX - lastPointerX
   const deltaY = event.clientY - lastPointerY
 
-  // Update rotation directly while dragging
-  rotationY += deltaX * SENSITIVITY
-  rotationX += -deltaY * SENSITIVITY // Invert Y for natural feel
+  // Update drag offset
+  dragOffsetY += deltaX * SENSITIVITY
+  dragOffsetX += -deltaY * SENSITIVITY
 
-  // Calculate velocity for inertia (pixels per ms -> radians per frame)
+  // Calculate velocity for inertia
   if (deltaTime > 0) {
-    // Smooth velocity calculation with some dampening
-    const instantVelocityX = (-deltaY * SENSITIVITY) / deltaTime * 16 // ~16ms per frame
-    const instantVelocityY = (deltaX * SENSITIVITY) / deltaTime * 16
-
-    // Blend with previous velocity for smoother inertia
-    velocityX = instantVelocityX * 0.5 + velocityX * 0.5
-    velocityY = instantVelocityY * 0.5 + velocityY * 0.5
+    const instantVX = (-deltaY * SENSITIVITY) / deltaTime * 16
+    const instantVY = (deltaX * SENSITIVITY) / deltaTime * 16
+    dragVelocityX = instantVX * 0.5 + dragVelocityX * 0.5
+    dragVelocityY = instantVY * 0.5 + dragVelocityY * 0.5
   }
 
   lastPointerX = event.clientX
@@ -263,6 +239,11 @@ function onPointerCancel(event) {
 function onDoubleClick(event) {
   event.preventDefault()
   event.stopPropagation()
+
+  // Start smooth reset to original position
+  dragVelocityX = 0
+  dragVelocityY = 0
+  isResetting = true
 }
 
 function onResize() {
@@ -301,7 +282,10 @@ onMounted(() => {
   init()
   animate()
 
-  // Use pointer events for unified mouse/touch handling
+  // Hover: mouse follow on whole window
+  window.addEventListener('mousemove', onMouseMove)
+
+  // Drag: pointer events on container
   const container = containerRef.value
   if (container) {
     container.addEventListener('pointerdown', onPointerDown, { passive: false })
@@ -326,6 +310,7 @@ onUnmounted(() => {
     container.removeEventListener('dblclick', onDoubleClick)
   }
 
+  window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('resize', onResize)
 
   if (animationId) {
