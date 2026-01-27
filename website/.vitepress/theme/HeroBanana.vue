@@ -18,14 +18,30 @@ const containerRef = ref(null)
 const isModelReady = ref(false)
 
 let scene, camera, renderer, banana
-let mouseX = 0
-let mouseY = 0
 const BASE_ROTATION_X = (20 * Math.PI) / 180 // 20 degrees
 const BASE_ROTATION_Y = (200 * Math.PI) / 180 // 200 degrees
-const MAX_ROTATION = Math.PI / 12 // 15 degrees
 
-let targetRotationX = BASE_ROTATION_X
-let targetRotationY = BASE_ROTATION_Y
+// Physics parameters
+const SENSITIVITY = 0.008 // How much rotation per pixel of drag
+const FRICTION = 0.95 // Velocity decay per frame (0.95 = smooth stop)
+const MIN_VELOCITY = 0.0001 // Stop threshold
+const RETURN_SPEED = 0.03 // How fast to return to original position (lerp factor)
+const RETURN_DELAY = 300 // ms to wait before returning to original position
+
+// Drag state
+let isDragging = false
+let lastPointerX = 0
+let lastPointerY = 0
+let lastMoveTime = 0
+
+// Physics state
+let velocityX = 0 // Angular velocity for X rotation
+let velocityY = 0 // Angular velocity for Y rotation
+let rotationX = BASE_ROTATION_X
+let rotationY = BASE_ROTATION_Y
+let idleStartTime = 0 // When the banana became idle
+let isReturning = false // Whether we're returning to original position
+
 let animationId = null
 
 function init() {
@@ -112,35 +128,141 @@ function animate() {
   animationId = requestAnimationFrame(animate)
 
   if (banana) {
-    // Smooth interpolation toward target rotation
-    const currentX = banana.rotation.x
-    const currentY = banana.rotation.y
+    // Apply velocity when not dragging
+    if (!isDragging) {
+      // Apply friction
+      velocityX *= FRICTION
+      velocityY *= FRICTION
 
-    banana.rotation.x += (targetRotationX - currentX) * 0.05
-    banana.rotation.y += (targetRotationY - currentY) * 0.05
+      // Stop if velocity is negligible
+      if (Math.abs(velocityX) < MIN_VELOCITY) velocityX = 0
+      if (Math.abs(velocityY) < MIN_VELOCITY) velocityY = 0
+
+      // Update rotation from velocity
+      rotationX += velocityX
+      rotationY += velocityY
+
+      // Check if we should start returning to original position
+      const isIdle = velocityX === 0 && velocityY === 0
+      const isAtOrigin =
+        Math.abs(rotationX - BASE_ROTATION_X) < 0.001 &&
+        Math.abs(rotationY - BASE_ROTATION_Y) < 0.001
+
+      if (isIdle && !isAtOrigin) {
+        const now = performance.now()
+
+        if (!isReturning) {
+          // Start idle timer
+          if (idleStartTime === 0) {
+            idleStartTime = now
+          } else if (now - idleStartTime > RETURN_DELAY) {
+            // Delay passed, start returning
+            isReturning = true
+          }
+        }
+
+        if (isReturning) {
+          // Smoothly lerp back to original position
+          rotationX += (BASE_ROTATION_X - rotationX) * RETURN_SPEED
+          rotationY += (BASE_ROTATION_Y - rotationY) * RETURN_SPEED
+
+          // Snap to origin if close enough
+          if (
+            Math.abs(rotationX - BASE_ROTATION_X) < 0.001 &&
+            Math.abs(rotationY - BASE_ROTATION_Y) < 0.001
+          ) {
+            rotationX = BASE_ROTATION_X
+            rotationY = BASE_ROTATION_Y
+            isReturning = false
+            idleStartTime = 0
+          }
+        }
+      } else if (!isIdle) {
+        // Reset idle timer when moving
+        idleStartTime = 0
+        isReturning = false
+      }
+    }
+
+    // Apply rotation to banana
+    banana.rotation.x = rotationX
+    banana.rotation.y = rotationY
   }
 
   renderer.render(scene, camera)
 }
 
-function updateRotation(clientX, clientY) {
-  // Calculate normalized position (-1 to 1)
-  mouseX = (clientX / window.innerWidth) * 2 - 1
-  mouseY = (clientY / window.innerHeight) * 2 - 1
+// Pointer event handlers (unified for mouse & touch)
+function onPointerDown(event) {
+  // Only handle primary pointer (left mouse button or first touch)
+  if (event.pointerType === 'mouse' && event.button !== 0) return
 
-  // Update target rotation (based on default + mouse offset)
-  targetRotationY = BASE_ROTATION_Y + mouseX * MAX_ROTATION
-  targetRotationX = BASE_ROTATION_X + -mouseY * MAX_ROTATION
+  // Prevent double-click/tap delay
+  event.preventDefault()
+
+  isDragging = true
+  lastPointerX = event.clientX
+  lastPointerY = event.clientY
+  lastMoveTime = performance.now()
+
+  // Reset velocity and return state on new drag
+  velocityX = 0
+  velocityY = 0
+  idleStartTime = 0
+  isReturning = false
+
+  // Capture pointer for smooth dragging outside element
+  containerRef.value?.setPointerCapture(event.pointerId)
 }
 
-function onMouseMove(event) {
-  updateRotation(event.clientX, event.clientY)
-}
+function onPointerMove(event) {
+  if (!isDragging) return
 
-function onTouchMove(event) {
-  if (event.touches.length > 0) {
-    updateRotation(event.touches[0].clientX, event.touches[0].clientY)
+  event.preventDefault()
+
+  const currentTime = performance.now()
+  const deltaTime = currentTime - lastMoveTime
+
+  // Calculate movement delta
+  const deltaX = event.clientX - lastPointerX
+  const deltaY = event.clientY - lastPointerY
+
+  // Update rotation directly while dragging
+  rotationY += deltaX * SENSITIVITY
+  rotationX += -deltaY * SENSITIVITY // Invert Y for natural feel
+
+  // Calculate velocity for inertia (pixels per ms -> radians per frame)
+  if (deltaTime > 0) {
+    // Smooth velocity calculation with some dampening
+    const instantVelocityX = (-deltaY * SENSITIVITY) / deltaTime * 16 // ~16ms per frame
+    const instantVelocityY = (deltaX * SENSITIVITY) / deltaTime * 16
+
+    // Blend with previous velocity for smoother inertia
+    velocityX = instantVelocityX * 0.5 + velocityX * 0.5
+    velocityY = instantVelocityY * 0.5 + velocityY * 0.5
   }
+
+  lastPointerX = event.clientX
+  lastPointerY = event.clientY
+  lastMoveTime = currentTime
+}
+
+function onPointerUp(event) {
+  if (!isDragging) return
+
+  isDragging = false
+
+  // Release pointer capture
+  containerRef.value?.releasePointerCapture(event.pointerId)
+}
+
+function onPointerCancel(event) {
+  onPointerUp(event)
+}
+
+function onDoubleClick(event) {
+  event.preventDefault()
+  event.stopPropagation()
 }
 
 function onResize() {
@@ -179,14 +301,31 @@ onMounted(() => {
   init()
   animate()
 
-  window.addEventListener('mousemove', onMouseMove)
-  window.addEventListener('touchmove', onTouchMove, { passive: true })
+  // Use pointer events for unified mouse/touch handling
+  const container = containerRef.value
+  if (container) {
+    container.addEventListener('pointerdown', onPointerDown, { passive: false })
+    container.addEventListener('pointermove', onPointerMove, { passive: false })
+    container.addEventListener('pointerup', onPointerUp)
+    container.addEventListener('pointercancel', onPointerCancel)
+    container.addEventListener('pointerleave', onPointerUp)
+    container.addEventListener('dblclick', onDoubleClick)
+  }
+
   window.addEventListener('resize', onResize)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('mousemove', onMouseMove)
-  window.removeEventListener('touchmove', onTouchMove)
+  const container = containerRef.value
+  if (container) {
+    container.removeEventListener('pointerdown', onPointerDown)
+    container.removeEventListener('pointermove', onPointerMove)
+    container.removeEventListener('pointerup', onPointerUp)
+    container.removeEventListener('pointercancel', onPointerCancel)
+    container.removeEventListener('pointerleave', onPointerUp)
+    container.removeEventListener('dblclick', onDoubleClick)
+  }
+
   window.removeEventListener('resize', onResize)
 
   if (animationId) {
@@ -258,6 +397,15 @@ onUnmounted(() => {
   height: 100%;
   opacity: 0;
   transition: opacity 0.6s ease-in;
+  cursor: grab;
+  touch-action: none; /* Prevent scroll/zoom on touch devices */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* Prevent iOS callout */
+}
+
+.hero-banana:active {
+  cursor: grabbing;
 }
 
 .hero-banana.fade-in {
