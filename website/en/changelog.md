@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.25.22
+
+_2026-01-27_
+
+### Fixes
+- **Docs Site**: Fix double-click reset not working on touch devices (add double-tap detection)
+
 ## v0.25.21
 
 _2026-01-27_
