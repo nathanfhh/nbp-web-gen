@@ -46,7 +46,9 @@ let dragOffsetX = 0 // Extra rotation from dragging
 let dragOffsetY = 0
 let dragVelocityX = 0 // Angular velocity for inertia
 let dragVelocityY = 0
-let isResetting = false // Double-click smooth reset in progress
+let isResetting = false // Double-click/tap smooth reset in progress
+let lastTapTime = 0 // For double-tap detection on touch
+const DOUBLE_TAP_THRESHOLD = 300 // ms
 
 let animationId = null
 
@@ -179,10 +181,27 @@ function onMouseMove(event) {
   hoverTargetX = -mouseY * MAX_HOVER_ROTATION
 }
 
+function triggerReset() {
+  dragVelocityX = 0
+  dragVelocityY = 0
+  isResetting = true
+}
+
 // Pointer event handlers (unified for mouse & touch)
 function onPointerDown(event) {
   if (event.pointerType === 'mouse' && event.button !== 0) return
   event.preventDefault()
+
+  // Double-tap detection for touch devices
+  if (event.pointerType === 'touch') {
+    const now = performance.now()
+    if (now - lastTapTime < DOUBLE_TAP_THRESHOLD) {
+      triggerReset()
+      lastTapTime = 0
+      return // Don't start a drag on double-tap
+    }
+    lastTapTime = now
+  }
 
   isDragging = true
   lastPointerX = event.clientX
@@ -239,11 +258,7 @@ function onPointerCancel(event) {
 function onDoubleClick(event) {
   event.preventDefault()
   event.stopPropagation()
-
-  // Start smooth reset to original position
-  dragVelocityX = 0
-  dragVelocityY = 0
-  isResetting = true
+  triggerReset()
 }
 
 function onResize() {
