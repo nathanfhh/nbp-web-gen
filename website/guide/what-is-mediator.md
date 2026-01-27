@@ -6,7 +6,7 @@ Mediator 是一個 AI 圖片與影片生成工具，名稱來自 **Media** + **C
 這是一個個人 Side Project，旨在探索 AI 生成技術的應用可能性，同時深入研究瀏覽器的進階功能（如 WebGPU、OPFS、Web Workers、ONNX Runtime Web 等）。
 :::
 
-![Mediator 應用程式總覽](/images/app-overview.webp)
+<HeroVideo />
 
 ## 核心特色
 

@@ -6,7 +6,7 @@ Mediator is an AI image and video generation tool. The name comes from **Media**
 This is a personal side project, exploring the possibilities of AI generation technology while diving deep into advanced browser capabilities (such as WebGPU, OPFS, Web Workers, ONNX Runtime Web, etc.).
 :::
 
-![Mediator App Overview](/images/app-overview.webp)
+<HeroVideo />
 
 ## Core Features
 
