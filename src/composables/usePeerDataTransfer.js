@@ -174,10 +174,11 @@ export function usePeerDataTransfer(deps) {
    * @param {Object} params.indexedDB - IndexedDB composable
    * @param {Object} params.imageStorage - Image storage composable
    * @param {Object} params.videoStorage - Video storage composable
+   * @param {Object} params.audioStorage - Audio storage composable
    * @param {Array<number>|null} params.selectedRecordIds - Specific record IDs to sync
    * @returns {Promise<{sent: number, failed: number, total: number}>}
    */
-  const sendHistoryData = async ({ indexedDB, imageStorage, videoStorage, selectedRecordIds }) => {
+  const sendHistoryData = async ({ indexedDB, imageStorage, videoStorage, audioStorage, selectedRecordIds }) => {
     if (!connection.value) return { sent: 0, failed: 0, total: 0 }
 
     let records
@@ -210,6 +211,15 @@ export function usePeerDataTransfer(deps) {
           error: record.error,
           imageCount: record.images?.length || 0,
           hasVideo: !!(record.video && record.video.opfsPath),
+          hasNarration: !!record.narration,
+          narrationMeta: record.narration
+            ? {
+                globalStyleDirective: record.narration.globalStyleDirective,
+                scripts: record.narration.scripts,
+                settings: record.narration.settings,
+                audioCount: record.narration.audio?.length || 0,
+              }
+            : null,
         }
 
         // Send record start with metadata
@@ -260,6 +270,28 @@ export function usePeerDataTransfer(deps) {
             // Use chunked transfer for videos (they can be large)
             await sendChunked(header, rawData)
             addDebug(`Sent video: ${formatBytes(rawData.length)}`)
+          }
+        }
+
+        // Send narration audio if present
+        if (record.narration?.audio?.length > 0 && audioStorage) {
+          for (let i = 0; i < record.narration.audio.length; i++) {
+            const audioMeta = record.narration.audio[i]
+            const blob = await audioStorage.loadAudioBlob(audioMeta.opfsPath)
+            if (blob) {
+              const arrayBuffer = await blob.arrayBuffer()
+              const rawData = new Uint8Array(arrayBuffer)
+              const header = {
+                type: 'record_audio',
+                uuid,
+                pageIndex: audioMeta.pageIndex,
+                size: rawData.length,
+                mimeType: audioMeta.mimeType || 'audio/mpeg',
+              }
+              const packet = createBinaryPacket(header, rawData)
+              await sendBinary(packet)
+              addDebug(`Sent audio ${i + 1}/${record.narration.audio.length}: ${formatBytes(rawData.length)}`)
+            }
           }
         }
 

@@ -67,6 +67,7 @@ export function usePeerDataReceiver(deps) {
   const pendingRecord = ref(null)
   const pendingImages = ref([])
   const pendingVideo = ref(null)
+  const pendingAudioFiles = ref([])
 
   // Chunked transfer: store chunks being received
   // Map of uuid -> { header, chunks: Map<index, Uint8Array>, totalChunks }
@@ -208,7 +209,8 @@ export function usePeerDataReceiver(deps) {
       pendingRecord.value = data.meta
       pendingImages.value = []
       pendingVideo.value = null
-      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images${data.meta.hasVideo ? ' + video' : ''}`)
+      pendingAudioFiles.value = []
+      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images${data.meta.hasVideo ? ' + video' : ''}${data.meta.hasNarration ? ' + narration' : ''}`)
     } else if (data.type === 'record_end') {
       if (pendingRecord.value && pendingRecord.value.uuid === data.uuid) {
         const expectedImages = pendingRecord.value.imageCount || 0
@@ -245,8 +247,24 @@ export function usePeerDataReceiver(deps) {
           }
         }
 
+        // Wait for narration audio if expected
+        const expectedAudio = pendingRecord.value.narrationMeta?.audioCount || 0
+        if (expectedAudio > 0 && pendingAudioFiles.value.length < expectedAudio) {
+          addDebug(`Waiting for narration audio: ${pendingAudioFiles.value.length}/${expectedAudio}`)
+          for (let i = 0; i < 300; i++) {
+            await new Promise(r => setTimeout(r, 100))
+            if (pendingAudioFiles.value.length >= expectedAudio) {
+              addDebug(`All audio received: ${pendingAudioFiles.value.length}/${expectedAudio}`)
+              break
+            }
+            if (i % 50 === 0 && i > 0) {
+              addDebug(`Still waiting for audio: ${pendingAudioFiles.value.length}/${expectedAudio}`)
+            }
+          }
+        }
+
         const finalImageCount = pendingImages.value.length
-        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value, pendingVideo.value)
+        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value, pendingVideo.value, pendingAudioFiles.value)
         transferProgress.value.current++
 
         if (result.skipped) {
@@ -260,19 +278,22 @@ export function usePeerDataReceiver(deps) {
         }
 
         // Send ACK back to sender
-        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}, video: ${!!pendingVideo.value}, skipped: ${!!result.skipped}`)
+        const finalAudioCount = pendingAudioFiles.value.length
+        addDebug(`Sending record_ack for ${data.uuid}, images: ${finalImageCount}/${expectedImages}, video: ${!!pendingVideo.value}, audio: ${finalAudioCount}/${expectedAudio}, skipped: ${!!result.skipped}`)
         connection.value.send(encodeJsonMessage({
           type: 'record_ack',
           uuid: data.uuid,
           receivedImages: finalImageCount,
           expectedImages: expectedImages,
           hasVideo: !!pendingVideo.value,
+          receivedAudio: finalAudioCount,
           skipped: !!result.skipped,
         }))
 
         pendingRecord.value = null
         pendingImages.value = []
         pendingVideo.value = null
+        pendingAudioFiles.value = []
       }
     } else if (data.type === 'record_ack') {
       addDebug(`Received record_ack for ${data.uuid}, images: ${data.receivedImages}`)
@@ -386,6 +407,20 @@ export function usePeerDataReceiver(deps) {
           mimeType: header.mimeType,
           data: imageData,
         }
+      } else if (header.type === 'record_audio') {
+        if (!pendingRecord.value || pendingRecord.value.uuid !== header.uuid) {
+          addDebug(`Ignoring audio for unknown/mismatched record: ${header.uuid}`)
+          return
+        }
+
+        addDebug(`Received audio ${header.uuid}:page${header.pageIndex}: ${formatBytes(imageData.length)}`)
+
+        pendingAudioFiles.value.push({
+          uuid: header.uuid,
+          pageIndex: header.pageIndex,
+          mimeType: header.mimeType,
+          data: imageData,
+        })
       } else if (header.type === 'character_image') {
         if (!pendingRecord.value || pendingRecord.value._type !== 'character' || pendingRecord.value.name !== header.name) {
           addDebug(`Ignoring character image for unknown/mismatched character: ${header.name}`)
@@ -409,7 +444,7 @@ export function usePeerDataReceiver(deps) {
   /**
    * Save received record to IndexedDB/OPFS (new binary protocol)
    */
-  const saveReceivedRecord = async (meta, images, video = null) => {
+  const saveReceivedRecord = async (meta, images, video = null, audioFiles = []) => {
     try {
       // Check if UUID already exists
       if (meta.uuid && (await indexedDB.hasHistoryByUUID(meta.uuid))) {
@@ -493,6 +528,35 @@ export function usePeerDataReceiver(deps) {
           height: video.height,
           thumbnail: thumbnailData,
         })
+      }
+
+      // Save narration data
+      if (meta.narrationMeta) {
+        const narration = {
+          globalStyleDirective: meta.narrationMeta.globalStyleDirective || '',
+          scripts: meta.narrationMeta.scripts || [],
+          settings: meta.narrationMeta.settings || {},
+          audio: [],
+        }
+
+        if (audioFiles.length > 0) {
+          for (const audioFile of audioFiles) {
+            const ext = audioFile.mimeType === 'audio/wav' ? 'wav' : 'mp3'
+            const opfsPath = `/audio/${historyId}/${audioFile.pageIndex}.${ext}`
+            const blob = new Blob([audioFile.data], { type: audioFile.mimeType || 'audio/mpeg' })
+
+            await opfs.writeFile(opfsPath, blob)
+
+            narration.audio.push({
+              pageIndex: audioFile.pageIndex,
+              opfsPath,
+              size: blob.size,
+              mimeType: audioFile.mimeType || 'audio/mpeg',
+            })
+          }
+        }
+
+        await indexedDB.updateHistoryNarration(historyId, narration)
       }
 
       addDebug(`Saved record: ${meta.uuid}`)
@@ -625,6 +689,7 @@ export function usePeerDataReceiver(deps) {
     pendingRecord.value = null
     pendingImages.value = []
     pendingVideo.value = null
+    pendingAudioFiles.value = []
     pendingChunks.value = new Map()
     receiverCounts.value = { imported: 0, skipped: 0, failed: 0 }
   }

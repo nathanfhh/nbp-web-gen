@@ -2,16 +2,18 @@ import { ref } from 'vue'
 import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
 import { useVideoStorage } from './useVideoStorage'
+import { useAudioStorage } from './useAudioStorage'
 import { useOPFS } from './useOPFS'
 import { generateUUID } from './useUUID'
 import { generateThumbnailFromBlob } from './useImageCompression'
 
-const EXPORT_VERSION = 2 // Bumped for video support
+const EXPORT_VERSION = 3 // Bumped for narration support
 
 export function useHistoryTransfer() {
   const indexedDB = useIndexedDB()
   const imageStorage = useImageStorage()
   const videoStorage = useVideoStorage()
+  const audioStorage = useAudioStorage()
   const opfs = useOPFS()
 
   const isExporting = ref(false)
@@ -90,6 +92,36 @@ export function useHistoryTransfer() {
               size: record.video.size,
               mimeType: record.video.mimeType || 'video/mp4',
               data: videoBase64,
+            }
+          }
+        }
+
+        // Load narration data (scripts + audio)
+        if (record.narration) {
+          exportRecord.narration = {
+            globalStyleDirective: record.narration.globalStyleDirective,
+            scripts: record.narration.scripts,
+            settings: record.narration.settings,
+            audio: [],
+          }
+
+          if (record.narration.audio?.length > 0) {
+            for (const audioMeta of record.narration.audio) {
+              const blob = await audioStorage.loadAudioBlob(audioMeta.opfsPath)
+              if (blob) {
+                const arrayBuffer = await blob.arrayBuffer()
+                const bytes = new Uint8Array(arrayBuffer)
+                let binary = ''
+                for (let j = 0; j < bytes.length; j++) {
+                  binary += String.fromCharCode(bytes[j])
+                }
+                exportRecord.narration.audio.push({
+                  pageIndex: audioMeta.pageIndex,
+                  mimeType: audioMeta.mimeType,
+                  size: audioMeta.size,
+                  data: btoa(binary),
+                })
+              }
             }
           }
         }
@@ -252,6 +284,42 @@ export function useHistoryTransfer() {
               height: record.video.height,
               thumbnail: thumbnailData,
             })
+          }
+
+          // Save narration to IndexedDB/OPFS
+          if (record.narration) {
+            const narration = {
+              globalStyleDirective: record.narration.globalStyleDirective || '',
+              scripts: record.narration.scripts || [],
+              settings: record.narration.settings || {},
+              audio: [],
+            }
+
+            if (record.narration.audio?.length > 0) {
+              for (const audioEntry of record.narration.audio) {
+                if (!audioEntry.data) continue
+                const binaryString = atob(audioEntry.data)
+                const bytes = new Uint8Array(binaryString.length)
+                for (let j = 0; j < binaryString.length; j++) {
+                  bytes[j] = binaryString.charCodeAt(j)
+                }
+                const ext = audioEntry.mimeType === 'audio/wav' ? 'wav' : 'mp3'
+                const blob = new Blob([bytes], { type: audioEntry.mimeType || 'audio/mpeg' })
+                const opfsPath = `/audio/${historyId}/${audioEntry.pageIndex}.${ext}`
+
+                // writeFile internally creates directories, no need for separate getOrCreateDirectory
+                await opfs.writeFile(opfsPath, blob)
+
+                narration.audio.push({
+                  pageIndex: audioEntry.pageIndex,
+                  opfsPath,
+                  size: blob.size,
+                  mimeType: audioEntry.mimeType || 'audio/mpeg',
+                })
+              }
+            }
+
+            await indexedDB.updateHistoryNarration(historyId, narration)
           }
 
           imported++

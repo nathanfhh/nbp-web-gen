@@ -3,6 +3,7 @@ import Peer from 'peerjs'
 import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
 import { useVideoStorage } from './useVideoStorage'
+import { useAudioStorage } from './useAudioStorage'
 import { useCharacterStorage } from './useCharacterStorage'
 import { useOPFS } from './useOPFS'
 import { buildIceServers } from './useCloudfareTurn'
@@ -20,6 +21,7 @@ export function usePeerSync() {
   const indexedDB = useIndexedDB()
   const imageStorage = useImageStorage()
   const videoStorage = useVideoStorage()
+  const audioStorage = useAudioStorage()
   const characterStorage = useCharacterStorage()
   const opfs = useOPFS()
 
@@ -162,6 +164,7 @@ export function usePeerSync() {
         indexedDB,
         imageStorage,
         videoStorage,
+        audioStorage,
         selectedRecordIds: selectedRecordIds.value,
       })
 
