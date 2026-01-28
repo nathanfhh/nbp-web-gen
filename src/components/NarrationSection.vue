@@ -38,27 +38,45 @@ const handleGenerateScripts = async () => {
 
 <template>
   <div class="space-y-3">
-    <!-- Toggle Switch -->
-    <div class="flex items-center justify-between">
-      <label class="text-sm font-medium text-text-primary flex items-center gap-2">
-        <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
-        {{ $t('slides.narration.title') }}
-      </label>
-      <button
-        @click="narrationEnabled = !narrationEnabled"
-        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+    <!-- Toggle Switch - Card Style for Better Visibility -->
+    <button
+      @click="narrationEnabled = !narrationEnabled"
+      class="w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between gap-3 text-left"
+      :class="narrationEnabled
+        ? 'bg-mode-generate/10 border-mode-generate'
+        : 'bg-bg-muted/50 border-border-muted hover:border-border-default'"
+      role="switch"
+      :aria-checked="narrationEnabled"
+    >
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+          :class="narrationEnabled ? 'bg-mode-generate text-white' : 'bg-bg-interactive text-text-muted'"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+        </div>
+        <div>
+          <div class="text-sm font-semibold text-text-primary">
+            {{ $t('slides.narration.title') }}
+          </div>
+          <div class="text-xs text-text-muted">
+            {{ $t('slides.narration.subtitle') }}
+          </div>
+        </div>
+      </div>
+      <!-- Toggle Indicator -->
+      <div
+        class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0"
         :class="narrationEnabled ? 'bg-mode-generate' : 'bg-bg-interactive'"
-        role="switch"
-        :aria-checked="narrationEnabled"
       >
         <span
-          class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm"
+          class="inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm"
           :class="narrationEnabled ? 'translate-x-6' : 'translate-x-1'"
         />
-      </button>
-    </div>
+      </div>
+    </button>
 
     <!-- Settings (expanded when enabled) -->
     <template v-if="narrationEnabled">

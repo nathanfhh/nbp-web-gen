@@ -159,7 +159,16 @@ const MAX_SLIDES_PAGES = 30
 const isSlidesNotReady = computed(() => {
   if (store.currentMode !== 'slides') return false
   // Check style confirmation and page limit
-  return !store.slidesOptions.styleConfirmed || store.slidesOptions.totalPages > MAX_SLIDES_PAGES
+  if (!store.slidesOptions.styleConfirmed || store.slidesOptions.totalPages > MAX_SLIDES_PAGES) {
+    return true
+  }
+  // If narration is enabled, scripts must be generated before starting
+  const narrationEnabled = store.slidesOptions.narration?.enabled
+  const hasScripts = (store.slidesOptions.narrationScripts?.length || 0) > 0
+  if (narrationEnabled && !hasScripts) {
+    return true
+  }
+  return false
 })
 
 // Check if any single page is being regenerated (to disable main Generate button)
