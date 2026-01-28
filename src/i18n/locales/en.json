@@ -799,6 +799,8 @@
     "exportAs": "Export As",
     "pdfError": "Failed to generate PDF",
     "zipError": "Failed to generate ZIP",
+    "mp4Error": "Failed to generate MP4 video",
+    "mp4Progress": "Encoding {current}/{total}…",
     "narrationAudio": "Narration Audio",
     "currentAudio": "Current Audio",
     "allAudioZip": "All Audio (ZIP)",

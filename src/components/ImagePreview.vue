@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { formatElapsed } from '@/composables/useFormatTime'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
+import { useMp4Encoder } from '@/composables/useMp4Encoder'
 import { useToast } from '@/composables/useToast'
 import ImageLightbox from './ImageLightbox.vue'
 import VideoLightbox from './VideoLightbox.vue'
@@ -12,7 +13,11 @@ import VideoLightbox from './VideoLightbox.vue'
 const { t } = useI18n()
 const toast = useToast()
 const pdfGenerator = usePdfGenerator()
+const mp4Encoder = useMp4Encoder()
 const store = useGeneratorStore()
+
+// WebCodecs support check (Firefox does not support it)
+const isWebCodecsSupported = computed(() => typeof VideoEncoder !== 'undefined')
 
 // Video preview state
 const videoLightboxOpen = ref(false)
@@ -245,6 +250,70 @@ const downloadAllAsPdf = async () => {
   }
 }
 
+// Download all images + audio as MP4
+const downloadAllAsMp4 = async () => {
+  if (store.generatedImages.length === 0 || isBatchDownloading.value) return
+
+  isBatchDownloading.value = true
+  showBatchMenu.value = false
+
+  try {
+    const imageBuffers = []
+    const imageMimeTypes = []
+
+    for (const image of store.generatedImages) {
+      const blob = imageToBlob(image)
+      if (blob) {
+        imageBuffers.push(await blob.arrayBuffer())
+        imageMimeTypes.push(image.mimeType || blob.type || 'image/png')
+      } else {
+        imageBuffers.push(null)
+        imageMimeTypes.push('image/png')
+      }
+    }
+
+    const audioBuffers = []
+    const audioMimeTypesArr = []
+    const audioUrls = store.generatedAudioUrls
+
+    if (audioUrls?.length) {
+      for (let i = 0; i < store.generatedImages.length; i++) {
+        if (audioUrls[i]) {
+          try {
+            const response = await fetch(audioUrls[i])
+            const blob = await response.blob()
+            audioBuffers.push(await blob.arrayBuffer())
+            audioMimeTypesArr.push(blob.type || 'audio/wav')
+          } catch {
+            audioBuffers.push(null)
+            audioMimeTypesArr.push(null)
+          }
+        } else {
+          audioBuffers.push(null)
+          audioMimeTypesArr.push(null)
+        }
+      }
+    } else {
+      for (let i = 0; i < store.generatedImages.length; i++) {
+        audioBuffers.push(null)
+        audioMimeTypesArr.push(null)
+      }
+    }
+
+    await mp4Encoder.encodeAndDownload({
+      images: imageBuffers,
+      imageMimeTypes,
+      audioBuffers,
+      audioMimeTypes: audioMimeTypesArr,
+    }, `slides-${Date.now()}`)
+  } catch (err) {
+    console.error('MP4 encoding failed:', err)
+    toast.error(t('lightbox.mp4Error'))
+  } finally {
+    isBatchDownloading.value = false
+  }
+}
+
 const clearImages = () => {
   store.clearGeneratedImages()
   store.clearGeneratedImagesMetadata()
@@ -379,6 +448,24 @@ const clearImages = () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
               PDF
+            </button>
+            <button
+              v-if="isWebCodecsSupported"
+              @click="downloadAllAsMp4"
+              :disabled="isBatchDownloading"
+              :class="{ 'opacity-50 cursor-wait': mp4Encoder.isEncoding.value }"
+              class="batch-download-option"
+            >
+              <svg v-if="mp4Encoder.isEncoding.value" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              {{ mp4Encoder.isEncoding.value
+                ? $t('lightbox.mp4Progress', mp4Encoder.progress.value)
+                : 'MP4' }}
             </button>
           </div>
         </div>

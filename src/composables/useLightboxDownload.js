@@ -10,12 +10,13 @@ const DOWNLOAD_PREF_KEY = 'nbp-download-format'
  * @param {Object} deps - Dependencies
  * @param {Object} deps.imageStorage - Image storage composable instance
  * @param {Object} deps.pdfGenerator - PDF generator composable instance
+ * @param {Object} [deps.mp4Encoder] - MP4 encoder composable instance (optional)
  * @param {Object} deps.toast - Toast notification composable instance
  * @param {Function} deps.t - i18n translation function
  * @returns {Object} Download state and methods
  */
 export function useLightboxDownload(deps) {
-  const { imageStorage, pdfGenerator, toast, t } = deps
+  const { imageStorage, pdfGenerator, mp4Encoder, toast, t } = deps
 
   // Download state
   const downloadFormat = ref(localStorage.getItem(DOWNLOAD_PREF_KEY) || 'original')
@@ -337,6 +338,76 @@ export function useLightboxDownload(deps) {
     }
   }
 
+  /**
+   * Download all images + audio as MP4 video (using Web Worker via composable)
+   * @param {Object} params - Download parameters
+   * @param {Array} params.images - Array of image objects
+   * @param {number|null} params.historyId - History ID for naming
+   * @param {Array} [params.audioUrls] - Optional array of audio Object URLs (per-page)
+   */
+  const downloadAllAsMp4 = async ({ images, historyId, audioUrls }) => {
+    if (images.length === 0 || isBatchDownloading.value || !mp4Encoder) return
+
+    isBatchDownloading.value = true
+    showDownloadMenu.value = false
+
+    try {
+      const imageBuffers = []
+      const imageMimeTypes = []
+
+      for (const image of images) {
+        const blob = await imageToBlob(image)
+        if (blob) {
+          imageBuffers.push(await blob.arrayBuffer())
+          imageMimeTypes.push(image.mimeType || blob.type || 'image/png')
+        } else {
+          imageBuffers.push(null)
+          imageMimeTypes.push('image/png')
+        }
+      }
+
+      const audioBuffers = []
+      const audioMimeTypesArr = []
+
+      if (audioUrls?.length) {
+        for (let i = 0; i < images.length; i++) {
+          if (audioUrls[i]) {
+            try {
+              const response = await fetch(audioUrls[i])
+              const blob = await response.blob()
+              audioBuffers.push(await blob.arrayBuffer())
+              audioMimeTypesArr.push(blob.type || 'audio/wav')
+            } catch {
+              audioBuffers.push(null)
+              audioMimeTypesArr.push(null)
+            }
+          } else {
+            audioBuffers.push(null)
+            audioMimeTypesArr.push(null)
+          }
+        }
+      } else {
+        for (let i = 0; i < images.length; i++) {
+          audioBuffers.push(null)
+          audioMimeTypesArr.push(null)
+        }
+      }
+
+      const prefix = historyId ? `slides-${historyId}-` : 'slides-'
+      await mp4Encoder.encodeAndDownload({
+        images: imageBuffers,
+        imageMimeTypes,
+        audioBuffers,
+        audioMimeTypes: audioMimeTypesArr,
+      }, `${prefix}${Date.now()}`)
+    } catch (err) {
+      console.error('MP4 encoding failed:', err)
+      toast.error(t('lightbox.mp4Error'))
+    } finally {
+      isBatchDownloading.value = false
+    }
+  }
+
   return {
     // State
     downloadFormat,
@@ -354,6 +425,7 @@ export function useLightboxDownload(deps) {
     downloadCurrentImage,
     downloadAllAsZip,
     downloadAllAsPdf,
+    downloadAllAsMp4,
     downloadCurrentAudio,
     downloadAllAudioAsZip,
   }

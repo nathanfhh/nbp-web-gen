@@ -10,6 +10,7 @@ import { useHistoryState } from '@/composables/useHistoryState'
 import { useLightboxZoom } from '@/composables/useLightboxZoom'
 import { useLightboxTouch } from '@/composables/useLightboxTouch'
 import { useLightboxDownload } from '@/composables/useLightboxDownload'
+import { useMp4Encoder } from '@/composables/useMp4Encoder'
 import StickerCropper from '@/components/StickerCropper.vue'
 import LightboxAudioPlayer from '@/components/LightboxAudioPlayer.vue'
 
@@ -110,6 +111,12 @@ const imageStorage = useImageStorage()
 // PDF generator
 const pdfGenerator = usePdfGenerator()
 
+// MP4 encoder
+const mp4Encoder = useMp4Encoder()
+
+// WebCodecs support check (Firefox does not support it)
+const isWebCodecsSupported = computed(() => typeof VideoEncoder !== 'undefined')
+
 // Initialize zoom composable
 const {
   scale,
@@ -148,7 +155,8 @@ const {
   downloadAllAsPdf: downloadDownloadAllAsPdf,
   downloadCurrentAudio: downloadDownloadCurrentAudio,
   downloadAllAudioAsZip: downloadDownloadAllAudioAsZip,
-} = useLightboxDownload({ imageStorage, pdfGenerator, toast, t })
+  downloadAllAsMp4: downloadDownloadAllAsMp4,
+} = useLightboxDownload({ imageStorage, pdfGenerator, mp4Encoder, toast, t })
 
 // Computed image transform style (needs isTouching from touch composable)
 const imageTransformStyle = computed(() => ({
@@ -500,6 +508,14 @@ const downloadAllAsPdf = async () => {
   })
 }
 
+const downloadAllAsMp4 = async () => {
+  await downloadDownloadAllAsMp4({
+    images: props.images,
+    historyId: props.historyId,
+    audioUrls: props.narrationAudioUrls,
+  })
+}
+
 // Narration audio download helpers
 const hasAnyAudio = computed(() =>
   props.narrationAudioUrls.some((url) => !!url),
@@ -739,6 +755,24 @@ const goToSlideToPptx = async () => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
                 PDF
+              </button>
+              <button
+                v-if="isWebCodecsSupported"
+                @click="downloadAllAsMp4"
+                :disabled="isAnyDownloading"
+                :class="{ 'opacity-50 cursor-wait': mp4Encoder.isEncoding.value }"
+                class="download-option"
+              >
+                <svg v-if="mp4Encoder.isEncoding.value" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                {{ mp4Encoder.isEncoding.value
+                  ? $t('lightbox.mp4Progress', mp4Encoder.progress.value)
+                  : 'MP4' }}
               </button>
 
               <!-- Narration audio section -->

@@ -800,6 +800,8 @@
     "exportAs": "匯出為",
     "pdfError": "PDF 產生失敗",
     "zipError": "ZIP 產生失敗",
+    "mp4Error": "MP4 影片產生失敗",
+    "mp4Progress": "正在編碼 {current}/{total}…",
     "narrationAudio": "旁白音頻",
     "currentAudio": "下載當前音頻",
     "allAudioZip": "全部音頻 (ZIP)",
