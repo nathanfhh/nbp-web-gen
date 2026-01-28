@@ -211,16 +211,62 @@ Colors: Navy blue primary, white background
 Avoid: Excessive decoration, cartoon elements
 ```
 
+## Narration Audio
+
+Slides mode supports generating narration audio (Text-to-Speech) for each page, ideal for creating narrated presentations or pre-recorded demos.
+
+### Enabling Narration
+
+1. Expand the "Narration" section in slides settings
+2. Toggle "Enable Narration" on
+3. Configure language, speaker mode, conversation style, etc.
+
+### Speaker Modes
+
+| Mode | Description |
+|------|-------------|
+| Single | One speaker monologue |
+| Dual | Two speakers in conversation (discussion, critical, or debate style) |
+
+### Generation Flow
+
+1. **Generate Scripts**: AI automatically writes narration scripts for each page based on slide content
+2. **Review/Edit**: Expand each page's script to fine-tune
+3. **Generate Audio**: When you click "Generate", image generation and TTS audio generation run **in parallel**
+
+::: info Narrative Structure
+AI automatically arranges a narrative arc: the first page includes a cohesive introduction (greeting, topic overview), and the last page includes a closing statement (summary, takeaway). For single-page presentations, both opening and closing are included on the same page.
+:::
+
+### Playback & Download
+
+- **Live Preview**: A mini audio player appears below each image card in the generation results
+- **Lightbox Playback**: Click an image to open Lightbox, with an audio player at the bottom
+- **Download Options**:
+  - ZIP download automatically includes audio files (`narration-1.mp3`, `narration-2.mp3`…)
+  - Lightbox download menu has a "Narration Audio" section for downloading current page or all audio
+  - PDF download contains images only (no audio)
+
+::: tip Audio Format
+Audio is stored in MP3 format by default (64kbps). If MP3 encoding fails, it automatically falls back to WAV format without affecting playback.
+:::
+
+::: info About API Key Usage
+Script generation and TTS audio generation are text processing features that prioritize using your Free Tier API Key. See [API Key Management](./api-key-management) for details.
+:::
+
 ## Generated Results
 
 ![Slides Generation Result](/images/slides-result.webp)
+
+After generation, each image is displayed in the preview area. If narration is enabled, a mini audio player appears below each image.
 
 ## Export Options
 
 After generation, you can:
 
-- Download as ZIP (all pages as PNG images)
-- Download as PDF
+- Download as ZIP (all page images + narration audio)
+- Download as PDF (images only)
 
 ::: tip Need Editable PPTX?
 If you need to convert your slides to editable PPTX format, use the [Slide Conversion Tool](./slide-conversion).

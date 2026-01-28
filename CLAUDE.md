@@ -352,6 +352,10 @@ First-time user guidance system:
 - Version-controlled: bump `TOUR_VERSION` in `useTour.js` to force re-show after major updates
 - Info button (ⓘ) in hero section to replay tour
 
+### Reusable UI Components
+
+- `SearchableSelect.vue` — Filterable dropdown (flat or grouped options, keyboard nav, click-outside close). See [`docs/searchable-select.md`](docs/searchable-select.md)
+
 ### Key Composables
 - `useApi.js` - API requests, prompt building, SSE streaming
 - `useGeneration.js` - High-level generation flow with callbacks

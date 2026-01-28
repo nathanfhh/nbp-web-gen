@@ -47,6 +47,7 @@ Click the thumbnail to open Lightbox preview:
 
 - Image mode: Navigate left/right through multiple images
 - Video mode: Play the video
+- Slides mode: If narration audio exists, an audio player appears at the bottom; the download menu also offers audio download options
 
 ### Delete
 
@@ -68,6 +69,7 @@ History is stored in the browser:
 |-----------|------------------|
 | Record Info | IndexedDB |
 | Images/Videos | OPFS |
+| Narration Audio | OPFS |
 
 Storage usage is displayed at the top of the page.
 
