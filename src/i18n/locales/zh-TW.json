@@ -263,7 +263,8 @@
       "pending": "待生成",
       "generating": "生成中",
       "done": "已完成",
-      "error": "失敗"
+      "error": "失敗",
+      "comparing": "比較中"
     },
     "moveUp": "上移",
     "moveDown": "下移",

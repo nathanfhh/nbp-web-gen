@@ -21,7 +21,7 @@ export function useSlidesGeneration() {
   const { generateNarrationScripts, generatePageAudio } = useNarrationApi()
   const imageStorage = useImageStorage()
   const audioStorage = useAudioStorage()
-  const { updateHistoryImages, updateHistoryNarration, getRecord } = useIndexedDB()
+  const { updateHistoryImages, updateHistoryNarration, updateHistoryStatus, getRecord } = useIndexedDB()
 
   const isGenerating = ref(false)
 
@@ -430,51 +430,61 @@ export function useSlidesGeneration() {
     store.slidesOptions.pages[pageIndex].status = 'done'
 
     // 2. Update generatedImages in store (for Generated Resources display)
+    // Add or replace the image in the array
     const generatedImages = [...store.generatedImages]
     const imageIndex = generatedImages.findIndex((img) => img.pageNumber === page.pageNumber)
     if (imageIndex !== -1) {
+      // Replace existing
       generatedImages[imageIndex] = newImage
-      store.setGeneratedImages(generatedImages)
+    } else {
+      // Add new - insert at correct position to maintain page order
+      generatedImages.push(newImage)
+      generatedImages.sort((a, b) => a.pageNumber - b.pageNumber)
     }
+    store.setGeneratedImages(generatedImages)
 
     // 3. Update OPFS and IndexedDB if we have a history record
     const historyId = store.currentHistoryId
     if (historyId) {
       try {
-        // Get current history record to find image metadata
-        const record = await getRecord(historyId)
-        if (record?.images && record.images.length > 0) {
-          // Find the image index by pageNumber
-          const storageIndex = record.images.findIndex((img) => img.pageNumber === page.pageNumber)
-          if (storageIndex !== -1) {
-            // Re-save all images with the updated one
-            // We need to rebuild the images array with the new image data
-            const updatedImages = store.slidesOptions.pages
-              .filter((p) => p.image)
-              .map((p) => ({
-                data: p.image.data,
-                mimeType: p.image.mimeType,
-                pageNumber: p.pageNumber,
-              }))
+        // Build all images from current pages state (includes the newly regenerated one)
+        const updatedImages = store.slidesOptions.pages
+          .filter((p) => p.image)
+          .map((p) => ({
+            data: p.image.data,
+            mimeType: p.image.mimeType,
+            pageNumber: p.pageNumber,
+          }))
 
-            // Save to OPFS and get new metadata
-            const metadata = await imageStorage.saveGeneratedImages(historyId, updatedImages)
+        if (updatedImages.length > 0) {
+          // Save to OPFS and get new metadata
+          const metadata = await imageStorage.saveGeneratedImages(historyId, updatedImages)
 
-            // Update IndexedDB with new metadata
-            await updateHistoryImages(historyId, metadata)
+          // Update IndexedDB with new metadata
+          await updateHistoryImages(historyId, metadata)
 
-            // Update store metadata
-            store.setGeneratedImagesMetadata(metadata)
-
-            // Reload history to reflect changes
-            await store.loadHistory()
-          }
+          // Update store metadata
+          store.setGeneratedImagesMetadata(metadata)
         }
 
-        // 4. Update audio if provided
+        // 4. Update audio if provided (existing audio remains untouched)
         if (audioResult) {
-          await savePageAudioToStorage(historyId, pageIndex, audioResult)
+          await savePageAudioToStorage(historyId, pageIndex, audioResult, true) // skipReload - we'll reload after status update
         }
+
+        // 5. Update status based on current success count
+        const totalPages = store.slidesOptions.pages.length
+        const successCount = store.slidesOptions.pages.filter((p) => p.image).length
+        let newStatus = 'failed'
+        if (successCount === totalPages) {
+          newStatus = 'success'
+        } else if (successCount > 0) {
+          newStatus = 'partial'
+        }
+        await updateHistoryStatus(historyId, newStatus)
+
+        // Reload history to reflect all changes
+        await store.loadHistory()
       } catch (err) {
         console.error('Failed to update image in storage:', err)
         // Don't fail the operation - pages state is already updated
@@ -489,40 +499,43 @@ export function useSlidesGeneration() {
    * @param {number} historyId - History record ID
    * @param {number} pageIndex - Page index
    * @param {Object} audioResult - { blob, mimeType }
+   * @param {boolean} skipReload - Skip history reload (caller will handle it)
    */
-  const savePageAudioToStorage = async (historyId, pageIndex, audioResult) => {
+  const savePageAudioToStorage = async (historyId, pageIndex, audioResult, skipReload = false) => {
     try {
       // Save audio file to OPFS
       const audioMeta = await audioStorage.saveGeneratedAudio(historyId, pageIndex, audioResult.blob)
 
       // Get current record and update narration
       const record = await getRecord(historyId)
-      if (record?.narration) {
-        // Update or add audio metadata for this page
-        const existingAudio = record.narration.audio || []
-        const audioIndex = existingAudio.findIndex((a) => a.pageIndex === pageIndex)
 
-        if (audioIndex !== -1) {
-          existingAudio[audioIndex] = audioMeta
-        } else {
-          existingAudio.push(audioMeta)
-        }
+      // Build or update narration object
+      const existingNarration = record?.narration || {}
+      const existingAudio = existingNarration.audio || []
+      const audioIndex = existingAudio.findIndex((a) => a.pageIndex === pageIndex)
 
-        // Sort by pageIndex
-        existingAudio.sort((a, b) => a.pageIndex - b.pageIndex)
+      if (audioIndex !== -1) {
+        existingAudio[audioIndex] = audioMeta
+      } else {
+        existingAudio.push(audioMeta)
+      }
 
-        const updatedNarration = {
-          ...record.narration,
-          audio: existingAudio,
-        }
+      // Sort by pageIndex
+      existingAudio.sort((a, b) => a.pageIndex - b.pageIndex)
 
-        await updateHistoryNarration(historyId, updatedNarration)
+      const updatedNarration = {
+        ...existingNarration,
+        audio: existingAudio,
+      }
 
-        // Update live preview audio URL
-        const audioUrls = [...(store.generatedAudioUrls || [])]
-        audioUrls[pageIndex] = URL.createObjectURL(audioResult.blob)
-        store.setGeneratedAudioUrls(audioUrls)
+      await updateHistoryNarration(historyId, updatedNarration)
 
+      // Update live preview audio URL
+      const audioUrls = [...(store.generatedAudioUrls || [])]
+      audioUrls[pageIndex] = URL.createObjectURL(audioResult.blob)
+      store.setGeneratedAudioUrls(audioUrls)
+
+      if (!skipReload) {
         await store.loadHistory()
       }
     } catch (err) {

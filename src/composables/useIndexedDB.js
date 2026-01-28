@@ -579,6 +579,34 @@ export function useIndexedDB() {
     })
   }
 
+  /**
+   * Update history record status
+   * @param {number} id - History record ID
+   * @param {string} status - New status ('success', 'partial', 'failed')
+   * @returns {Promise<boolean>}
+   */
+  const updateHistoryStatus = async (id, status) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readwrite')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const getRequest = store.get(id)
+
+      getRequest.onsuccess = () => {
+        const record = getRequest.result
+        if (record) {
+          record.status = status
+          const putRequest = store.put(record)
+          putRequest.onsuccess = () => resolve(true)
+          putRequest.onerror = () => reject(putRequest.error)
+        } else {
+          reject(new Error(`History record with id ${id} not found`))
+        }
+      }
+      getRequest.onerror = () => reject(getRequest.error)
+    })
+  }
+
   return {
     isReady,
     error,
@@ -594,6 +622,7 @@ export function useIndexedDB() {
     updateHistoryImages,
     updateHistoryVideo,
     updateHistoryNarration,
+    updateHistoryStatus,
     getAllHistoryIds,
     getAllHistory,
     hasHistoryByUUID,

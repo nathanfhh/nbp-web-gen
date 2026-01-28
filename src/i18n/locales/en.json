@@ -263,7 +263,8 @@
       "pending": "Pending",
       "generating": "Generating",
       "done": "Done",
-      "error": "Error"
+      "error": "Error",
+      "comparing": "Comparing"
     },
     "moveUp": "Move Up",
     "moveDown": "Move Down",
@@ -1425,6 +1426,9 @@
     "clickToCustomize": "Click to customize",
     "processingPage": "Processing page {current} / {total}",
     "settling": "Recalculating...",
+    "clickToSplit": "Click to split this paragraph",
+    "mergeSelected": "Merge selected ({count})",
+    "confirmSplit": "Split this paragraph back into original lines?",
     "inpaintConfirm": {
       "title": "Confirm Background Regeneration",
       "subtitle": "Page {page}",
