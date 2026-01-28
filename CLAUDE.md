@@ -508,4 +508,4 @@ This project uses a postbuild script to generate static HTML files for each rout
   2. **Commit changelog**: Stage and commit the changelog updates
   3. **Version bump**: Run `npm version <patch|minor|major>` (creates tag automatically)
   4. **Verify**: Confirm the new tag matches the version written in changelog
-  - **Structure**: Current minor version (e.g., v0.25.x) has detailed per-patch entries; "Earlier Versions" section contains summarized entries for previous minor versions grouped with theme descriptions
+  - **Structure**: Only the **two most recent minor versions** (e.g., v0.26.x and v0.25.x) retain detailed per-patch entries. When a new minor version is introduced, the oldest of the two should be condensed and moved into the "Earlier Versions" section, which contains summarized entries for previous minor versions grouped with theme descriptions.
