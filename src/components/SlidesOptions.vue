@@ -6,6 +6,7 @@ import { useSlidesGeneration } from '@/composables/useSlidesGeneration'
 import { useToast } from '@/composables/useToast'
 import SlidesContentSplitter from './SlidesContentSplitter.vue'
 import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
+import NarrationSection from './NarrationSection.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -33,6 +34,27 @@ const styleMode = ref('ai')
 
 // Track which pages have their style guide expanded
 const expandedPageStyles = ref({})
+
+// Track which pages have their narration script expanded
+const expandedPageScripts = ref({})
+
+const togglePageScript = (pageId) => {
+  expandedPageScripts.value[pageId] = !expandedPageScripts.value[pageId]
+}
+
+const getPageScript = (pageId) => {
+  const scripts = store.slidesOptions.narrationScripts || []
+  const found = scripts.find((s) => s.pageId === pageId)
+  return found?.script || ''
+}
+
+const updatePageScript = (pageId, newScript) => {
+  const scripts = store.slidesOptions.narrationScripts || []
+  const idx = scripts.findIndex((s) => s.pageId === pageId)
+  if (idx !== -1) {
+    store.slidesOptions.narrationScripts[idx].script = newScript
+  }
+}
 
 // Page limit constant
 const MAX_PAGES = 30
@@ -703,6 +725,9 @@ const resetSlidesOptions = () => {
       </button>
     </div>
 
+    <!-- Narration Section -->
+    <NarrationSection v-if="options.styleConfirmed && options.pages.length > 0" />
+
     <!-- Pages List (Vertical Layout) -->
     <div v-if="options.pages.length > 0" class="space-y-4">
       <h4 class="text-sm font-medium text-text-primary">{{ $t('slides.pagesList') }}</h4>
@@ -806,6 +831,39 @@ const resetSlidesOptions = () => {
                 :disabled="store.isGenerating || options.isAnalyzing"
               />
               <p class="text-xs text-text-muted">{{ $t('slides.pageStyleHint') }}</p>
+            </div>
+          </div>
+
+          <!-- Per-page Script Preview (if narration enabled & scripts generated) -->
+          <div
+            v-if="options.narration?.enabled && getPageScript(page.id)"
+            class="mt-3 pt-3 border-t border-border-muted/50"
+          >
+            <button
+              @click="togglePageScript(page.id)"
+              class="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors w-full"
+            >
+              <svg
+                class="w-3 h-3 transition-transform"
+                :class="{ 'rotate-90': expandedPageScripts[page.id] }"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+              <span>{{ $t('slides.narration.pageScript') }}</span>
+              <span class="text-mode-generate">●</span>
+            </button>
+
+            <div v-show="expandedPageScripts[page.id]" class="mt-2">
+              <textarea
+                :value="getPageScript(page.id)"
+                @input="updatePageScript(page.id, $event.target.value)"
+                :placeholder="$t('slides.narration.scriptPlaceholder')"
+                class="input-premium min-h-[80px] text-xs w-full"
+                :disabled="store.isGenerating"
+              />
             </div>
           </div>
 

@@ -4,6 +4,7 @@ import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { useVideoStorage } from '@/composables/useVideoStorage'
+import { useAudioStorage } from '@/composables/useAudioStorage'
 import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions, DEFAULT_VIDEO_PROMPT_OPTIONS } from '@/constants'
 import { useThemeName, toggleTheme as themeToggle, setTheme as themeSet } from '@/theme'
@@ -22,6 +23,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
   const imageStorage = useImageStorage()
   const videoStorage = useVideoStorage()
+  const audioStorage = useAudioStorage()
   const characterStorage = useCharacterStorage()
 
   // Flag to prevent saving during initialization (exposed as ref for external watchers)
@@ -91,6 +93,7 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   // Image metadata (for current generation)
   const generatedImagesMetadata = ref([])
+  const generatedAudioUrls = ref([]) // Narration audio Object URLs for live preview
   const currentHistoryId = ref(null)
   const storageUsage = ref(0)
 
@@ -369,6 +372,12 @@ export const useGeneratorStore = defineStore('generator', () => {
     } catch (err) {
       console.error('Failed to delete OPFS video:', err)
     }
+    // Delete OPFS audio
+    try {
+      await audioStorage.deleteHistoryAudio(id)
+    } catch (err) {
+      console.error('Failed to delete OPFS audio:', err)
+    }
     // Delete IndexedDB record
     await deleteHistory(id)
     await loadHistory()
@@ -388,6 +397,12 @@ export const useGeneratorStore = defineStore('generator', () => {
       await videoStorage.deleteAllVideos()
     } catch (err) {
       console.error('Failed to delete all OPFS videos:', err)
+    }
+    // Delete all OPFS audio
+    try {
+      await audioStorage.deleteAllAudio()
+    } catch (err) {
+      console.error('Failed to delete all OPFS audio:', err)
     }
     // Clear IndexedDB history
     await clearAllHistory()
@@ -424,6 +439,17 @@ export const useGeneratorStore = defineStore('generator', () => {
     generatedImagesMetadata.value = []
   }
 
+  const setGeneratedAudioUrls = (urls) => {
+    generatedAudioUrls.value = urls
+  }
+
+  const clearGeneratedAudioUrls = () => {
+    for (const url of generatedAudioUrls.value) {
+      if (url) URL.revokeObjectURL(url)
+    }
+    generatedAudioUrls.value = []
+  }
+
   const setCurrentHistoryId = (id) => {
     currentHistoryId.value = id
   }
@@ -432,7 +458,8 @@ export const useGeneratorStore = defineStore('generator', () => {
     try {
       const imageUsage = await imageStorage.getStorageUsage()
       const videoUsage = await videoStorage.getStorageUsage()
-      storageUsage.value = imageUsage + videoUsage
+      const audioUsage = await audioStorage.getStorageUsage()
+      storageUsage.value = imageUsage + videoUsage + audioUsage
     } catch (err) {
       console.error('Failed to update storage usage:', err)
     }
@@ -683,6 +710,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     history,
     historyCount,
     generatedImagesMetadata,
+    generatedAudioUrls,
     currentHistoryId,
     storageUsage,
 
@@ -705,6 +733,8 @@ export const useGeneratorStore = defineStore('generator', () => {
     clearGeneratedVideo,
     setGeneratedImagesMetadata,
     clearGeneratedImagesMetadata,
+    setGeneratedAudioUrls,
+    clearGeneratedAudioUrls,
     setCurrentHistoryId,
     updateStorageUsage,
     setGenerating,

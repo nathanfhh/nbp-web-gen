@@ -163,7 +163,7 @@ const imageToBlob = (image) => {
   return null
 }
 
-// Download all images as ZIP
+// Download all images as ZIP (includes narration audio if available)
 const downloadAllAsZip = async () => {
   if (store.generatedImages.length === 0 || isBatchDownloading.value) return
 
@@ -180,6 +180,22 @@ const downloadAllAsZip = async () => {
       if (blob) {
         const ext = image.mimeType?.split('/')[1] || 'png'
         zip.file(`image-${i + 1}.${ext}`, blob)
+      }
+    }
+
+    // Include narration audio files
+    const audioUrls = store.generatedAudioUrls
+    if (audioUrls?.length) {
+      for (let i = 0; i < audioUrls.length; i++) {
+        if (!audioUrls[i]) continue
+        try {
+          const response = await fetch(audioUrls[i])
+          const blob = await response.blob()
+          const ext = blob.type === 'audio/wav' ? 'wav' : 'mp3'
+          zip.file(`narration-${i + 1}.${ext}`, blob)
+        } catch {
+          // Skip failed audio fetch
+        }
       }
     }
 
@@ -232,6 +248,7 @@ const downloadAllAsPdf = async () => {
 const clearImages = () => {
   store.clearGeneratedImages()
   store.clearGeneratedImagesMetadata()
+  store.clearGeneratedAudioUrls()
 }
 </script>
 
@@ -375,36 +392,52 @@ const clearImages = () => {
       <div
         v-for="(image, index) in store.generatedImages"
         :key="index"
-        class="image-preview group cursor-pointer"
-        @click="openLightbox(index)"
+        class="flex flex-col gap-0"
       >
-        <img
-          :src="`data:${image.mimeType};base64,${image.data}`"
-          :alt="`Generated image ${index + 1}`"
-          class="w-full"
-        />
-        <!-- Always visible zoom button -->
-        <button
-          @click.stop="openLightbox(index)"
-          class="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white hover:bg-black/70 transition-all"
-          :title="$t('preview.zoom')"
+        <div
+          class="image-preview group cursor-pointer"
+          @click="openLightbox(index)"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-          </svg>
-        </button>
-        <div class="image-preview-overlay">
-          <div class="flex gap-2">
-            <button
-              @click.stop="downloadImage(image, index)"
-              class="btn-premium py-2 px-4 text-sm"
-            >
-              <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              {{ $t('common.download') }}
-            </button>
+          <img
+            :src="`data:${image.mimeType};base64,${image.data}`"
+            :alt="`Generated image ${index + 1}`"
+            class="w-full"
+          />
+          <!-- Always visible zoom button -->
+          <button
+            @click.stop="openLightbox(index)"
+            class="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white hover:bg-black/70 transition-all"
+            :title="$t('preview.zoom')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+            </svg>
+          </button>
+          <div class="image-preview-overlay">
+            <div class="flex gap-2">
+              <button
+                @click.stop="downloadImage(image, index)"
+                class="btn-premium py-2 px-4 text-sm"
+              >
+                <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {{ $t('common.download') }}
+              </button>
+            </div>
           </div>
+        </div>
+        <!-- Mini audio player for narration -->
+        <div v-if="store.generatedAudioUrls[index]" class="preview-audio-bar">
+          <svg class="w-3.5 h-3.5 flex-shrink-0 text-text-muted" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+          </svg>
+          <audio
+            :src="store.generatedAudioUrls[index]"
+            controls
+            class="preview-audio-element"
+            @click.stop
+          />
         </div>
       </div>
     </div>
@@ -418,6 +451,7 @@ const clearImages = () => {
       :history-id="store.currentHistoryId"
       :is-historical="false"
       :is-sticker-mode="store.currentMode === 'sticker'"
+      :narration-audio-urls="store.generatedAudioUrls"
     />
   </div>
 
@@ -487,5 +521,27 @@ const clearImages = () => {
 
 .batch-download-option:hover {
   background: var(--glass-bg);
+}
+
+/* Mini audio player bar below image card */
+.preview-audio-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  background: var(--color-bg-muted);
+  border-radius: 0 0 0.75rem 0.75rem;
+  margin-top: -2px;
+}
+
+.preview-audio-element {
+  flex: 1;
+  height: 28px;
+  min-width: 0;
+}
+
+/* Compact audio controls styling */
+.preview-audio-element::-webkit-media-controls-panel {
+  background: transparent;
 }
 </style>

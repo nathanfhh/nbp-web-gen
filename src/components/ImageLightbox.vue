@@ -11,6 +11,7 @@ import { useLightboxZoom } from '@/composables/useLightboxZoom'
 import { useLightboxTouch } from '@/composables/useLightboxTouch'
 import { useLightboxDownload } from '@/composables/useLightboxDownload'
 import StickerCropper from '@/components/StickerCropper.vue'
+import LightboxAudioPlayer from '@/components/LightboxAudioPlayer.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -94,6 +95,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Narration audio URLs (per-page, indexed by image index)
+  narrationAudioUrls: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'close', 'edit-regions', 'select-region'])
@@ -140,6 +146,8 @@ const {
   downloadCurrentImage: downloadDownloadCurrentImage,
   downloadAllAsZip: downloadDownloadAllAsZip,
   downloadAllAsPdf: downloadDownloadAllAsPdf,
+  downloadCurrentAudio: downloadDownloadCurrentAudio,
+  downloadAllAudioAsZip: downloadDownloadAllAudioAsZip,
 } = useLightboxDownload({ imageStorage, pdfGenerator, toast, t })
 
 // Computed image transform style (needs isTouching from touch composable)
@@ -433,6 +441,12 @@ const hasCompressionInfo = computed(() => {
   return currentMetadata.value && currentMetadata.value.originalSize && currentMetadata.value.compressedSize
 })
 
+// Current page's narration audio URL
+const currentAudioUrl = computed(() => {
+  if (!props.narrationAudioUrls?.length) return null
+  return props.narrationAudioUrls[currentIndex.value] || null
+})
+
 const currentImageInfo = computed(() => {
   if (!currentImage.value) return null
 
@@ -475,12 +489,35 @@ const downloadAllAsZip = async () => {
   await downloadDownloadAllAsZip({
     images: props.images,
     historyId: props.historyId,
+    audioUrls: props.narrationAudioUrls,
   })
 }
 
 const downloadAllAsPdf = async () => {
   await downloadDownloadAllAsPdf({
     images: props.images,
+    historyId: props.historyId,
+  })
+}
+
+// Narration audio download helpers
+const hasAnyAudio = computed(() =>
+  props.narrationAudioUrls.some((url) => !!url),
+)
+const hasCurrentAudio = computed(() =>
+  !!props.narrationAudioUrls[currentIndex.value],
+)
+
+const downloadCurrentAudio = async () => {
+  await downloadDownloadCurrentAudio({
+    audioUrl: props.narrationAudioUrls[currentIndex.value],
+    currentIndex: currentIndex.value,
+  })
+}
+
+const downloadAllAudioAsZip = async () => {
+  await downloadDownloadAllAudioAsZip({
+    audioUrls: props.narrationAudioUrls,
     historyId: props.historyId,
   })
 }
@@ -702,6 +739,30 @@ const goToSlideToPptx = async () => {
                 </svg>
                 PDF
               </button>
+
+              <!-- Narration audio section -->
+              <template v-if="hasAnyAudio">
+                <div class="download-divider"></div>
+                <div class="download-section-label">
+                  {{ $t('lightbox.narrationAudio') }}
+                </div>
+                <button
+                  v-if="hasCurrentAudio"
+                  @click="downloadCurrentAudio"
+                  class="download-option"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m0 0l-3-3m3 3l3-3" />
+                  </svg>
+                  {{ $t('lightbox.currentAudio') }}
+                </button>
+                <button @click="downloadAllAudioAsZip" class="download-option">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m0 0l-3-3m3 3l3-3" />
+                  </svg>
+                  {{ $t('lightbox.allAudioZip') }}
+                </button>
+              </template>
             </div>
           </div>
 
@@ -888,6 +949,9 @@ const goToSlideToPptx = async () => {
             <span class="sr-only">Image {{ index + 1 }}</span>
           </button>
         </div>
+
+        <!-- Audio Player (for slides with narration) -->
+        <LightboxAudioPlayer :audioUrl="currentAudioUrl" />
 
         <!-- Image Info (centered, responsive) -->
         <div v-if="currentImageInfo" class="lightbox-info">

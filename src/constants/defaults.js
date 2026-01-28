@@ -2,6 +2,7 @@
  * Default options for each generation mode
  * Single source of truth for initial and reset values
  */
+import { DEFAULT_NARRATION_SETTINGS } from './voiceOptions'
 
 export const DEFAULT_GENERATE_OPTIONS = {
   resolution: '1k',
@@ -111,6 +112,15 @@ export const DEFAULT_SLIDES_OPTIONS = {
   // Style analysis state
   isAnalyzing: false,
   analysisError: null,
+
+  // Narration settings
+  narration: { ...DEFAULT_NARRATION_SETTINGS },
+
+  // Runtime narration state (not persisted to localStorage)
+  narrationScripts: [], // Generated scripts per page: [{ pageId, styleDirective, script }]
+  narrationGlobalStyle: '', // Global style directive from script generation
+  narrationStatus: 'idle', // 'idle' | 'generating-scripts' | 'generating-audio' | 'done' | 'error'
+  narrationError: null,
 }
 
 // Common settings defaults

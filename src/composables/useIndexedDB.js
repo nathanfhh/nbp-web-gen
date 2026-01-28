@@ -551,6 +551,34 @@ export function useIndexedDB() {
     })
   }
 
+  /**
+   * Update history record with narration metadata
+   * @param {number} id - History record ID
+   * @param {Object} narration - Narration metadata (scripts, audio, settings)
+   * @returns {Promise<boolean>}
+   */
+  const updateHistoryNarration = async (id, narration) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readwrite')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const getRequest = store.get(id)
+
+      getRequest.onsuccess = () => {
+        const record = getRequest.result
+        if (record) {
+          record.narration = JSON.parse(JSON.stringify(narration))
+          const putRequest = store.put(record)
+          putRequest.onsuccess = () => resolve(true)
+          putRequest.onerror = () => reject(putRequest.error)
+        } else {
+          reject(new Error(`History record with id ${id} not found`))
+        }
+      }
+      getRequest.onerror = () => reject(getRequest.error)
+    })
+  }
+
   return {
     isReady,
     error,
@@ -565,6 +593,7 @@ export function useIndexedDB() {
     getHistoryCount,
     updateHistoryImages,
     updateHistoryVideo,
+    updateHistoryNarration,
     getAllHistoryIds,
     getAllHistory,
     hasHistoryByUUID,

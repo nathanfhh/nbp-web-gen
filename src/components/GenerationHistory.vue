@@ -8,6 +8,7 @@ import 'dayjs/locale/en'
 import { useGeneratorStore } from '@/stores/generator'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { useVideoStorage } from '@/composables/useVideoStorage'
+import { useAudioStorage } from '@/composables/useAudioStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
 import { getModeTagStyle } from '@/constants'
 import ConfirmModal from '@/components/ConfirmModal.vue'
@@ -27,6 +28,7 @@ watchEffect(() => {
 const store = useGeneratorStore()
 const imageStorage = useImageStorage()
 const videoStorage = useVideoStorage()
+const audioStorage = useAudioStorage()
 const confirmModal = ref(null)
 
 // Filter state
@@ -46,6 +48,7 @@ const lightboxImages = ref([])
 const lightboxMetadata = ref([])
 const lightboxHistoryId = ref(null)
 const lightboxInitialIndex = ref(0)
+const lightboxAudioUrls = ref([])
 const isLoadingImages = ref(false)
 
 // Video Lightbox state
@@ -280,6 +283,22 @@ const openHistoryLightbox = async (item, event) => {
     lightboxHistoryId.value = item.id
     lightboxInitialIndex.value = 0
     lightboxItemMode.value = item.mode || ''
+
+    // Load narration audio URLs if available
+    lightboxAudioUrls.value = []
+    if (item.narration?.audio?.length > 0) {
+      const audioUrls = []
+      for (const audioMeta of item.narration.audio) {
+        try {
+          const url = await audioStorage.loadAudio(audioMeta.opfsPath)
+          audioUrls[audioMeta.pageIndex] = url
+        } catch {
+          // Skip failed audio loads
+        }
+      }
+      lightboxAudioUrls.value = audioUrls
+    }
+
     showLightbox.value = true
   } catch (err) {
     console.error('Failed to load history images:', err)
@@ -294,6 +313,7 @@ const closeLightbox = () => {
   lightboxMetadata.value = []
   lightboxHistoryId.value = null
   lightboxItemMode.value = ''
+  lightboxAudioUrls.value = []
 }
 
 // Open video lightbox
@@ -557,6 +577,7 @@ const handleImported = async () => {
       :is-historical="true"
       :is-sticker-mode="lightboxItemMode === 'sticker'"
       :is-slides-mode="lightboxItemMode === 'slides'"
+      :narration-audio-urls="lightboxAudioUrls"
       @close="closeLightbox"
     />
 

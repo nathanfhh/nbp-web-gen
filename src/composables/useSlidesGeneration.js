@@ -2,9 +2,11 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
+import { useNarrationApi } from './useNarrationApi'
 import { useToast } from './useToast'
 import { generateShortId } from './useUUID'
 import { useImageStorage } from './useImageStorage'
+import { useAudioStorage } from './useAudioStorage'
 import { useIndexedDB } from './useIndexedDB'
 
 /**
@@ -16,7 +18,9 @@ export function useSlidesGeneration() {
   const toast = useToast()
   const { t } = useI18n()
   const { generateImageStream, analyzeSlideStyle: apiAnalyzeSlideStyle } = useApi()
+  const { generateNarrationScripts, generatePageAudio } = useNarrationApi()
   const imageStorage = useImageStorage()
+  const audioStorage = useAudioStorage()
   const { updateHistoryImages, getRecord } = useIndexedDB()
 
   const isGenerating = ref(false)
@@ -465,9 +469,142 @@ export function useSlidesGeneration() {
     store.slidesOptions.currentPageIndex = -1
   }
 
+  // Narration thinking process
+  const narrationThinking = ref([])
+
+  /**
+   * Generate narration scripts for all pages
+   * Called before "Start Generation" - user can review/edit scripts
+   * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
+   */
+  const generateScripts = async (onThinkingChunk = null) => {
+    const options = store.slidesOptions
+    if (options.pages.length === 0) return
+
+    store.slidesOptions.narrationStatus = 'generating-scripts'
+    store.slidesOptions.narrationError = null
+    narrationThinking.value = []
+
+    const handleThinkingChunk = (chunk) => {
+      narrationThinking.value.push({
+        type: 'text',
+        content: chunk,
+        timestamp: Date.now(),
+      })
+      onThinkingChunk?.(chunk)
+    }
+
+    try {
+      const pagesForScripts = options.pages.map((p) => ({
+        id: p.id,
+        pageNumber: p.pageNumber,
+        content: p.content,
+      }))
+
+      const result = await generateNarrationScripts(
+        pagesForScripts,
+        options.narration,
+        handleThinkingChunk,
+      )
+
+      store.slidesOptions.narrationGlobalStyle = result.globalStyleDirective || ''
+      store.slidesOptions.narrationScripts = result.pageScripts || []
+      store.slidesOptions.narrationStatus = 'idle'
+
+      toast.success(t('slides.narration.scriptComplete'))
+    } catch (err) {
+      store.slidesOptions.narrationStatus = 'error'
+      store.slidesOptions.narrationError = err.message
+      toast.error(err.message)
+    }
+  }
+
+  /**
+   * Generate TTS audio for all pages using confirmed scripts
+   * Called in parallel with image generation during "Start Generation"
+   * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
+   * @returns {Promise<Array>} Array of { pageIndex, blob, mimeType } for each page
+   */
+  const generateAllAudio = async (onThinkingChunk = null) => {
+    const options = store.slidesOptions
+    const scripts = options.narrationScripts
+    const globalStyle = options.narrationGlobalStyle
+
+    if (!scripts || scripts.length === 0) return []
+
+    store.slidesOptions.narrationStatus = 'generating-audio'
+    const audioResults = []
+
+    try {
+      for (let i = 0; i < options.pages.length; i++) {
+        const page = options.pages[i]
+        const pageScript = scripts.find((s) => s.pageId === page.id)
+
+        if (!pageScript) {
+          console.warn(`No script found for page ${page.id}, skipping audio`)
+          continue
+        }
+
+        onThinkingChunk?.(
+          `\n🔊 ${t('slides.narration.generatingAudio', { current: i + 1, total: options.pages.length })}\n`,
+        )
+
+        try {
+          const result = await generatePageAudio(
+            globalStyle,
+            pageScript.styleDirective,
+            pageScript.script,
+            options.narration,
+          )
+
+          audioResults.push({
+            pageIndex: i,
+            blob: result.blob,
+            mimeType: result.mimeType,
+          })
+        } catch (audioErr) {
+          console.error(`Failed to generate audio for page ${i + 1}:`, audioErr)
+          onThinkingChunk?.(`\n⚠️ Page ${i + 1} audio failed: ${audioErr.message}\n`)
+        }
+      }
+
+      store.slidesOptions.narrationStatus = 'done'
+      if (audioResults.length > 0) {
+        toast.success(t('slides.narration.audioComplete'))
+      }
+      return audioResults
+    } catch (err) {
+      store.slidesOptions.narrationStatus = 'error'
+      store.slidesOptions.narrationError = err.message
+      throw err
+    }
+  }
+
+  /**
+   * Save audio results to OPFS
+   * @param {number} historyId - History record ID
+   * @param {Array} audioResults - Array of { pageIndex, blob, mimeType }
+   * @returns {Promise<Array>} Audio metadata array for IndexedDB
+   */
+  const saveAudioToStorage = async (historyId, audioResults) => {
+    const audioMetadata = []
+
+    for (const result of audioResults) {
+      try {
+        const metadata = await audioStorage.saveGeneratedAudio(historyId, result.pageIndex, result.blob)
+        audioMetadata.push(metadata)
+      } catch (err) {
+        console.error(`Failed to save audio for page ${result.pageIndex}:`, err)
+      }
+    }
+
+    return audioMetadata
+  }
+
   return {
     isGenerating,
     analysisThinking,
+    narrationThinking,
     analyzeStyle,
     generateAllPages,
     regeneratePage,
@@ -477,5 +614,9 @@ export function useSlidesGeneration() {
     parsePages,
     deletePage,
     resetAllPages,
+    // Narration
+    generateScripts,
+    generateAllAudio,
+    saveAudioToStorage,
   }
 }

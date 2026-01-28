@@ -166,12 +166,13 @@ export function useLightboxDownload(deps) {
   }
 
   /**
-   * Download all images as ZIP
+   * Download all images as ZIP (optionally includes narration audio)
    * @param {Object} params - Download parameters
    * @param {Array} params.images - Array of image objects
    * @param {number|null} params.historyId - History ID for naming
+   * @param {Array} [params.audioUrls] - Optional array of audio Object URLs (per-page)
    */
-  const downloadAllAsZip = async ({ images, historyId }) => {
+  const downloadAllAsZip = async ({ images, historyId, audioUrls }) => {
     if (images.length === 0 || isBatchDownloading.value) return
 
     isBatchDownloading.value = true
@@ -188,6 +189,21 @@ export function useLightboxDownload(deps) {
         if (blob) {
           const ext = image.mimeType?.split('/')[1] || 'png'
           zip.file(`image-${prefix}${i + 1}.${ext}`, blob)
+        }
+      }
+
+      // Include narration audio files if available
+      if (audioUrls?.length) {
+        for (let i = 0; i < audioUrls.length; i++) {
+          if (!audioUrls[i]) continue
+          try {
+            const response = await fetch(audioUrls[i])
+            const blob = await response.blob()
+            const ext = blob.type === 'audio/wav' ? 'wav' : 'mp3'
+            zip.file(`narration-${prefix}${i + 1}.${ext}`, blob)
+          } catch {
+            // Skip failed audio fetch
+          }
         }
       }
 
@@ -244,6 +260,81 @@ export function useLightboxDownload(deps) {
     }
   }
 
+  /**
+   * Download current page's narration audio
+   * @param {Object} params
+   * @param {string} params.audioUrl - Object URL of the audio
+   * @param {number} params.currentIndex - Current page index (0-based)
+   */
+  const downloadCurrentAudio = async ({ audioUrl, currentIndex }) => {
+    if (!audioUrl || isDownloading.value) return
+
+    isDownloading.value = true
+    showDownloadMenu.value = false
+
+    try {
+      const response = await fetch(audioUrl)
+      const blob = await response.blob()
+      const ext = blob.type === 'audio/wav' ? 'wav' : 'mp3'
+
+      const link = document.createElement('a')
+      link.href = audioUrl
+      link.download = `narration-${currentIndex + 1}.${ext}`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } finally {
+      isDownloading.value = false
+    }
+  }
+
+  /**
+   * Download all narration audio files as ZIP
+   * @param {Object} params
+   * @param {Array} params.audioUrls - Array of audio Object URLs (may contain null/undefined)
+   * @param {number|null} params.historyId - History ID for naming
+   */
+  const downloadAllAudioAsZip = async ({ audioUrls, historyId }) => {
+    const validEntries = audioUrls
+      .map((url, i) => (url ? { url, index: i } : null))
+      .filter(Boolean)
+
+    if (validEntries.length === 0 || isBatchDownloading.value) return
+
+    isBatchDownloading.value = true
+    showDownloadMenu.value = false
+
+    try {
+      const { default: JSZip } = await import('jszip')
+      const zip = new JSZip()
+      const prefix = historyId ? `${historyId}-` : ''
+
+      for (const { url, index } of validEntries) {
+        const response = await fetch(url)
+        const blob = await response.blob()
+        const ext = blob.type === 'audio/wav' ? 'wav' : 'mp3'
+        zip.file(`narration-${index + 1}.${ext}`, blob)
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `narration-${prefix}${Date.now()}.zip`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Audio ZIP generation failed:', err)
+      toast.error(t('lightbox.zipError'))
+    } finally {
+      isBatchDownloading.value = false
+    }
+  }
+
   return {
     // State
     downloadFormat,
@@ -261,5 +352,7 @@ export function useLightboxDownload(deps) {
     downloadCurrentImage,
     downloadAllAsZip,
     downloadAllAsPdf,
+    downloadCurrentAudio,
+    downloadAllAudioAsZip,
   }
 }

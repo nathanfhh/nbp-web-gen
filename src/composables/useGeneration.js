@@ -18,10 +18,10 @@ export function useGeneration() {
   const { t } = useI18n()
   const imageStorage = useImageStorage()
   const videoStorage = useVideoStorage()
-  const { updateHistoryImages, updateHistoryVideo } = useIndexedDB()
+  const { updateHistoryImages, updateHistoryVideo, updateHistoryNarration } = useIndexedDB()
   const { generateImageStream, generateStory, editImage, generateDiagram } = useApi()
   const { generateVideo } = useVideoApi()
-  const { generateAllPages } = useSlidesGeneration()
+  const { generateAllPages, generateAllAudio, saveAudioToStorage } = useSlidesGeneration()
 
   /**
    * Callback for streaming thinking chunks
@@ -105,9 +105,36 @@ export function useGeneration() {
       }
 
       case 'slides': {
-        const result = await generateAllPages(onThinkingChunk)
-        // Images are already collected in generateAllPages
-        return result
+        const narrationEnabled = store.slidesOptions.narration?.enabled
+        const hasScripts = (store.slidesOptions.narrationScripts?.length || 0) > 0
+
+        if (narrationEnabled && hasScripts) {
+          // Run image generation and TTS audio in parallel
+          const [imageSettled, audioSettled] = await Promise.allSettled([
+            generateAllPages(onThinkingChunk),
+            generateAllAudio(onThinkingChunk),
+          ])
+
+          const result = imageSettled.status === 'fulfilled' ? imageSettled.value : null
+          const audioResults = audioSettled.status === 'fulfilled' ? audioSettled.value : []
+
+          if (audioSettled.status === 'rejected') {
+            console.error('Narration audio generation failed:', audioSettled.reason)
+            toast.warning(t('toast.narrationAudioFailed'))
+          }
+
+          if (imageSettled.status === 'rejected') {
+            throw imageSettled.reason
+          }
+
+          // Attach audio results for later saving
+          if (result && audioResults.length > 0) {
+            result.audioResults = audioResults
+          }
+          return result
+        } else {
+          return await generateAllPages(onThinkingChunk)
+        }
       }
 
       default:
@@ -154,6 +181,41 @@ export function useGeneration() {
   }
 
   /**
+   * Save narration data (audio + scripts) to storage (background operation)
+   */
+  const saveNarrationToStorage = async (historyId, audioResults, options) => {
+    try {
+      // Save audio files to OPFS
+      const audioMetadata = await saveAudioToStorage(historyId, audioResults)
+
+      // Build narration record for IndexedDB
+      const narration = {
+        globalStyleDirective: options.narrationGlobalStyle || '',
+        scripts: (options.narrationScripts || []).map((s) => ({
+          pageId: s.pageId,
+          styleDirective: s.styleDirective,
+          script: s.script,
+        })),
+        audio: audioMetadata,
+        settings: {
+          speakerMode: options.narration?.speakerMode,
+          speakers: options.narration?.speakers,
+          style: options.narration?.style,
+          language: options.narration?.language,
+          scriptModel: options.narration?.scriptModel,
+          ttsModel: options.narration?.ttsModel,
+        },
+      }
+
+      await updateHistoryNarration(historyId, narration)
+      await store.updateStorageUsage()
+      await store.loadHistory()
+    } catch (err) {
+      console.error('Failed to save narration to storage:', err)
+    }
+  }
+
+  /**
    * Main generation handler
    * @param {Object} callbacks - Optional callbacks for UI updates
    * @param {Function} callbacks.onStart - Called before generation starts
@@ -178,6 +240,7 @@ export function useGeneration() {
     store.clearGenerationError()
     store.clearGeneratedImages()
     store.clearGeneratedVideo()
+    store.clearGeneratedAudioUrls()
     store.clearThinkingProcess()
 
     const options = store.getCurrentOptions
@@ -255,8 +318,6 @@ export function useGeneration() {
         }
       } else if (store.currentMode === 'slides') {
         // For slides mode, save content and styles but exclude large binary data
-        // Exclude: pages[].image (large image data), currentPageIndex, isAnalyzing, analysisError
-        // Include: pagesRaw, analyzedStyle, styleConfirmed, per-page styleGuides
         const pageStyleGuides = options.pages
           ?.filter((p) => p.styleGuide?.trim())
           .map((p) => ({ pageNumber: p.pageNumber, styleGuide: p.styleGuide }))
@@ -269,7 +330,6 @@ export function useGeneration() {
           styleConfirmed: options.styleConfirmed,
           temperature: options.temperature,
           seed: options.seed,
-          // Content and per-page styles
           pagesRaw: options.pagesRaw || '',
           pageStyleGuides: pageStyleGuides?.length > 0 ? pageStyleGuides : undefined,
         }
@@ -307,6 +367,18 @@ export function useGeneration() {
         saveVideoToStorage(historyId, result.video)
       } else if (result?.images && result.images.length > 0) {
         saveImagesToStorage(historyId, result.images)
+      }
+
+      // Save narration audio and metadata (slides mode with narration)
+      if (store.currentMode === 'slides' && result?.audioResults?.length > 0) {
+        // Build live preview audio URLs (sparse array indexed by pageIndex)
+        const audioUrls = []
+        for (const ar of result.audioResults) {
+          audioUrls[ar.pageIndex] = URL.createObjectURL(ar.blob)
+        }
+        store.setGeneratedAudioUrls(audioUrls)
+
+        saveNarrationToStorage(historyId, result.audioResults, options)
       }
 
       // Set current history ID for ImagePreview to use
