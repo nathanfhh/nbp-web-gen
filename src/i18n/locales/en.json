@@ -341,7 +341,7 @@
       "retrying": "Some pages missing scripts, retrying (attempt {attempt})...",
       "missingScripts": "Missing pages: {pages}",
       "temperature": "Temperature",
-      "temperatureHint": "Using global setting: {value}",
+      "temperatureHint": "Temperature uses global setting: {value}",
       "noScriptsYet": "No scripts generated yet",
       "editScript": "Edit script",
       "scriptPlaceholder": "Narration script for this page..."

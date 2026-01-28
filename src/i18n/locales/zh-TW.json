@@ -341,7 +341,7 @@
       "retrying": "部分頁面缺少逐字稿，重試中（第 {attempt} 次）...",
       "missingScripts": "缺少頁面：{pages}",
       "temperature": "Temperature",
-      "temperatureHint": "使用左側全域設定值：{value}",
+      "temperatureHint": "Temperature 使用全域設定值：{value}",
       "noScriptsYet": "尚未生成逐字稿",
       "editScript": "編輯逐字稿",
       "scriptPlaceholder": "此頁的語音逐字稿..."
