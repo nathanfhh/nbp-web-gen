@@ -2,6 +2,17 @@
 
 This page documents version updates for Mediator.
 
+## v0.25.23
+
+_2026-01-28_
+
+### New Features
+- **Sticker**: Add standalone "Sticker Grid Cutter" tool page for uploading and cropping externally generated grid sticker sheets
+- **Sticker**: Add grid cutter tool entry card in sticker mode
+
+### Documentation
+- **Docs Site**: Replace static hero image with looping video and fade transition
+
 ## v0.25.22
 
 _2026-01-27_
