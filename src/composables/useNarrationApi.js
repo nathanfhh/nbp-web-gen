@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
 import { useGeneratorStore } from '@/stores/generator'
 import { convertTtsResponseToMp3, convertPcmToWav } from '@/utils/audioEncoder'
+import { getLanguageDirectives } from '@/constants/voiceOptions'
 import { t } from '@/i18n'
 
 /**
@@ -83,6 +84,8 @@ export function useNarrationApi() {
       .map((p) => `[Page ID: ${p.id}]\nPage ${p.pageNumber}:\n${p.content}`)
       .join('\n\n---\n\n')
 
+    const langDirectives = getLanguageDirectives(settings.language, settings.customLanguages)
+
     return `# Presentation Narration Script Generation
 
 ## Speaker Setup
@@ -91,8 +94,9 @@ ${speakerSetup}
 ## Style: ${settings.style.charAt(0).toUpperCase() + settings.style.slice(1)}
 ${styleDesc}
 
-## Language: ${settings.language}
-Write all narration scripts in this language. The speaker names should remain as-is (not translated).
+## Language
+${langDirectives.scriptInstruction}
+The speaker names should remain as-is (not translated).
 
 ${customSection}
 ## Slide Content
@@ -256,14 +260,10 @@ ${
   ) => {
     const ttsModel = settings.ttsModel || 'gemini-2.5-flash-preview-tts'
 
-    // Build TTS prompt with style directives
-    // Add language-specific style hint for Taiwanese Mandarin
-    const langDirective =
-      settings.language === 'cmn-TW'
-        ? 'Speak in Taiwanese Mandarin (台灣中文). Use vocabulary, phrasing, and pronunciation natural to Taiwan rather than Mainland China.'
-        : null
+    // Build TTS prompt with style directives and language-specific accent
+    const langDirectives = getLanguageDirectives(settings.language, settings.customLanguages)
 
-    const ttsPrompt = [globalStyleDirective, pageStyleDirective, langDirective, script].filter(Boolean).join('\n\n')
+    const ttsPrompt = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective, script].filter(Boolean).join('\n\n')
 
     // Determine voice config based on speaker mode
     const speechConfig =

@@ -39,10 +39,44 @@ export const VOICES = [
 ]
 
 export const DEFAULT_LANGUAGES = [
-  { code: 'en-US', label: 'English (US)' },
-  { code: 'en-GB', label: 'English (UK)' },
-  { code: 'cmn-TW', label: '中文（台灣）' },
+  {
+    code: 'en-US',
+    label: 'English (US)',
+    scriptInstruction: 'Write all narration scripts in American English.',
+    accentDirective: 'Speak in American English with a natural US accent.',
+  },
+  {
+    code: 'en-GB',
+    label: 'English (UK)',
+    scriptInstruction: 'Write all narration scripts in British English. Use British spelling and vocabulary (e.g., "colour", "organisation", "whilst").',
+    accentDirective: 'Speak in British English with a natural UK accent.',
+  },
+  {
+    code: 'cmn-TW',
+    label: '中文（台灣）',
+    scriptInstruction: 'Write all narration scripts in Traditional Chinese (繁體中文), using vocabulary and phrasing natural to Taiwan (台灣用語). Do NOT use Simplified Chinese or Mainland Chinese expressions.',
+    accentDirective: 'Speak in Taiwanese Mandarin (台灣中文). Use vocabulary, phrasing, and pronunciation natural to Taiwan rather than Mainland China.',
+  },
 ]
+
+/**
+ * Find language config by code. Falls back to a generic config for custom languages.
+ * @param {string} code - Language code (e.g., 'en-US', 'cmn-TW')
+ * @param {Array} [customLanguages] - User-added custom languages with { code, label }
+ * @returns {{ scriptInstruction: string, accentDirective: string }}
+ */
+export function getLanguageDirectives(code, customLanguages) {
+  const found = DEFAULT_LANGUAGES.find((l) => l.code === code)
+  if (found) return found
+
+  // Look up label from custom languages
+  const custom = customLanguages?.find((l) => l.code === code)
+  const displayName = custom?.label || code
+  return {
+    scriptInstruction: `Write all narration scripts in ${displayName}.`,
+    accentDirective: `Speak in ${displayName}.`,
+  }
+}
 
 export const NARRATION_STYLES = ['discussion', 'critical', 'debate']
 
