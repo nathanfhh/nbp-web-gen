@@ -28,11 +28,33 @@ const AUDIO_CHUNK_SIZE = 4096
 const MAX_VIDEO_WIDTH = 1920
 const MAX_VIDEO_HEIGHT = 1080
 
+// Crossfade transition settings
+const TRANSITION_DURATION_SEC = 0.4
+const TRANSITION_FPS = 30
+const TRANSITION_FRAMES = Math.round(TRANSITION_DURATION_SEC * TRANSITION_FPS) // 12 frames
+const TRANSITION_DURATION_US = Math.round(TRANSITION_DURATION_SEC * 1_000_000) // 400,000 µs
+const TRANSITION_SILENCE_RATIO = 0.75 // Next page audio starts after this ratio (0.75 = 75% through)
+
 /**
  * Make a dimension even (H.264 requirement)
  */
 function makeEven(n) {
   return n % 2 === 0 ? n : n + 1
+}
+
+/**
+ * Validate PCM data - check for NaN/Infinity which can crash AudioEncoder
+ * @param {Float32Array|null} pcm - PCM data to validate
+ * @returns {boolean} true if valid, false if invalid or empty
+ */
+function isValidPcm(pcm) {
+  if (!pcm || pcm.length === 0) return false
+  // Sample first 1000 values for performance
+  const checkCount = Math.min(pcm.length, 1000)
+  for (let i = 0; i < checkCount; i++) {
+    if (!Number.isFinite(pcm[i])) return false
+  }
+  return true
 }
 
 self.onmessage = async (e) => {
@@ -172,28 +194,57 @@ self.onmessage = async (e) => {
 
     audioEncoder.configure(audioConfig)
 
-    // Phase 5: Encode each page
+    // Phase 5: Encode each page with crossfade transitions
     const canvas = new OffscreenCanvas(videoWidth, videoHeight)
     const ctx = canvas.getContext('2d')
 
+    /**
+     * Draw a bitmap onto canvas with letterbox (fit-contain, white background)
+     * @param {ImageBitmap} bitmap - The bitmap to draw
+     * @param {number} alpha - Opacity (0-1), defaults to 1
+     */
+    const drawLetterbox = (bitmap, alpha = 1) => {
+      if (!bitmap) return
+      ctx.globalAlpha = alpha
+      const scale = Math.min(videoWidth / bitmap.width, videoHeight / bitmap.height)
+      const drawWidth = bitmap.width * scale
+      const drawHeight = bitmap.height * scale
+      const offsetX = (videoWidth - drawWidth) / 2
+      const offsetY = (videoHeight - drawHeight) / 2
+      ctx.drawImage(bitmap, offsetX, offsetY, drawWidth, drawHeight)
+      ctx.globalAlpha = 1
+    }
+
     let currentTimestamp = 0 // microseconds
     let lastValidBitmap = firstBitmap
+    let cachedNextBitmap = null // Reuse bitmap created during transition
+    let audioSamplesConsumed = 0 // Samples already encoded during previous transition
 
     for (let i = 0; i < pageCount; i++) {
       currentEncodingPage = i // Track for error reporting
       self.postMessage({ type: 'progress', current: i + 1, total: pageCount, phase: 'encoding' })
 
       const durationSec = pageDurations[i]
-      const durationUs = Math.round(durationSec * 1_000_000)
 
       // Validate duration
       if (!Number.isFinite(durationSec) || durationSec <= 0) {
         throw new Error(`Invalid duration at page ${i + 1}: ${durationSec}s`)
       }
 
-      // Resolve bitmap for this page
+      // Calculate effective video duration (subtract audio already played during transition)
+      const consumedDurationSec = audioSamplesConsumed / TARGET_SAMPLE_RATE
+      const effectiveDurationSec = Math.max(0.1, durationSec - consumedDurationSec)
+      const effectiveDurationUs = Math.round(effectiveDurationSec * 1_000_000)
+
+      // Resolve bitmap for this page (use cached bitmap from previous transition if available)
       let bitmap = null
-      if (images[i]) {
+      if (cachedNextBitmap) {
+        bitmap = cachedNextBitmap
+        cachedNextBitmap = null
+        if (images[i]) {
+          lastValidBitmap = bitmap
+        }
+      } else if (images[i]) {
         try {
           if (i === firstValidIdx && firstBitmap) {
             bitmap = firstBitmap
@@ -213,20 +264,12 @@ self.onmessage = async (e) => {
       // Draw image on canvas with letterbox (fit-contain, white background)
       ctx.fillStyle = '#FFFFFF'
       ctx.fillRect(0, 0, videoWidth, videoHeight)
-
-      if (bitmap) {
-        const scale = Math.min(videoWidth / bitmap.width, videoHeight / bitmap.height)
-        const drawWidth = bitmap.width * scale
-        const drawHeight = bitmap.height * scale
-        const offsetX = (videoWidth - drawWidth) / 2
-        const offsetY = (videoHeight - drawHeight) / 2
-        ctx.drawImage(bitmap, offsetX, offsetY, drawWidth, drawHeight)
-      }
+      drawLetterbox(bitmap)
 
       // Create VideoFrame and encode (one keyframe per page)
       const frame = new VideoFrame(canvas, {
         timestamp: currentTimestamp,
-        duration: durationUs,
+        duration: effectiveDurationUs,
       })
       videoEncoder.encode(frame, { keyFrame: true })
       frame.close()
@@ -240,27 +283,20 @@ self.onmessage = async (e) => {
       // Audio: use pre-decoded PCM or generate silence
       const pcm = audioPcmData[i]
       let pcm48k
-      if (pcm && pcm.length > 0) {
-        // Validate PCM data - check for NaN/Infinity which can crash AudioEncoder
-        let hasInvalidSamples = false
-        for (let j = 0; j < Math.min(pcm.length, 1000); j++) {
-          if (!Number.isFinite(pcm[j])) {
-            hasInvalidSamples = true
-            break
-          }
-        }
-        if (hasInvalidSamples) {
-          console.warn(`Page ${i + 1}: PCM contains invalid samples, using silence`)
-          pcm48k = new Float32Array(Math.round(durationSec * TARGET_SAMPLE_RATE))
-        } else {
-          pcm48k = pcm
-        }
+      if (isValidPcm(pcm)) {
+        pcm48k = pcm
       } else {
+        if (pcm && pcm.length > 0) {
+          console.warn(`Page ${i + 1}: PCM contains invalid samples, using silence`)
+        }
         pcm48k = new Float32Array(Math.round(durationSec * TARGET_SAMPLE_RATE))
       }
 
-      // Encode audio in chunks
-      let audioOffset = 0
+      // Skip samples already encoded during previous transition (audio started early)
+      let audioOffset = audioSamplesConsumed
+      audioSamplesConsumed = 0 // Reset for next page
+
+      // Encode remaining audio in chunks
       let audioTimestamp = currentTimestamp
       while (audioOffset < pcm48k.length) {
         // Check encoder state before each audio chunk
@@ -287,11 +323,125 @@ self.onmessage = async (e) => {
         audioTimestamp += Math.round((chunkLen / TARGET_SAMPLE_RATE) * 1_000_000)
       }
 
-      currentTimestamp += durationUs
+      currentTimestamp += effectiveDurationUs
 
-      // Close bitmap if it's a new one (not the cached references)
-      if (bitmap && bitmap !== firstBitmap && bitmap !== lastValidBitmap) {
-        bitmap.close()
+      // === Crossfade transition to next page (except for last page) ===
+      if (i < pageCount - 1) {
+        // Get next page's bitmap
+        let nextBitmap = null
+        if (images[i + 1]) {
+          try {
+            nextBitmap = await createImageBitmap(
+              new Blob([images[i + 1]], { type: imageMimeTypes[i + 1] || 'image/png' }),
+            )
+          } catch {
+            nextBitmap = lastValidBitmap
+          }
+        } else {
+          nextBitmap = lastValidBitmap
+        }
+
+        // Encode crossfade transition frames with silence audio
+        const frameDurationUs = Math.round(TRANSITION_DURATION_US / TRANSITION_FRAMES)
+        const transitionStartTimestamp = currentTimestamp
+
+        for (let f = 0; f < TRANSITION_FRAMES; f++) {
+          const alpha = (f + 1) / TRANSITION_FRAMES // 1/12 → 12/12
+
+          // Clear canvas with white background
+          ctx.fillStyle = '#FFFFFF'
+          ctx.fillRect(0, 0, videoWidth, videoHeight)
+
+          // Draw current page (fading out)
+          drawLetterbox(bitmap, 1 - alpha)
+
+          // Draw next page (fading in)
+          drawLetterbox(nextBitmap, alpha)
+
+          // Encode transition frame
+          const transitionFrame = new VideoFrame(canvas, {
+            timestamp: currentTimestamp,
+            duration: frameDurationUs,
+          })
+          videoEncoder.encode(transitionFrame, { keyFrame: f === 0 })
+          transitionFrame.close()
+
+          currentTimestamp += frameDurationUs
+
+          if (encoderError) {
+            throw encoderError
+          }
+        }
+
+        // Transition audio: silence first, then start next page's audio early
+        const silenceDuration = TRANSITION_DURATION_SEC * TRANSITION_SILENCE_RATIO
+        const earlyAudioDuration = TRANSITION_DURATION_SEC * (1 - TRANSITION_SILENCE_RATIO)
+        const silenceSamples = Math.round(silenceDuration * TARGET_SAMPLE_RATE)
+        const earlyAudioSamples = Math.round(earlyAudioDuration * TARGET_SAMPLE_RATE)
+
+        let transitionAudioTimestamp = transitionStartTimestamp
+
+        // Part 1: Encode silence for first half of transition
+        const silencePcm = new Float32Array(silenceSamples)
+        let silenceOffset = 0
+        while (silenceOffset < silencePcm.length) {
+          if (encoderError) throw encoderError
+
+          const remaining = silencePcm.length - silenceOffset
+          const chunkLen = Math.min(AUDIO_CHUNK_SIZE, remaining)
+          const chunk = silencePcm.subarray(silenceOffset, silenceOffset + chunkLen)
+
+          const audioDataObj = new AudioData({
+            format: 'f32',
+            sampleRate: TARGET_SAMPLE_RATE,
+            numberOfFrames: chunkLen,
+            numberOfChannels: 1,
+            timestamp: transitionAudioTimestamp,
+            data: chunk,
+          })
+          audioEncoder.encode(audioDataObj)
+          audioDataObj.close()
+
+          silenceOffset += chunkLen
+          transitionAudioTimestamp += Math.round((chunkLen / TARGET_SAMPLE_RATE) * 1_000_000)
+        }
+
+        // Part 2: Start next page's audio early (last portion of transition)
+        const nextPcm = audioPcmData[i + 1]
+        const nextPcm48k = isValidPcm(nextPcm)
+          ? nextPcm
+          : new Float32Array(Math.round(pageDurations[i + 1] * TARGET_SAMPLE_RATE))
+
+        // Encode early portion of next page's audio
+        const actualEarlySamples = Math.min(earlyAudioSamples, nextPcm48k.length)
+        let earlyOffset = 0
+        while (earlyOffset < actualEarlySamples) {
+          if (encoderError) throw encoderError
+
+          const remaining = actualEarlySamples - earlyOffset
+          const chunkLen = Math.min(AUDIO_CHUNK_SIZE, remaining)
+          const chunk = nextPcm48k.subarray(earlyOffset, earlyOffset + chunkLen)
+
+          const audioDataObj = new AudioData({
+            format: 'f32',
+            sampleRate: TARGET_SAMPLE_RATE,
+            numberOfFrames: chunkLen,
+            numberOfChannels: 1,
+            timestamp: transitionAudioTimestamp,
+            data: chunk,
+          })
+          audioEncoder.encode(audioDataObj)
+          audioDataObj.close()
+
+          earlyOffset += chunkLen
+          transitionAudioTimestamp += Math.round((chunkLen / TARGET_SAMPLE_RATE) * 1_000_000)
+        }
+
+        // Track consumed samples so next iteration skips them
+        audioSamplesConsumed = actualEarlySamples
+
+        // Cache nextBitmap for reuse in next iteration
+        cachedNextBitmap = nextBitmap
       }
 
       // Check for errors at end of each page iteration
