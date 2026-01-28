@@ -822,6 +822,9 @@
       "pickingColor": "取色中...",
       "tolerance": "容許值 (Tolerance)",
       "toleranceHint": "數值越高，越能去除接近背景色的像素",
+      "erosion": "邊緣侵蝕 (Edge Erosion)",
+      "erosionHint": "移除邊緣像素，減少去背後的顆粒感",
+      "erosionPx": "{n}px",
       "whiteBgPreview": "白色背景預覽"
     },
     "preview": {

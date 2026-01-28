@@ -72,34 +72,65 @@ function removeBackground(data, width, height, bgColor, tolerance) {
     // Set pixel to transparent
     data[pos * 4 + 3] = 0
 
-    // Check 4-connected neighbors
-    // Left
-    if (x > 0) {
+    // Check 8-connected neighbors (includes diagonals)
+    const xMin = x > 0
+    const xMax = x < width - 1
+    const yMin = y > 0
+    const yMax = y < height - 1
+
+    // Cardinal directions
+    if (xMin) {
       const nPos = pos - 1
       if (!visited[nPos] && matchesBg(nPos * 4)) {
         visited[nPos] = 1
         queue.push(nPos)
       }
     }
-    // Right
-    if (x < width - 1) {
+    if (xMax) {
       const nPos = pos + 1
       if (!visited[nPos] && matchesBg(nPos * 4)) {
         visited[nPos] = 1
         queue.push(nPos)
       }
     }
-    // Up
-    if (y > 0) {
+    if (yMin) {
       const nPos = pos - width
       if (!visited[nPos] && matchesBg(nPos * 4)) {
         visited[nPos] = 1
         queue.push(nPos)
       }
     }
-    // Down
-    if (y < height - 1) {
+    if (yMax) {
       const nPos = pos + width
+      if (!visited[nPos] && matchesBg(nPos * 4)) {
+        visited[nPos] = 1
+        queue.push(nPos)
+      }
+    }
+    // Diagonal directions
+    if (xMin && yMin) {
+      const nPos = pos - width - 1
+      if (!visited[nPos] && matchesBg(nPos * 4)) {
+        visited[nPos] = 1
+        queue.push(nPos)
+      }
+    }
+    if (xMax && yMin) {
+      const nPos = pos - width + 1
+      if (!visited[nPos] && matchesBg(nPos * 4)) {
+        visited[nPos] = 1
+        queue.push(nPos)
+      }
+    }
+    if (xMin && yMax) {
+      const nPos = pos + width - 1
+      if (!visited[nPos] && matchesBg(nPos * 4)) {
+        visited[nPos] = 1
+        queue.push(nPos)
+      }
+    }
+    if (xMax && yMax) {
+      const nPos = pos + width + 1
       if (!visited[nPos] && matchesBg(nPos * 4)) {
         visited[nPos] = 1
         queue.push(nPos)
@@ -181,19 +212,75 @@ function findRegionsProjection(data, width, height, minSize = 20) {
   return validRegions
 }
 
+/**
+ * Erode edges of non-transparent regions by removing boundary pixels
+ * Each iteration removes one layer of edge pixels (8-connected)
+ * @param {Uint8ClampedArray} data - Raw RGBA pixel data, modified in place
+ * @param {number} width
+ * @param {number} height
+ * @param {number} iterations - Number of erosion passes (0 = skip)
+ */
+function erodeEdges(data, width, height, iterations) {
+  if (iterations <= 0) return
+
+  for (let iter = 0; iter < iterations; iter++) {
+    // Collect boundary pixels to remove (must collect first, then clear)
+    const toRemove = []
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const pos = y * width + x
+        // Skip already transparent pixels
+        if (data[pos * 4 + 3] === 0) continue
+
+        // Check 8-connected neighbors for any transparent pixel
+        const xMin = x > 0
+        const xMax = x < width - 1
+        const yMin = y > 0
+        const yMax = y < height - 1
+
+        let isBoundary = false
+
+        // Cardinal
+        if (xMin && data[(pos - 1) * 4 + 3] === 0) isBoundary = true
+        else if (xMax && data[(pos + 1) * 4 + 3] === 0) isBoundary = true
+        else if (yMin && data[(pos - width) * 4 + 3] === 0) isBoundary = true
+        else if (yMax && data[(pos + width) * 4 + 3] === 0) isBoundary = true
+        // Diagonal
+        else if (xMin && yMin && data[(pos - width - 1) * 4 + 3] === 0) isBoundary = true
+        else if (xMax && yMin && data[(pos - width + 1) * 4 + 3] === 0) isBoundary = true
+        else if (xMin && yMax && data[(pos + width - 1) * 4 + 3] === 0) isBoundary = true
+        else if (xMax && yMax && data[(pos + width + 1) * 4 + 3] === 0) isBoundary = true
+
+        if (isBoundary) {
+          toRemove.push(pos)
+        }
+      }
+    }
+
+    // Clear all boundary pixels at once
+    for (let i = 0; i < toRemove.length; i++) {
+      data[toRemove[i] * 4 + 3] = 0
+    }
+  }
+}
+
 // Handle messages from main thread
 self.onmessage = function(e) {
-  const { imageData: pixelData, width, height, backgroundColor, tolerance, minSize } = e.data
+  const { imageData: pixelData, width, height, backgroundColor, tolerance, minSize, erosion = 0 } = e.data
 
   // Step 1: Remove background (modifies pixelData in place)
   removeBackground(pixelData, width, height, backgroundColor, tolerance)
+
+  // Step 1.5: Erode edges to remove boundary artifacts
+  erodeEdges(pixelData, width, height, erosion)
 
   // Step 2: Find regions using projection-based segmentation
   const regions = findRegionsProjection(pixelData, width, height, minSize)
 
   // Return processed pixel data and regions
   self.postMessage(
-    { imageData: pixelData, regions },
+    { imageData: pixelData, regions, erosion },
     [pixelData.buffer]  // Transfer back
   )
 }

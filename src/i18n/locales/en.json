@@ -822,6 +822,9 @@
       "pickingColor": "Picking...",
       "tolerance": "Tolerance",
       "toleranceHint": "Higher values remove more pixels similar to background color",
+      "erosion": "Edge Erosion",
+      "erosionHint": "Remove edge pixels to reduce granular artifacts",
+      "erosionPx": "{n}px",
       "whiteBgPreview": "White Background Preview"
     },
     "preview": {

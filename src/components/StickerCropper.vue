@@ -148,6 +148,7 @@ const imageLoaded = ref(false)
 
 // Settings
 const tolerance = ref(30)
+const erosion = ref(0)
 
 // Preview background
 const previewBgWhite = ref(false)
@@ -353,6 +354,7 @@ const processImage = () => {
           height,
           backgroundColor: { r, g, b },
           tolerance: tolerance.value,
+          erosion: erosion.value,
           minSize: 20,
         },
         [imageData.data.buffer]
@@ -499,6 +501,7 @@ const resetState = () => {
   croppedStickers.value = []
   selectedStickers.value.clear()
   tolerance.value = 30
+  erosion.value = 0
   resetColorPicker()
   previewSticker.value = null
   resetEditState()
@@ -625,6 +628,25 @@ onUnmounted(() => {
                   :style="{ accentColor: 'var(--color-brand-primary)' }"
                 />
                 <p class="text-xs text-text-muted mt-1">{{ $t('stickerCropper.settings.toleranceHint') }}</p>
+              </div>
+
+              <!-- Edge Erosion -->
+              <div class="mb-4">
+                <label class="block text-xs text-text-muted mb-2">{{ $t('stickerCropper.settings.erosion') }}</label>
+                <div class="flex gap-1">
+                  <button
+                    v-for="n in [0, 1, 2, 3]"
+                    :key="n"
+                    @click="erosion = n"
+                    class="flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                    :class="erosion === n
+                      ? 'bg-brand-primary text-text-on-brand'
+                      : 'bg-bg-interactive text-text-secondary hover:bg-bg-interactive-hover'"
+                  >
+                    {{ $t('stickerCropper.settings.erosionPx', { n }) }}
+                  </button>
+                </div>
+                <p class="text-xs text-text-muted mt-1">{{ $t('stickerCropper.settings.erosionHint') }}</p>
               </div>
 
               <!-- Preview Background Toggle -->
