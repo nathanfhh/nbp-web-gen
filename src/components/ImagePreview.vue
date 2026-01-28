@@ -273,7 +273,6 @@ const downloadAllAsMp4 = async () => {
     }
 
     const audioBuffers = []
-    const audioMimeTypesArr = []
     const audioUrls = store.generatedAudioUrls
 
     if (audioUrls?.length) {
@@ -283,20 +282,16 @@ const downloadAllAsMp4 = async () => {
             const response = await fetch(audioUrls[i])
             const blob = await response.blob()
             audioBuffers.push(await blob.arrayBuffer())
-            audioMimeTypesArr.push(blob.type || 'audio/wav')
           } catch {
             audioBuffers.push(null)
-            audioMimeTypesArr.push(null)
           }
         } else {
           audioBuffers.push(null)
-          audioMimeTypesArr.push(null)
         }
       }
     } else {
       for (let i = 0; i < store.generatedImages.length; i++) {
         audioBuffers.push(null)
-        audioMimeTypesArr.push(null)
       }
     }
 
@@ -304,7 +299,6 @@ const downloadAllAsMp4 = async () => {
       images: imageBuffers,
       imageMimeTypes,
       audioBuffers,
-      audioMimeTypes: audioMimeTypesArr,
     }, `slides-${Date.now()}`)
   } catch (err) {
     console.error('MP4 encoding failed:', err)

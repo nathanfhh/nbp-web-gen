@@ -367,7 +367,6 @@ export function useLightboxDownload(deps) {
       }
 
       const audioBuffers = []
-      const audioMimeTypesArr = []
 
       if (audioUrls?.length) {
         for (let i = 0; i < images.length; i++) {
@@ -376,20 +375,16 @@ export function useLightboxDownload(deps) {
               const response = await fetch(audioUrls[i])
               const blob = await response.blob()
               audioBuffers.push(await blob.arrayBuffer())
-              audioMimeTypesArr.push(blob.type || 'audio/wav')
             } catch {
               audioBuffers.push(null)
-              audioMimeTypesArr.push(null)
             }
           } else {
             audioBuffers.push(null)
-            audioMimeTypesArr.push(null)
           }
         }
       } else {
         for (let i = 0; i < images.length; i++) {
           audioBuffers.push(null)
-          audioMimeTypesArr.push(null)
         }
       }
 
@@ -398,7 +393,6 @@ export function useLightboxDownload(deps) {
         images: imageBuffers,
         imageMimeTypes,
         audioBuffers,
-        audioMimeTypes: audioMimeTypesArr,
       }, `${prefix}${Date.now()}`)
     } catch (err) {
       console.error('MP4 encoding failed:', err)

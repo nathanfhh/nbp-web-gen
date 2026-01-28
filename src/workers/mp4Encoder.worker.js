@@ -1,15 +1,17 @@
 /**
  * MP4 Encoder Worker
  *
- * Encodes slide images + narration audio into an MP4 video
+ * Encodes slide images + pre-decoded audio PCM into an MP4 video
  * using WebCodecs API (H.264/AAC) and mp4-muxer for container packaging.
  *
+ * Audio decoding is done in the main thread (AudioContext) for reliability.
+ * This worker receives already-decoded mono Float32 PCM at 48kHz.
+ *
  * Input message:
- *   images: ArrayBuffer[]           - Image buffers (may contain null for failed pages)
- *   imageMimeTypes: string[]        - MIME types for each image
- *   audioBuffers: (ArrayBuffer|null)[] - Audio buffers (null = no audio for that page)
- *   audioMimeTypes: (string|null)[]  - MIME types for audio
- *   defaultPageDuration: number      - Duration in seconds for pages without audio
+ *   images: ArrayBuffer[]              - Image buffers (may contain null for failed pages)
+ *   imageMimeTypes: string[]           - MIME types for each image
+ *   audioPcmData: (Float32Array|null)[] - Pre-decoded mono PCM at 48kHz (null = no audio)
+ *   defaultPageDuration: number         - Duration in seconds for pages without audio
  *
  * Output messages:
  *   { type: 'progress', current, total, phase }
@@ -23,150 +25,8 @@ const TARGET_SAMPLE_RATE = 48000
 const AUDIO_BITRATE = 128_000
 const VIDEO_BITRATE = 2_000_000
 const AUDIO_CHUNK_SIZE = 4096
-
-/**
- * Parse WAV header and return PCM Float32 data + sample rate
- */
-function decodeWav(arrayBuffer) {
-  const view = new DataView(arrayBuffer)
-
-  // Validate RIFF header
-  const riff = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3))
-  if (riff !== 'RIFF') throw new Error('Not a valid WAV file')
-
-  const numChannels = view.getUint16(22, true)
-  const sampleRate = view.getUint32(24, true)
-  const bitsPerSample = view.getUint16(34, true)
-
-  // Find data chunk
-  let offset = 12
-  while (offset < arrayBuffer.byteLength - 8) {
-    const chunkId = String.fromCharCode(
-      view.getUint8(offset), view.getUint8(offset + 1),
-      view.getUint8(offset + 2), view.getUint8(offset + 3),
-    )
-    const chunkSize = view.getUint32(offset + 4, true)
-    if (chunkId === 'data') {
-      offset += 8
-      break
-    }
-    offset += 8 + chunkSize
-  }
-
-  const dataBytes = arrayBuffer.slice(offset)
-  let float32Data
-
-  if (bitsPerSample === 16) {
-    const int16 = new Int16Array(dataBytes)
-    float32Data = new Float32Array(int16.length)
-    for (let i = 0; i < int16.length; i++) {
-      float32Data[i] = int16[i] / 32768
-    }
-  } else if (bitsPerSample === 32) {
-    float32Data = new Float32Array(dataBytes)
-  } else if (bitsPerSample === 24) {
-    const byteView = new Uint8Array(dataBytes)
-    const sampleCount = byteView.length / 3
-    float32Data = new Float32Array(sampleCount)
-    for (let i = 0; i < sampleCount; i++) {
-      const b0 = byteView[i * 3]
-      const b1 = byteView[i * 3 + 1]
-      const b2 = byteView[i * 3 + 2]
-      let val = (b0 | (b1 << 8) | (b2 << 16))
-      if (val & 0x800000) val |= ~0xFFFFFF // sign extend
-      float32Data[i] = val / 8388608
-    }
-  } else {
-    throw new Error(`Unsupported WAV bit depth: ${bitsPerSample}`)
-  }
-
-  // Mix to mono if stereo
-  if (numChannels > 1) {
-    const monoLength = Math.floor(float32Data.length / numChannels)
-    const mono = new Float32Array(monoLength)
-    for (let i = 0; i < monoLength; i++) {
-      let sum = 0
-      for (let ch = 0; ch < numChannels; ch++) {
-        sum += float32Data[i * numChannels + ch]
-      }
-      mono[i] = sum / numChannels
-    }
-    return { pcm: mono, sampleRate }
-  }
-
-  return { pcm: float32Data, sampleRate }
-}
-
-/**
- * Decode MP3 audio using AudioDecoder (WebCodecs)
- */
-async function decodeMp3(arrayBuffer) {
-  const samples = []
-  let sampleRate = 44100
-
-  await new Promise((resolve, reject) => {
-    const decoder = new AudioDecoder({
-      output: (audioData) => {
-        sampleRate = audioData.sampleRate
-        const buf = new Float32Array(audioData.numberOfFrames)
-        // Copy first channel (mono)
-        audioData.copyTo(buf, { planeIndex: 0 })
-        samples.push(buf)
-        audioData.close()
-      },
-      error: (e) => reject(e),
-    })
-
-    decoder.configure({
-      codec: 'mp3',
-      sampleRate: 44100,
-      numberOfChannels: 1,
-    })
-
-    // Feed entire buffer as one chunk
-    decoder.decode(new EncodedAudioChunk({
-      type: 'key',
-      timestamp: 0,
-      data: arrayBuffer,
-    }))
-
-    decoder.flush().then(resolve).catch(reject)
-  })
-
-  // Concatenate all decoded samples
-  const totalLength = samples.reduce((sum, s) => sum + s.length, 0)
-  const pcm = new Float32Array(totalLength)
-  let offset = 0
-  for (const s of samples) {
-    pcm.set(s, offset)
-    offset += s.length
-  }
-
-  return { pcm, sampleRate }
-}
-
-/**
- * Resample PCM data to target sample rate using linear interpolation
- */
-function resample(pcm, fromRate, toRate) {
-  if (fromRate === toRate) return pcm
-
-  const ratio = fromRate / toRate
-  const outputLength = Math.round(pcm.length / ratio)
-  const output = new Float32Array(outputLength)
-
-  for (let i = 0; i < outputLength; i++) {
-    const srcIdx = i * ratio
-    const srcIdxFloor = Math.floor(srcIdx)
-    const frac = srcIdx - srcIdxFloor
-
-    const s0 = pcm[srcIdxFloor] || 0
-    const s1 = pcm[Math.min(srcIdxFloor + 1, pcm.length - 1)] || 0
-    output[i] = s0 + frac * (s1 - s0)
-  }
-
-  return output
-}
+const MAX_VIDEO_WIDTH = 1920
+const MAX_VIDEO_HEIGHT = 1080
 
 /**
  * Make a dimension even (H.264 requirement)
@@ -179,44 +39,24 @@ self.onmessage = async (e) => {
   const {
     images,
     imageMimeTypes,
-    audioBuffers,
-    audioMimeTypes,
+    audioPcmData,
     defaultPageDuration = 5,
   } = e.data
 
   const pageCount = images.length
 
   try {
-    // Phase 1: Decode audio for all pages to determine durations
-    self.postMessage({ type: 'progress', current: 0, total: pageCount, phase: 'decoding' })
-
-    const audioData = [] // { pcm: Float32Array, sampleRate } | null
-    for (let i = 0; i < pageCount; i++) {
-      if (audioBuffers[i]) {
-        try {
-          const mime = audioMimeTypes[i] || ''
-          if (mime.includes('wav') || mime.includes('wave')) {
-            audioData.push(decodeWav(audioBuffers[i]))
-          } else {
-            audioData.push(await decodeMp3(audioBuffers[i]))
-          }
-        } catch {
-          audioData.push(null)
-        }
-      } else {
-        audioData.push(null)
-      }
-    }
-
-    // Calculate page durations
-    const pageDurations = audioData.map((audio) => {
-      if (audio) {
-        return audio.pcm.length / audio.sampleRate
+    // Calculate page durations from pre-decoded PCM
+    const pageDurations = audioPcmData.map((pcm) => {
+      if (pcm && pcm.length > 0) {
+        return pcm.length / TARGET_SAMPLE_RATE
       }
       return defaultPageDuration
     })
 
-    // Phase 2: Resolve image bitmaps with fallback logic
+    // Phase 1: Resolve image bitmaps with fallback logic
+    self.postMessage({ type: 'progress', current: 0, total: pageCount, phase: 'preparing' })
+
     // First pass: find first valid image for forward-fallback
     let firstValidIdx = -1
     for (let i = 0; i < pageCount; i++) {
@@ -226,7 +66,7 @@ self.onmessage = async (e) => {
       }
     }
 
-    // Determine video dimensions from first valid image
+    // Determine video dimensions from first valid image (capped to AVC level limits)
     let videoWidth = 1920
     let videoHeight = 1080
     let firstBitmap = null
@@ -236,14 +76,24 @@ self.onmessage = async (e) => {
         firstBitmap = await createImageBitmap(
           new Blob([images[firstValidIdx]], { type: imageMimeTypes[firstValidIdx] || 'image/png' }),
         )
-        videoWidth = makeEven(firstBitmap.width)
-        videoHeight = makeEven(firstBitmap.height)
+        let w = firstBitmap.width
+        let h = firstBitmap.height
+
+        // Scale down if exceeds max dimensions (H.264 encoder level constraint)
+        if (w > MAX_VIDEO_WIDTH || h > MAX_VIDEO_HEIGHT) {
+          const scale = Math.min(MAX_VIDEO_WIDTH / w, MAX_VIDEO_HEIGHT / h)
+          w = Math.round(w * scale)
+          h = Math.round(h * scale)
+        }
+
+        videoWidth = makeEven(w)
+        videoHeight = makeEven(h)
       } catch {
         // fallback to default 16:9
       }
     }
 
-    // Phase 3: Set up mp4-muxer
+    // Phase 2: Set up mp4-muxer
     const target = new ArrayBufferTarget()
     const muxer = new Muxer({
       target,
@@ -260,13 +110,14 @@ self.onmessage = async (e) => {
       fastStart: 'in-memory',
     })
 
-    // Phase 4: Set up VideoEncoder
+    // Phase 3: Set up VideoEncoder
+    let encoderError = null
     const videoEncoder = new VideoEncoder({
       output: (chunk, meta) => {
         muxer.addVideoChunk(chunk, meta)
       },
       error: (err) => {
-        throw err
+        encoderError = err
       },
     })
 
@@ -278,13 +129,13 @@ self.onmessage = async (e) => {
       bitrateMode: 'constant',
     })
 
-    // Phase 5: Set up AudioEncoder
+    // Phase 4: Set up AudioEncoder
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => {
         muxer.addAudioChunk(chunk, meta)
       },
       error: (err) => {
-        throw err
+        encoderError = err
       },
     })
 
@@ -295,7 +146,7 @@ self.onmessage = async (e) => {
       bitrate: AUDIO_BITRATE,
     })
 
-    // Phase 6: Encode each page
+    // Phase 5: Encode each page
     const canvas = new OffscreenCanvas(videoWidth, videoHeight)
     const ctx = canvas.getContext('2d')
 
@@ -348,17 +199,11 @@ self.onmessage = async (e) => {
       videoEncoder.encode(frame, { keyFrame: true })
       frame.close()
 
-      // Encode audio for this page
-      const pageAudio = audioData[i]
-      let pcm48k
-
-      if (pageAudio) {
-        pcm48k = resample(pageAudio.pcm, pageAudio.sampleRate, TARGET_SAMPLE_RATE)
-      } else {
-        // Silence
-        const silenceSamples = Math.round(durationSec * TARGET_SAMPLE_RATE)
-        pcm48k = new Float32Array(silenceSamples)
-      }
+      // Audio: use pre-decoded PCM or generate silence
+      const pcm = audioPcmData[i]
+      const pcm48k = (pcm && pcm.length > 0)
+        ? pcm
+        : new Float32Array(Math.round(durationSec * TARGET_SAMPLE_RATE))
 
       // Encode audio in chunks
       let audioOffset = 0
@@ -385,13 +230,18 @@ self.onmessage = async (e) => {
 
       currentTimestamp += durationUs
 
-      // Close bitmap if not reused
+      // Close bitmap if it's a new one (not the cached references)
       if (bitmap && bitmap !== firstBitmap && bitmap !== lastValidBitmap) {
         bitmap.close()
       }
     }
 
-    // Phase 7: Flush and finalize
+    // Check for encoder errors accumulated during encoding
+    if (encoderError) {
+      throw encoderError
+    }
+
+    // Phase 6: Flush and finalize
     self.postMessage({ type: 'progress', current: pageCount, total: pageCount, phase: 'finalizing' })
 
     await videoEncoder.flush()

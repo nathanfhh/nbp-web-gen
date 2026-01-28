@@ -1,8 +1,44 @@
 import { ref } from 'vue'
 
+const TARGET_SAMPLE_RATE = 48000
+
+/**
+ * Decode an audio ArrayBuffer to mono Float32 PCM at TARGET_SAMPLE_RATE
+ * using the browser's native AudioContext (main thread, guaranteed reliable).
+ *
+ * AudioContext.decodeAudioData auto-resamples to the context's sample rate.
+ */
+async function decodeAudioToMonoPcm(audioCtx, arrayBuffer) {
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+
+  if (audioBuffer.numberOfChannels === 1) {
+    // getChannelData returns a Float32Array referencing the AudioBuffer's internal memory.
+    // We must copy it because the AudioBuffer can be garbage collected.
+    return new Float32Array(audioBuffer.getChannelData(0))
+  }
+
+  // Mix multi-channel to mono
+  const length = audioBuffer.length
+  const mono = new Float32Array(length)
+  const numChannels = audioBuffer.numberOfChannels
+  for (let ch = 0; ch < numChannels; ch++) {
+    const channelData = audioBuffer.getChannelData(ch)
+    for (let i = 0; i < length; i++) {
+      mono[i] += channelData[i]
+    }
+  }
+  for (let i = 0; i < length; i++) {
+    mono[i] /= numChannels
+  }
+  return mono
+}
+
 /**
  * MP4 Encoder Composable
  * Uses Web Worker with WebCodecs + mp4-muxer to encode slide images + audio into MP4.
+ *
+ * Audio decoding happens in the main thread (AudioContext) for maximum reliability,
+ * then pre-decoded PCM data is transferred to the Worker for encoding.
  */
 export function useMp4Encoder() {
   const isEncoding = ref(false)
@@ -15,7 +51,6 @@ export function useMp4Encoder() {
    * @param {ArrayBuffer[]} options.images - Image data (may contain null)
    * @param {string[]} options.imageMimeTypes - MIME types for images
    * @param {(ArrayBuffer|null)[]} options.audioBuffers - Audio data (null = no audio)
-   * @param {(string|null)[]} options.audioMimeTypes - MIME types for audio
    * @param {number} [options.defaultPageDuration=5] - Duration for pages without audio
    * @returns {Promise<ArrayBuffer>} MP4 data
    */
@@ -25,6 +60,33 @@ export function useMp4Encoder() {
     progress.value = { current: 0, total: 0, phase: '' }
 
     try {
+      // Phase 0: Decode all audio in main thread using AudioContext
+      // This is the most reliable way — OfflineAudioContext in Workers is unreliable.
+      const audioPcmData = []
+      let audioCtx = null
+
+      try {
+        audioCtx = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
+
+        for (const buf of options.audioBuffers) {
+          if (buf) {
+            try {
+              audioPcmData.push(await decodeAudioToMonoPcm(audioCtx, buf))
+            } catch (e) {
+              console.warn('Audio decode failed for a page:', e)
+              audioPcmData.push(null)
+            }
+          } else {
+            audioPcmData.push(null)
+          }
+        }
+      } finally {
+        if (audioCtx) {
+          await audioCtx.close().catch(() => {})
+        }
+      }
+
+      // Launch worker
       const { default: Mp4Worker } = await import('@/workers/mp4Encoder.worker.js?worker')
       const worker = new Mp4Worker()
 
@@ -50,20 +112,19 @@ export function useMp4Encoder() {
           reject(err)
         }
 
-        // Collect transferable ArrayBuffers
+        // Collect transferable buffers
         const transferables = []
         for (const img of options.images) {
           if (img) transferables.push(img)
         }
-        for (const audio of options.audioBuffers) {
-          if (audio) transferables.push(audio)
+        for (const pcm of audioPcmData) {
+          if (pcm) transferables.push(pcm.buffer)
         }
 
         worker.postMessage({
           images: options.images,
           imageMimeTypes: options.imageMimeTypes,
-          audioBuffers: options.audioBuffers,
-          audioMimeTypes: options.audioMimeTypes,
+          audioPcmData,
           defaultPageDuration: options.defaultPageDuration ?? 5,
         }, transferables)
       })
