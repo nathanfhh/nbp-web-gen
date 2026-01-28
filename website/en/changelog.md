@@ -2,6 +2,28 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.0
+
+_2026-01-28_
+
+### New Features
+- **Slide Narration**: Add TTS narration audio generation with single speaker monologue and dual speaker conversation (discussion, critical, debate styles)
+- **Slide Narration**: AI auto-generates narration scripts with review/edit support; narrative structure includes intro on first page and closing on last page
+- **Slide Narration**: Image and TTS generation run in parallel (Promise.allSettled); partial page failures don't affect other pages
+- **Slide Narration**: Mini audio player below each image card for live preview in generation results
+- **Slide Narration**: Lightbox audio player at bottom; download menu adds "Narration Audio" section (current page / all as ZIP)
+- **Slide Narration**: ZIP download automatically includes narration audio files (narration-1.mp3, etc.)
+- **Slide Narration**: Historical records automatically restore narration audio from OPFS
+- **Components**: Add SearchableSelect filterable dropdown component (grouped options, keyboard navigation)
+
+### Fixes
+- **Audio Encoding**: Automatic WAV fallback when MP3 encoding fails, ensuring no audio loss
+- **Audio Encoding**: Wrap lamejs with `?raw` import + `new Function()` to resolve Vite CJS bundling compatibility
+- **Lightbox**: Reposition audio player as absolute overlay to prevent image squeezing; use fixed light colors for dark background visibility
+
+### Documentation
+- Update slide generation and history docs to cover narration audio features
+
 ## v0.25.23
 
 _2026-01-28_
