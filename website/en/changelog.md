@@ -2,6 +2,24 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.2
+
+_2026-01-28_
+
+### New Features
+- **Backup & Transfer**: JSON export/import and WebRTC P2P transfer now fully support narration audio (scripts + audio files); export format upgraded to v3 (backward compatible with v2)
+- **History**: Slide presentations with narration audio now display an audio indicator icon on thumbnails
+
+### Fixes
+- **Narration**: Fix TTS prompts missing explicit language and accent directives
+- **MP4 Export**: Fix audio decoding failure in Worker by moving to main thread; cap AVC encoding resolution
+- **i18n**: Clarify temperature setting hint wording
+
+### Documentation
+- Add sticker edge erosion and grid cutter tool documentation
+- Add MP4 export and audio indicator to slide and history guides
+- Add backup compatibility guidance for new artifact types
+
 ## v0.26.1
 
 _2026-01-28_
