@@ -21,7 +21,7 @@ export function useSlidesGeneration() {
   const { generateNarrationScripts, generatePageAudio } = useNarrationApi()
   const imageStorage = useImageStorage()
   const audioStorage = useAudioStorage()
-  const { updateHistoryImages, getRecord } = useIndexedDB()
+  const { updateHistoryImages, updateHistoryNarration, getRecord } = useIndexedDB()
 
   const isGenerating = ref(false)
 
@@ -232,7 +232,7 @@ export function useSlidesGeneration() {
   }
 
   /**
-   * Regenerate a single page
+   * Regenerate a single page (image only)
    * @param {string} pageId - UUID of the page to regenerate
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
    */
@@ -286,11 +286,136 @@ export function useSlidesGeneration() {
   }
 
   /**
-   * Confirm regeneration - use the new image
+   * Regenerate a single page's audio only
+   * @param {string} pageId - UUID of the page
+   * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
+   * @returns {Promise<{ blob: Blob, mimeType: string } | null>}
+   */
+  const regeneratePageAudio = async (pageId, onThinkingChunk = null) => {
+    const options = store.slidesOptions
+    const pageIndex = options.pages.findIndex((p) => p.id === pageId)
+
+    if (pageIndex === -1) return null
+
+    const page = options.pages[pageIndex]
+    const pageScript = options.narrationScripts?.find((s) => s.pageId === pageId)
+
+    if (!pageScript) {
+      toast.error(t('slides.regenerateModal.noScript'))
+      return null
+    }
+
+    store.slidesOptions.pages[pageIndex].status = 'generating'
+    store.slidesOptions.pages[pageIndex].error = null
+
+    try {
+      onThinkingChunk?.(
+        `\n🔊 ${t('slides.narration.generatingAudio', { current: page.pageNumber, total: options.totalPages })}\n`,
+      )
+
+      const result = await generatePageAudio(
+        options.narrationGlobalStyle,
+        pageScript.styleDirective,
+        pageScript.script,
+        options.narration,
+      )
+
+      store.slidesOptions.pages[pageIndex].status = 'done'
+      return result
+    } catch (err) {
+      store.slidesOptions.pages[pageIndex].status = 'error'
+      store.slidesOptions.pages[pageIndex].error = err.message
+      toast.error(t('slides.regenerateModal.audioFailed'))
+      return null
+    }
+  }
+
+  /**
+   * Regenerate a single page with both image and audio
+   * @param {string} pageId - UUID of the page
+   * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
+   * @returns {Promise<{ audioResult: Object | null }>}
+   */
+  const regeneratePageWithAudio = async (pageId, onThinkingChunk = null) => {
+    const options = store.slidesOptions
+    const pageIndex = options.pages.findIndex((p) => p.id === pageId)
+
+    if (pageIndex === -1) return { audioResult: null }
+
+    const page = options.pages[pageIndex]
+    const pageScript = options.narrationScripts?.find((s) => s.pageId === pageId)
+
+    // Update status
+    store.slidesOptions.pages[pageIndex].status = 'generating'
+    store.slidesOptions.pages[pageIndex].error = null
+
+    let audioResult = null
+
+    try {
+      // Generate image and audio in parallel
+      const refImages = combineReferenceImages(
+        options.globalReferenceImages,
+        page.referenceImages,
+      )
+
+      const imagePromise = generateImageStream(
+        page.content,
+        {
+          ...options,
+          pageNumber: page.pageNumber,
+          totalPages: options.totalPages,
+          globalPrompt: store.prompt,
+          pageStyleGuide: page.styleGuide,
+        },
+        'slides',
+        refImages,
+        onThinkingChunk,
+      )
+
+      const audioPromise = pageScript
+        ? generatePageAudio(
+            options.narrationGlobalStyle,
+            pageScript.styleDirective,
+            pageScript.script,
+            options.narration,
+          ).catch((err) => {
+            console.error('Audio generation failed:', err)
+            onThinkingChunk?.(`\n⚠️ ${t('slides.regenerateModal.audioFailed')}: ${err.message}\n`)
+            return null
+          })
+        : Promise.resolve(null)
+
+      onThinkingChunk?.(
+        `\n🔊 ${t('slides.narration.generatingAudio', { current: page.pageNumber, total: options.totalPages })}\n`,
+      )
+
+      const [imageResult, audioRes] = await Promise.all([imagePromise, audioPromise])
+      audioResult = audioRes
+
+      if (imageResult.images && imageResult.images.length > 0) {
+        store.slidesOptions.pages[pageIndex].pendingImage = {
+          data: imageResult.images[0].data,
+          mimeType: imageResult.images[0].mimeType,
+        }
+        store.slidesOptions.pages[pageIndex].status = 'comparing'
+      }
+
+      return { audioResult }
+    } catch (err) {
+      store.slidesOptions.pages[pageIndex].status = 'error'
+      store.slidesOptions.pages[pageIndex].error = err.message
+      toast.error(t('slides.regenerateFailed'))
+      return { audioResult: null }
+    }
+  }
+
+  /**
+   * Confirm regeneration - use the new image and optionally update audio
    * Updates: pages state, generatedImages, OPFS, and IndexedDB history
    * @param {string} pageId - UUID of the page
+   * @param {Object} audioResult - Optional audio result { blob, mimeType } to save
    */
-  const confirmRegeneration = async (pageId) => {
+  const confirmRegeneration = async (pageId, audioResult = null) => {
     const pageIndex = store.slidesOptions.pages.findIndex((p) => p.id === pageId)
     if (pageIndex === -1) return
 
@@ -345,6 +470,11 @@ export function useSlidesGeneration() {
             await store.loadHistory()
           }
         }
+
+        // 4. Update audio if provided
+        if (audioResult) {
+          await savePageAudioToStorage(historyId, pageIndex, audioResult)
+        }
       } catch (err) {
         console.error('Failed to update image in storage:', err)
         // Don't fail the operation - pages state is already updated
@@ -352,6 +482,71 @@ export function useSlidesGeneration() {
     }
 
     toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
+  }
+
+  /**
+   * Save a single page's audio to storage (for regeneration)
+   * @param {number} historyId - History record ID
+   * @param {number} pageIndex - Page index
+   * @param {Object} audioResult - { blob, mimeType }
+   */
+  const savePageAudioToStorage = async (historyId, pageIndex, audioResult) => {
+    try {
+      // Save audio file to OPFS
+      const audioMeta = await audioStorage.saveGeneratedAudio(historyId, pageIndex, audioResult.blob)
+
+      // Get current record and update narration
+      const record = await getRecord(historyId)
+      if (record?.narration) {
+        // Update or add audio metadata for this page
+        const existingAudio = record.narration.audio || []
+        const audioIndex = existingAudio.findIndex((a) => a.pageIndex === pageIndex)
+
+        if (audioIndex !== -1) {
+          existingAudio[audioIndex] = audioMeta
+        } else {
+          existingAudio.push(audioMeta)
+        }
+
+        // Sort by pageIndex
+        existingAudio.sort((a, b) => a.pageIndex - b.pageIndex)
+
+        const updatedNarration = {
+          ...record.narration,
+          audio: existingAudio,
+        }
+
+        await updateHistoryNarration(historyId, updatedNarration)
+
+        // Update live preview audio URL
+        const audioUrls = [...(store.generatedAudioUrls || [])]
+        audioUrls[pageIndex] = URL.createObjectURL(audioResult.blob)
+        store.setGeneratedAudioUrls(audioUrls)
+
+        await store.loadHistory()
+      }
+    } catch (err) {
+      console.error('Failed to save page audio:', err)
+    }
+  }
+
+  /**
+   * Confirm audio-only regeneration (no image change)
+   * @param {string} pageId - UUID of the page
+   * @param {Object} audioResult - { blob, mimeType }
+   */
+  const confirmAudioRegeneration = async (pageId, audioResult) => {
+    const pageIndex = store.slidesOptions.pages.findIndex((p) => p.id === pageId)
+    if (pageIndex === -1) return
+
+    const page = store.slidesOptions.pages[pageIndex]
+    const historyId = store.currentHistoryId
+
+    if (historyId && audioResult) {
+      await savePageAudioToStorage(historyId, pageIndex, audioResult)
+    }
+
+    toast.success(t('slides.regenerateModal.audioSuccess', { page: page.pageNumber }))
   }
 
   /**
@@ -608,7 +803,10 @@ export function useSlidesGeneration() {
     analyzeStyle,
     generateAllPages,
     regeneratePage,
+    regeneratePageAudio,
+    regeneratePageWithAudio,
     confirmRegeneration,
+    confirmAudioRegeneration,
     cancelRegeneration,
     reorderPages,
     parsePages,

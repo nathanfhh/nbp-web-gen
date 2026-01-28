@@ -271,6 +271,20 @@
     "regenerateSuccess": "Page {page} updated with new image",
     "regenerateFailed": "Regeneration failed",
     "regenerateCancelled": "Cancelled, keeping original image",
+    "regenerateModal": {
+      "title": "Regenerate Options",
+      "hint": "Choose what to regenerate",
+      "imageOnly": "Image Only",
+      "imageOnlyDesc": "Keep existing audio, regenerate slide image only",
+      "audioOnly": "Audio Only",
+      "audioOnlyDesc": "Keep existing image, regenerate audio using current script",
+      "both": "Both Image & Audio",
+      "bothDesc": "Regenerate both slide image and audio",
+      "start": "Start Regeneration",
+      "noScript": "No script for this page. Cannot regenerate audio.",
+      "audioFailed": "Audio regeneration failed",
+      "audioSuccess": "Page {page} audio updated"
+    },
     "compareImages": "Compare Images",
     "compareImagesHint": "Page {page} has been regenerated. Choose which version to keep.",
     "originalImage": "Original",
@@ -821,6 +835,9 @@
     "title": "Sticker Cropper Tool",
     "settings": {
       "title": "Background Removal Settings",
+      "mode": "Cropping Mode",
+      "modeAuto": "Auto Detect",
+      "modeManual": "Manual Split",
       "bgColor": "Background Color",
       "pickColor": "Pick Color",
       "pickingColor": "Picking...",
@@ -830,6 +847,16 @@
       "erosionHint": "Remove edge pixels to reduce granular artifacts",
       "erosionPx": "{n}px",
       "whiteBgPreview": "White Background Preview"
+    },
+    "separator": {
+      "title": "Separator Lines",
+      "draw": "Draw Separator",
+      "cancelDraw": "Cancel Drawing",
+      "delete": "Delete",
+      "resetView": "Reset View",
+      "lineCount": "{count} line(s)",
+      "hint": "Click two points to draw a separator line - it will force-cut the image during cropping",
+      "zoomHint": "Scroll to zoom, drag to pan (click \"Draw Separator\" to start drawing)"
     },
     "preview": {
       "title": "Preview",

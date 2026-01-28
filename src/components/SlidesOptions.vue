@@ -7,6 +7,8 @@ import { useToast } from '@/composables/useToast'
 import SlidesContentSplitter from './SlidesContentSplitter.vue'
 import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 import NarrationSection from './NarrationSection.vue'
+import SlidesRegenerateModal from './SlidesRegenerateModal.vue'
+import SlidesPageCard from './SlidesPageCard.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -15,7 +17,10 @@ const {
   analyzeStyle,
   analysisThinking,
   regeneratePage,
+  regeneratePageAudio,
+  regeneratePageWithAudio,
   confirmRegeneration,
+  confirmAudioRegeneration,
   cancelRegeneration,
   reorderPages,
   parsePages,
@@ -154,9 +159,54 @@ const editStyle = () => {
   store.slidesOptions.styleConfirmed = false
 }
 
-// Single page regenerate
+// Regenerate options modal state
+const regenerateModalPageId = ref(null)
+const pendingAudioResult = ref(null) // Store audio result during comparison
+
+// Check if page has narration script (for showing regenerate options)
+const hasNarrationForPage = (pageId) => {
+  if (!store.slidesOptions.narration?.enabled) return false
+  const scripts = store.slidesOptions.narrationScripts || []
+  return scripts.some((s) => s.pageId === pageId)
+}
+
+// Single page regenerate - show options if narration is enabled
 const handleRegeneratePage = async (pageId) => {
+  // If narration is enabled and has script for this page, show options modal
+  if (hasNarrationForPage(pageId)) {
+    regenerateModalPageId.value = pageId
+    return
+  }
+  // Otherwise, just regenerate image directly
   await regeneratePage(pageId)
+}
+
+// Execute regeneration based on user choice (called from modal confirm)
+const executeRegeneration = async (choice) => {
+  const pageId = regenerateModalPageId.value
+  if (!pageId) return
+
+  regenerateModalPageId.value = null // Close modal
+  pendingAudioResult.value = null
+
+  switch (choice) {
+    case 'image':
+      await regeneratePage(pageId)
+      break
+    case 'audio': {
+      const audioResult = await regeneratePageAudio(pageId)
+      if (audioResult) {
+        await confirmAudioRegeneration(pageId, audioResult)
+      }
+      break
+    }
+    case 'both': {
+      const { audioResult } = await regeneratePageWithAudio(pageId)
+      // Store audio result for later confirmation
+      pendingAudioResult.value = audioResult
+      break
+    }
+  }
 }
 
 // Find page in 'comparing' status (for modal)
@@ -178,9 +228,12 @@ watch(comparingPage, (newVal) => {
 const handleConfirmChoice = async () => {
   if (!comparingPage.value) return
   if (comparisonChoice.value === 'new') {
-    await confirmRegeneration(comparingPage.value.id)
+    // Pass pending audio result if available (from 'both' regeneration)
+    await confirmRegeneration(comparingPage.value.id, pendingAudioResult.value)
+    pendingAudioResult.value = null
   } else {
     cancelRegeneration(comparingPage.value.id)
+    pendingAudioResult.value = null
   }
 }
 
@@ -195,23 +248,6 @@ const movePage = (fromIndex, toIndex) => {
 const handleDeletePage = (pageId) => {
   deletePage(pageId)
 }
-
-// Get status class for page status badge
-const getStatusClass = (status) => {
-  switch (status) {
-    case 'pending':
-      return 'bg-bg-muted text-text-muted'
-    case 'generating':
-      return 'bg-mode-generate-muted text-mode-generate animate-pulse'
-    case 'done':
-      return 'bg-status-success-muted text-status-success'
-    case 'error':
-      return 'bg-status-error-muted text-status-error'
-    default:
-      return 'bg-bg-muted text-text-muted'
-  }
-}
-
 
 // ===== Reference Images Logic =====
 
@@ -275,9 +311,8 @@ const removeGlobalReference = (index) => {
   store.slidesOptions.globalReferenceImages.splice(index, 1)
 }
 
-// Handle page-specific reference image upload
-const handlePageReferenceUpload = (event, pageIndex) => {
-  const file = event.target.files?.[0]
+// Handle page-specific reference image upload (from SlidesPageCard emit)
+const handlePageReferenceUpload = (file, pageIndex) => {
   if (!file || !canAddPageReference(pageIndex)) return
 
   const reader = new FileReader()
@@ -297,7 +332,6 @@ const handlePageReferenceUpload = (event, pageIndex) => {
     toast.error(t('slides.imageLoadError'))
   }
   reader.readAsDataURL(file)
-  event.target.value = ''
 }
 
 // Remove page-specific reference image
@@ -733,213 +767,43 @@ const resetSlidesOptions = () => {
       <h4 class="text-sm font-medium text-text-primary">{{ $t('slides.pagesList') }}</h4>
 
       <div class="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-        <div
+        <SlidesPageCard
           v-for="(page, index) in options.pages"
           :key="page.id"
-          class="p-3 rounded-xl bg-bg-muted border border-border-muted transition-all"
-          :class="{ 'border-mode-generate bg-mode-generate-muted/30': page.status === 'generating' }"
-        >
-          <!-- Page Header -->
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-mono text-text-muted">#{{ page.pageNumber }}</span>
-              <!-- Status Badge -->
-              <span :class="getStatusClass(page.status)" class="text-xs px-2 py-0.5 rounded-md">
-                {{ $t(`slides.status.${page.status}`) }}
-              </span>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-1">
-              <!-- Move Up -->
-              <button
-                v-if="index > 0"
-                @click="movePage(index, index - 1)"
-                class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors"
-                :title="$t('slides.moveUp')"
-                :disabled="store.isGenerating"
-              >
-                <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                </svg>
-              </button>
-              <!-- Move Down -->
-              <button
-                v-if="index < options.pages.length - 1"
-                @click="movePage(index, index + 1)"
-                class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors"
-                :title="$t('slides.moveDown')"
-                :disabled="store.isGenerating"
-              >
-                <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              <!-- Regenerate -->
-              <button
-                v-if="page.status === 'done' || page.status === 'error'"
-                @click="handleRegeneratePage(page.id)"
-                class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors"
-                :title="$t('slides.regenerate')"
-                :disabled="store.isGenerating || comparingPage"
-              >
-                <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-              <!-- Delete -->
-              <button
-                @click="handleDeletePage(page.id)"
-                class="p-1.5 rounded-lg hover:bg-status-error-muted transition-colors"
-                :title="$t('common.delete')"
-                :disabled="store.isGenerating || comparingPage"
-              >
-                <svg class="w-4 h-4 text-text-muted hover:text-status-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Page Content Preview -->
-          <p class="text-sm text-text-secondary line-clamp-2">{{ page.content }}</p>
-
-          <!-- Per-page Style Guide (collapsible) -->
-          <div class="mt-3 pt-3 border-t border-border-muted/50">
-            <button
-              @click="togglePageStyle(page.id)"
-              class="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors w-full"
-            >
-              <svg
-                class="w-3 h-3 transition-transform"
-                :class="{ 'rotate-90': expandedPageStyles[page.id] }"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-              <span>{{ $t('slides.pageStyleGuide') }}</span>
-              <span v-if="page.styleGuide" class="text-mode-generate">●</span>
-            </button>
-
-            <div v-show="expandedPageStyles[page.id]" class="mt-2 space-y-2">
-              <textarea
-                v-model="store.slidesOptions.pages[index].styleGuide"
-                :placeholder="$t('slides.pageStylePlaceholder')"
-                class="input-premium min-h-[60px] text-xs"
-                :disabled="store.isGenerating || options.isAnalyzing"
-              />
-              <p class="text-xs text-text-muted">{{ $t('slides.pageStyleHint') }}</p>
-            </div>
-          </div>
-
-          <!-- Per-page Script Preview (if narration enabled & scripts generated) -->
-          <div
-            v-if="options.narration?.enabled && getPageScript(page.id)"
-            class="mt-3 pt-3 border-t border-border-muted/50"
-          >
-            <button
-              @click="togglePageScript(page.id)"
-              class="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors w-full"
-            >
-              <svg
-                class="w-3 h-3 transition-transform"
-                :class="{ 'rotate-90': expandedPageScripts[page.id] }"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-              <span>{{ $t('slides.narration.pageScript') }}</span>
-              <span class="text-mode-generate">●</span>
-            </button>
-
-            <div v-show="expandedPageScripts[page.id]" class="mt-2">
-              <textarea
-                :value="getPageScript(page.id)"
-                @input="updatePageScript(page.id, $event.target.value)"
-                :placeholder="$t('slides.narration.scriptPlaceholder')"
-                class="input-premium min-h-[80px] text-xs w-full"
-                :disabled="store.isGenerating"
-              />
-            </div>
-          </div>
-
-          <!-- Thumbnail Preview (if generated) -->
-          <div v-if="page.image?.data" class="mt-3">
-            <img
-              :src="`data:${page.image.mimeType || 'image/png'};base64,${page.image.data}`"
-              class="w-full max-w-[200px] rounded-lg border border-border-muted"
-              alt="Slide preview"
-            />
-          </div>
-
-          <!-- Page-specific Reference Images -->
-          <div class="mt-3 pt-3 border-t border-border-muted/50">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs text-text-muted">{{ $t('slides.pageReferences') }}</span>
-              <span class="text-xs text-text-muted">
-                {{ Math.min((page.referenceImages?.length || 0) + globalReferenceCount, MAX_REFERENCE_IMAGES) }}/{{ MAX_REFERENCE_IMAGES }}
-              </span>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <!-- Page reference images -->
-              <div
-                v-for="(img, refIndex) in page.referenceImages"
-                :key="`page-${page.id}-ref-${refIndex}`"
-                class="relative group"
-              >
-                <img
-                  :src="img.preview"
-                  class="w-14 h-14 object-cover rounded-md border border-border-muted"
-                  :alt="img.name"
-                />
-                <div
-                  class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center"
-                >
-                  <button
-                    @click="removePageReference(index, refIndex)"
-                    class="w-5 h-5 bg-status-error/80 rounded text-white hover:bg-status-error"
-                    :disabled="store.isGenerating"
-                  >
-                    <svg class="w-3 h-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <!-- Add button for page references -->
-              <label
-                v-if="canAddPageReference(index)"
-                class="flex items-center justify-center w-14 h-14 border-2 border-dashed border-border-muted rounded-md cursor-pointer hover:border-mode-generate transition-colors"
-                :class="{ 'opacity-50 cursor-not-allowed': store.isGenerating }"
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  class="hidden"
-                  @change="(e) => handlePageReferenceUpload(e, index)"
-                  :disabled="store.isGenerating"
-                />
-                <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-              </label>
-            </div>
-          </div>
-
-          <!-- Error Message -->
-          <div v-if="page.error" class="mt-2 text-xs text-status-error">
-            {{ page.error }}
-          </div>
-        </div>
+          :page="page"
+          :index="index"
+          :total-pages="options.pages.length"
+          :is-generating="store.isGenerating"
+          :is-analyzing="options.isAnalyzing"
+          :is-comparing="!!comparingPage"
+          :expanded-style-guide="expandedPageStyles[page.id]"
+          :expanded-script="expandedPageScripts[page.id]"
+          :page-script="getPageScript(page.id)"
+          :narration-enabled="options.narration?.enabled"
+          :global-reference-count="globalReferenceCount"
+          :max-reference-images="MAX_REFERENCE_IMAGES"
+          @move-up="movePage(index, index - 1)"
+          @move-down="movePage(index, index + 1)"
+          @regenerate="handleRegeneratePage(page.id)"
+          @delete="handleDeletePage(page.id)"
+          @toggle-style="togglePageStyle(page.id)"
+          @toggle-script="togglePageScript(page.id)"
+          @update-style-guide="store.slidesOptions.pages[index].styleGuide = $event"
+          @update-script="updatePageScript(page.id, $event)"
+          @remove-reference="removePageReference(index, $event)"
+          @add-reference="handlePageReferenceUpload($event, index)"
+        />
       </div>
     </div>
 
     <!-- Content Splitter Modal -->
     <SlidesContentSplitter ref="contentSplitterRef" />
+
+    <!-- Regenerate Options Modal -->
+    <SlidesRegenerateModal
+      v-model="regenerateModalPageId"
+      @confirm="executeRegeneration"
+    />
 
     <!-- Image Comparison Modal (for regeneration) -->
     <Teleport to="body">

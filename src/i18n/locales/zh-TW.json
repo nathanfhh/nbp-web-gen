@@ -271,6 +271,20 @@
     "regenerateSuccess": "第 {page} 頁已更新為新圖片",
     "regenerateFailed": "重新生成失敗",
     "regenerateCancelled": "已取消，保留原始圖片",
+    "regenerateModal": {
+      "title": "重新生成選項",
+      "hint": "選擇要重新生成的內容",
+      "imageOnly": "只重新生成圖片",
+      "imageOnlyDesc": "保留現有語音，只重新生成投影片圖片",
+      "audioOnly": "只重新生成語音",
+      "audioOnlyDesc": "保留現有圖片，使用現有逐字稿重新生成語音",
+      "both": "兩者都重新生成",
+      "bothDesc": "同時重新生成圖片和語音",
+      "start": "開始重新生成",
+      "noScript": "此頁尚未生成逐字稿，無法重新生成語音",
+      "audioFailed": "語音重新生成失敗",
+      "audioSuccess": "第 {page} 頁語音已更新"
+    },
     "compareImages": "比較圖片",
     "compareImagesHint": "第 {page} 頁已重新生成，請選擇要保留的版本",
     "originalImage": "原始圖片",
@@ -821,6 +835,9 @@
     "title": "貼圖裁切工具",
     "settings": {
       "title": "去背設定",
+      "mode": "裁切模式",
+      "modeAuto": "自動偵測",
+      "modeManual": "手動分割",
       "bgColor": "背景顏色",
       "pickColor": "點擊取色",
       "pickingColor": "取色中...",
@@ -830,6 +847,16 @@
       "erosionHint": "移除邊緣像素，減少去背後的顆粒感",
       "erosionPx": "{n}px",
       "whiteBgPreview": "白色背景預覽"
+    },
+    "separator": {
+      "title": "分割線",
+      "draw": "繪製分割線",
+      "cancelDraw": "取消繪製",
+      "delete": "刪除",
+      "resetView": "重置視圖",
+      "lineCount": "{count} 條線",
+      "hint": "點擊兩點繪製分割線，分割線會在裁切時強制切開圖片",
+      "zoomHint": "滾輪縮放，拖曳平移（點擊「繪製分割線」開始畫線）"
     },
     "preview": {
       "title": "預覽",
