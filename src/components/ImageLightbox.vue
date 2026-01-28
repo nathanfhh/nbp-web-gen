@@ -512,6 +512,7 @@ const downloadCurrentAudio = async () => {
   await downloadDownloadCurrentAudio({
     audioUrl: props.narrationAudioUrls[currentIndex.value],
     currentIndex: currentIndex.value,
+    historyId: props.historyId,
   })
 }
 

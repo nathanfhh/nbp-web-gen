@@ -265,8 +265,9 @@ export function useLightboxDownload(deps) {
    * @param {Object} params
    * @param {string} params.audioUrl - Object URL of the audio
    * @param {number} params.currentIndex - Current page index (0-based)
+   * @param {number|null} [params.historyId] - History ID for unique naming
    */
-  const downloadCurrentAudio = async ({ audioUrl, currentIndex }) => {
+  const downloadCurrentAudio = async ({ audioUrl, currentIndex, historyId }) => {
     if (!audioUrl || isDownloading.value) return
 
     isDownloading.value = true
@@ -276,10 +277,11 @@ export function useLightboxDownload(deps) {
       const response = await fetch(audioUrl)
       const blob = await response.blob()
       const ext = blob.type === 'audio/wav' ? 'wav' : 'mp3'
+      const prefix = historyId ? `${historyId}-` : ''
 
       const link = document.createElement('a')
       link.href = audioUrl
-      link.download = `narration-${currentIndex + 1}.${ext}`
+      link.download = `narration-${prefix}${currentIndex + 1}.${ext}`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
