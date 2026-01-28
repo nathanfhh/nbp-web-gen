@@ -40,6 +40,13 @@ export function useAudioStorage() {
 
       const ext = audioBlob.type === 'audio/wav' ? 'wav' : 'mp3'
       const filePath = `/${dirPath}/${pageIndex}.${ext}`
+
+      // Clear cached URL for this path before overwriting (handles regeneration)
+      if (urlCache.has(filePath)) {
+        URL.revokeObjectURL(urlCache.get(filePath))
+        urlCache.delete(filePath)
+      }
+
       await opfs.writeFile(filePath, audioBlob)
 
       return {
