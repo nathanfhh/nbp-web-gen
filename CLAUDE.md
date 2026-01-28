@@ -232,6 +232,15 @@ Key points:
 
 > **詳細文件**: 完整的儲存架構說明請參閱 [`docs/storage.md`](docs/storage.md)
 
+### Backup Compatibility
+
+**⚠️ IMPORTANT: When introducing new artifact types (e.g., images + audio in slides mode) or adding new generation modes, you MUST plan for backup support in both mechanisms:**
+
+1. **JSON Export/Import** — The app supports exporting and importing history as JSON files. New artifact types must be serializable and deserializable, and the format must maintain **cross-version compatibility** (older exports should still import correctly into newer versions, and vice versa when possible).
+2. **WebRTC Transfer** — The app supports peer-to-peer data transfer via WebRTC (both sending and receiving). New artifact types must be handled in the WebRTC send/receive pipeline so they are correctly transmitted and reconstructed on the other end.
+
+**Strongly recommended:** Follow the existing implementation patterns for both mechanisms. Study how current artifact types (images, videos, etc.) are handled in the export/import and WebRTC flows before adding support for new ones.
+
 ### Web Workers
 - `workers/stickerSegmentation.worker.js` - Client-side sticker sheet segmentation using BFS flood fill and projection-based region detection
 - `workers/pdfGenerator.worker.js` - PDF batch download generation
