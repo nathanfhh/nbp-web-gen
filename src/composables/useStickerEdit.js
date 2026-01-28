@@ -139,12 +139,16 @@ export function useStickerEdit() {
       data[pos * 4 + 3] = 0
       removedCount++
 
-      // 4-connected neighbors
+      // 8-connected neighbors (cardinal + diagonal)
       const neighbors = [
         { nx: x - 1, ny: y },
         { nx: x + 1, ny: y },
         { nx: x, ny: y - 1 },
         { nx: x, ny: y + 1 },
+        { nx: x - 1, ny: y - 1 },
+        { nx: x + 1, ny: y - 1 },
+        { nx: x - 1, ny: y + 1 },
+        { nx: x + 1, ny: y + 1 },
       ]
 
       for (const { nx, ny } of neighbors) {
