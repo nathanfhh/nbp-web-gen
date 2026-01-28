@@ -308,6 +308,7 @@
     },
     "narration": {
       "title": "語音說明",
+      "subtitle": "為每頁簡報生成語音旁白",
       "enabled": "需要語音說明",
       "disabled": "不需要語音說明",
       "generateScripts": "生成逐字稿",
@@ -811,7 +812,10 @@
       "merged": "合併區塊",
       "raw": "原始偵測",
       "failed": "辨識失敗"
-    }
+    },
+    "audioOnlyTitle": "僅有語音內容",
+    "audioOnlyDesc": "圖片生成失敗，但已成功生成 {count} 段語音",
+    "audioPage": "第 {page} 頁"
   },
   "stickerCropper": {
     "title": "貼圖裁切工具",

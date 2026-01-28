@@ -524,6 +524,16 @@ const hasCurrentAudio = computed(() =>
   !!props.narrationAudioUrls[currentIndex.value],
 )
 
+// Check if this is an audio-only scenario (no images but has audio)
+const isAudioOnlyMode = computed(() => {
+  return props.images.length === 0 && props.narrationAudioUrls.some(url => !!url)
+})
+
+// Total audio count for display
+const totalAudioCount = computed(() => {
+  return props.narrationAudioUrls.filter(url => !!url).length
+})
+
 const downloadCurrentAudio = async () => {
   await downloadDownloadCurrentAudio({
     audioUrl: props.narrationAudioUrls[currentIndex.value],
@@ -715,69 +725,72 @@ const goToSlideToPptx = async () => {
 
             <!-- Unified download dropdown -->
             <div v-if="showDownloadMenu" class="download-dropdown download-dropdown-wide">
-              <!-- Current image section -->
-              <div class="download-section-label">{{ $t('lightbox.currentImage') }}</div>
-              <button
-                v-if="!isHistorical"
-                @click="downloadWithFormatWrapper('original')"
-                class="download-option"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {{ $t('lightbox.originalFormat') }}
-              </button>
-              <button
-                @click="downloadWithFormatWrapper('webp')"
-                class="download-option"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                WebP
-              </button>
+              <!-- Image download options (hide in audio-only mode) -->
+              <template v-if="!isAudioOnlyMode">
+                <!-- Current image section -->
+                <div class="download-section-label">{{ $t('lightbox.currentImage') }}</div>
+                <button
+                  v-if="!isHistorical"
+                  @click="downloadWithFormatWrapper('original')"
+                  class="download-option"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {{ $t('lightbox.originalFormat') }}
+                </button>
+                <button
+                  @click="downloadWithFormatWrapper('webp')"
+                  class="download-option"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  WebP
+                </button>
 
-              <!-- Divider -->
-              <div class="download-divider"></div>
+                <!-- Divider -->
+                <div class="download-divider"></div>
 
-              <!-- Batch download section -->
-              <div class="download-section-label">
-                {{ images.length > 1 ? $t('lightbox.allImages', { count: images.length }) : $t('lightbox.exportAs') }}
-              </div>
-              <button @click="downloadAllAsZip" class="download-option">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                ZIP
-              </button>
-              <button @click="downloadAllAsPdf" class="download-option">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                PDF
-              </button>
-              <button
-                v-if="isWebCodecsSupported"
-                @click="downloadAllAsMp4"
-                :disabled="isAnyDownloading"
-                :class="{ 'opacity-50 cursor-wait': mp4Encoder.isEncoding.value }"
-                class="download-option"
-              >
-                <svg v-if="mp4Encoder.isEncoding.value" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                {{ mp4Encoder.isEncoding.value
-                  ? $t('lightbox.mp4Progress', mp4Encoder.progress.value)
-                  : 'MP4' }}
-              </button>
+                <!-- Batch download section -->
+                <div class="download-section-label">
+                  {{ images.length > 1 ? $t('lightbox.allImages', { count: images.length }) : $t('lightbox.exportAs') }}
+                </div>
+                <button @click="downloadAllAsZip" class="download-option">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  ZIP
+                </button>
+                <button @click="downloadAllAsPdf" class="download-option">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  PDF
+                </button>
+                <button
+                  v-if="isWebCodecsSupported"
+                  @click="downloadAllAsMp4"
+                  :disabled="isAnyDownloading"
+                  :class="{ 'opacity-50 cursor-wait': mp4Encoder.isEncoding.value }"
+                  class="download-option"
+                >
+                  <svg v-if="mp4Encoder.isEncoding.value" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  {{ mp4Encoder.isEncoding.value
+                    ? $t('lightbox.mp4Progress', mp4Encoder.progress.value)
+                    : 'MP4' }}
+                </button>
+              </template>
 
               <!-- Narration audio section -->
               <template v-if="hasAnyAudio">
-                <div class="download-divider"></div>
+                <div v-if="!isAudioOnlyMode" class="download-divider"></div>
                 <div class="download-section-label">
                   {{ $t('lightbox.narrationAudio') }}
                 </div>
@@ -842,13 +855,25 @@ const goToSlideToPptx = async () => {
         >
           <div class="lightbox-image-wrapper relative">
             <!-- Grid container to stack Image and SVG perfectly -->
-            <div 
-              class="grid" 
+            <div
+              class="grid"
               style="grid-template-areas: 'stack';"
               :style="imageTransformStyle"
             >
+              <!-- Audio-only placeholder (when no images but has audio) -->
+              <div
+                v-if="isAudioOnlyMode"
+                class="lightbox-image flex flex-col items-center justify-center text-text-primary"
+                style="grid-area: stack; min-height: 300px; min-width: 400px;"
+              >
+                <svg class="w-24 h-24 mb-4 opacity-50" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+                </svg>
+                <p class="text-lg font-medium mb-2">{{ $t('lightbox.audioOnlyTitle') }}</p>
+                <p class="text-sm opacity-70">{{ $t('lightbox.audioOnlyDesc', { count: totalAudioCount }) }}</p>
+              </div>
               <img
-                v-if="currentImage"
+                v-else-if="currentImage"
                 ref="imageRef"
                 :key="currentIndex"
                 :src="getImageSrc(currentImage)"
@@ -985,34 +1010,59 @@ const goToSlideToPptx = async () => {
           </button>
         </div>
 
+        <!-- Audio selector for audio-only mode -->
+        <div v-if="isAudioOnlyMode && hasAnyAudio" class="lightbox-audio-selector">
+          <button
+            v-for="(url, idx) in narrationAudioUrls"
+            :key="idx"
+            v-show="url"
+            @click="currentIndex = idx"
+            class="px-3 py-1.5 text-sm rounded-lg transition-all"
+            :class="currentIndex === idx
+              ? 'bg-mode-generate text-white'
+              : 'bg-bg-muted/50 text-text-primary hover:bg-bg-muted'"
+          >
+            {{ $t('lightbox.audioPage', { page: idx + 1 }) }}
+          </button>
+        </div>
+
         <!-- Audio Player (for slides with narration) -->
         <LightboxAudioPlayer :audioUrl="currentAudioUrl" />
 
         <!-- Image Info (centered, responsive) -->
-        <div v-if="currentImageInfo" class="lightbox-info">
-          <!-- Row 1: Basic info -->
-          <div class="lightbox-info-row">
-            <!-- Dimensions -->
-            <span v-if="currentImageInfo.width && currentImageInfo.height">
-              {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
+        <div v-if="currentImageInfo || isAudioOnlyMode" class="lightbox-info">
+          <!-- Audio-only mode: show audio counter instead of image info -->
+          <div v-if="isAudioOnlyMode" class="lightbox-info-row">
+            <span class="lightbox-counter-inline">
+              {{ $t('lightbox.audioPage', { page: currentIndex + 1 }) }} / {{ totalAudioCount }}
             </span>
-
-            <!-- Simple size (no compression info) -->
-            <template v-if="!hasCompressionInfo && currentImageInfo.size">
-              <span class="lightbox-info-divider"></span>
-              <span>{{ currentImageInfo.size }}</span>
-            </template>
-
-            <!-- Historical indicator -->
-            <template v-if="isHistorical">
-              <span class="lightbox-info-divider"></span>
-              <span class="text-status-warning">{{ $t('lightbox.historical') }}</span>
-            </template>
-
-            <!-- Counter -->
-            <span class="lightbox-info-divider"></span>
-            <span class="lightbox-counter-inline">{{ currentIndex + 1 }} / {{ images.length }}</span>
           </div>
+          <!-- Normal mode: show image info -->
+          <template v-else>
+            <!-- Row 1: Basic info -->
+            <div class="lightbox-info-row">
+              <!-- Dimensions -->
+              <span v-if="currentImageInfo.width && currentImageInfo.height">
+                {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
+              </span>
+
+              <!-- Simple size (no compression info) -->
+              <template v-if="!hasCompressionInfo && currentImageInfo.size">
+                <span class="lightbox-info-divider"></span>
+                <span>{{ currentImageInfo.size }}</span>
+              </template>
+
+              <!-- Historical indicator -->
+              <template v-if="isHistorical">
+                <span class="lightbox-info-divider"></span>
+                <span class="text-status-warning">{{ $t('lightbox.historical') }}</span>
+              </template>
+
+              <!-- Counter -->
+              <span class="lightbox-info-divider"></span>
+              <span class="lightbox-counter-inline">{{ currentIndex + 1 }} / {{ images.length }}</span>
+            </div>
+          </template>
 
           <!-- Row 2: Compression info (separate row on mobile) -->
           <div v-if="hasCompressionInfo && !hideFileSize" class="lightbox-info-row lightbox-info-compression">
@@ -1269,6 +1319,23 @@ const goToSlideToPptx = async () => {
   transform: translateX(-50%);
   display: flex;
   gap: 0.5rem;
+}
+
+/* Audio selector for audio-only mode */
+.lightbox-audio-selector {
+  position: absolute;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  max-width: 90vw;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(8px);
 }
 
 .lightbox-dot {

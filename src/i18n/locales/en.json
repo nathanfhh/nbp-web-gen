@@ -308,6 +308,7 @@
     },
     "narration": {
       "title": "Narration",
+      "subtitle": "Generate voice narration for each slide",
       "enabled": "Enable narration",
       "disabled": "Narration disabled",
       "generateScripts": "Generate Scripts",
@@ -811,7 +812,10 @@
       "merged": "Merged Block",
       "raw": "Raw Detection",
       "failed": "Recognition Failed"
-    }
+    },
+    "audioOnlyTitle": "Audio Only",
+    "audioOnlyDesc": "Image generation failed, but {count} audio file(s) were generated successfully",
+    "audioPage": "Page {page}"
   },
   "stickerCropper": {
     "title": "Sticker Cropper Tool",
