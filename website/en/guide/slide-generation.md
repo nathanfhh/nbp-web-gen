@@ -217,7 +217,7 @@ Slides mode supports generating narration audio (Text-to-Speech) for each page, 
 
 ### Enabling Narration
 
-1. Expand the "Narration" section in slides settings
+1. After completing style analysis and confirming, the "Narration" section will appear
 2. Toggle "Enable Narration" on
 3. Configure language, speaker mode, conversation style, etc.
 
