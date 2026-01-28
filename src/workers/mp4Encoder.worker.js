@@ -110,41 +110,67 @@ self.onmessage = async (e) => {
       fastStart: 'in-memory',
     })
 
-    // Phase 3: Set up VideoEncoder
-    let encoderError = null
-    const videoEncoder = new VideoEncoder({
-      output: (chunk, meta) => {
-        muxer.addVideoChunk(chunk, meta)
-      },
-      error: (err) => {
-        encoderError = err
-      },
-    })
-
-    videoEncoder.configure({
+    // Phase 3: Set up VideoEncoder with support check
+    const videoConfig = {
       codec: 'avc1.640028', // H.264 High L4.0
       width: videoWidth,
       height: videoHeight,
       bitrate: VIDEO_BITRATE,
       bitrateMode: 'constant',
+    }
+
+    // Check if VideoEncoder supports this configuration
+    const videoSupport = await VideoEncoder.isConfigSupported(videoConfig)
+    if (!videoSupport.supported) {
+      throw new Error(`VideoEncoder config not supported: ${videoWidth}x${videoHeight} H.264`)
+    }
+
+    let encoderError = null
+    let currentEncodingPage = -1 // Declared here, used by both encoders
+    const videoEncoder = new VideoEncoder({
+      output: (chunk, meta) => {
+        muxer.addVideoChunk(chunk, meta)
+      },
+      error: (err) => {
+        const enhancedError = new Error(
+          `VideoEncoder error at page ${currentEncodingPage + 1}: ${err.message}`
+        )
+        enhancedError.cause = err
+        encoderError = enhancedError
+      },
     })
 
-    // Phase 4: Set up AudioEncoder
+    videoEncoder.configure(videoConfig)
+
+    // Phase 4: Set up AudioEncoder with support check
+    const audioConfig = {
+      codec: 'mp4a.40.2', // AAC-LC
+      sampleRate: TARGET_SAMPLE_RATE,
+      numberOfChannels: 1,
+      bitrate: AUDIO_BITRATE,
+    }
+
+    // Check if AudioEncoder supports this configuration
+    const audioSupport = await AudioEncoder.isConfigSupported(audioConfig)
+    if (!audioSupport.supported) {
+      throw new Error(`AudioEncoder config not supported: ${JSON.stringify(audioConfig)}`)
+    }
+
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => {
         muxer.addAudioChunk(chunk, meta)
       },
       error: (err) => {
-        encoderError = err
+        // Enhance error with context
+        const enhancedError = new Error(
+          `AudioEncoder error at page ${currentEncodingPage + 1}: ${err.message}`
+        )
+        enhancedError.cause = err
+        encoderError = enhancedError
       },
     })
 
-    audioEncoder.configure({
-      codec: 'mp4a.40.2', // AAC-LC
-      sampleRate: TARGET_SAMPLE_RATE,
-      numberOfChannels: 1,
-      bitrate: AUDIO_BITRATE,
-    })
+    audioEncoder.configure(audioConfig)
 
     // Phase 5: Encode each page
     const canvas = new OffscreenCanvas(videoWidth, videoHeight)
@@ -154,10 +180,16 @@ self.onmessage = async (e) => {
     let lastValidBitmap = firstBitmap
 
     for (let i = 0; i < pageCount; i++) {
+      currentEncodingPage = i // Track for error reporting
       self.postMessage({ type: 'progress', current: i + 1, total: pageCount, phase: 'encoding' })
 
       const durationSec = pageDurations[i]
       const durationUs = Math.round(durationSec * 1_000_000)
+
+      // Validate duration
+      if (!Number.isFinite(durationSec) || durationSec <= 0) {
+        throw new Error(`Invalid duration at page ${i + 1}: ${durationSec}s`)
+      }
 
       // Resolve bitmap for this page
       let bitmap = null
@@ -199,16 +231,43 @@ self.onmessage = async (e) => {
       videoEncoder.encode(frame, { keyFrame: true })
       frame.close()
 
+      // Check for encoder errors immediately after video encode
+      // WebCodecs encoders enter "closed" state on error, so we must exit early
+      if (encoderError) {
+        throw encoderError
+      }
+
       // Audio: use pre-decoded PCM or generate silence
       const pcm = audioPcmData[i]
-      const pcm48k = (pcm && pcm.length > 0)
-        ? pcm
-        : new Float32Array(Math.round(durationSec * TARGET_SAMPLE_RATE))
+      let pcm48k
+      if (pcm && pcm.length > 0) {
+        // Validate PCM data - check for NaN/Infinity which can crash AudioEncoder
+        let hasInvalidSamples = false
+        for (let j = 0; j < Math.min(pcm.length, 1000); j++) {
+          if (!Number.isFinite(pcm[j])) {
+            hasInvalidSamples = true
+            break
+          }
+        }
+        if (hasInvalidSamples) {
+          console.warn(`Page ${i + 1}: PCM contains invalid samples, using silence`)
+          pcm48k = new Float32Array(Math.round(durationSec * TARGET_SAMPLE_RATE))
+        } else {
+          pcm48k = pcm
+        }
+      } else {
+        pcm48k = new Float32Array(Math.round(durationSec * TARGET_SAMPLE_RATE))
+      }
 
       // Encode audio in chunks
       let audioOffset = 0
       let audioTimestamp = currentTimestamp
       while (audioOffset < pcm48k.length) {
+        // Check encoder state before each audio chunk
+        if (encoderError) {
+          throw encoderError
+        }
+
         const remaining = pcm48k.length - audioOffset
         const chunkLen = Math.min(AUDIO_CHUNK_SIZE, remaining)
         const chunk = pcm48k.subarray(audioOffset, audioOffset + chunkLen)
@@ -234,11 +293,11 @@ self.onmessage = async (e) => {
       if (bitmap && bitmap !== firstBitmap && bitmap !== lastValidBitmap) {
         bitmap.close()
       }
-    }
 
-    // Check for encoder errors accumulated during encoding
-    if (encoderError) {
-      throw encoderError
+      // Check for errors at end of each page iteration
+      if (encoderError) {
+        throw encoderError
+      }
     }
 
     // Phase 6: Flush and finalize
