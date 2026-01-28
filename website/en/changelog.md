@@ -2,6 +2,17 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.1
+
+_2026-01-28_
+
+### New Features
+- **Sticker**: Add Edge Erosion control (0/1/2/3px) to remove boundary artifacts after background removal
+- **Sticker**: Upgrade background removal from 4-connected to 8-connected flood fill for more thorough removal through diagonal gaps
+
+### Fixes
+- **Sticker**: Use 8-connected flood fill in edit mode to match automatic background removal behavior
+
 ## v0.26.0
 
 _2026-01-28_
