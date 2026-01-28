@@ -26,6 +26,7 @@ Each record contains:
 | Item | Description |
 |------|-------------|
 | Thumbnail | Preview of generated result |
+| Audio Indicator | Speaker icon on top-right of thumbnail, indicating narration audio is available |
 | Prompt | The prompt used |
 | Mode Tag | Generation mode |
 | Time | Relative time (e.g., "5 minutes ago") |
@@ -47,7 +48,7 @@ Click the thumbnail to open Lightbox preview:
 
 - Image mode: Navigate left/right through multiple images
 - Video mode: Play the video
-- Slides mode: If narration audio exists, an audio player appears at the bottom; the download menu also offers audio download options
+- Slides mode: If narration audio exists, an audio player appears at the bottom; the download menu offers audio download and MP4 video export
 
 ### Delete
 
