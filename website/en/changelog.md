@@ -2,6 +2,26 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.3
+
+_2026-01-29_
+
+### New Features
+- **Slide Regeneration**: Add per-page image/audio regeneration options for retrying failed pages individually
+- **Slide Narration**: Allow viewing and downloading audio via Lightbox when all images fail but audio succeeds
+- **MP4 Export**: Add crossfade transition effect between slides
+
+### Fixes
+- **Slide Regeneration**: Fix regenerated images not updating in preview area and history records
+- **Slide Regeneration**: Fix status tag not updating from failed/partial to success after regeneration
+- **Slide Regeneration**: Fix audio cache issue where regenerated audio still played old content
+- **MP4 Export**: Improve error handling and diagnostics for WebCodecs encoders
+
+### Documentation
+- Update README to cover narration TTS, MP4 export, and sticker grid cutter features
+- Clarify that narration section appears only after style confirmation
+- Document changelog retention policy for two most recent minor versions
+
 ## v0.26.2
 
 _2026-01-28_
