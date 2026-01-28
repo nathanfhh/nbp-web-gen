@@ -28,4 +28,9 @@ export const routeSeoMeta = {
     description:
       'Convert NotebookLM slides, PDF presentations, or images to editable PowerPoint files. Client-side OCR with PaddleOCR, text removal with OpenCV.js or Gemini API. All processing in browser.',
   },
+  '/sticker-grid-cutter': {
+    title: 'Sticker Grid Cutter | Mediator - Grid Sticker Cropping Tool',
+    description:
+      'Upload grid-arranged sticker sheets and crop individual stickers with background removal. Supports PNG, JPG, WebP. All processing in browser.',
+  },
 }

@@ -30,6 +30,12 @@ const routes = [
     component: () => import('@/views/SlideToPptxView.vue'),
     meta: routeSeoMeta['/slide-to-pptx'],
   },
+  {
+    path: '/sticker-grid-cutter',
+    name: 'sticker-grid-cutter',
+    component: () => import('@/views/GridCutterView.vue'),
+    meta: routeSeoMeta['/sticker-grid-cutter'],
+  },
   // Catch-all: redirect unknown routes to home (no meta needed)
   {
     path: '/:pathMatch(.*)*',

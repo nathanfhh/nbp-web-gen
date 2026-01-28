@@ -1425,6 +1425,25 @@
     "replace": "覆蓋",
     "append": "追加"
   },
+  "gridCutter": {
+    "title": "貼圖網格裁切",
+    "warning": "本工具適用於網格排列的貼圖圖片（如各平台貼圖產生器輸出的多格拼圖）。",
+    "warningDetail": "請確保圖片中的貼圖以整齊的網格排列，且背景為單一純色，否則裁切效果會不理想。",
+    "upload": {
+      "title": "上傳圖片",
+      "dragDrop": "拖放圖片或點擊選擇",
+      "hint": "支援 PNG、JPG、WebP 等格式"
+    },
+    "preview": {
+      "title": "圖片預覽",
+      "startCrop": "開始裁切",
+      "changeImage": "更換圖片"
+    },
+    "entry": {
+      "title": "貼圖網格裁切",
+      "desc": "上傳網格貼圖，自動裁切去背"
+    }
+  },
   "tour": {
     "help": "功能導覽",
     "skip": "跳過導覽",

@@ -1422,6 +1422,25 @@
     "replace": "Replace",
     "append": "Append"
   },
+  "gridCutter": {
+    "title": "Sticker Grid Cutter",
+    "warning": "This tool is designed for grid-arranged sticker images (e.g., multi-panel sticker sheets from various sticker generators).",
+    "warningDetail": "Please ensure stickers are arranged in a neat grid with a solid-color background for best results.",
+    "upload": {
+      "title": "Upload Image",
+      "dragDrop": "Drag & drop or click to select",
+      "hint": "Supports PNG, JPG, WebP and more"
+    },
+    "preview": {
+      "title": "Image Preview",
+      "startCrop": "Start Cropping",
+      "changeImage": "Change Image"
+    },
+    "entry": {
+      "title": "Sticker Grid Cutter",
+      "desc": "Upload grid sticker sheets, auto-crop with background removal"
+    }
+  },
   "tour": {
     "help": "Take a Tour",
     "skip": "Skip Tour",

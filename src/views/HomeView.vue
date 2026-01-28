@@ -797,6 +797,28 @@ const handleAddToReferences = (referenceData) => {
               </svg>
             </router-link>
 
+            <!-- Grid Cutter Tool Entry (sticker mode only) -->
+            <router-link
+              v-if="store.currentMode === 'sticker'"
+              to="/sticker-grid-cutter"
+              class="mt-3 flex items-center justify-between p-4 rounded-xl bg-status-success-muted border border-status-success hover:bg-status-success-muted transition-all group"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-status-success-muted flex items-center justify-center">
+                  <svg class="w-5 h-5 text-status-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-status-success">{{ $t('gridCutter.entry.title') }}</p>
+                  <p class="text-xs text-text-muted">{{ $t('gridCutter.entry.desc') }}</p>
+                </div>
+              </div>
+              <svg class="w-5 h-5 text-text-muted group-hover:text-status-success transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </router-link>
+
             <!-- Slide to PPTX Tool Entry (slides mode only) -->
             <router-link
               v-if="store.currentMode === 'slides'"
