@@ -67,7 +67,13 @@ This project is a testament to the power of AI-assisted development:
     *   **References-to-Video:** Generate videos while maintaining consistency with reference images.
     *   **Extend Video:** Extend existing videos with new content.
     *   Includes a **Video Prompt Builder** with preset camera motions, visual styles, atmosphere, and negative prompts.
-*   **Presentation Slides (NEW!):** Generate multi-page presentation slides with AI-powered design:
+*   **Agentic Vision Mode (NEW!):** Intelligent chat powered by **Gemini 3 Flash Agentic Vision** with a Think → Act → Observe loop:
+    *   **Code Execution:** AI generates and runs Python code to analyze images—cropping, calculating, counting, and annotating.
+    *   **Zoom and Inspect:** Automatically detects when details are too small and crops to re-examine at higher resolution.
+    *   **Visual Math:** Multi-step calculations with results grounded in visual evidence using a deterministic Python environment.
+    *   **Image Annotation:** Draws arrows, bounding boxes, and labels directly on images.
+    *   **Thinking Process:** View the AI's reasoning in real-time with streaming thought visualization.
+*   **Presentation Slides:** Generate multi-page presentation slides with AI-powered design:
     *   **AI Style Analysis:** Gemini analyzes your content and suggests cohesive design styles.
     *   **AI Content Splitter:** Automatically split raw content (articles, notes) into structured slide pages.
     *   **Per-Page Customization:** Add page-specific style guides and reference images.
@@ -218,7 +224,13 @@ npm run build
     *   **參考圖轉影片：** 生成影片時保持與參考圖像的一致性。
     *   **延伸影片：** 延續現有影片生成新內容。
     *   內建 **影片 Prompt 建構器**，提供預設鏡頭運動、視覺風格、氛圍設定與負面提示詞。
-*   **簡報投影片生成（新功能！）：** 透過 AI 輔助生成多頁簡報投影片：
+*   **Agentic Vision 模式（新功能！）：** 基於 **Gemini 3 Flash Agentic Vision** 的智慧對話，採用 Think → Act → Observe 循環：
+    *   **程式碼執行：** AI 編寫並執行 Python 程式碼分析圖片——裁切、計算、計數、標註。
+    *   **放大檢視：** 自動偵測細節過小的區域並裁切放大重新檢視。
+    *   **視覺數學：** 使用 Python 進行多步驟計算，答案以視覺證據為依據。
+    *   **圖片標註：** 直接在圖片上繪製箭頭、邊界框、文字標籤。
+    *   **思考過程：** 即時串流呈現 AI 的推理過程。
+*   **簡報投影片生成：** 透過 AI 輔助生成多頁簡報投影片：
     *   **AI 風格分析：** Gemini 分析您的內容並建議統一的設計風格。
     *   **AI 內容拆分：** 自動將原始素材（文章、筆記）拆分為結構化的簡報頁面。
     *   **頁面客製化：** 可為每頁加入專屬的風格指引與參考圖片。

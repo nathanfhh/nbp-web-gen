@@ -79,6 +79,23 @@ onMounted(() => {
   scrollToBottom()
 })
 
+// Handle prompt from URL query params (set by HomeView)
+// When store.prompt has value, copy to inputText and clear store.prompt
+watch(
+  () => store.prompt,
+  (newPrompt) => {
+    if (newPrompt && newPrompt.trim() && !inputText.value.trim()) {
+      inputText.value = newPrompt
+      store.prompt = ''
+      // Focus the textarea
+      nextTick(() => {
+        inputTextarea.value?.focus()
+      })
+    }
+  },
+  { immediate: true }
+)
+
 // Handle sending message
 const sendMessage = async () => {
   if (!canSend.value) return
