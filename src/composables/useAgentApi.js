@@ -248,9 +248,14 @@ export function useAgentApi() {
   /**
    * Send a message with automatic retry/fallback
    * Wraps sendMessageStream with API key fallback handling
+   * @param {string} text - User text input
+   * @param {Array} images - Array of { data: base64, mimeType } objects
+   * @param {Object} callbacks - { onPart, onComplete, onError, conversation }
+   * @param {Array} callbacks.conversation - Optional conversation snapshot to use for history
+   *   (pass this to avoid including the current message in history)
    */
   const sendMessageWithFallback = async (text, images = [], callbacks = {}) => {
-    const { onPart, onComplete } = callbacks
+    const { onPart, onComplete, conversation } = callbacks
 
     return await callWithFallback(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey })
@@ -259,7 +264,9 @@ export function useAgentApi() {
       isStreaming.value = true
 
       try {
-        const history = buildChatHistory(store.agentConversation, contextDepth)
+        // Use provided conversation snapshot or fall back to store
+        const conversationForHistory = conversation || store.agentConversation
+        const history = buildChatHistory(conversationForHistory, contextDepth)
 
         const chat = ai.chats.create({
           model: 'gemini-3-flash-preview',

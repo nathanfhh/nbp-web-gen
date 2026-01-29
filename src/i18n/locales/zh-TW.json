@@ -138,6 +138,7 @@
     "emptySessionHint": "您可以上傳圖片讓 AI 分析，或直接提問。AI 支援視覺推理與程式執行。",
     "sendFailed": "發送失敗，請稍後再試",
     "maxImagesReached": "最多只能附加 {max} 張圖片",
+    "imageProcessFailed": "圖片處理失敗",
     "imageAddedForFollowup": "已將圖片加入輸入區，請輸入您的問題",
     "thoughtsLabel": "思考過程",
     "codeLabel": "程式碼",

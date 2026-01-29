@@ -5,10 +5,14 @@ import { useGeneratorStore } from '@/stores/generator'
 import { useAgentApi } from '@/composables/useAgentApi'
 import { useApiKeyManager } from '@/composables/useApiKeyManager'
 import { useToast } from '@/composables/useToast'
+import { compressToWebP, blobToBase64 } from '@/composables/useImageCompression'
 import { MAX_UPLOAD_IMAGES } from '@/constants/defaults'
 import AgentMessage from './AgentMessage.vue'
 import ImageLightbox from './ImageLightbox.vue'
 import ConfirmModal from './ConfirmModal.vue'
+
+// Gemini API inline_data limit is 10MB, compress if larger than 1MB for safety
+const COMPRESS_THRESHOLD = 1 * 1024 * 1024 // 1MB
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -24,8 +28,13 @@ const confirmModal = ref(null)
 
 // State
 const inputText = ref('')
-const pendingImages = ref([]) // { data: base64, mimeType, preview, name }
+const pendingImages = ref([]) // { data: base64, mimeType, preview, name, isCompressing }
 const isProcessing = ref(false)
+
+// Check if any image is still compressing
+const isAnyImageCompressing = computed(() =>
+  pendingImages.value.some((img) => img.isCompressing)
+)
 
 // Lightbox state
 const showLightbox = ref(false)
@@ -39,9 +48,8 @@ const streamingMessage = computed(() => store.agentStreamingMessage)
 const hasApiKey = computed(() => hasApiKeyFor('text'))
 
 const canSend = computed(() => {
-  return (inputText.value.trim() || pendingImages.value.length > 0) &&
-    !isProcessing.value &&
-    hasApiKey.value
+  const hasContent = inputText.value.trim() || pendingImages.value.length > 0
+  return hasContent && !isProcessing.value && !isAnyImageCompressing.value && hasApiKey.value
 })
 
 const hasConversation = computed(() => store.agentConversation.length > 0)
@@ -105,7 +113,11 @@ const sendMessage = async () => {
       })
     }
 
-    // Add user message to conversation
+    // Snapshot conversation BEFORE adding user message
+    // This prevents the message from being included twice in API request
+    const conversationSnapshot = [...store.agentConversation]
+
+    // Add user message to conversation (for immediate UI feedback)
     store.addAgentMessage({
       role: 'user',
       parts: userParts,
@@ -118,11 +130,12 @@ const sendMessage = async () => {
       isStreaming: true,
     })
 
-    // Send to API with streaming
+    // Send to API with streaming (using snapshot without current message)
     await sendMessageWithFallback(
       text,
       images.map((img) => ({ data: img.data, mimeType: img.mimeType })),
       {
+        conversation: conversationSnapshot,
         onPart: (part, accumulatedParts) => {
           // Update streaming message with accumulated parts
           store.setAgentStreamingMessage({
@@ -228,35 +241,87 @@ const handleFileSelect = async (e) => {
 
   for (const file of filesToProcess) {
     if (!file.type.startsWith('image/')) continue
-
-    try {
-      const base64 = await fileToBase64(file)
-      pendingImages.value.push({
-        data: base64,
-        mimeType: file.type,
-        preview: URL.createObjectURL(file),
-        name: file.name,
-      })
-    } catch (err) {
-      console.error('Failed to process image:', err)
-    }
+    // Add image immediately with loading state, compress in background
+    addImageWithCompression(file, file.name)
   }
 
   // Reset file input
   e.target.value = ''
 }
 
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      // Remove data:mime;base64, prefix
-      const base64 = reader.result.split(',')[1]
-      resolve(base64)
+/**
+ * Add image to pending list immediately, then compress in background
+ * This provides instant feedback to user while compression runs
+ */
+const addImageWithCompression = async (file, name) => {
+  const imageId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const preview = URL.createObjectURL(file)
+
+  // Add to pending images immediately with loading state
+  pendingImages.value.push({
+    id: imageId,
+    data: null, // Will be filled after compression
+    mimeType: null,
+    preview,
+    name,
+    isCompressing: true,
+  })
+
+  try {
+    const { data, mimeType } = await processImageFile(file)
+
+    // Find and update the image entry (it might have been removed)
+    const index = pendingImages.value.findIndex((img) => img.id === imageId)
+    if (index !== -1) {
+      pendingImages.value[index].data = data
+      pendingImages.value[index].mimeType = mimeType
+      pendingImages.value[index].isCompressing = false
     }
+  } catch (err) {
+    console.error('Failed to process image:', err)
+    // Remove failed image
+    const index = pendingImages.value.findIndex((img) => img.id === imageId)
+    if (index !== -1) {
+      URL.revokeObjectURL(preview)
+      pendingImages.value.splice(index, 1)
+      toast.error(t('agent.imageProcessFailed'))
+    }
+  }
+}
+
+/**
+ * Process an image file - compress to WebP if needed
+ * Clipboard pastes convert images to uncompressed PNG (300KB JPG → 16MB PNG)
+ * Always compress to WebP to stay under Gemini's 10MB inline_data limit
+ */
+const processImageFile = async (file) => {
+  // Read file as base64
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result.split(',')[1])
     reader.onerror = reject
     reader.readAsDataURL(file)
   })
+
+  // Always compress to WebP for consistency and smaller size
+  // This handles the clipboard PNG explosion issue
+  if (file.size > COMPRESS_THRESHOLD || file.type === 'image/png') {
+    try {
+      const compressed = await compressToWebP(
+        { data: base64, mimeType: file.type },
+        { quality: 0.85 }
+      )
+      const compressedBase64 = await blobToBase64(compressed.blob)
+      console.log(
+        `[AgentChat] Compressed ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressed.compressedSize / 1024 / 1024).toFixed(2)}MB`
+      )
+      return { data: compressedBase64, mimeType: 'image/webp' }
+    } catch (err) {
+      console.warn('[AgentChat] Compression failed, using original:', err)
+    }
+  }
+
+  return { data: base64, mimeType: file.type }
 }
 
 const removePendingImage = (index) => {
@@ -268,7 +333,7 @@ const removePendingImage = (index) => {
 }
 
 // Handle paste (for images)
-const handlePaste = async (e) => {
+const handlePaste = (e) => {
   const items = e.clipboardData?.items
   if (!items) return
 
@@ -284,17 +349,8 @@ const handlePaste = async (e) => {
 
       const file = item.getAsFile()
       if (file) {
-        try {
-          const base64 = await fileToBase64(file)
-          pendingImages.value.push({
-            data: base64,
-            mimeType: file.type,
-            preview: URL.createObjectURL(file),
-            name: `pasted-image-${Date.now()}.${file.type.split('/')[1]}`,
-          })
-        } catch (err) {
-          console.error('Failed to process pasted image:', err)
-        }
+        // Add image immediately with loading state, compress in background
+        addImageWithCompression(file, `pasted-image-${Date.now()}.webp`)
       }
     }
   }
@@ -419,15 +475,25 @@ onUnmounted(() => {
       <div v-if="pendingImages.length > 0" class="flex flex-wrap gap-2 mb-3">
         <div
           v-for="(img, index) in pendingImages"
-          :key="index"
+          :key="img.id || index"
           class="relative group"
         >
           <img
             :src="img.preview"
             :alt="img.name"
             class="w-16 h-16 object-cover rounded-lg border border-border-muted"
+            :class="{ 'opacity-50': img.isCompressing }"
           />
+          <!-- Compressing indicator -->
+          <div
+            v-if="img.isCompressing"
+            class="absolute inset-0 flex items-center justify-center"
+          >
+            <div class="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <!-- Remove button (hidden while compressing) -->
           <button
+            v-if="!img.isCompressing"
             @click="removePendingImage(index)"
             class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-status-error text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
           >

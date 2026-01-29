@@ -138,6 +138,7 @@
     "emptySessionHint": "Upload an image for AI analysis, or just ask a question. AI supports visual reasoning and code execution.",
     "sendFailed": "Failed to send. Please try again.",
     "maxImagesReached": "Maximum of {max} images allowed",
+    "imageProcessFailed": "Failed to process image",
     "imageAddedForFollowup": "Image added to input. Enter your question.",
     "thoughtsLabel": "Thinking",
     "codeLabel": "Code",
