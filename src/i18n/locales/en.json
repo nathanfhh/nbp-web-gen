@@ -105,7 +105,7 @@
       "description": "Generate presentation slides"
     },
     "agent": {
-      "name": "Agent",
+      "name": "Agentic Vision",
       "description": "AI chat with visual reasoning and code execution"
     }
   },

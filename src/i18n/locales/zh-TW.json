@@ -105,7 +105,7 @@
       "description": "生成簡報投影片"
     },
     "agent": {
-      "name": "智慧助理",
+      "name": "Agentic Vision",
       "description": "結合視覺推理與程式執行的 AI 對話"
     }
   },
