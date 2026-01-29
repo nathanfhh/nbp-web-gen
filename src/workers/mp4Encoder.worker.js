@@ -29,6 +29,11 @@ const AUDIO_CHUNK_SIZE = 4096
 const MAX_VIDEO_WIDTH = 1920
 const MAX_VIDEO_HEIGHT = 1080
 
+// Static page frame rate (for player compatibility)
+// Using 2 fps to ensure standard video structure while keeping file size reasonable
+const STATIC_PAGE_FPS = 2
+const KEYFRAME_INTERVAL = 2 // Insert keyframe every N seconds
+
 // Crossfade transition settings
 const TRANSITION_DURATION_SEC = 0.4
 const TRANSITION_FPS = 30
@@ -292,18 +297,35 @@ self.onmessage = async (e) => {
       ctx.fillRect(0, 0, videoWidth, videoHeight)
       drawLetterbox(bitmap)
 
-      // Create VideoFrame and encode (one keyframe per page)
-      const frame = new VideoFrame(canvas, {
-        timestamp: currentTimestamp,
-        duration: effectiveDurationUs,
-      })
-      videoEncoder.encode(frame, { keyFrame: true })
-      frame.close()
+      // Encode static page as repeated frames for player compatibility
+      // Many players don't handle single-frame-long-duration well
+      const frameDurationUs = Math.round(1_000_000 / STATIC_PAGE_FPS)
+      const totalFrames = Math.max(1, Math.ceil(effectiveDurationSec * STATIC_PAGE_FPS))
+      const keyframeIntervalFrames = KEYFRAME_INTERVAL * STATIC_PAGE_FPS
 
-      // Check for encoder errors immediately after video encode
-      // WebCodecs encoders enter "closed" state on error, so we must exit early
-      if (encoderError) {
-        throw encoderError
+      let pageTimestamp = currentTimestamp
+      for (let f = 0; f < totalFrames; f++) {
+        // Last frame may have shorter duration to match exact page duration
+        const isLastFrame = f === totalFrames - 1
+        const remainingUs = effectiveDurationUs - f * frameDurationUs
+        const thisFrameDuration = isLastFrame ? Math.max(1, remainingUs) : frameDurationUs
+
+        const frame = new VideoFrame(canvas, {
+          timestamp: pageTimestamp,
+          duration: thisFrameDuration,
+        })
+
+        // Keyframe at start of page and every KEYFRAME_INTERVAL seconds
+        const isKeyframe = f === 0 || f % keyframeIntervalFrames === 0
+        videoEncoder.encode(frame, { keyFrame: isKeyframe })
+        frame.close()
+
+        pageTimestamp += thisFrameDuration
+
+        // Check for encoder errors periodically
+        if (encoderError) {
+          throw encoderError
+        }
       }
 
       // Audio: use pre-decoded PCM or generate silence
