@@ -34,6 +34,7 @@
   --color-text-inverse: var(--color-text-inverse);
   --color-text-link: var(--color-text-link);
   --color-text-on-brand: var(--color-text-on-brand);
+  --color-text-tooltip: var(--color-text-tooltip);
 
   /* Border Colors */
   --color-border-default: var(--color-border-default);

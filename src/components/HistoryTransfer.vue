@@ -141,8 +141,15 @@ const processFile = async (file) => {
         toast.success(t('historyTransfer.importSuccess', { imported: result.imported, skipped: result.skipped }))
       }
     }
-  } catch {
+  } catch (err) {
+    console.error('[HistoryTransfer] Import failed:', err)
     toast.error(t('historyTransfer.importError'))
+  } finally {
+    // Defensive: ensure loading states are always cleared
+    transfer.isImporting.value = false
+    transfer.progress.value = { current: 0, total: 0, phase: '' }
+    charTransfer.isImporting.value = false
+    charTransfer.progress.value = { current: 0, total: 0, phase: '' }
   }
 }
 

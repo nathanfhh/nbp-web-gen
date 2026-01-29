@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { generateUUID } from './useUUID'
-import { generateThumbnailFromBlob } from './useImageCompression'
+import { generateThumbnailFromBlob, base64ToBlob } from './useImageCompression'
 import {
   decodeMessage,
   encodeJsonMessage,
@@ -61,6 +61,7 @@ export function usePeerDataReceiver(deps) {
     opfs,
     characterStorage,
     videoStorage,
+    conversationStorage,
   } = deps
 
   // Receiver-side: pending record being assembled
@@ -68,6 +69,7 @@ export function usePeerDataReceiver(deps) {
   const pendingImages = ref([])
   const pendingVideo = ref(null)
   const pendingAudioFiles = ref([])
+  const pendingConversation = ref(null)
 
   // Chunked transfer: store chunks being received
   // Map of uuid -> { header, chunks: Map<index, Uint8Array>, totalChunks }
@@ -210,7 +212,14 @@ export function usePeerDataReceiver(deps) {
       pendingImages.value = []
       pendingVideo.value = null
       pendingAudioFiles.value = []
-      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images${data.meta.hasVideo ? ' + video' : ''}${data.meta.hasNarration ? ' + narration' : ''}`)
+      pendingConversation.value = null
+      addDebug(`Receiving record: ${data.meta.uuid}, expecting ${data.meta.imageCount} images${data.meta.hasVideo ? ' + video' : ''}${data.meta.hasNarration ? ' + narration' : ''}${data.meta.hasConversation ? ' + conversation' : ''}`)
+    } else if (data.type === 'record_conversation') {
+      // Agent mode: receive conversation data
+      if (pendingRecord.value && pendingRecord.value.uuid === data.uuid) {
+        pendingConversation.value = data.conversation
+        addDebug(`Received conversation with ${data.conversation?.length || 0} messages`)
+      }
     } else if (data.type === 'record_end') {
       if (pendingRecord.value && pendingRecord.value.uuid === data.uuid) {
         const expectedImages = pendingRecord.value.imageCount || 0
@@ -263,8 +272,20 @@ export function usePeerDataReceiver(deps) {
           }
         }
 
+        // Wait for conversation if expected (agent mode)
+        if (pendingRecord.value.hasConversation && !pendingConversation.value) {
+          addDebug('Waiting for conversation data...')
+          for (let i = 0; i < 100; i++) {
+            await new Promise(r => setTimeout(r, 100))
+            if (pendingConversation.value) {
+              addDebug('Conversation received')
+              break
+            }
+          }
+        }
+
         const finalImageCount = pendingImages.value.length
-        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value, pendingVideo.value, pendingAudioFiles.value)
+        const result = await saveReceivedRecord(pendingRecord.value, pendingImages.value, pendingVideo.value, pendingAudioFiles.value, pendingConversation.value)
         transferProgress.value.current++
 
         if (result.skipped) {
@@ -444,7 +465,7 @@ export function usePeerDataReceiver(deps) {
   /**
    * Save received record to IndexedDB/OPFS (new binary protocol)
    */
-  const saveReceivedRecord = async (meta, images, video = null, audioFiles = []) => {
+  const saveReceivedRecord = async (meta, images, video = null, audioFiles = [], conversation = null) => {
     try {
       // Check if UUID already exists
       if (meta.uuid && (await indexedDB.hasHistoryByUUID(meta.uuid))) {
@@ -461,6 +482,12 @@ export function usePeerDataReceiver(deps) {
         status: meta.status,
         thinkingText: meta.thinkingText,
         error: meta.error,
+        // Agent mode specific fields
+        ...(meta.mode === 'agent' && {
+          messageCount: meta.messageCount,
+          userMessageCount: meta.userMessageCount,
+          thumbnail: meta.thumbnail,
+        }),
       }
 
       const historyId = await indexedDB.addHistoryWithUUID(historyRecord)
@@ -557,6 +584,51 @@ export function usePeerDataReceiver(deps) {
         }
 
         await indexedDB.updateHistoryNarration(historyId, narration)
+      }
+
+      // Save agent conversation to OPFS
+      if (meta.mode === 'agent' && conversation && conversationStorage) {
+        // Extract images from conversation and save to OPFS first
+        const agentImages = []
+        for (const msg of conversation) {
+          if (!msg.parts) continue
+          for (const part of msg.parts) {
+            if ((part.type === 'image' || part.type === 'generatedImage') && part.data) {
+              agentImages.push({
+                data: part.data,
+                mimeType: part.mimeType || 'image/webp',
+              })
+            }
+          }
+        }
+
+        // Save images to OPFS if any (these are conversation images, separate from history images)
+        if (agentImages.length > 0) {
+          const agentImageMetadata = []
+          for (let i = 0; i < agentImages.length; i++) {
+            const img = agentImages[i]
+            const opfsPath = `/images/${historyId}/${i}.webp`
+            // Convert base64 to blob using shared utility
+            const blob = await base64ToBlob(img.data, img.mimeType || 'image/webp')
+            await opfs.writeFile(opfsPath, blob)
+
+            const thumbnail = await generateThumbnailFromBlob(blob)
+            agentImageMetadata.push({
+              index: i,
+              opfsPath,
+              thumbnail,
+              originalSize: blob.size,
+              compressedSize: blob.size,
+              originalFormat: img.mimeType,
+              compressedFormat: 'image/webp',
+            })
+          }
+          await indexedDB.updateHistoryImages(historyId, agentImageMetadata)
+        }
+
+        // Save conversation (will strip image data and add imageIndex)
+        await conversationStorage.saveConversation(historyId, conversation)
+        addDebug(`Saved conversation with ${conversation.length} messages`)
       }
 
       addDebug(`Saved record: ${meta.uuid}`)

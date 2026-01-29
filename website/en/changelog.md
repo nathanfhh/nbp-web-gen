@@ -2,6 +2,21 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.5
+
+_2026-01-29_
+
+### New Features
+- **Agentic Vision Mode**: Add intelligent chat powered by Gemini 3 Flash Agentic Vision, featuring Think → Act → Observe loop, code execution, and image annotation
+
+### Fixes
+- **Agentic Vision**: Fix prompt not auto-filling in chat input when entering via URL query params
+
+### Documentation
+- Add Agentic Vision mode documentation (zh-TW and English) covering features, settings, and use cases
+- Update README with Agentic Vision feature description
+- Add chat interface and analysis result screenshots
+
 ## v0.26.4
 
 _2026-01-29_

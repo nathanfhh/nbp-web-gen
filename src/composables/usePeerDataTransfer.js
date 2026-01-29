@@ -178,7 +178,7 @@ export function usePeerDataTransfer(deps) {
    * @param {Array<number>|null} params.selectedRecordIds - Specific record IDs to sync
    * @returns {Promise<{sent: number, failed: number, total: number}>}
    */
-  const sendHistoryData = async ({ indexedDB, imageStorage, videoStorage, audioStorage, selectedRecordIds }) => {
+  const sendHistoryData = async ({ indexedDB, imageStorage, videoStorage, audioStorage, conversationStorage, selectedRecordIds }) => {
     if (!connection.value) return { sent: 0, failed: 0, total: 0 }
 
     let records
@@ -209,7 +209,8 @@ export function usePeerDataTransfer(deps) {
           status: record.status,
           thinkingText: record.thinkingText,
           error: record.error,
-          imageCount: record.images?.length || 0,
+          // Agent mode: images are sent via conversation, not as separate packets
+          imageCount: record.mode === 'agent' ? 0 : (record.images?.length || 0),
           hasVideo: !!(record.video && record.video.opfsPath),
           hasNarration: !!record.narration,
           narrationMeta: record.narration
@@ -220,13 +221,21 @@ export function usePeerDataTransfer(deps) {
                 audioCount: record.narration.audio?.length || 0,
               }
             : null,
+          // Agent mode specific
+          ...(record.mode === 'agent' && {
+            messageCount: record.messageCount,
+            userMessageCount: record.userMessageCount,
+            thumbnail: record.thumbnail,
+            hasConversation: true,
+          }),
         }
 
         // Send record start with metadata
         sendJson({ type: 'record_start', meta: recordMeta })
 
         // Send each image as separate binary packet
-        if (record.images && record.images.length > 0) {
+        // Skip for agent mode - images are embedded in conversation and sent via record_conversation
+        if (record.images && record.images.length > 0 && record.mode !== 'agent') {
           for (let i = 0; i < record.images.length; i++) {
             const img = record.images[i]
             const blob = await imageStorage.loadImageBlob(img.opfsPath)
@@ -295,7 +304,38 @@ export function usePeerDataTransfer(deps) {
           }
         }
 
-        // Wait for all image data to be sent before record_end
+        // Send agent conversation if present
+        if (record.mode === 'agent' && conversationStorage) {
+          const opfsPath = `/conversations/${record.id}/conversation.json`
+          const conversation = await conversationStorage.loadConversation(opfsPath)
+          if (conversation) {
+            // Restore image data from OPFS into conversation for transfer
+            for (const msg of conversation) {
+              if (!msg.parts) continue
+              for (const part of msg.parts) {
+                if (part.dataStoredExternally && part.imageIndex !== undefined) {
+                  try {
+                    const imagePath = `/images/${record.id}/${part.imageIndex}.webp`
+                    const base64 = await imageStorage.getImageBase64(imagePath)
+                    if (base64) {
+                      part.data = base64
+                      part.mimeType = 'image/webp'
+                      delete part.dataStoredExternally
+                      delete part.imageIndex
+                    }
+                  } catch (err) {
+                    console.warn('[PeerSync] Failed to load image for conversation:', err)
+                  }
+                }
+              }
+            }
+            // Send conversation as JSON (may be large, but text compresses well)
+            sendJson({ type: 'record_conversation', uuid, conversation })
+            addDebug(`Sent conversation with ${conversation.length} messages`)
+          }
+        }
+
+        // Wait for all data to be sent before record_end
         await waitForBufferDrain(0)
         await new Promise(r => setTimeout(r, 100))
 

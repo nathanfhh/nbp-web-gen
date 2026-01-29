@@ -2,6 +2,7 @@
 import { ref, computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
+import { MAX_UPLOAD_IMAGES } from '@/constants/defaults'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ThumbnailActionMenu from '@/components/ThumbnailActionMenu.vue'
 
@@ -116,10 +117,8 @@ const handleMenuDelete = () => {
 const isDragging = ref(false)
 const fileInput = ref(null)
 
-const MAX_IMAGES = 5
-
-const canAddMore = computed(() => store.referenceImages.length < MAX_IMAGES)
-const remainingSlots = computed(() => MAX_IMAGES - store.referenceImages.length)
+const canAddMore = computed(() => store.referenceImages.length < MAX_UPLOAD_IMAGES)
+const remainingSlots = computed(() => MAX_UPLOAD_IMAGES - store.referenceImages.length)
 
 const handleDragOver = (e) => {
   e.preventDefault()
@@ -216,7 +215,7 @@ const triggerFileInput = () => {
     <div class="flex items-center justify-between">
       <label class="block text-sm font-medium text-text-secondary">
         {{ $t('imageUploader.title') }}
-        <span class="text-text-muted font-normal ml-1">({{ store.referenceImages.length }}/{{ MAX_IMAGES }})</span>
+        <span class="text-text-muted font-normal ml-1">({{ store.referenceImages.length }}/{{ MAX_UPLOAD_IMAGES }})</span>
       </label>
       <button
         v-if="store.referenceImages.length > 0"
@@ -313,7 +312,7 @@ const triggerFileInput = () => {
           </div>
           <div class="text-left">
             <p class="text-text-secondary text-sm font-medium">{{ $t('imageUploader.dragDrop') }}</p>
-            <p class="text-xs text-text-muted mt-0.5">{{ $t('imageUploader.maxImages', { count: MAX_IMAGES }) }}</p>
+            <p class="text-xs text-text-muted mt-0.5">{{ $t('imageUploader.maxImages', { count: MAX_UPLOAD_IMAGES }) }}</p>
           </div>
         </div>
       </div>

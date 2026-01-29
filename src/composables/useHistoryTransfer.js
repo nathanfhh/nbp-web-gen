@@ -3,17 +3,19 @@ import { useIndexedDB } from './useIndexedDB'
 import { useImageStorage } from './useImageStorage'
 import { useVideoStorage } from './useVideoStorage'
 import { useAudioStorage } from './useAudioStorage'
+import { useConversationStorage } from './useConversationStorage'
 import { useOPFS } from './useOPFS'
 import { generateUUID } from './useUUID'
 import { generateThumbnailFromBlob } from './useImageCompression'
 
-const EXPORT_VERSION = 3 // Bumped for narration support
+const EXPORT_VERSION = 4 // Bumped for agent mode conversation support
 
 export function useHistoryTransfer() {
   const indexedDB = useIndexedDB()
   const imageStorage = useImageStorage()
   const videoStorage = useVideoStorage()
   const audioStorage = useAudioStorage()
+  const conversationStorage = useConversationStorage()
   const opfs = useOPFS()
 
   const isExporting = ref(false)
@@ -57,7 +59,8 @@ export function useHistoryTransfer() {
         }
 
         // Load images and convert to base64
-        if (record.images && record.images.length > 0) {
+        // Skip for agent mode - images are embedded in conversation
+        if (record.images && record.images.length > 0 && record.mode !== 'agent') {
           exportRecord.images = []
           for (const img of record.images) {
             const base64 = await imageStorage.getImageBase64(img.opfsPath)
@@ -123,6 +126,40 @@ export function useHistoryTransfer() {
                 })
               }
             }
+          }
+        }
+
+        // Load agent conversation from OPFS (agent mode only)
+        if (record.mode === 'agent') {
+          exportRecord.messageCount = record.messageCount
+          exportRecord.userMessageCount = record.userMessageCount
+          exportRecord.thumbnail = record.thumbnail
+
+          // Load conversation from OPFS
+          const opfsPath = `/conversations/${record.id}/conversation.json`
+          const conversation = await conversationStorage.loadConversation(opfsPath)
+          if (conversation) {
+            // Restore image data from OPFS into conversation for export
+            for (const msg of conversation) {
+              if (!msg.parts) continue
+              for (const part of msg.parts) {
+                if (part.dataStoredExternally && part.imageIndex !== undefined) {
+                  try {
+                    const imagePath = `/images/${record.id}/${part.imageIndex}.webp`
+                    const base64 = await imageStorage.getImageBase64(imagePath)
+                    if (base64) {
+                      part.data = base64
+                      part.mimeType = 'image/webp'
+                      delete part.dataStoredExternally
+                      delete part.imageIndex
+                    }
+                  } catch (err) {
+                    console.warn('[Export] Failed to load image for conversation:', err)
+                  }
+                }
+              }
+            }
+            exportRecord.conversation = conversation
           }
         }
 
@@ -205,13 +242,20 @@ export function useHistoryTransfer() {
             status: record.status,
             thinkingText: record.thinkingText,
             error: record.error,
+            // Agent mode specific fields
+            ...(record.mode === 'agent' && {
+              messageCount: record.messageCount,
+              userMessageCount: record.userMessageCount,
+              thumbnail: record.thumbnail,
+            }),
           }
 
           // Add to IndexedDB
           const historyId = await indexedDB.addHistoryWithUUID(historyRecord)
 
           // Save images to OPFS
-          if (record.images && record.images.length > 0) {
+          // Skip for agent mode - images are restored from conversation below
+          if (record.images && record.images.length > 0 && record.mode !== 'agent') {
             const imageMetadata = []
 
             for (const img of record.images) {
@@ -320,6 +364,33 @@ export function useHistoryTransfer() {
             }
 
             await indexedDB.updateHistoryNarration(historyId, narration)
+          }
+
+          // Save agent conversation to OPFS
+          if (record.mode === 'agent' && record.conversation) {
+            // Extract images from conversation and save to OPFS first
+            const agentImages = []
+            for (const msg of record.conversation) {
+              if (!msg.parts) continue
+              for (const part of msg.parts) {
+                if ((part.type === 'image' || part.type === 'generatedImage') && part.data) {
+                  agentImages.push({
+                    data: part.data,
+                    mimeType: part.mimeType || 'image/webp',
+                  })
+                }
+              }
+            }
+
+            // Save images to OPFS if any
+            // Use fast import path (skips re-compression, parallel processing)
+            if (agentImages.length > 0) {
+              const metadata = await imageStorage.saveImagesForImport(historyId, agentImages)
+              await indexedDB.updateHistoryImages(historyId, metadata)
+            }
+
+            // Save conversation (will strip image data and add imageIndex)
+            await conversationStorage.saveConversation(historyId, record.conversation)
           }
 
           imported++

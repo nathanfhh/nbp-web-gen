@@ -3,9 +3,38 @@ import { useOPFS } from './useOPFS'
 import {
   compressToWebP,
   generateThumbnail,
+  generateThumbnailFromBlob,
   blobToBase64,
+  base64ToBlob,
   formatFileSize,
 } from './useImageCompression'
+
+/**
+ * Get image dimensions from a Blob
+ * @param {Blob} blob - Image blob
+ * @returns {Promise<{width: number, height: number}>}
+ */
+const getImageDimensionsFromBlob = (blob) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(blob)
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      })
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load image for dimensions'))
+    }
+
+    img.src = url
+  })
+}
 
 /**
  * Image Storage Composable
@@ -52,27 +81,50 @@ export function useImageStorage() {
       for (let i = 0; i < images.length; i++) {
         const image = images[i]
 
-        // Compress to WebP
-        const compressed = await compressToWebP(image, { quality })
+        let blob, originalSize, compressedSize, width, height
+
+        // Skip compression if image is already WebP (e.g., from agent mode)
+        if (image.mimeType === 'image/webp') {
+          blob = await base64ToBlob(image.data, 'image/webp')
+          originalSize = blob.size
+          compressedSize = blob.size
+          // Use pre-computed dimensions if available, otherwise extract from blob
+          if (image.width && image.height) {
+            width = image.width
+            height = image.height
+          } else {
+            const dims = await getImageDimensionsFromBlob(blob)
+            width = dims.width
+            height = dims.height
+          }
+        } else {
+          // Compress non-WebP images
+          const compressed = await compressToWebP(image, { quality })
+          blob = compressed.blob
+          originalSize = compressed.originalSize
+          compressedSize = compressed.compressedSize
+          width = compressed.width
+          height = compressed.height
+        }
 
         // Generate thumbnail
         const thumbnail = await generateThumbnail(image)
 
         // Save WebP to OPFS
         const opfsPath = `/${dirPath}/${i}.webp`
-        await opfs.writeFile(opfsPath, compressed.blob)
+        await opfs.writeFile(opfsPath, blob)
 
         // Build metadata
         savedImages.push({
           index: i,
           // Preserve pageNumber for slides mode (if present)
           ...(image.pageNumber !== undefined && { pageNumber: image.pageNumber }),
-          originalSize: compressed.originalSize,
-          compressedSize: compressed.compressedSize,
+          originalSize,
+          compressedSize,
           originalFormat: image.mimeType,
           compressedFormat: 'image/webp',
-          width: compressed.width,
-          height: compressed.height,
+          width,
+          height,
           opfsPath,
           thumbnail,
         })
@@ -237,6 +289,100 @@ export function useImageStorage() {
     return blobToBase64(blob)
   }
 
+  /**
+   * Save images to OPFS WITHOUT re-compression (for import scenarios)
+   * Images are already WebP from export, so we skip compression and only generate thumbnails.
+   * Uses parallel processing for speed.
+   *
+   * @param {number} historyId - History record ID
+   * @param {Array<{data: string, mimeType: string}>} images - Base64 images
+   * @param {Object} options - Options
+   * @param {number} options.concurrency - Max parallel operations (default 5)
+   * @returns {Promise<Array<Object>>} Image metadata for IndexedDB
+   */
+  const saveImagesForImport = async (historyId, images, options = {}) => {
+    const { concurrency = 5 } = options
+
+    if (!images || images.length === 0) {
+      return []
+    }
+
+    isProcessing.value = true
+    error.value = null
+
+    try {
+      await opfs.initOPFS()
+
+      const dirPath = `images/${historyId}`
+      await opfs.getOrCreateDirectory(dirPath)
+
+      const savedImages = []
+
+      // Process images in batches for controlled concurrency
+      for (let i = 0; i < images.length; i += concurrency) {
+        const batch = images.slice(i, i + concurrency)
+
+        const batchResults = await Promise.all(
+          batch.map(async (image, batchIndex) => {
+            const index = i + batchIndex
+            const opfsPath = `/${dirPath}/${index}.webp`
+            const mimeType = image.mimeType || 'image/webp'
+            const isWebP = mimeType === 'image/webp'
+
+            let blob, width, height, originalSize, compressedSize
+
+            if (isWebP) {
+              // Fast path: already WebP, skip re-compression
+              blob = await base64ToBlob(image.data, 'image/webp')
+              const dimensions = await getImageDimensionsFromBlob(blob)
+              width = dimensions.width
+              height = dimensions.height
+              originalSize = blob.size
+              compressedSize = blob.size
+            } else {
+              // Non-WebP: convert to WebP
+              const compressed = await compressToWebP(image, { quality: 0.85 })
+              blob = compressed.blob
+              width = compressed.width
+              height = compressed.height
+              originalSize = compressed.originalSize
+              compressedSize = compressed.compressedSize
+            }
+
+            // Write to OPFS
+            await opfs.writeFile(opfsPath, blob)
+
+            // Generate thumbnail from blob
+            const thumbnail = await generateThumbnailFromBlob(blob)
+
+            return {
+              index,
+              ...(image.pageNumber !== undefined && { pageNumber: image.pageNumber }),
+              originalSize,
+              compressedSize,
+              originalFormat: mimeType,
+              compressedFormat: 'image/webp',
+              width,
+              height,
+              opfsPath,
+              thumbnail,
+            }
+          })
+        )
+
+        savedImages.push(...batchResults)
+      }
+
+      return savedImages
+    } catch (err) {
+      error.value = err
+      console.error('Failed to save images for import:', err)
+      throw err
+    } finally {
+      isProcessing.value = false
+    }
+  }
+
   return {
     // State
     isProcessing,
@@ -254,5 +400,6 @@ export function useImageStorage() {
     hasStoredImages,
     cleanupCache,
     getImageBase64,
+    saveImagesForImport,
   }
 }

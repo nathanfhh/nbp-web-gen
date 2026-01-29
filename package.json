@@ -1,6 +1,6 @@
 {
   "name": "nbp-web-gen",
-  "version": "0.26.4",
+  "version": "0.26.5",
   "private": true,
   "type": "module",
   "engines": {
@@ -21,10 +21,12 @@
     "@google/genai": "^1.36.0",
     "@lk77/vue3-color": "^3.0.6",
     "dayjs": "^1.11.19",
+    "dompurify": "^3.3.1",
     "fabric": "^7.1.0",
     "image-q": "^4.0.0",
     "jszip": "^3.10.1",
     "lamejs": "^1.2.1",
+    "marked": "^17.0.1",
     "medium-zoom": "^1.1.0",
     "mp4-muxer": "^5.2.2",
     "onnxruntime-web": "^1.23.2",

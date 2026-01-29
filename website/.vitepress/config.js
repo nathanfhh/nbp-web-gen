@@ -29,6 +29,7 @@ const zhTWSidebar = [
       { text: '影片模式', link: '/guide/video-generation' },
       { text: '簡報模式', link: '/guide/slide-generation' },
       { text: '簡報轉換', link: '/guide/slide-conversion' },
+      { text: 'Agentic Vision 模式', link: '/guide/agentic-vision' },
     ],
   },
   {
@@ -68,6 +69,7 @@ const enSidebar = [
       { text: 'Video Mode', link: '/en/guide/video-generation' },
       { text: 'Slides Mode', link: '/en/guide/slide-generation' },
       { text: 'Slide Conversion', link: '/en/guide/slide-conversion' },
+      { text: 'Agentic Vision Mode', link: '/en/guide/agentic-vision' },
     ],
   },
   {

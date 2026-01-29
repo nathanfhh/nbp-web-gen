@@ -33,7 +33,7 @@ const confirmModal = ref(null)
 
 // Filter state
 const selectedFilter = ref('all')
-const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides']
+const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides', 'agent']
 
 const filteredHistory = computed(() => {
   if (selectedFilter.value === 'all') {
@@ -68,6 +68,7 @@ const modeLabels = computed(() => ({
   sticker: t('modes.sticker.name'),
   video: t('modes.video.name'),
   slides: t('modes.slides.name'),
+  agent: t('modes.agent.name'),
 }))
 
 // Track the current lightbox item's mode
@@ -236,6 +237,13 @@ const loadHistoryItem = async (item) => {
           }
         })
       }
+    }
+  } else if (item.mode === 'agent') {
+    // Load agent conversation from OPFS and continue
+    const loaded = await store.loadAgentFromHistory(item.id)
+    if (!loaded) {
+      // Fallback: just restore options if conversation not found
+      store.agentOptions.contextDepth = item.options?.contextDepth || 5
     }
   }
 }
@@ -485,6 +493,37 @@ const handleImported = async () => {
             <span class="text-xs text-text-muted font-mono">#{{ item.id }}</span>
           </div>
 
+          <!-- Agent Mode (thumbnail or chat icon with message count) -->
+          <div
+            v-else-if="item.mode === 'agent'"
+            class="flex-shrink-0 flex flex-col items-center gap-1"
+          >
+            <div
+              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-primary-light transition-all"
+              :class="item.thumbnail ? '' : 'bg-mode-generate-muted flex items-center justify-center'"
+            >
+              <!-- Thumbnail if available -->
+              <img
+                v-if="item.thumbnail"
+                :src="'data:image/webp;base64,' + item.thumbnail"
+                :alt="item.prompt"
+                class="w-full h-full object-cover"
+              />
+              <!-- Fallback chat bubble icon -->
+              <svg v-else class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <!-- Message count badge -->
+              <div
+                v-if="item.messageCount"
+                class="absolute bottom-0 right-0 bg-mode-generate text-text-on-brand text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+              >
+                {{ item.messageCount }}
+              </div>
+            </div>
+            <span class="text-xs text-text-muted font-mono">#{{ item.id }}</span>
+          </div>
+
           <!-- Audio-only Placeholder (slides mode: no images but has audio) -->
           <div
             v-else-if="item.mode === 'slides' && item.narration?.audio?.length > 0"
@@ -522,7 +561,7 @@ const handleImported = async () => {
                   {{ formatTime(item.timestamp) }}
                 </span>
                 <span
-                  class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs text-text-primary bg-bg-tooltip border border-border-muted backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
+                  class="absolute left-0 top-full mt-1 px-2 py-1 text-xs text-text-tooltip bg-bg-tooltip border border-border-muted backdrop-blur-sm rounded-md whitespace-nowrap transition-all duration-200 pointer-events-none z-50 shadow-lg"
                   :class="activeTooltipId === item.id ? 'opacity-100 visible' : 'opacity-0 invisible md:group-hover/time:opacity-100 md:group-hover/time:visible'"
                 >
                   {{ formatFullTime(item.timestamp) }}

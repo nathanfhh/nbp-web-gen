@@ -15,6 +15,7 @@ export const MODE_TAG_STYLES = {
   diagram: 'bg-mode-generate-muted text-mode-generate',
   video: 'bg-mode-generate-muted text-mode-generate',
   slides: 'bg-mode-generate-muted text-mode-generate',
+  agent: 'bg-mode-generate-muted text-mode-generate',
 }
 
 /**
