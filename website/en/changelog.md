@@ -2,6 +2,14 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.4
+
+_2026-01-29_
+
+### Fixes
+- **MP4 Export**: Add Opus codec fallback when AAC is not supported, fixing MP4 generation failure on Linux platforms
+- **Narration**: Fix incorrect script Pro model ID (gemini-2.5-pro-preview-06-05 → gemini-3-pro-preview)
+
 ## v0.26.3
 
 _2026-01-29_
