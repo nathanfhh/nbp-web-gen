@@ -421,33 +421,46 @@ const throttledScrollHandler = () => {
 }
 
 // Intersection observer for panel animations
-const observedPanels = ref(new Set())
+const observePanels = (observer = intersectionObserver) => {
+  if (!observer) return
+
+  // Wait for DOM updates
+  setTimeout(() => {
+    document.querySelectorAll('[data-panel-id]').forEach((el) => {
+      // Only observe if it doesn't have the visible class yet
+      if (!el.classList.contains('panel-visible')) {
+        observer.observe(el)
+      }
+    })
+  }, 100)
+}
 
 const setupIntersectionObserver = () => {
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          const id = entry.target.dataset.panelId
-          if (id && !observedPanels.value.has(id)) {
-            observedPanels.value.add(id)
-            entry.target.classList.add('panel-visible')
-          }
+          entry.target.classList.add('panel-visible')
+          observer.unobserve(entry.target)
         }
       })
     },
     { threshold: 0.1, rootMargin: '0px 0px -50px 0px' },
   )
 
-  // Observe all panels after mount
-  setTimeout(() => {
-    document.querySelectorAll('[data-panel-id]').forEach((el) => {
-      observer.observe(el)
-    })
-  }, 100)
+  observePanels(observer)
 
   return observer
 }
+
+// Watch mode changes to re-observe new panels
+watch(
+  () => store.currentMode,
+  async () => {
+    await nextTick()
+    observePanels()
+  }
+)
 
 let intersectionObserver = null
 
@@ -491,8 +504,6 @@ onUnmounted(() => {
 const showAllPanels = () => {
   document.querySelectorAll('[data-panel-id]').forEach((el) => {
     el.classList.add('panel-visible')
-    const id = el.dataset.panelId
-    if (id) observedPanels.value.add(id)
   })
 }
 
