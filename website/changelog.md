@@ -2,6 +2,21 @@
 
 此頁面記錄 Mediator 的版本更新內容。
 
+## v0.26.5
+
+_2026-01-29_
+
+### 新功能
+- **Agentic Vision 模式**: 新增基於 Gemini 3 Flash Agentic Vision 的智慧對話功能，支援 Think → Act → Observe 循環、程式碼執行、圖片標註
+
+### 修復
+- **Agentic Vision**: 修正透過 URL 查詢參數進入時，prompt 未自動填入聊天輸入框的問題
+
+### 文件
+- 新增 Agentic Vision 模式中英文文件，涵蓋功能說明、對話設定、使用案例
+- 更新 README 新增 Agentic Vision 功能介紹
+- 新增對話介面與分析結果截圖
+
 ## v0.26.4
 
 _2026-01-29_
