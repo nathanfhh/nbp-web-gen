@@ -169,6 +169,8 @@ const sendMessage = async () => {
     )
   } catch (error) {
     console.error('[AgentChat] Error:', error)
+    // Clear streaming message on error to prevent UI getting stuck
+    store.clearAgentStreamingMessage()
     toast.error(error.message || t('agent.sendFailed'))
   } finally {
     isProcessing.value = false

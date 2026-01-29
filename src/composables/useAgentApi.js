@@ -255,7 +255,7 @@ export function useAgentApi() {
    *   (pass this to avoid including the current message in history)
    */
   const sendMessageWithFallback = async (text, images = [], callbacks = {}) => {
-    const { onPart, onComplete, conversation } = callbacks
+    const { onPart, onComplete, onError, conversation } = callbacks
 
     return await callWithFallback(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey })
@@ -336,6 +336,11 @@ export function useAgentApi() {
         }
 
         return accumulatedParts
+      } catch (error) {
+        if (onError) {
+          onError(error)
+        }
+        throw error
       } finally {
         isStreaming.value = false
         currentChatSession.value = null
