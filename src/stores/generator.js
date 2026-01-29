@@ -20,7 +20,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     migrateAddUUIDs,
     getAllCharacters,
     updateCharacter,
-    updateHistoryImages,
     updateHistory,
   } = useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
@@ -70,6 +69,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const agentConversation = ref([]) // Array of messages
   const agentSessionId = ref(null) // Current session ID
   const agentStreamingMessage = ref(null) // Message being streamed
+  const savedAgentImageCount = ref(0) // Track saved images to avoid re-compression
 
   // Reference images (shared across all modes, max 5)
   const referenceImages = ref([])
@@ -704,6 +704,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     agentConversation.value = []
     agentStreamingMessage.value = null
     currentAgentHistoryId.value = null // Clear history ID for new session
+    savedAgentImageCount.value = 0 // Reset saved image count
   }
 
   /**
@@ -756,6 +757,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     agentConversation.value = []
     agentStreamingMessage.value = null
     agentSessionId.value = null
+    savedAgentImageCount.value = 0
   }
 
   /**
@@ -857,14 +859,24 @@ export const useGeneratorStore = defineStore('generator', () => {
         }
       }
 
-      // Collect and compress all images for OPFS storage
-      const allImages = []
+      // Collect and compress only NEW images for OPFS storage
+      // Skip images that have already been saved (tracked by savedAgentImageCount)
+      const newImages = []
       const { compressToWebP, blobToBase64 } = await import('@/composables/useImageCompression')
+
+      let imageIndex = 0
+      const alreadySavedCount = savedAgentImageCount.value
 
       for (const msg of conversationSnapshot) {
         for (const part of msg.parts || []) {
           if ((part.type === 'image' || part.type === 'generatedImage') && part.data) {
-            // Compress to WebP before storing
+            // Skip already-saved images
+            if (imageIndex < alreadySavedCount) {
+              imageIndex++
+              continue
+            }
+
+            // Compress new image to WebP before storing
             try {
               const compressed = await compressToWebP(
                 { data: part.data, mimeType: part.mimeType || 'image/png' },
@@ -872,27 +884,32 @@ export const useGeneratorStore = defineStore('generator', () => {
               )
               const webpBase64 = await blobToBase64(compressed.blob)
 
-              allImages.push({
+              newImages.push({
                 data: webpBase64,
                 mimeType: 'image/webp',
                 messageId: msg.id,
                 partType: part.type,
                 width: compressed.width,
                 height: compressed.height,
+                index: imageIndex, // Explicit index for OPFS path
               })
             } catch (err) {
               console.warn('[saveAgentConversation] Failed to compress image, using original:', err)
               // Fallback to original if compression fails
-              allImages.push({
+              newImages.push({
                 data: part.data,
                 mimeType: part.mimeType || 'image/png',
                 messageId: msg.id,
                 partType: part.type,
+                index: imageIndex,
               })
             }
+            imageIndex++
           }
         }
       }
+
+      const totalImageCount = imageIndex
 
       const historyData = {
         prompt: prompt || 'Agent conversation',
@@ -929,10 +946,27 @@ export const useGeneratorStore = defineStore('generator', () => {
       // Save conversation to OPFS (always overwrite with latest)
       await conversationStorage.saveConversation(historyId, conversationSnapshot)
 
-      // Save images to OPFS
-      if (allImages.length > 0) {
-        const metadata = await imageStorage.saveGeneratedImages(historyId, allImages)
-        await updateHistoryImages(historyId, metadata)
+      // Save only NEW images to OPFS (with correct indices)
+      if (newImages.length > 0) {
+        const { base64ToBlob } = await import('@/composables/useImageCompression')
+        const { useOPFS } = await import('@/composables/useOPFS')
+        const opfs = useOPFS()
+        await opfs.initOPFS()
+
+        // Ensure directory exists
+        const dirPath = `images/${historyId}`
+        await opfs.getOrCreateDirectory(dirPath)
+
+        // Save each new image with its correct index
+        for (const img of newImages) {
+          const blob = await base64ToBlob(img.data, img.mimeType)
+          const opfsPath = `/${dirPath}/${img.index}.webp`
+          await opfs.writeFile(opfsPath, blob)
+        }
+
+        // Update image count after successful save
+        savedAgentImageCount.value = totalImageCount
+        console.log(`[saveAgentConversation] Saved ${newImages.length} new images (total: ${totalImageCount})`)
       }
 
       // Update storage usage
@@ -982,6 +1016,7 @@ export const useGeneratorStore = defineStore('generator', () => {
 
       // Load image data from OPFS and restore to conversation
       // Images are stored at /images/{historyId}/{index}.webp
+      let loadedImageCount = 0
       for (const msg of conversation) {
         if (!msg.parts) continue
         for (const part of msg.parts) {
@@ -992,6 +1027,7 @@ export const useGeneratorStore = defineStore('generator', () => {
               if (base64) {
                 part.data = base64
                 part.mimeType = 'image/webp'
+                loadedImageCount++
                 delete part.dataStoredExternally
                 delete part.imageIndex
               }
@@ -1007,6 +1043,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       currentAgentHistoryId.value = historyId
       agentSessionId.value = `session-${Date.now()}`
       agentStreamingMessage.value = null
+      savedAgentImageCount.value = loadedImageCount // Track already-saved images
 
       console.log('[loadAgentFromHistory] Loaded conversation with', conversation.length, 'messages')
       return true
