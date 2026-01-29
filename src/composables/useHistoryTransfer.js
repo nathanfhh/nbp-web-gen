@@ -381,8 +381,9 @@ export function useHistoryTransfer() {
             }
 
             // Save images to OPFS if any
+            // Use fast import path (skips re-compression, parallel processing)
             if (agentImages.length > 0) {
-              const metadata = await imageStorage.saveGeneratedImages(historyId, agentImages)
+              const metadata = await imageStorage.saveImagesForImport(historyId, agentImages)
               await indexedDB.updateHistoryImages(historyId, metadata)
             }
 
