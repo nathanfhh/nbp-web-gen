@@ -800,13 +800,13 @@ const goToSlideToPptx = async () => {
                   class="download-option"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m0 0l-3-3m3 3l3-3" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
                   {{ $t('lightbox.currentAudio') }}
                 </button>
                 <button @click="downloadAllAudioAsZip" class="download-option">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m0 0l-3-3m3 3l3-3" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
                   {{ $t('lightbox.allAudioZip') }}
                 </button>
@@ -1440,8 +1440,7 @@ const goToSlideToPptx = async () => {
 .download-dropdown {
   position: absolute;
   top: 100%;
-  left: 0;
-  right: 0;
+  right: 0; /* Align to right edge to prevent overflow on mobile */
   margin-top: 0.5rem;
   min-width: max-content;
   background: rgba(30, 30, 40, 0.95);
@@ -1451,6 +1450,13 @@ const goToSlideToPptx = async () => {
   overflow: hidden;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
   z-index: 30;
+}
+
+/* On very small screens, ensure dropdown doesn't overflow viewport */
+@media (max-width: 480px) {
+  .download-dropdown {
+    max-width: calc(100vw - 2rem);
+  }
 }
 
 /* Download option - force light text on dark bg regardless of theme */
