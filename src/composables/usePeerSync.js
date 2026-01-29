@@ -5,6 +5,7 @@ import { useImageStorage } from './useImageStorage'
 import { useVideoStorage } from './useVideoStorage'
 import { useAudioStorage } from './useAudioStorage'
 import { useCharacterStorage } from './useCharacterStorage'
+import { useConversationStorage } from './useConversationStorage'
 import { useOPFS } from './useOPFS'
 import { buildIceServers } from './useCloudfareTurn'
 import { usePeerDataTransfer } from './usePeerDataTransfer'
@@ -23,6 +24,7 @@ export function usePeerSync() {
   const videoStorage = useVideoStorage()
   const audioStorage = useAudioStorage()
   const characterStorage = useCharacterStorage()
+  const conversationStorage = useConversationStorage()
   const opfs = useOPFS()
 
   // ============================================================================
@@ -165,6 +167,7 @@ export function usePeerSync() {
         imageStorage,
         videoStorage,
         audioStorage,
+        conversationStorage,
         selectedRecordIds: selectedRecordIds.value,
       })
 
@@ -275,6 +278,7 @@ export function usePeerSync() {
     opfs,
     characterStorage,
     videoStorage,
+    conversationStorage,
   })
 
   // ============================================================================

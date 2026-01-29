@@ -6,6 +6,7 @@ import { useImageStorage } from '@/composables/useImageStorage'
 import { useVideoStorage } from '@/composables/useVideoStorage'
 import { useAudioStorage } from '@/composables/useAudioStorage'
 import { useCharacterStorage } from '@/composables/useCharacterStorage'
+import { useConversationStorage } from '@/composables/useConversationStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions, DEFAULT_VIDEO_PROMPT_OPTIONS } from '@/constants'
 import { useThemeName, toggleTheme as themeToggle, setTheme as themeSet } from '@/theme'
 
@@ -19,12 +20,15 @@ export const useGeneratorStore = defineStore('generator', () => {
     migrateAddUUIDs,
     getAllCharacters,
     updateCharacter,
+    updateHistoryImages,
+    updateHistory,
   } = useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
   const imageStorage = useImageStorage()
   const videoStorage = useVideoStorage()
   const audioStorage = useAudioStorage()
   const characterStorage = useCharacterStorage()
+  const conversationStorage = useConversationStorage()
 
   // Flag to prevent saving during initialization (exposed as ref for external watchers)
   const isInitialized = ref(false)
@@ -41,7 +45,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const theme = useThemeName()
 
   // Current mode
-  const currentMode = ref('generate') // generate, edit, story, diagram, sticker, video, slides
+  const currentMode = ref('generate') // generate, edit, story, diagram, sticker, video, slides, agent
 
   // Prompt
   const prompt = ref('')
@@ -60,6 +64,12 @@ export const useGeneratorStore = defineStore('generator', () => {
   const videoOptions = ref(getDefaultOptions('video'))
   const videoPromptOptions = ref(JSON.parse(JSON.stringify(DEFAULT_VIDEO_PROMPT_OPTIONS)))
   const slidesOptions = ref(getDefaultOptions('slides'))
+  const agentOptions = ref(getDefaultOptions('agent'))
+
+  // Agent conversation (RAM only, not persisted to localStorage)
+  const agentConversation = ref([]) // Array of messages
+  const agentSessionId = ref(null) // Current session ID
+  const agentStreamingMessage = ref(null) // Message being streamed
 
   // Reference images (shared across all modes, max 5)
   const referenceImages = ref([])
@@ -109,6 +119,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     sticker: stickerOptions,
     video: videoOptions,
     slides: slidesOptions,
+    agent: agentOptions,
   }
 
   // ============================================================================
@@ -144,6 +155,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       'videoOptions',
       'videoPromptOptions',
       'slidesOptions',
+      'agentOptions',
     ]
     modeOptionsToLoad.forEach((optionKey) => {
       const savedOption = getQuickSetting(optionKey)
@@ -156,6 +168,7 @@ export const useGeneratorStore = defineStore('generator', () => {
           videoOptions,
           videoPromptOptions,
           slidesOptions,
+          agentOptions,
         }[optionKey]
         if (targetRef) {
           targetRef.value = { ...targetRef.value, ...savedOption }
@@ -264,6 +277,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       ['stickerOptions', stickerOptions],
       ['videoOptions', videoOptions],
       ['videoPromptOptions', videoPromptOptions],
+      ['agentOptions', agentOptions],
     ]
 
     deepWatchers.forEach(([key, refValue]) => {
@@ -378,6 +392,12 @@ export const useGeneratorStore = defineStore('generator', () => {
     } catch (err) {
       console.error('Failed to delete OPFS audio:', err)
     }
+    // Delete OPFS conversation (for agent mode)
+    try {
+      await conversationStorage.deleteConversation(id)
+    } catch (err) {
+      console.error('Failed to delete OPFS conversation:', err)
+    }
     // Delete IndexedDB record
     await deleteHistory(id)
     await loadHistory()
@@ -403,6 +423,12 @@ export const useGeneratorStore = defineStore('generator', () => {
       await audioStorage.deleteAllAudio()
     } catch (err) {
       console.error('Failed to delete all OPFS audio:', err)
+    }
+    // Delete all OPFS conversations (for agent mode)
+    try {
+      await conversationStorage.deleteAllConversations()
+    } catch (err) {
+      console.error('Failed to delete all OPFS conversations:', err)
     }
     // Clear IndexedDB history
     await clearAllHistory()
@@ -459,7 +485,8 @@ export const useGeneratorStore = defineStore('generator', () => {
       const imageUsage = await imageStorage.getStorageUsage()
       const videoUsage = await videoStorage.getStorageUsage()
       const audioUsage = await audioStorage.getStorageUsage()
-      storageUsage.value = imageUsage + videoUsage + audioUsage
+      const conversationUsage = await conversationStorage.getTotalSize()
+      storageUsage.value = imageUsage + videoUsage + audioUsage + conversationUsage
     } catch (err) {
       console.error('Failed to update storage usage:', err)
     }
@@ -659,6 +686,337 @@ export const useGeneratorStore = defineStore('generator', () => {
   }
 
   // ============================================================================
+  // Agent Conversation (RAM-based, not persisted)
+  // ============================================================================
+
+  /**
+   * Generate a unique message ID
+   */
+  const generateMessageId = () => {
+    return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+  }
+
+  /**
+   * Start a new agent session
+   */
+  const startNewAgentSession = () => {
+    agentSessionId.value = `session-${Date.now()}`
+    agentConversation.value = []
+    agentStreamingMessage.value = null
+    currentAgentHistoryId.value = null // Clear history ID for new session
+  }
+
+  /**
+   * Add a message to agent conversation
+   * @param {Object} message - { role: 'user' | 'model', parts: Array }
+   */
+  const addAgentMessage = (message) => {
+    const fullMessage = {
+      id: generateMessageId(),
+      timestamp: Date.now(),
+      ...message,
+    }
+    agentConversation.value.push(fullMessage)
+    return fullMessage.id
+  }
+
+  /**
+   * Update an existing agent message
+   * @param {string} messageId - The message ID to update
+   * @param {Object} updates - Partial updates to apply
+   */
+  const updateAgentMessage = (messageId, updates) => {
+    const index = agentConversation.value.findIndex((m) => m.id === messageId)
+    if (index !== -1) {
+      agentConversation.value[index] = {
+        ...agentConversation.value[index],
+        ...updates,
+      }
+    }
+  }
+
+  /**
+   * Set the streaming message (message being received)
+   */
+  const setAgentStreamingMessage = (message) => {
+    agentStreamingMessage.value = message
+  }
+
+  /**
+   * Clear the streaming message
+   */
+  const clearAgentStreamingMessage = () => {
+    agentStreamingMessage.value = null
+  }
+
+  /**
+   * Clear agent conversation
+   */
+  const clearAgentConversation = () => {
+    agentConversation.value = []
+    agentStreamingMessage.value = null
+    agentSessionId.value = null
+  }
+
+  /**
+   * Get conversation messages for API (limited by contextDepth)
+   */
+  const getAgentContextMessages = () => {
+    const depth = agentOptions.value.contextDepth || 5
+    // Get last N messages (excluding streaming)
+    return agentConversation.value.slice(-depth * 2) // *2 because each exchange has user+model
+  }
+
+  // ============================================================================
+  // Agent Conversation Auto-Save
+  // ============================================================================
+
+  // Current agent history ID (for incremental saves)
+  const currentAgentHistoryId = ref(null)
+
+  // Debounced loadHistory for agent auto-save (avoid frequent UI updates)
+  let loadHistoryDebounceTimer = null
+  const debouncedLoadHistory = (delay = 1000) => {
+    if (loadHistoryDebounceTimer) {
+      clearTimeout(loadHistoryDebounceTimer)
+    }
+    loadHistoryDebounceTimer = setTimeout(async () => {
+      loadHistoryDebounceTimer = null
+      await loadHistory()
+    }, delay)
+  }
+
+  /**
+   * Save agent conversation incrementally (auto-save on each AI response)
+   * Creates new history record on first save, updates on subsequent saves
+   */
+  const saveAgentConversation = async () => {
+    if (agentConversation.value.length === 0) {
+      return null
+    }
+
+    try {
+      // Deep clone conversation to avoid reactive proxy issues
+      const conversationSnapshot = JSON.parse(JSON.stringify(agentConversation.value))
+
+      // Extract first user text message as prompt (max 200 chars)
+      let prompt = ''
+      for (const msg of conversationSnapshot) {
+        if (msg.role === 'user') {
+          const textPart = msg.parts?.find((p) => p.type === 'text')
+          if (textPart?.content) {
+            prompt = textPart.content.slice(0, 200)
+            break
+          }
+        }
+      }
+
+      // Extract all thought content as thinkingText (for search)
+      const thinkingTexts = []
+      for (const msg of conversationSnapshot) {
+        if (msg.role === 'model') {
+          for (const part of msg.parts || []) {
+            if (part.type === 'thought' && part.content?.trim()) {
+              thinkingTexts.push(part.content)
+            }
+          }
+        }
+      }
+
+      // Find thumbnail image: user input > generated > default
+      let thumbnailData = null
+      for (const msg of conversationSnapshot) {
+        if (msg.role === 'user') {
+          const imagePart = msg.parts?.find((p) => p.type === 'image')
+          if (imagePart?.data && imagePart?.mimeType) {
+            thumbnailData = { data: imagePart.data, mimeType: imagePart.mimeType }
+            break
+          }
+        }
+      }
+      if (!thumbnailData) {
+        for (const msg of conversationSnapshot) {
+          if (msg.role === 'model') {
+            const imagePart = msg.parts?.find((p) => p.type === 'generatedImage')
+            if (imagePart?.data && imagePart?.mimeType) {
+              thumbnailData = { data: imagePart.data, mimeType: imagePart.mimeType }
+              break
+            }
+          }
+        }
+      }
+
+      // Generate thumbnail base64
+      let thumbnail = null
+      if (thumbnailData) {
+        try {
+          const { generateThumbnail } = await import('@/composables/useImageCompression')
+          thumbnail = await generateThumbnail(thumbnailData, { maxSize: 64 })
+        } catch (err) {
+          console.warn('[saveAgentConversation] Failed to generate thumbnail:', err)
+        }
+      }
+
+      // Collect and compress all images for OPFS storage
+      const allImages = []
+      const { compressToWebP, blobToBase64 } = await import('@/composables/useImageCompression')
+
+      for (const msg of conversationSnapshot) {
+        for (const part of msg.parts || []) {
+          if ((part.type === 'image' || part.type === 'generatedImage') && part.data) {
+            // Compress to WebP before storing
+            try {
+              const compressed = await compressToWebP(
+                { data: part.data, mimeType: part.mimeType || 'image/png' },
+                { quality: 0.85 },
+              )
+              const webpBase64 = await blobToBase64(compressed.blob)
+
+              allImages.push({
+                data: webpBase64,
+                mimeType: 'image/webp',
+                messageId: msg.id,
+                partType: part.type,
+                width: compressed.width,
+                height: compressed.height,
+              })
+            } catch (err) {
+              console.warn('[saveAgentConversation] Failed to compress image, using original:', err)
+              // Fallback to original if compression fails
+              allImages.push({
+                data: part.data,
+                mimeType: part.mimeType || 'image/png',
+                messageId: msg.id,
+                partType: part.type,
+              })
+            }
+          }
+        }
+      }
+
+      const historyData = {
+        prompt: prompt || 'Agent conversation',
+        mode: 'agent',
+        options: {
+          contextDepth: agentOptions.value.contextDepth,
+          temperature: temperature.value,
+          seed: seed.value,
+        },
+        status: 'success',
+        thinkingText: thinkingTexts.join('\n\n').slice(0, 5000),
+        messageCount: conversationSnapshot.length,
+        userMessageCount: conversationSnapshot.filter((m) => m.role === 'user').length,
+        thumbnail,
+      }
+
+      let historyId = currentAgentHistoryId.value
+      const isFirstSave = !historyId
+
+      if (isFirstSave) {
+        // First save: create new history record
+        historyId = await addToHistory(historyData)
+        currentAgentHistoryId.value = historyId
+        console.log('[saveAgentConversation] Created new history record:', historyId)
+      } else {
+        // Subsequent save: update existing record
+        await updateHistory(historyId, {
+          ...historyData,
+          timestamp: undefined, // Don't update timestamp on incremental saves
+        })
+        console.log('[saveAgentConversation] Updated history record:', historyId)
+      }
+
+      // Save conversation to OPFS (always overwrite with latest)
+      await conversationStorage.saveConversation(historyId, conversationSnapshot)
+
+      // Save images to OPFS
+      if (allImages.length > 0) {
+        const metadata = await imageStorage.saveGeneratedImages(historyId, allImages)
+        await updateHistoryImages(historyId, metadata)
+      }
+
+      // Update storage usage
+      updateStorageUsage()
+
+      // Reload history to reflect changes
+      if (isFirstSave) {
+        // First save: immediate update so user sees it appear
+        await loadHistory()
+      } else {
+        // Subsequent saves: debounce to avoid frequent UI updates
+        debouncedLoadHistory()
+      }
+
+      return historyId
+    } catch (err) {
+      console.error('[saveAgentConversation] Failed:', err)
+      throw err
+    }
+  }
+
+  /**
+   * @deprecated Use saveAgentConversation() instead. This is kept for backward compatibility.
+   * Archive is now automatic on each AI response via saveAgentConversation().
+   */
+  const archiveAgentSession = async () => {
+    // Delegate to saveAgentConversation for backward compatibility
+    return saveAgentConversation()
+  }
+
+  /**
+   * Load agent conversation from history record
+   * Used when user clicks on an agent history item to continue the conversation
+   * @param {number} historyId - History record ID
+   * @returns {Promise<boolean>} True if loaded successfully
+   */
+  const loadAgentFromHistory = async (historyId) => {
+    try {
+      // Load conversation from OPFS
+      const opfsPath = `/conversations/${historyId}/conversation.json`
+      const conversation = await conversationStorage.loadConversation(opfsPath)
+
+      if (!conversation || conversation.length === 0) {
+        console.warn('[loadAgentFromHistory] No conversation found for history:', historyId)
+        return false
+      }
+
+      // Load image data from OPFS and restore to conversation
+      // Images are stored at /images/{historyId}/{index}.webp
+      for (const msg of conversation) {
+        if (!msg.parts) continue
+        for (const part of msg.parts) {
+          if (part.dataStoredExternally && part.imageIndex !== undefined) {
+            try {
+              const imagePath = `/images/${historyId}/${part.imageIndex}.webp`
+              const base64 = await imageStorage.getImageBase64(imagePath)
+              if (base64) {
+                part.data = base64
+                part.mimeType = 'image/webp'
+                delete part.dataStoredExternally
+                delete part.imageIndex
+              }
+            } catch (err) {
+              console.warn('[loadAgentFromHistory] Failed to load image:', part.imageIndex, err)
+            }
+          }
+        }
+      }
+
+      // Set conversation and history ID (to continue updating the same record)
+      agentConversation.value = conversation
+      currentAgentHistoryId.value = historyId
+      agentSessionId.value = `session-${Date.now()}`
+      agentStreamingMessage.value = null
+
+      console.log('[loadAgentFromHistory] Loaded conversation with', conversation.length, 'messages')
+      return true
+    } catch (err) {
+      console.error('[loadAgentFromHistory] Failed:', err)
+      return false
+    }
+  }
+
+  // ============================================================================
   // Reset Options
   // ============================================================================
 
@@ -693,6 +1051,10 @@ export const useGeneratorStore = defineStore('generator', () => {
     videoOptions,
     videoPromptOptions,
     slidesOptions,
+    agentOptions,
+    agentConversation,
+    agentSessionId,
+    agentStreamingMessage,
     referenceImages,
     sketchHistoryIndex,
     sketchCanUndo,
@@ -758,5 +1120,17 @@ export const useGeneratorStore = defineStore('generator', () => {
     deselectCharacter,
     imageStorage,
     videoStorage,
+    // Agent actions
+    startNewAgentSession,
+    addAgentMessage,
+    updateAgentMessage,
+    setAgentStreamingMessage,
+    clearAgentStreamingMessage,
+    clearAgentConversation,
+    saveAgentConversation,
+    archiveAgentSession,
+    loadAgentFromHistory,
+    currentAgentHistoryId,
+    getAgentContextMessages,
   }
 })

@@ -33,7 +33,7 @@ const confirmModal = ref(null)
 
 // Filter state
 const selectedFilter = ref('all')
-const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides']
+const filterOptions = ['all', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides', 'agent']
 
 const filteredHistory = computed(() => {
   if (selectedFilter.value === 'all') {
@@ -68,6 +68,7 @@ const modeLabels = computed(() => ({
   sticker: t('modes.sticker.name'),
   video: t('modes.video.name'),
   slides: t('modes.slides.name'),
+  agent: t('modes.agent.name'),
 }))
 
 // Track the current lightbox item's mode
@@ -236,6 +237,13 @@ const loadHistoryItem = async (item) => {
           }
         })
       }
+    }
+  } else if (item.mode === 'agent') {
+    // Load agent conversation from OPFS and continue
+    const loaded = await store.loadAgentFromHistory(item.id)
+    if (!loaded) {
+      // Fallback: just restore options if conversation not found
+      store.agentOptions.contextDepth = item.options?.contextDepth || 5
     }
   }
 }
@@ -480,6 +488,37 @@ const handleImported = async () => {
                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
                 </svg>
+              </div>
+            </div>
+            <span class="text-xs text-text-muted font-mono">#{{ item.id }}</span>
+          </div>
+
+          <!-- Agent Mode (thumbnail or chat icon with message count) -->
+          <div
+            v-else-if="item.mode === 'agent'"
+            class="flex-shrink-0 flex flex-col items-center gap-1"
+          >
+            <div
+              class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-primary-light transition-all"
+              :class="item.thumbnail ? '' : 'bg-mode-generate-muted flex items-center justify-center'"
+            >
+              <!-- Thumbnail if available -->
+              <img
+                v-if="item.thumbnail"
+                :src="'data:image/webp;base64,' + item.thumbnail"
+                :alt="item.prompt"
+                class="w-full h-full object-cover"
+              />
+              <!-- Fallback chat bubble icon -->
+              <svg v-else class="w-6 h-6 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <!-- Message count badge -->
+              <div
+                v-if="item.messageCount"
+                class="absolute bottom-0 right-0 bg-mode-generate text-text-on-brand text-xs px-1.5 py-0.5 rounded-tl-md font-medium"
+              >
+                {{ item.messageCount }}
               </div>
             </div>
             <span class="text-xs text-text-muted font-mono">#{{ item.id }}</span>

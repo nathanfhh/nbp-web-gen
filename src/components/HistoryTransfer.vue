@@ -141,8 +141,22 @@ const processFile = async (file) => {
         toast.success(t('historyTransfer.importSuccess', { imported: result.imported, skipped: result.skipped }))
       }
     }
-  } catch {
+  } catch (err) {
+    console.error('[HistoryTransfer] Import failed:', err)
     toast.error(t('historyTransfer.importError'))
+  } finally {
+    // Defensive: ensure loading states are cleared even if something goes wrong
+    // This handles edge cases where the composable's finally might not run properly
+    if (transfer.isImporting.value) {
+      console.warn('[HistoryTransfer] Force clearing isImporting state')
+      transfer.isImporting.value = false
+      transfer.progress.value = { current: 0, total: 0, phase: '' }
+    }
+    if (charTransfer.isImporting.value) {
+      console.warn('[HistoryTransfer] Force clearing charTransfer.isImporting state')
+      charTransfer.isImporting.value = false
+      charTransfer.progress.value = { current: 0, total: 0, phase: '' }
+    }
   }
 }
 

@@ -30,6 +30,8 @@ const DiagramOptions = defineAsyncComponent(() => import('@/components/DiagramOp
 const VideoOptions = defineAsyncComponent(() => import('@/components/VideoOptions.vue'))
 const VideoPromptBuilder = defineAsyncComponent(() => import('@/components/VideoPromptBuilder.vue'))
 const SlidesOptions = defineAsyncComponent(() => import('@/components/SlidesOptions.vue'))
+import AgentChat from '@/components/AgentChat.vue'
+import AgentOptions from '@/components/AgentOptions.vue'
 
 // Lazy loaded: Heavy components
 const GenerationHistory = defineAsyncComponent(() => import('@/components/GenerationHistory.vue'))
@@ -50,7 +52,7 @@ const router = useRouter()
 // ============================================================================
 // URL Query Params Handling (for deep linking from docs)
 // ============================================================================
-const VALID_MODES = ['generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides']
+const VALID_MODES = ['generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides', 'agent']
 
 // Modal state for prompt confirmation
 const showPromptConfirmModal = ref(false)
@@ -772,14 +774,42 @@ const handleAddToReferences = (referenceData) => {
             <GenerationHistory />
           </div>
 
-          <!-- Prompt Debug -->
-          <div data-panel-id="prompt-debug" class="panel-animate">
+          <!-- Prompt Debug (hidden in agent mode) -->
+          <div v-if="store.currentMode !== 'agent'" data-panel-id="prompt-debug" class="panel-animate">
             <PromptDebug />
           </div>
         </div>
 
         <!-- Right Column - Main Area -->
         <div class="lg:col-span-2 space-y-6">
+          <!-- Agent Mode - Dedicated Chat Interface -->
+          <div v-if="store.currentMode === 'agent'" class="space-y-6">
+            <!-- Agent Chat Panel -->
+            <div data-panel-id="agent-chat" class="panel-animate glass p-6 lg:p-8">
+              <h3 class="font-semibold text-text-primary mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {{ $t('modes.agent.name') }}
+              </h3>
+              <AgentChat />
+            </div>
+
+            <!-- Agent Options Panel -->
+            <div data-panel-id="agent-options" class="panel-animate glass p-6 lg:p-8">
+              <h3 class="font-semibold text-text-primary mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {{ $t('settings.title') }}
+              </h3>
+              <AgentOptions />
+            </div>
+          </div>
+
+          <!-- Non-Agent Modes - Original UI -->
+          <div v-else class="space-y-6">
           <!-- Prompt Input -->
           <div data-panel-id="prompt-input" class="panel-animate glass p-6 lg:p-8">
             <PromptInput />
@@ -997,6 +1027,7 @@ const handleAddToReferences = (referenceData) => {
           <!-- Image Preview -->
           <div data-panel-id="image-preview" class="panel-animate glass p-6 lg:p-8">
             <ImagePreview />
+          </div>
           </div>
         </div>
       </div>

@@ -4,6 +4,12 @@
  */
 import { DEFAULT_NARRATION_SETTINGS } from './voiceOptions'
 
+/**
+ * Maximum number of images that can be uploaded at once
+ * Used by ImageUploader (reference images) and AgentChat (pending images)
+ */
+export const MAX_UPLOAD_IMAGES = 5
+
 export const DEFAULT_GENERATE_OPTIONS = {
   resolution: '1k',
   ratio: '1:1',
@@ -75,6 +81,10 @@ export const DEFAULT_VIDEO_OPTIONS = {
   inputVideo: null, // { historyId, uri, thumbnail }
 }
 
+export const DEFAULT_AGENT_OPTIONS = {
+  contextDepth: 5, // 上下文深度 (1-10)
+}
+
 export const DEFAULT_SLIDES_OPTIONS = {
   // Image settings
   resolution: '2k', // 1k | 2k | 4k
@@ -141,6 +151,7 @@ export const getDefaultOptions = (mode) => {
     sticker: DEFAULT_STICKER_OPTIONS,
     video: DEFAULT_VIDEO_OPTIONS,
     slides: DEFAULT_SLIDES_OPTIONS,
+    agent: DEFAULT_AGENT_OPTIONS,
   }
 
   const defaultOption = defaults[mode]

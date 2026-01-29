@@ -24,7 +24,7 @@ npm run format   # Prettier formatting for src/
 - `composables/useApi.js` - Gemini API interaction with SSE streaming, prompt building per mode
 
 ### Generation Modes
-Seven modes with mode-specific option components and prompt builders:
+Eight modes with mode-specific option components and prompt builders:
 - **generate** - Basic image generation with styles/variations
 - **sticker** - Sticker sheet generation with auto-segmentation
 - **edit** - Image editing with reference images
@@ -32,6 +32,7 @@ Seven modes with mode-specific option components and prompt builders:
 - **diagram** - Technical diagram generation
 - **video** - AI video generation using Google Veo 3.1 API (REST, not SDK)
 - **slides** - Presentation slide generation with AI style analysis (sequential per-page)
+- **agent** - Agentic Vision chat with code execution (Gemini 3 Flash preview)
 
 ### Video Generation - API Limitations
 
@@ -228,7 +229,12 @@ Key points:
 ### Storage Layers
 - **localStorage** - API key, quick settings (mode, temperature, seed)
 - **IndexedDB** (`useIndexedDB.js`) - Generation history records, character metadata
-- **OPFS** (`useOPFS.js`, `useImageStorage.js`, `useCharacterStorage.js`) - Image blobs for history and characters
+- **OPFS** (`useOPFS.js`, `useImageStorage.js`, `useCharacterStorage.js`, `useConversationStorage.js`) - Image/video/audio/conversation blobs
+
+**Agent Mode Storage**:
+- IndexedDB stores only metadata: `prompt` (first 200 chars), `thumbnail`, `messageCount`, `thinkingText` (first 5000 chars)
+- Full conversation is stored in OPFS: `/conversations/{historyId}/conversation.json`
+- Images within conversation are stored separately: `/images/{historyId}/*.webp`
 
 > **詳細文件**: 完整的儲存架構說明請參閱 [`docs/storage.md`](docs/storage.md)
 

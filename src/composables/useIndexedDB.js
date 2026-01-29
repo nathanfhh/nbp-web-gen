@@ -607,6 +607,39 @@ export function useIndexedDB() {
     })
   }
 
+  /**
+   * Update history record with partial data (generic update)
+   * @param {number} id - History record ID
+   * @param {Object} updates - Fields to update (undefined values are skipped)
+   * @returns {Promise<boolean>}
+   */
+  const updateHistory = async (id, updates) => {
+    await initDB()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_HISTORY], 'readwrite')
+      const store = transaction.objectStore(STORE_HISTORY)
+      const getRequest = store.get(id)
+
+      getRequest.onsuccess = () => {
+        const record = getRequest.result
+        if (record) {
+          // Merge updates into record, skipping undefined values
+          for (const [key, value] of Object.entries(updates)) {
+            if (value !== undefined) {
+              record[key] = value
+            }
+          }
+          const putRequest = store.put(record)
+          putRequest.onsuccess = () => resolve(true)
+          putRequest.onerror = () => reject(putRequest.error)
+        } else {
+          reject(new Error(`History record with id ${id} not found`))
+        }
+      }
+      getRequest.onerror = () => reject(getRequest.error)
+    })
+  }
+
   return {
     isReady,
     error,
@@ -623,6 +656,7 @@ export function useIndexedDB() {
     updateHistoryVideo,
     updateHistoryNarration,
     updateHistoryStatus,
+    updateHistory,
     getAllHistoryIds,
     getAllHistory,
     hasHistoryByUUID,

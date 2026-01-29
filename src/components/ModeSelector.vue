@@ -49,6 +49,12 @@ const modes = computed(() => [
     description: t('modes.slides.description'),
     icon: 'slides',
   },
+  {
+    id: 'agent',
+    name: t('modes.agent.name'),
+    description: t('modes.agent.description'),
+    icon: 'agent',
+  },
 ])
 
 const selectMode = (mode) => {
@@ -99,6 +105,10 @@ const selectMode = (mode) => {
           <!-- Slides (Presentation) -->
           <svg v-else-if="mode.icon === 'slides'" class="w-4 h-4" :class="store.currentMode === mode.id ? 'text-mode-generate' : 'text-text-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 13v-1m4 1v-3m4 3V8M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+          </svg>
+          <!-- Agent (AI Assistant with chat bubble) -->
+          <svg v-else-if="mode.icon === 'agent'" class="w-4 h-4" :class="store.currentMode === mode.id ? 'text-mode-generate' : 'text-text-muted'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         </div>
 

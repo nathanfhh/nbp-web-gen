@@ -150,6 +150,7 @@ const newId = await addCharacter({ name, description, thumbnail, ... })
 - `src/composables/useOPFS.js` - 底層 OPFS 操作
 - `src/composables/useImageStorage.js` - 歷史圖片儲存
 - `src/composables/useCharacterStorage.js` - 角色圖片儲存
+- `src/composables/useConversationStorage.js` - Agent 對話儲存
 
 ### 目錄結構
 
@@ -160,16 +161,18 @@ const newId = await addCharacter({ name, description, thumbnail, ... })
 │       ├── 0.webp
 │       ├── 1.webp
 │       └── ...
-└── characters/
-    └── {characterId}/
-        └── image.webp
+├── characters/
+│   └── {characterId}/
+│       └── image.webp
+└── conversations/
+    └── {historyId}/
+        └── conversation.json
 ```
 
 ### 檔案格式
 
-- **格式**: WebP
-- **壓縮品質**: 0.85
-- **大小**: 通常 100KB - 2MB/張
+- **圖片**: WebP (壓縮品質 0.85，通常 100KB - 2MB/張)
+- **對話**: JSON (Agent 模式完整對話記錄)
 
 ### 存取方式
 
@@ -183,6 +186,11 @@ const imageUrl = await loadImage(opfsPath)
 const { saveCharacterImage, loadCharacterImageWithFallback, deleteCharacterImage } = useCharacterStorage()
 await saveCharacterImage(characterId, base64Data)
 const imageData = await loadCharacterImageWithFallback(characterId, legacyData)
+
+// Agent 對話
+const { saveConversation, loadConversation, deleteConversation } = useConversationStorage()
+await saveConversation(historyId, messages)
+const messages = await loadConversation(opfsPath)
 ```
 
 ---
