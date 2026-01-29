@@ -6,7 +6,6 @@ import {
   generateThumbnailFromBlob,
   blobToBase64,
   base64ToBlob,
-  getImageDimensions,
   formatFileSize,
 } from './useImageCompression'
 
@@ -89,12 +88,12 @@ export function useImageStorage() {
           blob = await base64ToBlob(image.data, 'image/webp')
           originalSize = blob.size
           compressedSize = blob.size
-          // Use pre-computed dimensions if available, otherwise extract
+          // Use pre-computed dimensions if available, otherwise extract from blob
           if (image.width && image.height) {
             width = image.width
             height = image.height
           } else {
-            const dims = await getImageDimensions(image.data, 'image/webp')
+            const dims = await getImageDimensionsFromBlob(blob)
             width = dims.width
             height = dims.height
           }
