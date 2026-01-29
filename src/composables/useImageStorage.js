@@ -333,12 +333,7 @@ export function useImageStorage() {
 
             if (isWebP) {
               // Fast path: already WebP, skip re-compression
-              const binaryString = atob(image.data)
-              const bytes = new Uint8Array(binaryString.length)
-              for (let j = 0; j < binaryString.length; j++) {
-                bytes[j] = binaryString.charCodeAt(j)
-              }
-              blob = new Blob([bytes], { type: 'image/webp' })
+              blob = await base64ToBlob(image.data, 'image/webp')
               const dimensions = await getImageDimensionsFromBlob(blob)
               width = dimensions.width
               height = dimensions.height
