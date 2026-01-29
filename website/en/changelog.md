@@ -2,6 +2,18 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.6
+
+_2026-01-29_
+
+### New Features
+- **Sticker Cropper**: Add "Manual Split" mode allowing users to draw separator lines for precise crop region control when auto detection fails
+- **Sticker Cropper**: Automatically trim transparent padding from cropped stickers for tighter results
+
+### Documentation
+- Add manual crop mode usage guide with screenshots
+- Update README sticker grid cutter feature description
+
 ## v0.26.5
 
 _2026-01-29_

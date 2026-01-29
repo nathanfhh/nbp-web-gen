@@ -877,6 +877,10 @@
   },
   "stickerCropper": {
     "title": "貼圖裁切工具",
+    "tabs": {
+      "editor": "編輯器",
+      "results": "結果"
+    },
     "settings": {
       "title": "去背設定",
       "mode": "裁切模式",
@@ -900,7 +904,11 @@
       "resetView": "重置視圖",
       "lineCount": "{count} 條線",
       "hint": "點擊兩點繪製分割線，分割線會在裁切時強制切開圖片",
-      "zoomHint": "滾輪縮放，拖曳平移（點擊「繪製分割線」開始畫線）"
+      "hintStart": "點擊設定起點",
+      "hintEnd": "點擊設定終點完成繪製",
+      "zoomHint": "滾輪縮放，拖曳平移（點擊「繪製分割線」開始畫線）",
+      "clearAllTitle": "清除所有分割線",
+      "clearAllMessage": "確定要清除所有分割線嗎？此操作無法復原。"
     },
     "preview": {
       "title": "預覽",
@@ -937,7 +945,8 @@
       "noStickers": "未偵測到獨立貼圖，請調整容許值後重試",
       "processingError": "處理失敗，請重試",
       "pdfError": "PDF 產生失敗",
-      "zipError": "ZIP 產生失敗"
+      "zipError": "ZIP 產生失敗",
+      "noSeparatorLines": "請先畫至少一條分割線"
     },
     "edit": {
       "button": "編輯",

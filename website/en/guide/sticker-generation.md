@@ -173,6 +173,41 @@ After background removal, sticker edges may have a ring of faint "granular" resi
 Erosion shrinks the overall sticker inward. High values may clip fine details (e.g., hair strands, whiskers). Start with 1px and adjust as needed.
 :::
 
+## Manual Crop Mode
+
+When auto splitting fails to correctly distinguish stickers (e.g., stickers are too close together, overlapping elements), you can switch to "Manual Split" mode to draw separator lines and define crop regions yourself.
+
+### How to Use
+
+1. In the crop tool, switch "Cropping Mode" from "Auto Detect" to "Manual Split"
+2. Click the "Draw Line" button to enter drawing mode
+3. Click two points on the image to draw a separator line — the system automatically extends the line to the image edges
+4. Repeat step 3 to draw all needed separator lines
+5. To delete a line, click to select it and press Delete key or click the "Delete" button in the toolbar
+6. When done, click "Start Processing"
+
+![Manual Crop Mode](/images/manual-crop-mode.webp)
+
+::: tip Tip
+The number of separator lines determines the final sticker count. For example, drawing 2 horizontal and 2 vertical lines will divide the image into 3×3 = 9 regions.
+:::
+
+### Processing Results
+
+After processing completes, the view automatically switches to the "Results" tab, showing all cropped stickers.
+
+![Manual Crop Results](/images/manual-crop-result.webp)
+
+In manual mode, the "Tolerance" setting for background removal only affects the background removal quality — it does not affect region detection. Regions are determined solely by the separator lines you draw.
+
+### Keyboard Shortcuts
+
+| Key | Function |
+|-----|----------|
+| `0` | Reset view zoom |
+| `Escape` | Cancel the current line being drawn |
+| `Delete` / `Backspace` | Delete the selected line |
+
 ## Batch Download
 
 After splitting, you can:

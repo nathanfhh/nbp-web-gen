@@ -6,7 +6,9 @@ import { useHistoryState } from '@/composables/useHistoryState'
 import { useColorPicker } from '@/composables/useColorPicker'
 import { useStickerDownload } from '@/composables/useStickerDownload'
 import { useStickerEdit } from '@/composables/useStickerEdit'
+import { useStickerSeparator } from '@/composables/useStickerSeparator'
 import StickerLightbox from '@/components/StickerLightbox.vue'
+import SeparatorEditor from '@/components/SeparatorEditor.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import SegmentationWorker from '@/workers/stickerSegmentation.worker.js?worker'
 
@@ -55,6 +57,40 @@ const {
   handleEditPointerUp,
 } = useStickerEdit()
 
+// Separator composable for manual mode
+const {
+  segmentationMode,
+  activeTab,
+  separatorLines,
+  isDrawing: isSeparatorDrawing,
+  firstPoint: separatorFirstPoint,
+  previewLine: separatorPreviewLine,
+  selectedLineId,
+  zoom: separatorZoom,
+  pan: separatorPan,
+  isDragging: separatorIsDragging,
+  isTouching: separatorIsTouching,
+  startDrawing: startSeparatorDrawing,
+  cancelDrawing: cancelSeparatorDrawing,
+  setFirstPoint: setSeparatorFirstPoint,
+  updatePreviewLine: updateSeparatorPreviewLine,
+  completeDrawing: completeSeparatorDrawing,
+  selectLine,
+  deselectLine,
+  deleteLine,
+  clearAllLines,
+  resetZoomPan,
+  fitToContainer,
+  handleWheel: handleSeparatorWheel,
+  handleMouseDown: handleSeparatorMouseDown,
+  handleMouseMove: handleSeparatorMouseMove,
+  handleMouseUp: handleSeparatorMouseUp,
+  handleTouchStart: handleSeparatorTouchStart,
+  handleTouchMove: handleSeparatorTouchMove,
+  handleTouchEnd: handleSeparatorTouchEnd,
+  resetState: resetSeparatorState,
+} = useStickerSeparator()
+
 // Web Worker for CCL segmentation
 let segmentationWorker = null
 let rafId = null
@@ -99,10 +135,22 @@ const createSegmentationWorker = () => {
       const remaining = MIN_DISPLAY_TIME - elapsed
       if (remaining > 0) {
         setTimeout(() => {
-          if (isMounted) isProcessing.value = false
+          if (isMounted) {
+            isProcessing.value = false
+            // In manual mode, switch to results tab after processing
+            if (segmentationMode.value === 'manual') {
+              activeTab.value = 'results'
+            }
+          }
         }, remaining)
       } else {
-        if (isMounted) isProcessing.value = false
+        if (isMounted) {
+          isProcessing.value = false
+          // In manual mode, switch to results tab after processing
+          if (segmentationMode.value === 'manual') {
+            activeTab.value = 'results'
+          }
+        }
       }
       processingContext = null
     })
@@ -310,6 +358,12 @@ const processImage = () => {
   if (!originalImage.value || !sourceCanvasRef.value || !previewCanvasRef.value) return
   if (isProcessing.value) return
 
+  // In manual mode, require at least one separator line
+  if (segmentationMode.value === 'manual' && separatorLines.value.length === 0) {
+    toast.warning(t('stickerCropper.toast.noSeparatorLines'))
+    return
+  }
+
   isProcessing.value = true
   croppedStickers.value = []
   selectedStickers.value.clear()
@@ -347,20 +401,111 @@ const processImage = () => {
       }
 
       const { r, g, b } = backgroundColor.value
-      segmentationWorker.postMessage(
-        {
-          imageData: imageData.data,
-          width,
-          height,
-          backgroundColor: { r, g, b },
-          tolerance: tolerance.value,
-          erosion: erosion.value,
-          minSize: 20,
-        },
-        [imageData.data.buffer]
-      )
+
+      // Prepare message payload
+      const payload = {
+        imageData: imageData.data,
+        width,
+        height,
+        backgroundColor: { r, g, b },
+        tolerance: tolerance.value,
+        erosion: erosion.value,
+        minSize: 20,
+        mode: segmentationMode.value,
+        // Must extract primitive values to avoid Vue proxy serialization issues
+        separatorLines: separatorLines.value.map((line) => ({
+          start: { x: line.start.x, y: line.start.y },
+          end: { x: line.end.x, y: line.end.y },
+        })),
+      }
+
+      segmentationWorker.postMessage(payload, [imageData.data.buffer])
     })
   })
+}
+
+/**
+ * Trim transparent padding from a canvas
+ * Scans from all 4 edges to find the content bounds and crops to that area
+ * @param {HTMLCanvasElement} canvas - The canvas to trim
+ * @returns {{canvas: HTMLCanvasElement, width: number, height: number} | null} - Trimmed canvas or null if all transparent
+ */
+const trimTransparentPadding = (canvas) => {
+  const ctx = canvas.getContext('2d')
+  const width = canvas.width
+  const height = canvas.height
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const data = imageData.data
+
+  // Helper to check if pixel at (x, y) is non-transparent (alpha > 0)
+  const isOpaque = (x, y) => data[(y * width + x) * 4 + 3] > 0
+
+  // Find minX: scan from left
+  let minX = 0
+  outer: for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
+      if (isOpaque(x, y)) {
+        minX = x
+        break outer
+      }
+    }
+  }
+
+  // Find maxX: scan from right
+  let maxX = width - 1
+  outer: for (let x = width - 1; x >= 0; x--) {
+    for (let y = 0; y < height; y++) {
+      if (isOpaque(x, y)) {
+        maxX = x
+        break outer
+      }
+    }
+  }
+
+  // Find minY: scan from top
+  let minY = 0
+  outer: for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (isOpaque(x, y)) {
+        minY = y
+        break outer
+      }
+    }
+  }
+
+  // Find maxY: scan from bottom
+  let maxY = height - 1
+  outer: for (let y = height - 1; y >= 0; y--) {
+    for (let x = 0; x < width; x++) {
+      if (isOpaque(x, y)) {
+        maxY = y
+        break outer
+      }
+    }
+  }
+
+  // Check if image is completely transparent
+  if (minX > maxX || minY > maxY) {
+    return null
+  }
+
+  // Calculate new dimensions
+  const newWidth = maxX - minX + 1
+  const newHeight = maxY - minY + 1
+
+  // If no trimming needed, return original
+  if (newWidth === width && newHeight === height) {
+    return { canvas, width, height }
+  }
+
+  // Create trimmed canvas
+  const trimmedCanvas = document.createElement('canvas')
+  trimmedCanvas.width = newWidth
+  trimmedCanvas.height = newHeight
+  const trimmedCtx = trimmedCanvas.getContext('2d')
+  trimmedCtx.drawImage(canvas, minX, minY, newWidth, newHeight, 0, 0, newWidth, newHeight)
+
+  return { canvas: trimmedCanvas, width: newWidth, height: newHeight }
 }
 
 const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) => {
@@ -393,29 +538,42 @@ const cropStickersFromRegions = (canvas, validRegions, useWhiteBg, onComplete) =
     for (let i = 0; i < STICKERS_PER_FRAME && index < validRegions.length; i++, index++) {
       const rect = validRegions[index]
 
-      const stickerCanvas = document.createElement('canvas')
-      stickerCanvas.width = rect.w
-      stickerCanvas.height = rect.h
-      const stickerCtx = stickerCanvas.getContext('2d')
-      stickerCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+      // First, crop the region from main canvas
+      const rawCanvas = document.createElement('canvas')
+      rawCanvas.width = rect.w
+      rawCanvas.height = rect.h
+      const rawCtx = rawCanvas.getContext('2d')
+      rawCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
 
+      // Trim transparent padding
+      const trimmed = trimTransparentPadding(rawCanvas)
+      if (!trimmed) {
+        // Completely transparent, skip this region
+        continue
+      }
+
+      const stickerCanvas = trimmed.canvas
+      const finalWidth = trimmed.width
+      const finalHeight = trimmed.height
+
+      // Create preview canvas with optional white background
       const previewCanvas = document.createElement('canvas')
-      previewCanvas.width = rect.w
-      previewCanvas.height = rect.h
+      previewCanvas.width = finalWidth
+      previewCanvas.height = finalHeight
       const previewCtx = previewCanvas.getContext('2d')
       if (useWhiteBg) {
         previewCtx.fillStyle = '#ffffff'
-        previewCtx.fillRect(0, 0, rect.w, rect.h)
+        previewCtx.fillRect(0, 0, finalWidth, finalHeight)
       }
-      previewCtx.drawImage(canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+      previewCtx.drawImage(stickerCanvas, 0, 0)
 
       stickers.push({
         id: stickers.length,
         canvas: stickerCanvas,
         dataUrl: stickerCanvas.toDataURL('image/png'),
         previewDataUrl: previewCanvas.toDataURL('image/png'),
-        width: rect.w,
-        height: rect.h,
+        width: finalWidth,
+        height: finalHeight,
         rect,
       })
     }
@@ -505,6 +663,28 @@ const resetState = () => {
   resetColorPicker()
   previewSticker.value = null
   resetEditState()
+  resetSeparatorState()
+}
+
+// Handle separator editor container ready - reset zoom to 1
+const handleSeparatorContainerReady = () => {
+  fitToContainer()
+}
+
+// Handle clear all lines with confirmation
+const handleClearAllLines = async () => {
+  if (separatorLines.value.length === 0) return
+
+  const confirmed = await confirmModalRef.value?.show({
+    title: t('stickerCropper.separator.clearAllTitle'),
+    message: t('stickerCropper.separator.clearAllMessage'),
+    confirmText: t('common.clearAll'),
+    cancelText: t('common.cancel'),
+  })
+
+  if (confirmed) {
+    clearAllLines()
+  }
 }
 
 // Computed
@@ -592,6 +772,33 @@ onUnmounted(() => {
             <!-- Settings Panel -->
             <div class="settings-panel">
               <h3 class="text-sm font-medium text-text-secondary mb-3">{{ $t('stickerCropper.settings.title') }}</h3>
+
+              <!-- Mode Selector -->
+              <div class="mb-4">
+                <label class="block text-xs text-text-muted mb-2">{{ $t('stickerCropper.settings.mode') }}</label>
+                <div class="mode-selector">
+                  <button
+                    @click="segmentationMode = 'auto'"
+                    class="mode-btn"
+                    :class="{ active: segmentationMode === 'auto' }"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    {{ $t('stickerCropper.settings.modeAuto') }}
+                  </button>
+                  <button
+                    @click="segmentationMode = 'manual'"
+                    class="mode-btn"
+                    :class="{ active: segmentationMode === 'manual' }"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    {{ $t('stickerCropper.settings.modeManual') }}
+                  </button>
+                </div>
+              </div>
 
               <!-- Background Color -->
               <div class="mb-4">
@@ -681,8 +888,8 @@ onUnmounted(() => {
               </button>
             </div>
 
-            <!-- Preview Canvas -->
-            <div class="preview-panel">
+            <!-- Preview Canvas (Auto mode only) -->
+            <div v-if="segmentationMode === 'auto'" class="preview-panel">
               <h3 class="text-sm font-medium text-text-secondary mb-3">{{ $t('stickerCropper.preview.title') }}</h3>
               <div
                 ref="previewContainerRef"
@@ -730,11 +937,84 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+
+            <!-- Hidden canvas for processing (always needed) -->
+            <canvas v-if="segmentationMode === 'manual'" ref="sourceCanvasRef" class="hidden"></canvas>
+            <canvas v-if="segmentationMode === 'manual'" ref="previewCanvasRef" class="hidden"></canvas>
           </div>
 
-          <!-- Right: Cropped Stickers -->
+          <!-- Right: Cropped Stickers / Separator Editor -->
           <div class="cropper-right">
-            <div class="stickers-header">
+            <!-- Tab Bar (Manual mode only) -->
+            <div v-if="segmentationMode === 'manual'" class="tab-bar">
+              <button
+                @click="activeTab = 'editor'"
+                class="tab-btn"
+                :class="{ active: activeTab === 'editor' }"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                {{ $t('stickerCropper.tabs.editor') }}
+              </button>
+              <button
+                @click="activeTab = 'results'"
+                class="tab-btn"
+                :class="{ active: activeTab === 'results' }"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ $t('stickerCropper.tabs.results') }}
+                <span v-if="croppedStickers.length" class="tab-badge">{{ croppedStickers.length }}</span>
+              </button>
+            </div>
+
+            <!-- Separator Editor (Manual mode, Editor tab) -->
+            <div v-if="segmentationMode === 'manual' && activeTab === 'editor'" class="separator-editor-container">
+              <SeparatorEditor
+                v-if="imageLoaded && originalImage"
+                :image-src="imageSrc"
+                :image-width="originalImage.width"
+                :image-height="originalImage.height"
+                :separator-lines="separatorLines"
+                :is-drawing="isSeparatorDrawing"
+                :first-point="separatorFirstPoint"
+                :preview-line="separatorPreviewLine"
+                :selected-line-id="selectedLineId"
+                :zoom="separatorZoom"
+                :pan="separatorPan"
+                :is-dragging="separatorIsDragging"
+                :is-touching="separatorIsTouching"
+                @start-drawing="startSeparatorDrawing"
+                @cancel-drawing="cancelSeparatorDrawing"
+                @set-first-point="setSeparatorFirstPoint"
+                @update-preview-line="updateSeparatorPreviewLine"
+                @complete-drawing="completeSeparatorDrawing"
+                @select-line="selectLine"
+                @deselect-line="deselectLine"
+                @delete-line="deleteLine"
+                @clear-all-lines="handleClearAllLines"
+                @reset-zoom-pan="resetZoomPan"
+                @container-ready="handleSeparatorContainerReady"
+                @wheel="handleSeparatorWheel"
+                @mousedown="handleSeparatorMouseDown"
+                @mousemove="(e) => handleSeparatorMouseMove(e, originalImage.width, originalImage.height)"
+                @mouseup="handleSeparatorMouseUp"
+                @touchstart="handleSeparatorTouchStart"
+                @touchmove="(e) => handleSeparatorTouchMove(e, originalImage.width, originalImage.height)"
+                @touchend="handleSeparatorTouchEnd"
+              />
+              <div v-else class="separator-editor-placeholder">
+                <svg class="w-12 h-12 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p class="text-text-muted text-sm mt-2">{{ $t('stickerCropper.preview.loading') }}</p>
+              </div>
+            </div>
+
+            <!-- Results Header (Auto mode OR Manual mode with Results tab) -->
+            <div v-if="segmentationMode === 'auto' || activeTab === 'results'" class="stickers-header">
               <h3 class="text-sm font-medium text-text-secondary">
                 {{ $t('stickerCropper.results.title') }}
                 <span v-if="croppedStickers.length" class="text-mode-generate">
@@ -758,8 +1038,8 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Stickers Grid -->
-            <div v-if="croppedStickers.length" class="stickers-grid">
+            <!-- Stickers Grid (Auto mode OR Manual mode with Results tab) -->
+            <div v-if="croppedStickers.length && (segmentationMode === 'auto' || activeTab === 'results')" class="stickers-grid">
               <div
                 v-for="sticker in croppedStickers"
                 :key="sticker.id"
@@ -813,8 +1093,8 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Empty state -->
-            <div v-else class="stickers-empty">
+            <!-- Empty state (Auto mode OR Manual mode with Results tab) -->
+            <div v-else-if="segmentationMode === 'auto' || activeTab === 'results'" class="stickers-empty">
               <svg class="w-16 h-16 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
@@ -822,8 +1102,8 @@ onUnmounted(() => {
               <p class="text-text-muted text-xs mt-1">{{ $t('stickerCropper.results.autoDetect') }}</p>
             </div>
 
-            <!-- Download Buttons -->
-            <div v-if="croppedStickers.length" class="stickers-actions">
+            <!-- Download Buttons (Auto mode OR Manual mode with Results tab) -->
+            <div v-if="croppedStickers.length && (segmentationMode === 'auto' || activeTab === 'results')" class="stickers-actions">
               <button
                 @click="handleDownloadZip"
                 :disabled="selectedStickers.size === 0 || isDownloading"

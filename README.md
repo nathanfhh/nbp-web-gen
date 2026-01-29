@@ -85,7 +85,7 @@ This project is a testament to the power of AI-assisted development:
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
 *   **Character Extraction:** AI-powered character trait extraction from images. Save and reuse characters across generation modes for consistent character design.
 *   **LINE Sticker Compliance Tool:** Dedicated tool to prepare stickers for LINE Store submission - auto-resize, even dimension enforcement, cover image generation (main.png/tab.png), and batch ZIP export.
-*   **Sticker Grid Cutter:** Upload grid-arranged sticker sheets (e.g., from other sticker generators) and automatically crop individual stickers with background removal. Perfect for splitting multi-panel sticker images.
+*   **Sticker Grid Cutter:** Upload grid-arranged sticker sheets (e.g., from other sticker generators) and automatically crop individual stickers with background removal. Features both **Auto Detection** (projection-based algorithm) and **Manual Mode** (draw separator lines for precise control). Perfect for splitting multi-panel sticker images.
 *   **Slide to PPTX Converter:** Inspired by [DeckEdit](https://deckedit.com/), convert slide images or PDFs into editable PowerPoint files - all processing happens in your browser. Unlike purely automated tools that often fail on complex layouts, Mediator provides a "Human-in-the-loop" workflow powered by our **Recursive XY-Cut Layout Analysis Engine**, allowing precise manual correction of OCR regions before generation.
     *   **Client-Side OCR:** Uses PaddleOCR v5 models running on ONNX Runtime with WebGPU acceleration (falls back to WebAssembly). Choose between Server (higher accuracy) or Mobile (faster) model sizes.
     *   **Tesseract.js Fallback:** Automatic fallback for failed text regions using Tesseract.js OCR engine.
@@ -242,7 +242,7 @@ npm run build
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
 *   **角色萃取工具：** AI 驅動的角色特徵萃取功能，可從圖片中提取角色資訊並儲存，跨模式重複使用以維持角色設計一致性。
 *   **LINE 貼圖合規工具：** 專為 LINE 貼圖上架打造的工具，自動調整尺寸、強制偶數尺寸、生成封面圖 (main.png/tab.png)，並批次匯出 ZIP。
-*   **貼圖網格裁切器：** 上傳網格排列的貼圖拼貼（如其他貼圖生成器產出的圖片），自動裁切並去背成獨立貼圖。適合將多格貼圖圖片拆分為單張使用。
+*   **貼圖網格裁切器：** 上傳網格排列的貼圖拼貼（如其他貼圖生成器產出的圖片），自動裁切並去背成獨立貼圖。支援**自動偵測**（投影演算法）與**手動模式**（繪製分割線精確控制）。適合將多格貼圖圖片拆分為單張使用。
 *   **簡報轉 PPTX 工具：** 靈感來自 [DeckEdit](https://deckedit.com/)，將簡報圖片或 PDF 轉換為可編輯的 PowerPoint 檔案，所有處理皆在瀏覽器端完成。不同於容易在複雜排版中失敗的全自動工具，Mediator 提供「人機協作」工作流，讓您在生成前能精確地手動修正 OCR 區域。
     *   **客戶端 OCR：** 使用 PaddleOCR v5 模型搭配 ONNX Runtime，支援 WebGPU 加速（自動降級至 WebAssembly）。可選擇 Server（高精度）或 Mobile（快速）模型。
     *   **Tesseract.js 備援：** 針對辨識失敗的區域，自動使用 Tesseract.js 重新辨識。
