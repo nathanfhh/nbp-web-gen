@@ -903,9 +903,9 @@
       "delete": "刪除",
       "resetView": "重置視圖",
       "lineCount": "{count} 條線",
-      "hint": "點擊兩點繪製分割線，分割線會在裁切時強制切開圖片",
+      "hint": "點擊設定起點，再按住拖曳設定終點",
       "hintStart": "點擊設定起點",
-      "hintEnd": "點擊設定終點完成繪製",
+      "hintEnd": "按住並拖曳調整終點，放開完成",
       "zoomHint": "滾輪縮放，拖曳平移（點擊「繪製分割線」開始畫線）",
       "clearAllTitle": "清除所有分割線",
       "clearAllMessage": "確定要清除所有分割線嗎？此操作無法復原。"

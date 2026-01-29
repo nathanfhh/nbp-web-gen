@@ -129,7 +129,9 @@
 
 .tab-btn {
   display: flex;
+  flex: 1; /* Stretch to fill available space */
   align-items: center;
+  justify-content: center; /* Center icon and text */
   gap: 0.375rem;
   padding: 0.5rem 1rem;
   font-size: 0.8125rem;

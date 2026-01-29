@@ -903,9 +903,9 @@
       "delete": "Delete",
       "resetView": "Reset View",
       "lineCount": "{count} line(s)",
-      "hint": "Click two points to draw a separator line - it will force-cut the image during cropping",
+      "hint": "Click to set start point, then press and drag to set end point",
       "hintStart": "Click to set start point",
-      "hintEnd": "Click to set end point to complete",
+      "hintEnd": "Press and drag to adjust end point, release to complete",
       "zoomHint": "Scroll to zoom, drag to pan (click \"Draw Separator\" to start drawing)",
       "clearAllTitle": "Clear All Separator Lines",
       "clearAllMessage": "Are you sure you want to clear all separator lines? This cannot be undone."

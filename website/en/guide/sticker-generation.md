@@ -180,10 +180,10 @@ When auto splitting fails to correctly distinguish stickers (e.g., stickers are 
 ### How to Use
 
 1. In the crop tool, switch "Cropping Mode" from "Auto Detect" to "Manual Split"
-2. Click the "Draw Line" button to enter drawing mode
-3. Click two points on the image to draw a separator line — the system automatically extends the line to the image edges
+2. Click the "Draw Separator" button to enter drawing mode
+3. **Click** on the image to set the start point, then **press and drag** to adjust the end point position, release to complete. The system automatically extends the line to the image edges
 4. Repeat step 3 to draw all needed separator lines
-5. To delete a line, click to select it and press Delete key or click the "Delete" button in the toolbar
+5. To delete a line, tap to select it and press Delete key or click the "Delete" button in the toolbar
 6. When done, click "Start Processing"
 
 ![Manual Crop Mode](/images/manual-crop-mode.webp)

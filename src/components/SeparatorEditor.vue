@@ -80,6 +80,7 @@ const emit = defineEmits([
 const containerRef = ref(null)
 const mousePosition = ref(null)
 const containerSize = ref({ width: 0, height: 0 })
+const isDraggingLine = ref(false) // Track if we're dragging to set second point
 
 // Calculate display dimensions to fit image in container
 const displayDimensions = computed(() => {
@@ -225,9 +226,12 @@ const handleMouseDown = (e) => {
     const coords = getImageCoords(e)
     if (coords) {
       if (!props.firstPoint) {
+        // First click: just set start point
         emit('setFirstPoint', coords)
       } else {
-        emit('completeDrawing', coords)
+        // Second click: start dragging to adjust end point
+        isDraggingLine.value = true
+        emit('updatePreviewLine', coords)
       }
     }
   } else {
@@ -240,6 +244,7 @@ const handleMouseMove = (e) => {
   mousePosition.value = coords
 
   if (props.isDrawing && props.firstPoint && coords) {
+    // Update preview line while moving (hover preview or dragging)
     emit('updatePreviewLine', coords)
   }
 
@@ -247,6 +252,14 @@ const handleMouseMove = (e) => {
 }
 
 const handleMouseUp = (e) => {
+  // Complete drawing on mouseup if we were dragging for second point
+  if (isDraggingLine.value && props.firstPoint) {
+    const coords = getImageCoords(e)
+    if (coords) {
+      emit('completeDrawing', coords)
+    }
+    isDraggingLine.value = false
+  }
   emit('mouseup', e)
 }
 
@@ -256,9 +269,12 @@ const handleTouchStart = (e) => {
     const coords = getImageCoords(e)
     if (coords) {
       if (!props.firstPoint) {
+        // First tap: just set start point
         emit('setFirstPoint', coords)
       } else {
-        emit('completeDrawing', coords)
+        // Second tap: start dragging to adjust end point
+        isDraggingLine.value = true
+        emit('updatePreviewLine', coords)
       }
     }
   } else {
@@ -267,7 +283,9 @@ const handleTouchStart = (e) => {
 }
 
 const handleTouchMove = (e) => {
-  if (props.isDrawing && props.firstPoint && e.touches.length === 1) {
+  // Update preview line while dragging for second point
+  if (isDraggingLine.value && props.firstPoint && e.touches.length === 1) {
+    e.preventDefault()
     const coords = getImageCoords(e)
     if (coords) {
       emit('updatePreviewLine', coords)
@@ -277,6 +295,14 @@ const handleTouchMove = (e) => {
 }
 
 const handleTouchEnd = (e) => {
+  // Complete drawing on touchend if we were dragging for second point
+  if (isDraggingLine.value && props.firstPoint) {
+    const coords = getImageCoords(e)
+    if (coords) {
+      emit('completeDrawing', coords)
+    }
+    isDraggingLine.value = false
+  }
   emit('touchend', e)
 }
 
@@ -623,9 +649,16 @@ onUnmounted(() => {
 
 .line-handle {
   stroke: transparent;
-  stroke-width: 16;
+  stroke-width: 20;
   pointer-events: stroke;
   cursor: pointer;
+}
+
+/* Larger tap target on touch devices */
+@media (pointer: coarse) {
+  .line-handle {
+    stroke-width: 36;
+  }
 }
 
 .line-point {
