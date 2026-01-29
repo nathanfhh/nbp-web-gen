@@ -209,7 +209,8 @@ export function usePeerDataTransfer(deps) {
           status: record.status,
           thinkingText: record.thinkingText,
           error: record.error,
-          imageCount: record.images?.length || 0,
+          // Agent mode: images are sent via conversation, not as separate packets
+          imageCount: record.mode === 'agent' ? 0 : (record.images?.length || 0),
           hasVideo: !!(record.video && record.video.opfsPath),
           hasNarration: !!record.narration,
           narrationMeta: record.narration
@@ -233,7 +234,8 @@ export function usePeerDataTransfer(deps) {
         sendJson({ type: 'record_start', meta: recordMeta })
 
         // Send each image as separate binary packet
-        if (record.images && record.images.length > 0) {
+        // Skip for agent mode - images are embedded in conversation and sent via record_conversation
+        if (record.images && record.images.length > 0 && record.mode !== 'agent') {
           for (let i = 0; i < record.images.length; i++) {
             const img = record.images[i]
             const blob = await imageStorage.loadImageBlob(img.opfsPath)

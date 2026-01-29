@@ -59,7 +59,8 @@ export function useHistoryTransfer() {
         }
 
         // Load images and convert to base64
-        if (record.images && record.images.length > 0) {
+        // Skip for agent mode - images are embedded in conversation
+        if (record.images && record.images.length > 0 && record.mode !== 'agent') {
           exportRecord.images = []
           for (const img of record.images) {
             const base64 = await imageStorage.getImageBase64(img.opfsPath)
@@ -253,7 +254,8 @@ export function useHistoryTransfer() {
           const historyId = await indexedDB.addHistoryWithUUID(historyRecord)
 
           // Save images to OPFS
-          if (record.images && record.images.length > 0) {
+          // Skip for agent mode - images are restored from conversation below
+          if (record.images && record.images.length > 0 && record.mode !== 'agent') {
             const imageMetadata = []
 
             for (const img of record.images) {

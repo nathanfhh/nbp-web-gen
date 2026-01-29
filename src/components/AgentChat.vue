@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useAgentApi } from '@/composables/useAgentApi'
+import { useApiKeyManager } from '@/composables/useApiKeyManager'
 import { useToast } from '@/composables/useToast'
 import { MAX_UPLOAD_IMAGES } from '@/constants/defaults'
 import AgentMessage from './AgentMessage.vue'
@@ -13,6 +14,7 @@ const { t } = useI18n()
 const store = useGeneratorStore()
 const toast = useToast()
 const { sendMessageWithFallback } = useAgentApi()
+const { hasApiKeyFor } = useApiKeyManager()
 
 // Refs
 const messagesContainer = ref(null)
@@ -33,7 +35,8 @@ const lightboxInitialIndex = ref(0)
 // Computed
 const conversation = computed(() => store.agentConversation)
 const streamingMessage = computed(() => store.agentStreamingMessage)
-const hasApiKey = computed(() => store.hasApiKey)
+// Use hasApiKeyFor('text') to support Free Tier key fallback
+const hasApiKey = computed(() => hasApiKeyFor('text'))
 
 const canSend = computed(() => {
   return (inputText.value.trim() || pendingImages.value.length > 0) &&
