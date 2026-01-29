@@ -42,6 +42,7 @@ export default {
     textInverse: '#3E2723', // Brown-900
     textLink: '#FFAB91', // Deep Orange-200
     textOnBrand: '#3E2723', // 品牌色按鈕上的文字（淺咖啡底配深字）
+    textTooltip: '#F8FAFC', // Tooltip 文字（永遠亮色）
 
     // ========================================
     // 邊框色

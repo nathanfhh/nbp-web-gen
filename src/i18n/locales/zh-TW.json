@@ -112,6 +112,8 @@
   "agent": {
     "contextDepth": "上下文深度",
     "contextDepthHint": "納入前幾則訊息作為對話脈絡 (1-10)",
+    "includeImagesInContext": "上下文包含圖片",
+    "includeImagesInContextHint": "會增加 Token 消耗",
     "newSession": "新對話",
     "newSessionConfirmTitle": "開始新對話",
     "newSessionConfirmMessage": "這會清除目前的對話紀錄，確定要開始新對話嗎？",

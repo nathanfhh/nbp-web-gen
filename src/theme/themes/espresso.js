@@ -42,6 +42,7 @@ export default {
     textInverse: '#FFF8E1', // Cream white
     textLink: '#5D4037', // Brand Primary
     textOnBrand: '#FFFDF5', // 品牌色按鈕上的文字（咖啡色底配奶油白字）
+    textTooltip: '#F8FAFC', // Tooltip 文字（永遠亮色）
 
     // ========================================
     // 邊框色

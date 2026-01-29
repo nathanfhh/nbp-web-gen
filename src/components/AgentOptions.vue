@@ -14,6 +14,13 @@ const contextDepth = computed({
   },
 })
 
+const includeImagesInContext = computed({
+  get: () => store.agentOptions.includeImagesInContext ?? false,
+  set: (val) => {
+    store.agentOptions.includeImagesInContext = val
+  },
+})
+
 const hasConversation = computed(() => store.agentConversation.length > 0)
 
 const sessionInfo = computed(() => {
@@ -75,6 +82,33 @@ const sessionInfo = computed(() => {
       <p class="text-xs text-text-muted mt-1.5">
         {{ $t('agent.contextDepthHint') }}
       </p>
+    </div>
+
+    <!-- Include Images Toggle -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-mode-generate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <div>
+          <span class="text-sm font-medium text-text-primary">{{ $t('agent.includeImagesInContext') }}</span>
+          <p class="text-xs text-text-muted">{{ $t('agent.includeImagesInContextHint') }}</p>
+        </div>
+      </div>
+      <button
+        @click="includeImagesInContext = !includeImagesInContext"
+        :class="[
+          'relative w-11 h-6 rounded-full transition-colors duration-200',
+          includeImagesInContext ? 'bg-mode-generate' : 'bg-bg-muted'
+        ]"
+      >
+        <span
+          :class="[
+            'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200',
+            includeImagesInContext ? 'translate-x-5' : 'translate-x-0'
+          ]"
+        />
+      </button>
     </div>
 
     <!-- Session Info -->

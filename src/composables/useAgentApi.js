@@ -104,36 +104,40 @@ export function useAgentApi() {
    * Build chat history in Gemini SDK format from our conversation
    * @param {Array} messages - Our conversation messages
    * @param {number} contextDepth - Number of message pairs to include
+   * @param {boolean} includeImages - Whether to include images in history
    * @returns {Array} History in Gemini format
    */
-  const buildChatHistory = (messages, contextDepth) => {
+  const buildChatHistory = (messages, contextDepth, includeImages = false) => {
     // Take last N*2 messages (each exchange has user + model)
     const recentMessages = messages.slice(-(contextDepth * 2))
 
     return recentMessages.map((msg) => ({
       role: msg.role,
-      parts: msg.parts.map((part) => {
-        // Convert our internal format back to Gemini format
-        switch (part.type) {
-          case 'text':
-            return { text: part.content }
-          case 'thought':
-            // Gemini format: { text: "content", thought: true }
-            // thought is a boolean flag, not the content itself
-            return { text: part.content, thought: true }
-          case 'code':
-            return { executableCode: { language: part.language, code: part.content } }
-          case 'codeResult':
-            return { codeExecutionResult: { outcome: part.outcome, output: part.output } }
-          case 'image':
-            return { inlineData: { mimeType: part.mimeType, data: part.data } }
-          case 'generatedImage':
-            return { inlineData: { mimeType: part.mimeType, data: part.data } }
-          default:
-            return { text: part.content || '' }
-        }
-      }),
-    }))
+      parts: msg.parts
+        .filter((part) => {
+          // Exclude thoughts - they're internal reasoning, not relevant for context
+          if (part.type === 'thought') return false
+          // Optionally exclude images to save tokens
+          if ((part.type === 'image' || part.type === 'generatedImage') && !includeImages) return false
+          return true
+        })
+        .map((part) => {
+          // Convert our internal format back to Gemini format
+          switch (part.type) {
+            case 'text':
+              return { text: part.content }
+            case 'code':
+              return { executableCode: { language: part.language, code: part.content } }
+            case 'codeResult':
+              return { codeExecutionResult: { outcome: part.outcome, output: part.output } }
+            case 'image':
+            case 'generatedImage':
+              return { inlineData: { mimeType: part.mimeType, data: part.data } }
+            default:
+              return { text: part.content || '' }
+          }
+        }),
+    })).filter((msg) => msg.parts.length > 0) // Remove empty messages
   }
 
   /**
@@ -266,7 +270,8 @@ export function useAgentApi() {
       try {
         // Use provided conversation snapshot or fall back to store
         const conversationForHistory = conversation || store.agentConversation
-        const history = buildChatHistory(conversationForHistory, contextDepth)
+        const includeImages = store.agentOptions.includeImagesInContext ?? false
+        const history = buildChatHistory(conversationForHistory, contextDepth, includeImages)
 
         const chat = ai.chats.create({
           model: 'gemini-3-flash-preview',

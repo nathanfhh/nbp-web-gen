@@ -112,6 +112,8 @@
   "agent": {
     "contextDepth": "Context Depth",
     "contextDepthHint": "Include previous messages as conversation context (1-10)",
+    "includeImagesInContext": "Include images in context",
+    "includeImagesInContextHint": "Increases token usage",
     "newSession": "New Session",
     "newSessionConfirmTitle": "Start New Session",
     "newSessionConfirmMessage": "This will clear the current conversation. Are you sure you want to start a new session?",

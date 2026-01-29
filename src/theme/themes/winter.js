@@ -42,6 +42,7 @@ export default {
     textInverse: '#0B1120', // Dark base
     textLink: '#BAE6FD', // Light ice
     textOnBrand: '#0B1120', // 品牌色按鈕上的文字（冰藍底配深字）
+    textTooltip: '#F8FAFC', // Tooltip 文字（永遠亮色）
 
     // ========================================
     // 邊框色

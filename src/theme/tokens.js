@@ -25,7 +25,7 @@ export const TOKEN_SCHEMA = {
   ],
 
   // 文字色
-  text: ['primary', 'secondary', 'muted', 'inverse', 'link', 'onBrand'],
+  text: ['primary', 'secondary', 'muted', 'inverse', 'link', 'onBrand', 'tooltip'],
 
   // 邊框色
   border: ['default', 'muted', 'focus', 'subtle'],

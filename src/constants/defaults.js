@@ -83,6 +83,7 @@ export const DEFAULT_VIDEO_OPTIONS = {
 
 export const DEFAULT_AGENT_OPTIONS = {
   contextDepth: 5, // 上下文深度 (1-10)
+  includeImagesInContext: false, // 是否在上下文中包含圖片（會增加 token 消耗）
 }
 
 export const DEFAULT_SLIDES_OPTIONS = {

@@ -5,6 +5,8 @@ import {
   generateThumbnail,
   generateThumbnailFromBlob,
   blobToBase64,
+  base64ToBlob,
+  getImageDimensions,
   formatFileSize,
 } from './useImageCompression'
 
@@ -80,27 +82,50 @@ export function useImageStorage() {
       for (let i = 0; i < images.length; i++) {
         const image = images[i]
 
-        // Compress to WebP
-        const compressed = await compressToWebP(image, { quality })
+        let blob, originalSize, compressedSize, width, height
+
+        // Skip compression if image is already WebP (e.g., from agent mode)
+        if (image.mimeType === 'image/webp') {
+          blob = await base64ToBlob(image.data, 'image/webp')
+          originalSize = blob.size
+          compressedSize = blob.size
+          // Use pre-computed dimensions if available, otherwise extract
+          if (image.width && image.height) {
+            width = image.width
+            height = image.height
+          } else {
+            const dims = await getImageDimensions(image.data, 'image/webp')
+            width = dims.width
+            height = dims.height
+          }
+        } else {
+          // Compress non-WebP images
+          const compressed = await compressToWebP(image, { quality })
+          blob = compressed.blob
+          originalSize = compressed.originalSize
+          compressedSize = compressed.compressedSize
+          width = compressed.width
+          height = compressed.height
+        }
 
         // Generate thumbnail
         const thumbnail = await generateThumbnail(image)
 
         // Save WebP to OPFS
         const opfsPath = `/${dirPath}/${i}.webp`
-        await opfs.writeFile(opfsPath, compressed.blob)
+        await opfs.writeFile(opfsPath, blob)
 
         // Build metadata
         savedImages.push({
           index: i,
           // Preserve pageNumber for slides mode (if present)
           ...(image.pageNumber !== undefined && { pageNumber: image.pageNumber }),
-          originalSize: compressed.originalSize,
-          compressedSize: compressed.compressedSize,
+          originalSize,
+          compressedSize,
           originalFormat: image.mimeType,
           compressedFormat: 'image/webp',
-          width: compressed.width,
-          height: compressed.height,
+          width,
+          height,
           opfsPath,
           thumbnail,
         })

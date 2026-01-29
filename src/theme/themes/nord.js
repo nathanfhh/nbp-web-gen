@@ -48,6 +48,7 @@ export default {
     textInverse: '#2E3440', // nord0
     textLink: '#88C0D0', // nord8
     textOnBrand: '#2E3440', // nord0 - 冰藍底配深字
+    textTooltip: '#F8FAFC', // Tooltip 文字（永遠亮色）
 
     // ========================================
     // 邊框色

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { generateUUID } from './useUUID'
-import { generateThumbnailFromBlob } from './useImageCompression'
+import { generateThumbnailFromBlob, base64ToBlob } from './useImageCompression'
 import {
   decodeMessage,
   encodeJsonMessage,
@@ -608,13 +608,8 @@ export function usePeerDataReceiver(deps) {
           for (let i = 0; i < agentImages.length; i++) {
             const img = agentImages[i]
             const opfsPath = `/images/${historyId}/${i}.webp`
-            // Convert base64 to blob
-            const binaryString = atob(img.data)
-            const bytes = new Uint8Array(binaryString.length)
-            for (let j = 0; j < binaryString.length; j++) {
-              bytes[j] = binaryString.charCodeAt(j)
-            }
-            const blob = new Blob([bytes], { type: img.mimeType || 'image/webp' })
+            // Convert base64 to blob using shared utility
+            const blob = await base64ToBlob(img.data, img.mimeType || 'image/webp')
             await opfs.writeFile(opfsPath, blob)
 
             const thumbnail = await generateThumbnailFromBlob(blob)
