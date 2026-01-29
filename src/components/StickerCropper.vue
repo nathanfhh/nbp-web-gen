@@ -368,6 +368,9 @@ const processImage = () => {
   croppedStickers.value = []
   selectedStickers.value.clear()
 
+  // Exit drawing mode to prevent accidental touches
+  cancelSeparatorDrawing()
+
   const startTime = Date.now()
   const MIN_DISPLAY_TIME = 500
 

@@ -461,7 +461,19 @@ onUnmounted(() => {
           :viewBox="`0 0 ${imageWidth} ${imageHeight}`"
           preserveAspectRatio="none"
         >
-          <!-- Existing lines (extended to edges) -->
+          <!-- Extended line handles (invisible, for clicking on extended portion) -->
+          <line
+            v-for="line in extendedLines"
+            :key="`ext-handle-${line.id}`"
+            :x1="line.displayStart.x"
+            :y1="line.displayStart.y"
+            :x2="line.displayEnd.x"
+            :y2="line.displayEnd.y"
+            class="line-handle"
+            @click.stop="handleLineClick($event, line.id)"
+          />
+
+          <!-- Existing lines (extended to edges, visible) -->
           <line
             v-for="line in extendedLines"
             :key="line.id"
@@ -471,23 +483,9 @@ onUnmounted(() => {
             :y2="line.displayEnd.y"
             class="separator-line"
             :class="{ selected: selectedLineId === line.id }"
-            @click.stop="handleLineClick($event, line.id)"
           />
 
-          <!-- Original line segments (clickable handles) -->
-          <line
-            v-for="line in separatorLines"
-            :key="`handle-${line.id}`"
-            :x1="line.start.x"
-            :y1="line.start.y"
-            :x2="line.end.x"
-            :y2="line.end.y"
-            class="line-handle"
-            :class="{ selected: selectedLineId === line.id }"
-            @click.stop="handleLineClick($event, line.id)"
-          />
-
-          <!-- Start/End points -->
+          <!-- Start/End points (also clickable) -->
           <template v-for="line in separatorLines" :key="`points-${line.id}`">
             <circle
               :cx="line.start.x"
@@ -495,6 +493,7 @@ onUnmounted(() => {
               r="6"
               class="line-point"
               :class="{ selected: selectedLineId === line.id }"
+              @click.stop="handleLineClick($event, line.id)"
             />
             <circle
               :cx="line.end.x"
@@ -502,6 +501,7 @@ onUnmounted(() => {
               r="6"
               class="line-point"
               :class="{ selected: selectedLineId === line.id }"
+              @click.stop="handleLineClick($event, line.id)"
             />
           </template>
 
@@ -665,7 +665,8 @@ onUnmounted(() => {
   fill: var(--color-brand-primary);
   stroke: white;
   stroke-width: 2;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   transition: fill 0.15s;
 }
 

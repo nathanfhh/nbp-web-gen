@@ -83,21 +83,34 @@ export function useStickerSeparator() {
   }
 
   const setFirstPoint = (point) => {
-    firstPoint.value = point
+    // Round to nearest pixel to ensure consistency between preview and processing
+    firstPoint.value = {
+      x: Math.round(point.x),
+      y: Math.round(point.y),
+    }
   }
 
   const updatePreviewLine = (endPoint) => {
     if (firstPoint.value && endPoint) {
+      // Round to nearest pixel for consistent preview
       previewLine.value = {
         start: firstPoint.value,
-        end: endPoint,
+        end: {
+          x: Math.round(endPoint.x),
+          y: Math.round(endPoint.y),
+        },
       }
     }
   }
 
   const completeDrawing = (endPoint) => {
     if (firstPoint.value && endPoint) {
-      addLine(firstPoint.value, endPoint)
+      // Round to nearest pixel to ensure consistency between preview and processing
+      const roundedEnd = {
+        x: Math.round(endPoint.x),
+        y: Math.round(endPoint.y),
+      }
+      addLine(firstPoint.value, roundedEnd)
     }
     // Reset for next line (stay in drawing mode)
     firstPoint.value = null
