@@ -397,7 +397,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="agent-chat flex flex-col min-h-[500px] h-[60vh] max-h-[800px]">
+  <div class="agent-chat flex flex-col h-[calc(100dvh-10rem)] min-h-[400px]">
     <!-- Messages area (scrollable) -->
     <div
       ref="messagesContainer"
