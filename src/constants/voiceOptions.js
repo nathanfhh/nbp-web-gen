@@ -82,7 +82,7 @@ export const NARRATION_STYLES = ['discussion', 'critical', 'debate']
 
 export const SCRIPT_MODELS = [
   { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash' },
-  { value: 'gemini-2.5-pro-preview-06-05', label: 'Gemini 2.5 Pro' },
+  { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
 ]
 
 export const TTS_MODELS = [
