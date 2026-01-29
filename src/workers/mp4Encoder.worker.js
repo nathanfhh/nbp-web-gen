@@ -23,6 +23,7 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 
 const TARGET_SAMPLE_RATE = 48000
 const AUDIO_BITRATE = 128_000
+const OPUS_BITRATE = 96_000 // Opus uses lower bitrate for similar quality
 const VIDEO_BITRATE = 2_000_000
 const AUDIO_CHUNK_SIZE = 4096
 const MAX_VIDEO_WIDTH = 1920
@@ -115,7 +116,45 @@ self.onmessage = async (e) => {
       }
     }
 
-    // Phase 2: Set up mp4-muxer
+    // Phase 2: Detect audio codec support (AAC → Opus fallback)
+    // AAC (mp4a.40.2) has better compatibility but requires hardware/licensed encoder
+    // Opus has universal software support in all modern browsers
+    const aacConfig = {
+      codec: 'mp4a.40.2', // AAC-LC
+      sampleRate: TARGET_SAMPLE_RATE,
+      numberOfChannels: 1,
+      bitrate: AUDIO_BITRATE,
+    }
+
+    const opusConfig = {
+      codec: 'opus', // Opus - universally supported in software
+      sampleRate: TARGET_SAMPLE_RATE,
+      numberOfChannels: 1,
+      bitrate: OPUS_BITRATE,
+    }
+
+    // Try AAC first, fall back to Opus if not supported
+    const aacSupport = await AudioEncoder.isConfigSupported(aacConfig)
+    const opusSupport = await AudioEncoder.isConfigSupported(opusConfig)
+
+    let audioConfig
+    let audioCodecForMuxer // 'aac' or 'opus'
+
+    if (aacSupport.supported) {
+      audioConfig = aacConfig
+      audioCodecForMuxer = 'aac'
+    } else if (opusSupport.supported) {
+      audioConfig = opusConfig
+      audioCodecForMuxer = 'opus'
+      console.info('[MP4 Encoder] AAC not supported on this platform, using Opus codec')
+    } else {
+      throw new Error(
+        `No supported audio codec available. Tried AAC and Opus. ` +
+          `This may be a browser/platform limitation.`
+      )
+    }
+
+    // Phase 3: Set up mp4-muxer with detected audio codec
     const target = new ArrayBufferTarget()
     const muxer = new Muxer({
       target,
@@ -125,14 +164,14 @@ self.onmessage = async (e) => {
         height: videoHeight,
       },
       audio: {
-        codec: 'aac',
+        codec: audioCodecForMuxer,
         sampleRate: TARGET_SAMPLE_RATE,
         numberOfChannels: 1,
       },
       fastStart: 'in-memory',
     })
 
-    // Phase 3: Set up VideoEncoder with support check
+    // Phase 4: Set up VideoEncoder with support check
     const videoConfig = {
       codec: 'avc1.640028', // H.264 High L4.0
       width: videoWidth,
@@ -164,20 +203,7 @@ self.onmessage = async (e) => {
 
     videoEncoder.configure(videoConfig)
 
-    // Phase 4: Set up AudioEncoder with support check
-    const audioConfig = {
-      codec: 'mp4a.40.2', // AAC-LC
-      sampleRate: TARGET_SAMPLE_RATE,
-      numberOfChannels: 1,
-      bitrate: AUDIO_BITRATE,
-    }
-
-    // Check if AudioEncoder supports this configuration
-    const audioSupport = await AudioEncoder.isConfigSupported(audioConfig)
-    if (!audioSupport.supported) {
-      throw new Error(`AudioEncoder config not supported: ${JSON.stringify(audioConfig)}`)
-    }
-
+    // Phase 5: Set up AudioEncoder
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => {
         muxer.addAudioChunk(chunk, meta)
@@ -194,7 +220,7 @@ self.onmessage = async (e) => {
 
     audioEncoder.configure(audioConfig)
 
-    // Phase 5: Encode each page with crossfade transitions
+    // Phase 6: Encode each page with crossfade transitions
     const canvas = new OffscreenCanvas(videoWidth, videoHeight)
     const ctx = canvas.getContext('2d')
 
@@ -450,7 +476,7 @@ self.onmessage = async (e) => {
       }
     }
 
-    // Phase 6: Flush and finalize
+    // Phase 7: Flush and finalize
     self.postMessage({ type: 'progress', current: pageCount, total: pageCount, phase: 'finalizing' })
 
     await videoEncoder.flush()
