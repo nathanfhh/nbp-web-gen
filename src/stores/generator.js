@@ -796,15 +796,35 @@ export const useGeneratorStore = defineStore('generator', () => {
   /**
    * Save agent conversation incrementally (auto-save on each AI response)
    * Creates new history record on first save, updates on subsequent saves
+   * @param {Object} options - Save options
+   * @param {boolean} options.includeStreaming - Include current streaming message in save (for emergency saves)
    */
-  const saveAgentConversation = async () => {
-    if (agentConversation.value.length === 0) {
+  const saveAgentConversation = async (options = {}) => {
+    const { includeStreaming = false } = options
+
+    if (agentConversation.value.length === 0 && !agentStreamingMessage.value) {
       return null
     }
 
     try {
       // Deep clone conversation to avoid reactive proxy issues
-      const conversationSnapshot = JSON.parse(JSON.stringify(agentConversation.value))
+      let conversationSnapshot = JSON.parse(JSON.stringify(agentConversation.value))
+
+      // Include streaming message if requested (for emergency saves during streaming)
+      if (includeStreaming && agentStreamingMessage.value) {
+        const streamingCopy = JSON.parse(JSON.stringify(agentStreamingMessage.value))
+        // Mark as partial save so it can be identified when loading
+        streamingCopy._isPartial = true
+        // Ensure message has required fields
+        streamingCopy.id = streamingCopy.id || generateMessageId()
+        streamingCopy.timestamp = streamingCopy.timestamp || Date.now()
+        conversationSnapshot.push(streamingCopy)
+      }
+
+      // Skip if nothing to save after processing
+      if (conversationSnapshot.length === 0) {
+        return null
+      }
 
       // Extract first user text message as prompt (max 200 chars)
       let prompt = ''
@@ -1034,14 +1054,22 @@ export const useGeneratorStore = defineStore('generator', () => {
         }
       }
 
+      // Remove partial messages (from emergency saves during streaming)
+      // These are incomplete AI responses that were saved when user left mid-stream
+      const cleanedConversation = conversation.filter((msg) => !msg._isPartial)
+
       // Set conversation and history ID (to continue updating the same record)
-      agentConversation.value = conversation
+      agentConversation.value = cleanedConversation
       currentAgentHistoryId.value = historyId
       agentSessionId.value = `session-${Date.now()}`
       agentStreamingMessage.value = null
       savedAgentImageCount.value = loadedImageCount // Track already-saved images
 
-      console.log('[loadAgentFromHistory] Loaded conversation with', conversation.length, 'messages')
+      const removedPartialCount = conversation.length - cleanedConversation.length
+      if (removedPartialCount > 0) {
+        console.log(`[loadAgentFromHistory] Removed ${removedPartialCount} partial message(s)`)
+      }
+      console.log('[loadAgentFromHistory] Loaded conversation with', cleanedConversation.length, 'messages')
       return true
     } catch (err) {
       console.error('[loadAgentFromHistory] Failed:', err)

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useAgentApi } from '@/composables/useAgentApi'
 import { useApiKeyManager } from '@/composables/useApiKeyManager'
+import { useAgentAutoSave } from '@/composables/useAgentAutoSave'
 import { useToast } from '@/composables/useToast'
 import { compressToWebP, blobToBase64 } from '@/composables/useImageCompression'
 import { MAX_UPLOAD_IMAGES } from '@/constants/defaults'
@@ -19,6 +20,7 @@ const store = useGeneratorStore()
 const toast = useToast()
 const { sendMessageWithFallback } = useAgentApi()
 const { hasApiKeyFor } = useApiKeyManager()
+const autoSave = useAgentAutoSave()
 
 // Refs
 const messagesContainer = ref(null)
@@ -77,6 +79,8 @@ onMounted(() => {
     store.startNewAgentSession()
   }
   scrollToBottom()
+  // Set up auto-save event listeners
+  autoSave.setup()
 })
 
 // Handle prompt from URL query params (set by HomeView)
@@ -140,6 +144,13 @@ const sendMessage = async () => {
       parts: userParts,
     })
 
+    // Immediately save user message to protect against page navigation/close
+    try {
+      await store.saveAgentConversation()
+    } catch (err) {
+      console.error('[AgentChat] Failed to save user message:', err)
+    }
+
     // Prepare streaming message
     store.setAgentStreamingMessage({
       role: 'model',
@@ -160,8 +171,13 @@ const sendMessage = async () => {
             parts: [...accumulatedParts],
             isStreaming: true,
           })
+          // Trigger debounced save to protect partial response
+          autoSave.triggerDebouncedSave()
         },
         onComplete: async (finalParts) => {
+          // Cancel any pending debounced save before final save
+          autoSave.cancelDebouncedSave()
+
           // Clear streaming message
           store.clearAgentStreamingMessage()
 
@@ -179,6 +195,8 @@ const sendMessage = async () => {
           }
         },
         onError: (error) => {
+          // Cancel any pending debounced save
+          autoSave.cancelDebouncedSave()
           store.clearAgentStreamingMessage()
           toast.error(error.message || t('agent.sendFailed'))
         },
@@ -413,6 +431,8 @@ const handleClearInput = async () => {
 
 // Cleanup
 onUnmounted(() => {
+  // Clean up auto-save event listeners and timers
+  autoSave.cleanup()
   // Revoke blob URLs
   for (const img of pendingImages.value) {
     if (img.preview && img.preview.startsWith('blob:')) {
