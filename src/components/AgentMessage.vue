@@ -343,7 +343,10 @@ const isCodeSuccess = (part) => {
           class="max-w-[120px]"
           :class="isUser ? 'ml-auto' : ''"
         >
-          <div class="rounded-lg overflow-hidden border border-border-muted">
+          <div
+            class="rounded-lg overflow-hidden border border-border-muted cursor-pointer hover:ring-2 hover:ring-brand-primary transition-all"
+            @click="handleImageClick(part, index)"
+          >
             <img
               :src="`data:${part.mimeType};base64,${part.data}`"
               alt="Uploaded image"
