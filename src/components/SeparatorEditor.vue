@@ -38,6 +38,14 @@ const props = defineProps({
     type: [Number, null],
     default: null,
   },
+  canUndo: {
+    type: Boolean,
+    default: false,
+  },
+  canRedo: {
+    type: Boolean,
+    default: false,
+  },
   zoom: {
     type: Number,
     default: 1,
@@ -66,6 +74,8 @@ const emit = defineEmits([
   'deselectLine',
   'deleteLine',
   'clearAllLines',
+  'undo',
+  'redo',
   'resetZoomPan',
   'containerReady',
   'wheel',
@@ -323,6 +333,18 @@ const handleCanvasClick = () => {
 
 // Keyboard handling
 const handleKeydown = (e) => {
+  // Undo: Ctrl+Z / Cmd+Z
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    emit('undo')
+    return
+  }
+  // Redo: Ctrl+Shift+Z / Cmd+Shift+Z or Ctrl+Y / Cmd+Y
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    e.preventDefault()
+    emit('redo')
+    return
+  }
   if (e.key === '0') {
     e.preventDefault()
     emit('resetZoomPan')
@@ -378,6 +400,41 @@ onUnmounted(() => {
           />
         </svg>
         {{ isDrawing ? t('stickerCropper.separator.cancelDraw') : t('stickerCropper.separator.draw') }}
+      </button>
+
+      <!-- Undo/Redo buttons -->
+      <button
+        @click="emit('undo')"
+        :disabled="!canUndo"
+        class="toolbar-btn"
+        :class="{ disabled: !canUndo }"
+        :title="t('common.undo') + ' (Ctrl+Z)'"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+          />
+        </svg>
+      </button>
+
+      <button
+        @click="emit('redo')"
+        :disabled="!canRedo"
+        class="toolbar-btn"
+        :class="{ disabled: !canRedo }"
+        :title="t('common.redo') + ' (Ctrl+Shift+Z)'"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
+          />
+        </svg>
       </button>
 
       <button
@@ -483,6 +540,7 @@ onUnmounted(() => {
             :y2="line.displayEnd.y"
             class="separator-line"
             :class="{ selected: selectedLineId === line.id }"
+            @click.stop="handleLineClick($event, line.id)"
           />
 
           <!-- Start/End points (also clickable) -->

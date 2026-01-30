@@ -23,6 +23,10 @@ export function useStickerSeparator() {
   const selectedLineId = ref(null) // For deletion
   let lineIdCounter = 0
 
+  // Undo/Redo history (snapshot-based)
+  const history = ref([]) // Array of snapshots: [{lines: [...], lineIdCounter: number}]
+  const historyIndex = ref(-1) // Current position in history (-1 = no history yet)
+
   // Zoom/Pan state
   const zoom = ref(1)
   const pan = ref({ x: 0, y: 0 })
@@ -38,10 +42,48 @@ export function useStickerSeparator() {
   const lastTapTime = ref(0)
   const touchMoved = ref(false)
 
+  // Snapshot helpers for undo/redo
+  const createSnapshot = () => ({
+    lines: JSON.parse(JSON.stringify(separatorLines.value)),
+    lineIdCounter,
+  })
+
+  const restoreSnapshot = (snapshot) => {
+    separatorLines.value = JSON.parse(JSON.stringify(snapshot.lines))
+    lineIdCounter = snapshot.lineIdCounter
+    selectedLineId.value = null
+  }
+
+  const saveToHistory = () => {
+    // Truncate any redo history when making a new change
+    if (historyIndex.value < history.value.length - 1) {
+      history.value = history.value.slice(0, historyIndex.value + 1)
+    }
+    history.value.push(createSnapshot())
+    historyIndex.value = history.value.length - 1
+  }
+
+  // Computed for undo/redo availability
+  const canUndo = computed(() => historyIndex.value > 0)
+  const canRedo = computed(() => historyIndex.value < history.value.length - 1)
+
+  const undo = () => {
+    if (!canUndo.value) return
+    historyIndex.value--
+    restoreSnapshot(history.value[historyIndex.value])
+  }
+
+  const redo = () => {
+    if (!canRedo.value) return
+    historyIndex.value++
+    restoreSnapshot(history.value[historyIndex.value])
+  }
+
   // Line management
   const addLine = (start, end) => {
     const id = ++lineIdCounter
     separatorLines.value.push({ id, start, end })
+    saveToHistory()
     return id
   }
 
@@ -49,6 +91,7 @@ export function useStickerSeparator() {
     const index = separatorLines.value.findIndex((l) => l.id === id)
     if (index !== -1) {
       separatorLines.value.splice(index, 1)
+      saveToHistory()
     }
     if (selectedLineId.value === id) {
       selectedLineId.value = null
@@ -56,9 +99,11 @@ export function useStickerSeparator() {
   }
 
   const clearAllLines = () => {
+    if (separatorLines.value.length === 0) return
     separatorLines.value = []
     selectedLineId.value = null
     cancelDrawing()
+    saveToHistory()
   }
 
   const selectLine = (id) => {
@@ -360,7 +405,18 @@ export function useStickerSeparator() {
     previewLine.value = null
     selectedLineId.value = null
     lineIdCounter = 0
+    // Reset history
+    history.value = []
+    historyIndex.value = -1
     resetZoomPan()
+  }
+
+  // Initialize history with empty state
+  const initHistory = () => {
+    if (history.value.length === 0) {
+      history.value.push(createSnapshot())
+      historyIndex.value = 0
+    }
   }
 
   return {
@@ -374,6 +430,10 @@ export function useStickerSeparator() {
     firstPoint,
     previewLine,
     selectedLineId,
+
+    // Undo/Redo state
+    canUndo,
+    canRedo,
 
     // Zoom/Pan state
     zoom,
@@ -390,6 +450,11 @@ export function useStickerSeparator() {
     clearAllLines,
     selectLine,
     deselectLine,
+
+    // Undo/Redo methods
+    undo,
+    redo,
+    initHistory,
 
     // Drawing methods
     startDrawing,

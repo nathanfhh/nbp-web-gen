@@ -66,6 +66,8 @@ const {
   firstPoint: separatorFirstPoint,
   previewLine: separatorPreviewLine,
   selectedLineId,
+  canUndo: separatorCanUndo,
+  canRedo: separatorCanRedo,
   zoom: separatorZoom,
   pan: separatorPan,
   isDragging: separatorIsDragging,
@@ -79,6 +81,9 @@ const {
   deselectLine,
   deleteLine,
   clearAllLines,
+  undo: separatorUndo,
+  redo: separatorRedo,
+  initHistory: initSeparatorHistory,
   resetZoomPan,
   fitToContainer,
   handleWheel: handleSeparatorWheel,
@@ -669,9 +674,10 @@ const resetState = () => {
   resetSeparatorState()
 }
 
-// Handle separator editor container ready - reset zoom to 1
+// Handle separator editor container ready - reset zoom to 1 and init history
 const handleSeparatorContainerReady = () => {
   fitToContainer()
+  initSeparatorHistory()
 }
 
 // Handle clear all lines with confirmation
@@ -985,6 +991,8 @@ onUnmounted(() => {
                 :first-point="separatorFirstPoint"
                 :preview-line="separatorPreviewLine"
                 :selected-line-id="selectedLineId"
+                :can-undo="separatorCanUndo"
+                :can-redo="separatorCanRedo"
                 :zoom="separatorZoom"
                 :pan="separatorPan"
                 :is-dragging="separatorIsDragging"
@@ -998,6 +1006,8 @@ onUnmounted(() => {
                 @deselect-line="deselectLine"
                 @delete-line="deleteLine"
                 @clear-all-lines="handleClearAllLines"
+                @undo="separatorUndo"
+                @redo="separatorRedo"
                 @reset-zoom-pan="resetZoomPan"
                 @container-ready="handleSeparatorContainerReady"
                 @wheel="handleSeparatorWheel"
