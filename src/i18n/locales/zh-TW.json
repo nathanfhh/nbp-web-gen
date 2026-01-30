@@ -146,7 +146,9 @@
     "codeSuccess": "執行成功",
     "codeFailed": "執行失敗",
     "sessionArchived": "對話已存入歷史記錄",
-    "archiveFailed": "儲存對話失敗"
+    "archiveFailed": "儲存對話失敗",
+    "clearInputTitle": "清除輸入",
+    "clearInputMessage": "確定要清除目前輸入的文字和圖片嗎？"
   },
   "prompt": {
     "label": "Prompt 描述",

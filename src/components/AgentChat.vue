@@ -385,6 +385,32 @@ const handleContinueAbout = ({ part }) => {
   toast.info(t('agent.imageAddedForFollowup'))
 }
 
+// Handle clear input with confirmation
+const handleClearInput = async () => {
+  const hasContent = inputText.value.trim() || pendingImages.value.length > 0
+  if (!hasContent) return
+
+  const confirmed = await confirmModal.value?.show({
+    title: t('agent.clearInputTitle'),
+    message: t('agent.clearInputMessage'),
+    confirmText: t('common.clear'),
+    cancelText: t('common.cancel'),
+  })
+
+  if (!confirmed) return
+
+  // Clear text
+  inputText.value = ''
+
+  // Clear pending images and revoke blob URLs
+  for (const img of pendingImages.value) {
+    if (img.preview && img.preview.startsWith('blob:')) {
+      URL.revokeObjectURL(img.preview)
+    }
+  }
+  pendingImages.value = []
+}
+
 // Cleanup
 onUnmounted(() => {
   // Revoke blob URLs
@@ -497,10 +523,11 @@ onUnmounted(() => {
       <!-- Input row -->
       <div class="flex items-center gap-2">
         <!-- Hidden file input -->
+        <!-- Use file extensions (not MIME types) to trigger Android's general file picker with camera option -->
         <input
           ref="fileInput"
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif,image/*"
+          accept=".png,.jpg,.jpeg,.webp,.gif"
           multiple
           class="hidden"
           @change="handleFileSelect"
@@ -528,9 +555,20 @@ onUnmounted(() => {
             :placeholder="$t('agent.placeholder')"
             :disabled="isProcessing || !hasApiKey"
             rows="1"
-            class="w-full px-4 py-2.5 rounded-xl border border-border-muted bg-bg-input text-text-primary placeholder-text-muted resize-none focus:outline-none focus:ring-2 focus:ring-mode-generate focus:border-transparent transition-all max-h-32"
+            class="w-full px-4 py-2.5 pr-10 rounded-xl border border-border-muted bg-bg-input text-text-primary placeholder-text-muted resize-none focus:outline-none focus:ring-2 focus:ring-mode-generate focus:border-transparent transition-all max-h-32"
             style="min-height: 44px;"
           ></textarea>
+          <!-- Clear input button (inside textarea, fixed at top-right) -->
+          <button
+            v-if="inputText.trim() || pendingImages.length > 0"
+            @click="handleClearInput"
+            class="absolute right-2 top-2.5 w-6 h-6 rounded-full bg-bg-muted hover:bg-status-error-muted text-text-muted hover:text-status-error transition-colors flex items-center justify-center"
+            :title="$t('common.clear')"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <!-- Send button -->
@@ -548,7 +586,7 @@ onUnmounted(() => {
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
           </svg>
           <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
         </button>
       </div>

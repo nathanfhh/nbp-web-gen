@@ -146,7 +146,9 @@
     "codeSuccess": "Success",
     "codeFailed": "Failed",
     "sessionArchived": "Session saved to history",
-    "archiveFailed": "Failed to save session"
+    "archiveFailed": "Failed to save session",
+    "clearInputTitle": "Clear Input",
+    "clearInputMessage": "Are you sure you want to clear the current text and images?"
   },
   "prompt": {
     "label": "Prompt Description",
