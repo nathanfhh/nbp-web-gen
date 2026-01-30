@@ -149,7 +149,10 @@ const loadHistoryItem = async (item) => {
 
   if (!confirmed) return
 
-  store.prompt = item.prompt
+  // Agent mode doesn't use store.prompt - setMode will clear it, but don't set it first to avoid race conditions
+  if (item.mode !== 'agent') {
+    store.prompt = item.prompt
+  }
   store.setMode(item.mode)
   store.temperature = item.options?.temperature ?? 1.0
   store.seed = item.options?.seed ?? ''

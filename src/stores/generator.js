@@ -340,6 +340,11 @@ export const useGeneratorStore = defineStore('generator', () => {
   // ============================================================================
 
   const setMode = (mode) => {
+    // Agent mode has its own conversation input, clear prompt to prevent leaking from other modes
+    // Note: URL params bypass setMode (direct assignment to currentMode), so this won't affect ?prompt=xxx
+    if (mode === 'agent') {
+      prompt.value = ''
+    }
     currentMode.value = mode
     // Auto-saved by watcher
   }
