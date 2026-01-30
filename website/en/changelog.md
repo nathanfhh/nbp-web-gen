@@ -2,6 +2,19 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.7
+
+_2026-01-30_
+
+### New Features
+- **Sticker Cropper**: Add Undo/Redo for separator lines with toolbar buttons and keyboard shortcuts (Ctrl+Z / Ctrl+Shift+Z)
+- **History**: Agent mode conversations now support clicking thumbnails to open image lightbox
+
+### Fixes
+- **Sticker Cropper**: Improve separator line precision and selection UX (visible dashed lines now clickable for selection)
+- **Sticker Cropper**: Improve manual crop UX (drag to adjust endpoints, larger tap targets)
+- **Agentic Vision**: Improve mobile chat UX (hide avatars, full-width message bubbles)
+
 ## v0.26.6
 
 _2026-01-29_
