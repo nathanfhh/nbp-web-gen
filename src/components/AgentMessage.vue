@@ -163,15 +163,15 @@ const isCodeSuccess = (part) => {
 
 <template>
   <div
-    class="agent-message flex gap-3 py-4"
+    class="agent-message flex gap-0 sm:gap-3 py-4"
     :class="[
       isUser ? 'flex-row-reverse' : '',
       isStreaming ? 'animate-pulse-subtle' : ''
     ]"
   >
-    <!-- Avatar -->
+    <!-- Avatar (hidden on mobile) -->
     <div
-      class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+      class="hidden sm:flex flex-shrink-0 w-8 h-8 rounded-full items-center justify-center"
       :class="isUser ? 'bg-brand-primary-muted' : 'bg-mode-generate-muted'"
     >
       <!-- User icon -->
@@ -216,7 +216,7 @@ const isCodeSuccess = (part) => {
         <!-- Text part with Markdown rendering -->
         <div
           v-if="part.type === 'text'"
-          class="rounded-2xl px-4 py-2 max-w-[85%]"
+          class="rounded-2xl px-4 py-2 max-w-full sm:max-w-[85%]"
           :class="isUser
             ? 'bg-brand-primary text-text-on-brand ml-auto'
             : 'bg-bg-muted text-text-primary'"
@@ -227,7 +227,7 @@ const isCodeSuccess = (part) => {
         <!-- Thought/reasoning part (collapsible with title) -->
         <div
           v-else-if="part.type === 'thought'"
-          class="rounded-xl border border-border-muted bg-bg-subtle/50 max-w-[85%] overflow-hidden"
+          class="rounded-xl border border-border-muted bg-bg-subtle/50 max-w-full sm:max-w-[85%] overflow-hidden"
         >
           <button
             @click="toggleThought(index)"
@@ -263,7 +263,7 @@ const isCodeSuccess = (part) => {
         <!-- Code part -->
         <div
           v-else-if="part.type === 'code'"
-          class="rounded-xl border border-border-muted overflow-hidden max-w-[90%]"
+          class="rounded-xl border border-border-muted overflow-hidden max-w-full sm:max-w-[90%]"
         >
           <div class="flex items-center justify-between px-3 py-1.5 bg-bg-muted border-b border-border-muted">
             <span class="text-xs font-mono text-text-muted">{{ getLanguageDisplay(part.language) }}</span>
@@ -277,7 +277,7 @@ const isCodeSuccess = (part) => {
         <!-- Code execution result -->
         <div
           v-else-if="part.type === 'codeResult'"
-          class="rounded-xl border overflow-hidden max-w-[90%]"
+          class="rounded-xl border overflow-hidden max-w-full sm:max-w-[90%]"
           :class="isCodeSuccess(part) ? 'border-status-success' : 'border-status-error'"
         >
           <div
