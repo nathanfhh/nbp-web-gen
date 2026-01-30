@@ -9,6 +9,7 @@ import { useGeneratorStore } from '@/stores/generator'
 import { useImageStorage } from '@/composables/useImageStorage'
 import { useVideoStorage } from '@/composables/useVideoStorage'
 import { useAudioStorage } from '@/composables/useAudioStorage'
+import { useConversationStorage } from '@/composables/useConversationStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
 import { getModeTagStyle } from '@/constants'
 import ConfirmModal from '@/components/ConfirmModal.vue'
@@ -29,6 +30,7 @@ const store = useGeneratorStore()
 const imageStorage = useImageStorage()
 const videoStorage = useVideoStorage()
 const audioStorage = useAudioStorage()
+const conversationStorage = useConversationStorage()
 const confirmModal = ref(null)
 
 // Filter state
@@ -361,6 +363,75 @@ const closeVideoLightbox = () => {
   videoMetadata.value = null
 }
 
+// Open lightbox for agent mode images
+const openAgentLightbox = async (item, event) => {
+  if (item.mode !== 'agent') return
+
+  // Only open lightbox if there's a thumbnail (indicates images exist)
+  // If no thumbnail, let the click bubble up to loadHistoryItem
+  if (!item.thumbnail) return
+
+  event.stopPropagation()
+
+  isLoadingImages.value = true
+
+  try {
+    // Load conversation from OPFS
+    const opfsPath = `/conversations/${item.id}/conversation.json`
+    const conversation = await conversationStorage.loadConversation(opfsPath)
+
+    if (!conversation || conversation.length === 0) {
+      console.warn('[openAgentLightbox] No conversation found')
+      return
+    }
+
+    // Collect all image parts from conversation
+    const images = []
+    for (const msg of conversation) {
+      if (!msg.parts) continue
+      for (const part of msg.parts) {
+        if (part.dataStoredExternally && part.imageIndex !== undefined) {
+          try {
+            // Load image from OPFS
+            const imagePath = `/images/${item.id}/${part.imageIndex}.webp`
+            const base64 = await imageStorage.getImageBase64(imagePath)
+            if (base64) {
+              images.push({
+                data: base64,
+                mimeType: 'image/webp',
+              })
+            }
+          } catch (err) {
+            console.warn('[openAgentLightbox] Failed to load image:', part.imageIndex, err)
+          }
+        }
+      }
+    }
+
+    if (images.length === 0) {
+      console.warn('[openAgentLightbox] No images found in conversation')
+      return
+    }
+
+    // Convert to format expected by lightbox (object with data/mimeType or url)
+    lightboxImages.value = images.map((img) => ({
+      data: img.data,
+      mimeType: img.mimeType,
+    }))
+    lightboxMetadata.value = images.map(() => ({})) // Empty metadata for agent images
+    lightboxHistoryId.value = item.id
+    lightboxInitialIndex.value = 0
+    lightboxItemMode.value = 'agent'
+    lightboxAudioUrls.value = []
+
+    showLightbox.value = true
+  } catch (err) {
+    console.error('[openAgentLightbox] Failed:', err)
+  } finally {
+    isLoadingImages.value = false
+  }
+}
+
 // History transfer (export/import)
 const showTransfer = ref(false)
 
@@ -499,6 +570,7 @@ const handleImported = async () => {
             class="flex-shrink-0 flex flex-col items-center gap-1"
           >
             <div
+              @click="openAgentLightbox(item, $event)"
               class="relative w-14 h-14 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-primary-light transition-all"
               :class="item.thumbnail ? '' : 'bg-mode-generate-muted flex items-center justify-center'"
             >
