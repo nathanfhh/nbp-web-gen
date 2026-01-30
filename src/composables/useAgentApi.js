@@ -353,16 +353,6 @@ export function useAgentApi() {
     }, 'text')
   }
 
-  /**
-   * Cancel the current streaming operation
-   */
-  const cancelStream = () => {
-    // Note: Google SDK doesn't have a direct cancel method
-    // The stream will continue but we can ignore the results
-    currentChatSession.value = null
-    isStreaming.value = false
-  }
-
   return {
     // State
     isStreaming,
@@ -370,11 +360,5 @@ export function useAgentApi() {
     // Methods
     sendMessageStream,
     sendMessageWithFallback,
-    cancelStream,
-
-    // Utilities
-    parsePart,
-    buildChatHistory,
-    buildMessageParts,
   }
 }

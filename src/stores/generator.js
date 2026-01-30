@@ -994,15 +994,6 @@ export const useGeneratorStore = defineStore('generator', () => {
   }
 
   /**
-   * @deprecated Use saveAgentConversation() instead. This is kept for backward compatibility.
-   * Archive is now automatic on each AI response via saveAgentConversation().
-   */
-  const archiveAgentSession = async () => {
-    // Delegate to saveAgentConversation for backward compatibility
-    return saveAgentConversation()
-  }
-
-  /**
    * Load agent conversation from history record
    * Used when user clicks on an agent history item to continue the conversation
    * @param {number} historyId - History record ID
@@ -1170,7 +1161,6 @@ export const useGeneratorStore = defineStore('generator', () => {
     clearAgentStreamingMessage,
     clearAgentConversation,
     saveAgentConversation,
-    archiveAgentSession,
     loadAgentFromHistory,
     currentAgentHistoryId,
     getAgentContextMessages,

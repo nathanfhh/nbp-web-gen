@@ -161,7 +161,7 @@ export function useApiKeyManager() {
 /**
  * 檢查錯誤是否為額度不足相關
  */
-function isQuotaError(error) {
+export function isQuotaError(error) {
   // HTTP 狀態碼檢查
   if (error?.status === 429 || error?.code === 429) {
     return true

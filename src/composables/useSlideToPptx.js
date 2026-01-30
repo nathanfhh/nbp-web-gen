@@ -14,7 +14,7 @@ import { GoogleGenAI, Modality } from '@google/genai'
 import { useOcr } from './useOcr'
 import { useInpaintingWorker } from './useInpaintingWorker'
 import { usePptxExport } from './usePptxExport'
-import { useApiKeyManager } from './useApiKeyManager'
+import { useApiKeyManager, isQuotaError } from './useApiKeyManager'
 import { getSettings as getOcrSettings } from './useOcrSettings'
 import { mergeTextRegions } from '@/utils/ocr-core'
 import { t } from '@/i18n'
@@ -442,21 +442,6 @@ Output: A single clean image with all text removed.`
       }
       throw error
     }
-  }
-
-  /**
-   * Check if error is a quota/rate limit error
-   */
-  const isQuotaError = (error) => {
-    if (error?.status === 429 || error?.code === 429) return true
-    const message = (error?.message || '').toLowerCase()
-    return (
-      message.includes('quota') ||
-      message.includes('rate limit') ||
-      message.includes('exhausted') ||
-      message.includes('exceeded') ||
-      message.includes('too many requests')
-    )
   }
 
   /**
