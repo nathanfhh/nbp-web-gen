@@ -2,6 +2,21 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.8
+
+_2026-01-30_
+
+### New Features
+- **Agentic Vision**: Add clear conversation button and improve send icon design
+
+### Fixes
+- **Agentic Vision**: Fix prompt leaking from other modes into agent input
+- **Agentic Vision**: Enable camera option in Android file picker
+- **Agentic Vision**: User uploaded images now support lightbox viewing
+
+### Refactor
+- Remove dead code and consolidate isQuotaError utility function
+
 ## v0.26.7
 
 _2026-01-30_

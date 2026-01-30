@@ -2,6 +2,21 @@
 
 此頁面記錄 Mediator 的版本更新內容。
 
+## v0.26.8
+
+_2026-01-30_
+
+### 新功能
+- **Agentic Vision**: 新增清除對話按鈕與改善發送圖示設計
+
+### 修復
+- **Agentic Vision**: 修正其他模式的 prompt 洩漏到 agent 輸入框的問題
+- **Agentic Vision**: Android 檔案選擇器啟用相機選項
+- **Agentic Vision**: 使用者上傳的圖片支援點擊開啟燈箱
+
+### 重構
+- 移除死碼並整合 isQuotaError 工具函數
+
 ## v0.26.7
 
 _2026-01-30_
