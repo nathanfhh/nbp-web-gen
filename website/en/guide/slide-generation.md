@@ -245,7 +245,7 @@ AI automatically arranges a narrative arc: the first page includes a cohesive in
 - **Download Options**:
   - ZIP download automatically includes audio files (`narration-1.mp3`, `narration-2.mp3`…)
   - Lightbox download menu has a "Narration Audio" section for downloading current page or all audio
-  - MP4 download merges all page images and narration audio into a single video (requires WebCodecs support; not available in Firefox)
+  - MP4 download merges all page images and narration audio into a single video (with quality selection; requires WebCodecs support; not available in Firefox)
   - PDF download contains images only (no audio)
 
 ::: tip Audio Format
@@ -271,7 +271,14 @@ After generation, you can:
 - Download as MP4 video (images + narration audio merged into a video, using WebCodecs H.264/AAC encoding)
 
 ::: info MP4 Export
-MP4 export requires browser support for the WebCodecs API. Currently supported in Chrome and Edge; not available in Firefox (the button is automatically hidden). Pages without narration are filled with 5 seconds of silence; pages with narration last as long as the audio.
+MP4 export requires browser support for the WebCodecs API. Currently supported in Chrome and Edge; not available in Firefox (the button is automatically hidden).
+
+When you click the MP4 button, a quality selection dialog appears:
+- **Low Quality** (4 Mbps): Smaller file size, ideal for quick sharing
+- **Medium Quality** (8 Mbps): Balance between quality and file size (default)
+- **High Quality** (12 Mbps): Best visual quality, ideal for formal presentations
+
+Your choice is remembered for next time. Pages without narration are filled with 5 seconds of silence; pages with narration last as long as the audio.
 :::
 
 ::: tip Need Editable PPTX?

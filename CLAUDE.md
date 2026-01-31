@@ -253,6 +253,7 @@ Key points:
 - `workers/pdfToImages.worker.js` - PDF to PNG conversion using PDF.js
 - `workers/ocr.worker.js` - OCR text detection using ONNX Runtime and PaddleOCR
 - `workers/inpainting.worker.js` - Text removal using OpenCV.js inpainting
+- `workers/mp4Encoder.worker.js` - MP4 video encoding using WebCodecs API (H.264/AAC) and mp4-muxer
 
 **⚠️ PDF.js Version Matching Rule**
 
@@ -381,6 +382,7 @@ First-time user guidance system:
 - `useApiKeyManager.js` - Dual API key management with automatic fallback
 - `useSketchCanvas.js` - Fabric.js canvas for hand-drawing (see Sketch Canvas section)
 - `useSketchHistory.js` - Undo/redo using Pinia store (see Sketch Canvas section)
+- `useMp4Encoder.js` - MP4 encoding orchestration (see MP4 Encoding section)
 
 ### Sketch Canvas (Hand-Drawing Feature)
 
@@ -399,6 +401,54 @@ First-time user guidance system:
 | `composables/useSketchCanvas.js` | Fabric.js canvas 操作，`skipSnapshot` 參數 |
 | `components/SketchCanvas.vue` | UI，決定何時跳過快照 |
 | `components/ImageUploader.vue` | 呼叫 `startSketchEdit`，保存時更新 index |
+
+### MP4 Encoding (Slides to Video)
+
+將簡報圖片 + 語音旁白合併為 MP4 影片的功能。
+
+**流程架構：**
+```
+Main Thread                              Worker Thread
+────────────                             ─────────────
+AudioContext.decodeAudioData()
+  ↓ (PCM Float32)
+postMessage({ images, audioPcmData })  →  mp4Encoder.worker.js
+                                            ↓
+                                         VideoEncoder (H.264)
+                                         AudioEncoder (AAC/Opus)
+                                            ↓
+                                         mp4-muxer
+                                            ↓
+                                         ArrayBuffer (MP4)
+  ← postMessage({ data })
+Blob → download
+```
+
+**關鍵設計決策：**
+
+| 決策 | 原因 |
+|------|------|
+| 音訊在主執行緒解碼 | `AudioContext.decodeAudioData()` 在 Worker 中不可靠 |
+| PCM 以 `Float32Array` 傳遞 | 使用 transferable 避免複製 |
+| AAC → Opus fallback | AAC 需要硬體/授權編碼器，Opus 有普遍軟體支援 |
+| 每頁 2 fps 靜態畫面 | 保持標準影片結構，同時最小化檔案大小 |
+| 頁間 0.4 秒淡入淡出 | 平滑轉場效果 |
+
+**品質選項：**
+
+| 品質 | Bitrate | localStorage Key |
+|------|---------|------------------|
+| 低 | 4 Mbps | `nbp-mp4-quality: 'low'` |
+| 中（預設） | 8 Mbps | `nbp-mp4-quality: 'medium'` |
+| 高 | 12 Mbps | `nbp-mp4-quality: 'high'` |
+
+**相關檔案：**
+| 檔案 | 職責 |
+|------|------|
+| `workers/mp4Encoder.worker.js` | WebCodecs 編碼 + mp4-muxer 封裝 |
+| `composables/useMp4Encoder.js` | 主執行緒音訊解碼 + Worker 協調 |
+| `composables/useLightboxDownload.js` | 下載流程整合 |
+| `components/Mp4QualityModal.vue` | 品質選擇 UI |
 
 ### API Key 分流機制
 
