@@ -13,6 +13,7 @@ import { useLightboxDownload } from '@/composables/useLightboxDownload'
 import { useMp4Encoder } from '@/composables/useMp4Encoder'
 import StickerCropper from '@/components/StickerCropper.vue'
 import LightboxAudioPlayer from '@/components/LightboxAudioPlayer.vue'
+import Mp4QualityModal from '@/components/Mp4QualityModal.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -508,11 +509,21 @@ const downloadAllAsPdf = async () => {
   })
 }
 
-const downloadAllAsMp4 = async () => {
+// MP4 quality modal state
+const showMp4QualityModal = ref(false)
+
+// Open MP4 quality modal instead of directly downloading
+const handleMp4Click = () => {
+  closeDownloadMenu()
+  showMp4QualityModal.value = true
+}
+
+const downloadAllAsMp4 = async (videoBitrate) => {
   await downloadDownloadAllAsMp4({
     images: props.images,
     historyId: props.historyId,
     audioUrls: props.narrationAudioUrls,
+    videoBitrate,
   })
 }
 
@@ -770,7 +781,7 @@ const goToSlideToPptx = async () => {
                 </button>
                 <button
                   v-if="isWebCodecsSupported"
-                  @click="downloadAllAsMp4"
+                  @click="handleMp4Click"
                   :disabled="isAnyDownloading"
                   :class="{ 'opacity-50 cursor-wait': mp4Encoder.isEncoding.value }"
                   class="download-option"
@@ -1085,6 +1096,12 @@ const goToSlideToPptx = async () => {
       :history-id="historyId"
       @close="closeCropper"
       @extract-character="handleExtractCharacter"
+    />
+
+    <!-- MP4 Quality Modal -->
+    <Mp4QualityModal
+      v-model="showMp4QualityModal"
+      @confirm="downloadAllAsMp4"
     />
   </Teleport>
 

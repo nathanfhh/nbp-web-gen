@@ -52,6 +52,7 @@ export function useMp4Encoder() {
    * @param {string[]} options.imageMimeTypes - MIME types for images
    * @param {(ArrayBuffer|null)[]} options.audioBuffers - Audio data (null = no audio)
    * @param {number} [options.defaultPageDuration=5] - Duration for pages without audio
+   * @param {number} [options.videoBitrate=8000000] - Video bitrate in bps
    * @returns {Promise<ArrayBuffer>} MP4 data
    */
   const encodeMp4 = async (options) => {
@@ -126,6 +127,7 @@ export function useMp4Encoder() {
           imageMimeTypes: options.imageMimeTypes,
           audioPcmData,
           defaultPageDuration: options.defaultPageDuration ?? 5,
+          videoBitrate: options.videoBitrate,
         }, transferables)
       })
 

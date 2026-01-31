@@ -863,6 +863,17 @@
     "zipError": "ZIP 產生失敗",
     "mp4Error": "MP4 影片產生失敗",
     "mp4Progress": "正在編碼 {current}/{total}…",
+    "mp4Quality": {
+      "title": "選擇影片品質",
+      "hint": "較高品質會產生較大的檔案",
+      "low": "低品質",
+      "lowDesc": "4 Mbps，檔案較小",
+      "medium": "中品質",
+      "mediumDesc": "8 Mbps，平衡品質與大小",
+      "high": "高品質",
+      "highDesc": "12 Mbps，最佳畫質",
+      "start": "開始編碼"
+    },
     "narrationAudio": "旁白音頻",
     "currentAudio": "下載當前音頻",
     "allAudioZip": "全部音頻 (ZIP)",

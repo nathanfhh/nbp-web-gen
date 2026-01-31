@@ -21,6 +21,7 @@
 | **10010** | `OcrSettingsModal` | `OcrSettingsModal.vue` | OCR 設定 |
 | **10010** | `InpaintConfirmModal` | `InpaintConfirmModal.vue` | Inpaint 確認 |
 | **10010** | `PreviewLightbox` | `PreviewLightbox.vue` | 預覽 Lightbox |
+| **10010** | `Mp4QualityModal` | `Mp4QualityModal.vue` | MP4 品質選擇 |
 
 > **規則**：所有 Modal 統一使用 z-index: 10010，確保在所有其他 UI 之上。
 
@@ -118,3 +119,4 @@ body
 | 2026-01-21 | 將 `region-sidebar` 和 `toggle` Teleport 到 body | 解決 stacking context 限制 |
 | 2026-01-21 | SVG Overlay 加入 `z-index: 1` | 確保區域標記顯示在圖片之上 |
 | 2026-01-21 | 所有 Modal 統一提升到 z-index: 10010 | 確保 Modal 在所有 UI 之上 |
+| 2026-01-31 | 新增 `Mp4QualityModal` (z-index: 10010) | MP4 品質選擇功能 |

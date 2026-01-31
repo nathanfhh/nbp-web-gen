@@ -344,8 +344,9 @@ export function useLightboxDownload(deps) {
    * @param {Array} params.images - Array of image objects
    * @param {number|null} params.historyId - History ID for naming
    * @param {Array} [params.audioUrls] - Optional array of audio Object URLs (per-page)
+   * @param {number} [params.videoBitrate] - Video bitrate in bps
    */
-  const downloadAllAsMp4 = async ({ images, historyId, audioUrls }) => {
+  const downloadAllAsMp4 = async ({ images, historyId, audioUrls, videoBitrate }) => {
     if (images.length === 0 || isBatchDownloading.value || !mp4Encoder) return
 
     isBatchDownloading.value = true
@@ -393,6 +394,7 @@ export function useLightboxDownload(deps) {
         images: imageBuffers,
         imageMimeTypes,
         audioBuffers,
+        videoBitrate,
       }, `${prefix}${Date.now()}`)
     } catch (err) {
       console.error('MP4 encoding failed:', err)

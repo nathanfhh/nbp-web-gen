@@ -9,6 +9,7 @@ import { useMp4Encoder } from '@/composables/useMp4Encoder'
 import { useToast } from '@/composables/useToast'
 import ImageLightbox from './ImageLightbox.vue'
 import VideoLightbox from './VideoLightbox.vue'
+import Mp4QualityModal from './Mp4QualityModal.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -154,6 +155,15 @@ onUnmounted(() => {
   document.removeEventListener('click', closeBatchMenu)
 })
 
+// MP4 quality modal state
+const showMp4QualityModal = ref(false)
+
+// Open MP4 quality modal instead of directly downloading
+const handleMp4Click = () => {
+  showBatchMenu.value = false
+  showMp4QualityModal.value = true
+}
+
 // Convert image to Blob
 const imageToBlob = (image) => {
   if (image.data) {
@@ -250,8 +260,8 @@ const downloadAllAsPdf = async () => {
   }
 }
 
-// Download all images + audio as MP4
-const downloadAllAsMp4 = async () => {
+// Download all images + audio as MP4 with specified bitrate
+const downloadAllAsMp4 = async (videoBitrate) => {
   if (store.generatedImages.length === 0 || isBatchDownloading.value) return
 
   isBatchDownloading.value = true
@@ -299,6 +309,7 @@ const downloadAllAsMp4 = async () => {
       images: imageBuffers,
       imageMimeTypes,
       audioBuffers,
+      videoBitrate,
     }, `slides-${Date.now()}`)
   } catch (err) {
     console.error('MP4 encoding failed:', err)
@@ -445,7 +456,7 @@ const clearImages = () => {
             </button>
             <button
               v-if="isWebCodecsSupported"
-              @click="downloadAllAsMp4"
+              @click="handleMp4Click"
               :disabled="isBatchDownloading"
               :class="{ 'opacity-50 cursor-wait': mp4Encoder.isEncoding.value }"
               class="batch-download-option"
@@ -533,6 +544,12 @@ const clearImages = () => {
       :is-historical="false"
       :is-sticker-mode="store.currentMode === 'sticker'"
       :narration-audio-urls="store.generatedAudioUrls"
+    />
+
+    <!-- MP4 Quality Modal -->
+    <Mp4QualityModal
+      v-model="showMp4QualityModal"
+      @confirm="downloadAllAsMp4"
     />
   </div>
 

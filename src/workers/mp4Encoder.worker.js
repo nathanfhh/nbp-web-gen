@@ -24,7 +24,7 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 const TARGET_SAMPLE_RATE = 48000
 const AUDIO_BITRATE = 128_000
 const OPUS_BITRATE = 96_000 // Opus uses lower bitrate for similar quality
-const VIDEO_BITRATE = 2_000_000
+const DEFAULT_VIDEO_BITRATE = 8_000_000
 const AUDIO_CHUNK_SIZE = 4096
 const MAX_VIDEO_WIDTH = 1920
 const MAX_VIDEO_HEIGHT = 1080
@@ -69,6 +69,7 @@ self.onmessage = async (e) => {
     imageMimeTypes,
     audioPcmData,
     defaultPageDuration = 5,
+    videoBitrate = DEFAULT_VIDEO_BITRATE,
   } = e.data
 
   const pageCount = images.length
@@ -181,7 +182,7 @@ self.onmessage = async (e) => {
       codec: 'avc1.640028', // H.264 High L4.0
       width: videoWidth,
       height: videoHeight,
-      bitrate: VIDEO_BITRATE,
+      bitrate: videoBitrate,
       bitrateMode: 'constant',
     }
 

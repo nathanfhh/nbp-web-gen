@@ -862,6 +862,17 @@
     "zipError": "Failed to generate ZIP",
     "mp4Error": "Failed to generate MP4 video",
     "mp4Progress": "Encoding {current}/{total}…",
+    "mp4Quality": {
+      "title": "Select Video Quality",
+      "hint": "Higher quality produces larger files",
+      "low": "Low Quality",
+      "lowDesc": "4 Mbps, smaller file size",
+      "medium": "Medium Quality",
+      "mediumDesc": "8 Mbps, balanced quality and size",
+      "high": "High Quality",
+      "highDesc": "12 Mbps, best visual quality",
+      "start": "Start Encoding"
+    },
     "narrationAudio": "Narration Audio",
     "currentAudio": "Current Audio",
     "allAudioZip": "All Audio (ZIP)",
