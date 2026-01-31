@@ -25,6 +25,7 @@
 | `nbp-theme` | String | 主題名稱 | `dark`, `light`, `warm`... |
 | `nbp-locale` | String | 語系 | `zh-TW`, `en` |
 | `nbp-tour-completed` | JSON | 導覽完成狀態 | `{ version: 1, completedAt: ... }` |
+| `nbp-mp4-quality` | String | MP4 輸出品質 | `low`, `medium`, `high` |
 
 ### `nanobanana-settings` 內容
 
