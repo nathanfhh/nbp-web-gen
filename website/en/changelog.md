@@ -2,6 +2,14 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.9
+
+_2026-01-31_
+
+### New Features
+- **MP4 Export**: Add quality selection dialog with Low (4 Mbps), Medium (8 Mbps), and High (12 Mbps) options; preference is automatically saved
+- **Agentic Vision**: Add auto-save during streaming to prevent conversation loss on unexpected interruptions
+
 ## v0.26.8
 
 _2026-01-30_
