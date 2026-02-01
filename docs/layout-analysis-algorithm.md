@@ -36,7 +36,19 @@ If no vertical cut is possible, attempt to split horizontally.
 
 *Reasoning:* Paragraphs and sections are separated by smaller but distinct vertical whitespace (roughly 1/3 of a line height).
 
-### Step 3: Recursion
+### Step 3: Font Size Cut (Header/Body Separation)
+
+If no whitespace-based cut is possible, attempt to split based on font size differences.
+
+1. **Sort** regions by Y-position (top to bottom).
+2. **Compare heights** of adjacent regions.
+3. **Split** at the position where height ratio exceeds the threshold.
+
+**Threshold:** `fontSizeDiffThreshold` (default: 1.5, meaning 50% height difference)
+
+*Reasoning:* Headers and body text often have different font sizes but may be close together without significant whitespace. This step ensures they are separated even when tightly spaced.
+
+### Step 4: Recursion
 
 Apply the same process recursively to each partition until:
 - **Depth limit** (10 levels) is reached, OR
@@ -88,6 +100,7 @@ Each text block's alignment is inferred by analyzing the horizontal distribution
 |:----------|:--------------|:--------|
 | **Column Gap** | $1.5 \times H_{med}$ | Separate layout columns |
 | **Section Gap** | $0.3 \times H_{med}$ | Separate headers/paragraphs |
+| **Font Size Diff** | 1.5 (height ratio) | Separate headers from body text |
 | **Same-Line Threshold** | $0.7 \times min(height)$ | Determine if regions are on same line |
 | **Max Recursion Depth** | 10 | Prevent infinite recursion |
 | **Min Regions for Cut** | 2 | Stop cutting single-region zones |

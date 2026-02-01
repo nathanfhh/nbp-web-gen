@@ -316,6 +316,20 @@ function performRecursiveXYCut(regions, depth = 0, settings = {}) {
     ]
   }
 
+  // 3. Try Font Size Cut (Separating Headers from Body Text)
+  // Even without whitespace gaps, split where font sizes differ significantly
+  // This prevents titles from merging with body text when they're close together
+  const fontSizeThreshold = settings.fontSizeDiffThreshold ?? OCR_DEFAULTS.fontSizeDiffThreshold
+  const fontSizeCut = findFontSizeCut(regions, fontSizeThreshold)
+  if (fontSizeCut) {
+    const top = regions.filter((r) => r.bounds.y + r.bounds.height / 2 < fontSizeCut)
+    const bottom = regions.filter((r) => r.bounds.y + r.bounds.height / 2 >= fontSizeCut)
+    return [
+      ...performRecursiveXYCut(top, depth + 1, settings),
+      ...performRecursiveXYCut(bottom, depth + 1, settings),
+    ]
+  }
+
   // No valid cuts found, this is an atomic block
   return [regions]
 }
@@ -378,6 +392,51 @@ function findBestCut(regions, bounds, axis, minGapSize) {
   }
 
   return bestCut
+}
+
+/**
+ * Find cut position based on font size (height) differences between adjacent regions.
+ * This helps separate headers from body text even when they're close together.
+ *
+ * @param {Array} regions - List of text regions
+ * @param {number} threshold - Height ratio threshold (e.g., 1.5 means 50% difference)
+ * @returns {number|null} - Cut Y position or null if no significant difference found
+ */
+function findFontSizeCut(regions, threshold) {
+  if (regions.length < 2) return null
+
+  // Sort regions by Y position (top to bottom)
+  const sorted = [...regions].sort((a, b) => {
+    const aCenterY = a.bounds.y + a.bounds.height / 2
+    const bCenterY = b.bounds.y + b.bounds.height / 2
+    return aCenterY - bCenterY
+  })
+
+  let maxRatio = 0
+  let bestCutY = null
+
+  // Find adjacent pairs with significant height difference
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const curr = sorted[i]
+    const next = sorted[i + 1]
+
+    const currHeight = curr.bounds.height
+    const nextHeight = next.bounds.height
+
+    // Calculate height ratio (always >= 1)
+    const ratio = Math.max(currHeight, nextHeight) / Math.min(currHeight, nextHeight)
+
+    // Check if this is the largest ratio and exceeds threshold
+    if (ratio > threshold && ratio > maxRatio) {
+      maxRatio = ratio
+      // Cut between the two regions (at the midpoint of the gap)
+      const currBottom = curr.bounds.y + curr.bounds.height
+      const nextTop = next.bounds.y
+      bestCutY = (currBottom + nextTop) / 2
+    }
+  }
+
+  return bestCutY
 }
 
 /**
