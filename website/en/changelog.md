@@ -2,6 +2,14 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.11
+
+_2026-02-01_
+
+### Fixes
+- **Slide to PPTX**: Fix text with significantly different font sizes being incorrectly merged into the same text box (`fontSizeDiffThreshold` parameter now takes effect)
+- **i18n**: Add missing `common.undo` and `common.redo` translation keys
+
 ## v0.26.10
 
 _2026-02-01_
