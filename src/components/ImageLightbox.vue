@@ -371,8 +371,10 @@ const handleKeydown = (e) => {
 // Wheel event wrapper - global listener for robust handling
 const handleWheel = (e) => {
   if (!props.modelValue) return
+  // When StickerCropper is open, let it handle wheel events for scrolling
+  if (showCropper.value) return
   // We need to prevent default behavior (scrolling) when lightbox is open
-  // This is handled by zoomHandleWheel, but checking here explicitly 
+  // This is handled by zoomHandleWheel, but checking here explicitly
   // ensures we don't interfere when closed.
   zoomHandleWheel(e, props.modelValue)
 }
