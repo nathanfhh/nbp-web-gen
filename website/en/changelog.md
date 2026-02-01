@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.10
+
+_2026-02-01_
+
+### Fixes
+- **Sticker Cropper**: Fix mouse wheel scroll not working in crop result panel when opened from lightbox
+
 ## v0.26.9
 
 _2026-01-31_
