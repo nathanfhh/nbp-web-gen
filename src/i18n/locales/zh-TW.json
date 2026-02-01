@@ -21,7 +21,9 @@
     "optional": "可選",
     "confirmLeave": "正在生成中，確定要離開嗎？",
     "docs": "使用文件",
-    "recommended": "推薦"
+    "recommended": "推薦",
+    "undo": "復原",
+    "redo": "重做"
   },
   "hero": {
     "subtitle": "AI 圖像與影片生成工具",

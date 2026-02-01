@@ -21,7 +21,9 @@
     "optional": "Optional",
     "confirmLeave": "Generation in progress. Are you sure you want to leave?",
     "docs": "Documentation",
-    "recommended": "Recommended"
+    "recommended": "Recommended",
+    "undo": "Undo",
+    "redo": "Redo"
   },
   "hero": {
     "subtitle": "AI Image & Video Generator",
