@@ -1,5 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+
+// Local state for content expansion
+const isContentExpanded = ref(false)
 
 const props = defineProps({
   page: {
@@ -75,6 +78,13 @@ const statusClass = computed(() => {
     comparing: 'bg-status-warning-muted text-status-warning',
   }
   return classes[props.page.status] || classes.pending
+})
+
+// Check if content is long enough to need expansion
+// Roughly 80 chars per line × 2 lines = 160, or has multiple paragraphs
+const needsExpansion = computed(() => {
+  const content = props.page.content || ''
+  return content.length > 100 || content.includes('\n\n') || (content.match(/\n/g) || []).length > 1
 })
 
 // Can add more page references
@@ -159,8 +169,30 @@ const handleReferenceUpload = (event) => {
       </div>
     </div>
 
-    <!-- Page Content Preview -->
-    <p class="text-sm text-text-secondary line-clamp-2">{{ page.content }}</p>
+    <!-- Page Content Preview (expandable) -->
+    <div class="relative">
+      <p
+        class="text-sm text-text-secondary whitespace-pre-line"
+        :class="{ 'line-clamp-2': !isContentExpanded && needsExpansion }"
+      >{{ page.content }}</p>
+      <!-- Expand/Collapse button -->
+      <button
+        v-if="needsExpansion"
+        @click="isContentExpanded = !isContentExpanded"
+        class="text-xs text-mode-generate hover:text-mode-generate/80 mt-1 flex items-center gap-1 transition-colors"
+      >
+        <span>{{ isContentExpanded ? $t('common.collapse') : $t('common.expand') }}</span>
+        <svg
+          class="w-3 h-3 transition-transform"
+          :class="{ 'rotate-180': isContentExpanded }"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    </div>
 
     <!-- Per-page Style Guide (collapsible) -->
     <div class="mt-3 pt-3 border-t border-border-muted/50">

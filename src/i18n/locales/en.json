@@ -23,7 +23,9 @@
     "docs": "Documentation",
     "recommended": "Recommended",
     "undo": "Undo",
-    "redo": "Redo"
+    "redo": "Redo",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "hero": {
     "subtitle": "AI Image & Video Generator",
