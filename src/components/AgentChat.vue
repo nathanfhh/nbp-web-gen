@@ -32,6 +32,11 @@ const confirmModal = ref(null)
 const inputText = ref('')
 const pendingImages = ref([]) // { data: base64, mimeType, preview, name, isCompressing }
 const isProcessing = ref(false)
+const isNearBottom = ref(true) // Track if user is near bottom for auto-scroll
+
+// Platform detection for keyboard hint
+const isMac = navigator.platform.toUpperCase().includes('MAC')
+const modifierKey = isMac ? '⌘' : 'Ctrl'
 
 // Check if any image is still compressing
 const isAnyImageCompressing = computed(() =>
@@ -56,11 +61,27 @@ const canSend = computed(() => {
 
 const hasConversation = computed(() => store.agentConversation.length > 0)
 
-// Auto-scroll to bottom when new messages arrive
-const scrollToBottom = () => {
+// Auto-scroll threshold (px) - only auto-scroll if user is within this distance from bottom
+const SCROLL_THRESHOLD = 100
+
+// Check if user is near the bottom of the messages container
+const checkIfNearBottom = () => {
+  if (!messagesContainer.value) return true
+  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
+  return scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD
+}
+
+// Handle scroll event to track if user is near bottom
+const handleScroll = () => {
+  isNearBottom.value = checkIfNearBottom()
+}
+
+// Auto-scroll to bottom when new messages arrive (only if user is near bottom)
+const scrollToBottom = (force = false) => {
   nextTick(() => {
-    if (messagesContainer.value) {
+    if (messagesContainer.value && (force || isNearBottom.value)) {
       messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      isNearBottom.value = true
     }
   })
 }
@@ -78,7 +99,7 @@ onMounted(() => {
   if (!store.agentSessionId) {
     store.startNewAgentSession()
   }
-  scrollToBottom()
+  scrollToBottom(true) // Force scroll on mount
   // Set up auto-save event listeners
   autoSave.setup()
 })
@@ -448,6 +469,7 @@ onUnmounted(() => {
     <div
       ref="messagesContainer"
       class="flex-1 min-h-[300px] overflow-y-auto px-4 py-2 space-y-2 agent-messages-scroll"
+      @scroll="handleScroll"
     >
       <!-- Empty state -->
       <div
@@ -501,9 +523,9 @@ onUnmounted(() => {
 
         </div>
 
-        <!-- Send hint -->
+        <!-- Send hint (hidden on mobile, shows platform-appropriate modifier key) -->
         <span class="text-xs text-text-muted hidden sm:block">
-          {{ $t('agent.sendHint') }}
+          {{ $t('agent.sendHint', { modifier: modifierKey }) }}
         </span>
       </div>
 

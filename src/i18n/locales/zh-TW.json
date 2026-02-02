@@ -146,7 +146,7 @@
     "codeLabel": "程式碼",
     "resultLabel": "執行結果",
     "generatedImageLabel": "生成圖片",
-    "sendHint": "Ctrl+Enter 送出",
+    "sendHint": "{modifier}+Enter 送出",
     "codeSuccess": "執行成功",
     "codeFailed": "執行失敗",
     "sessionArchived": "對話已存入歷史記錄",

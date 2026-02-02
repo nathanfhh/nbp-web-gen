@@ -146,7 +146,7 @@
     "codeLabel": "Code",
     "resultLabel": "Result",
     "generatedImageLabel": "Generated Image",
-    "sendHint": "Ctrl+Enter to send",
+    "sendHint": "{modifier}+Enter to send",
     "codeSuccess": "Success",
     "codeFailed": "Failed",
     "sessionArchived": "Session saved to history",
