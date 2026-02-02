@@ -578,11 +578,11 @@ onUnmounted(() => {
             class="w-full px-4 py-2.5 pr-10 rounded-xl border border-border-muted bg-bg-input text-text-primary placeholder-text-muted resize-none focus:outline-none focus:ring-2 focus:ring-mode-generate focus:border-transparent transition-all max-h-32"
             style="min-height: 44px;"
           ></textarea>
-          <!-- Clear input button (inside textarea, fixed at top-right) -->
+          <!-- Clear input button (inside textarea, vertically centered) -->
           <button
             v-if="inputText.trim() || pendingImages.length > 0"
             @click="handleClearInput"
-            class="absolute right-2 top-2.5 w-6 h-6 rounded-full bg-bg-muted hover:bg-status-error-muted text-text-muted hover:text-status-error transition-colors flex items-center justify-center"
+            class="absolute right-2 top-[calc(50%-2px)] -translate-y-1/2 w-6 h-6 rounded-full bg-bg-muted hover:bg-status-error-muted text-text-muted hover:text-status-error transition-colors flex items-center justify-center"
             :title="$t('common.clear')"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
