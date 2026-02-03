@@ -305,7 +305,10 @@
     "noPages": "請輸入簡報內容",
     "tooManyPages": "頁數超過上限（最多 {max} 頁）",
     "pagesList": "頁面列表",
-    "generatingPage": "正在生成第 {current}/{total} 頁",
+    "parallelSettings": "平行處理",
+    "concurrency": "圖片",
+    "audioConcurrency": "音訊",
+    "generatingPage": "正在生成 {current}/{total}",
     "progressCompleted": "已完成 {count} 頁",
     "eta": "預估剩餘 {time}",
     "status": {

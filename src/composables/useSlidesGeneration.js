@@ -8,6 +8,8 @@ import { generateShortId } from './useUUID'
 import { useImageStorage } from './useImageStorage'
 import { useAudioStorage } from './useAudioStorage'
 import { useIndexedDB } from './useIndexedDB'
+import { mapConcurrent } from './requestScheduler'
+import { TTS_CONCURRENCY_LIMITS } from '@/constants'
 
 /**
  * Composable for handling slides generation logic
@@ -17,7 +19,11 @@ export function useSlidesGeneration() {
   const store = useGeneratorStore()
   const toast = useToast()
   const { t } = useI18n()
-  const { generateImageStream, analyzeSlideStyle: apiAnalyzeSlideStyle } = useApi()
+  const {
+    generateImageStream,
+    generateImagesBatch,
+    analyzeSlideStyle: apiAnalyzeSlideStyle,
+  } = useApi()
   const { generateNarrationScripts, generatePageAudio } = useNarrationApi()
   const imageStorage = useImageStorage()
   const audioStorage = useAudioStorage()
@@ -141,68 +147,97 @@ export function useSlidesGeneration() {
     // Initialize progress timing
     store.slidesOptions.progressStartTime = Date.now()
     store.slidesOptions.pageGenerationTimes = []
+    store.slidesOptions.currentPageIndex = 0
 
     try {
-      for (let i = 0; i < options.pages.length; i++) {
-        const page = options.pages[i]
-        const pageStartTime = Date.now()
+      const totalPages = options.pages.length
+      const concurrency = Math.min(10, Math.max(1, options.concurrency || 3))
+      const pageIndexById = new Map(options.pages.map((p, idx) => [p.id, idx]))
 
-        // Update status
-        store.slidesOptions.currentPageIndex = i
-        store.slidesOptions.pages[i].status = 'generating'
-
-        // Send progress message
-        if (onThinkingChunk) {
-          onThinkingChunk(
-            `\n--- ${t('slides.generatingPage', { current: i + 1, total: options.totalPages })} ---\n`,
-          )
-        }
-
-        try {
-          // Combine global and page-specific reference images
-          const refImages = combineReferenceImages(
-            options.globalReferenceImages,
-            page.referenceImages,
-          )
-
-          // Generate single page with per-page style support
-          const result = await generateImageStream(
-            page.content,
-            {
-              ...options,
-              pageNumber: page.pageNumber,
-              totalPages: options.totalPages,
-              globalPrompt: store.prompt, // Prepend to each page content
-              pageStyleGuide: page.styleGuide, // Per-page style (priority over global)
-            },
-            'slides',
-            refImages,
-            onThinkingChunk,
-          )
-
-          // Record page generation time
-          const pageEndTime = Date.now()
-          store.slidesOptions.pageGenerationTimes.push(pageEndTime - pageStartTime)
-
-          // Update page data
-          if (result.images && result.images.length > 0) {
-            store.slidesOptions.pages[i].image = {
-              data: result.images[0].data,
-              mimeType: result.images[0].mimeType,
-            }
-            store.slidesOptions.pages[i].status = 'done'
-            results.push({ pageNumber: i + 1, success: true, image: result.images[0] })
+      const makeThinkingWrapper = (page) => {
+        if (!onThinkingChunk) return null
+        return (chunk) => {
+          if (typeof chunk === 'string') {
+            onThinkingChunk(`[Slide ${page.pageNumber}] ${chunk}`)
+          } else {
+            onThinkingChunk({ ...chunk, pageId: page.id, pageNumber: page.pageNumber })
           }
-        } catch (pageErr) {
-          // Still record time even for failed pages (for ETA accuracy)
-          const pageEndTime = Date.now()
-          store.slidesOptions.pageGenerationTimes.push(pageEndTime - pageStartTime)
-
-          store.slidesOptions.pages[i].status = 'error'
-          store.slidesOptions.pages[i].error = pageErr.message
-          results.push({ pageNumber: i + 1, success: false, error: pageErr.message })
         }
       }
+
+      // Send initial progress message
+      if (onThinkingChunk) {
+        onThinkingChunk(`\n--- ${t('slides.generatingPage', { current: 0, total: totalPages })} ---\n`)
+      }
+
+      const jobs = options.pages.map((page) => ({
+        id: page.id,
+        prompt: page.content,
+        mode: 'slides',
+        options: {
+          ...options,
+          pageNumber: page.pageNumber,
+          totalPages,
+          globalPrompt: store.prompt, // Prepend to each page content
+          pageStyleGuide: page.styleGuide, // Per-page style (priority over global)
+        },
+        referenceImages: combineReferenceImages(options.globalReferenceImages, page.referenceImages),
+        onThinkingChunk: makeThinkingWrapper(page),
+      }))
+
+      await generateImagesBatch(jobs, {
+        concurrency,
+        onJobUpdate: ({ id, status, startedAt, finishedAt, result, error }) => {
+          const pageIndex = pageIndexById.get(id)
+          if (pageIndex === undefined) return
+
+          const page = store.slidesOptions.pages[pageIndex]
+
+          if (status === 'started') {
+            page.status = 'generating'
+            page.error = null
+            return
+          }
+
+          if (status === 'succeeded') {
+            // Record page generation time for ETA accuracy
+            if (typeof startedAt === 'number' && typeof finishedAt === 'number') {
+              store.slidesOptions.pageGenerationTimes.push(finishedAt - startedAt)
+            }
+
+            if (result?.images?.length > 0) {
+              page.image = { data: result.images[0].data, mimeType: result.images[0].mimeType }
+              page.status = 'done'
+              results.push({ pageNumber: page.pageNumber, success: true, image: result.images[0] })
+            } else {
+              page.status = 'error'
+              page.error = t('errors.noImageData')
+              results.push({ pageNumber: page.pageNumber, success: false, error: page.error })
+            }
+          }
+
+          if (status === 'failed') {
+            if (typeof startedAt === 'number' && typeof finishedAt === 'number') {
+              store.slidesOptions.pageGenerationTimes.push(finishedAt - startedAt)
+            }
+            page.status = 'error'
+            page.error = error?.message || String(error || '')
+            results.push({ pageNumber: page.pageNumber, success: false, error: page.error })
+          }
+
+          // Update coarse progress counter for UI legacy fields
+          const settledCount = store.slidesOptions.pages.filter(
+            (p) => p.status === 'done' || p.status === 'error',
+          ).length
+          store.slidesOptions.currentPageIndex = settledCount
+
+          if (onThinkingChunk) {
+            onThinkingChunk(
+              `\n--- ${t('slides.generatingPage', { current: settledCount, total: totalPages })} ---\n`,
+            )
+          }
+        },
+      })
 
       // Determine overall success: true only if all pages succeeded
       const allSucceeded = results.every((r) => r.success)
@@ -211,8 +246,8 @@ export function useSlidesGeneration() {
 
       return {
         success: allSucceeded,
-        results,
-        totalPages: options.totalPages,
+        results: results.sort((a, b) => a.pageNumber - b.pageNumber),
+        totalPages,
         successCount,
         failedCount,
         // Include pageNumber in each image for history tracking
@@ -730,6 +765,7 @@ export function useSlidesGeneration() {
   /**
    * Generate TTS audio for all pages using confirmed scripts
    * Called in parallel with image generation during "Start Generation"
+   * Uses concurrent execution with rate limiting (TTS API: 10 RPM)
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
    * @returns {Promise<Array>} Array of { pageIndex, blob, mimeType } for each page
    */
@@ -740,41 +776,59 @@ export function useSlidesGeneration() {
 
     if (!scripts || scripts.length === 0) return []
 
+    // Get concurrency setting with validation (1-5, default 2)
+    const concurrency = Math.min(
+      TTS_CONCURRENCY_LIMITS.max,
+      Math.max(TTS_CONCURRENCY_LIMITS.min, options.audioConcurrency || TTS_CONCURRENCY_LIMITS.default),
+    )
+
     store.slidesOptions.narrationStatus = 'generating-audio'
     const audioResults = []
 
     try {
-      for (let i = 0; i < options.pages.length; i++) {
-        const page = options.pages[i]
-        const pageScript = scripts.find((s) => s.pageId === page.id)
+      // Build jobs array for concurrent processing
+      const jobs = options.pages
+        .map((page, i) => {
+          const pageScript = scripts.find((s) => s.pageId === page.id)
+          if (!pageScript) {
+            console.warn(`No script found for page ${page.id}, skipping audio`)
+            return null
+          }
+          return { id: page.id, pageIndex: i, page, pageScript }
+        })
+        .filter(Boolean)
 
-        if (!pageScript) {
-          console.warn(`No script found for page ${page.id}, skipping audio`)
-          continue
-        }
-
+      // Process audio generation concurrently with rate limiting
+      // Note: Rate limiting is handled inside generatePageAudio via ttsStartLimiter
+      await mapConcurrent(jobs, concurrency, async (job) => {
         onThinkingChunk?.(
-          `\n🔊 ${t('slides.narration.generatingAudio', { current: i + 1, total: options.pages.length })}\n`,
+          `\n🔊 [Page ${job.pageIndex + 1}] ${t('slides.narration.generatingAudio', {
+            current: job.pageIndex + 1,
+            total: options.pages.length,
+          })}\n`,
         )
 
         try {
           const result = await generatePageAudio(
             globalStyle,
-            pageScript.styleDirective,
-            pageScript.script,
+            job.pageScript.styleDirective,
+            job.pageScript.script,
             options.narration,
           )
 
           audioResults.push({
-            pageIndex: i,
+            pageIndex: job.pageIndex,
             blob: result.blob,
             mimeType: result.mimeType,
           })
         } catch (audioErr) {
-          console.error(`Failed to generate audio for page ${i + 1}:`, audioErr)
-          onThinkingChunk?.(`\n⚠️ Page ${i + 1} audio failed: ${audioErr.message}\n`)
+          console.error(`Failed to generate audio for page ${job.pageIndex + 1}:`, audioErr)
+          onThinkingChunk?.(`\n⚠️ [Page ${job.pageIndex + 1}] Audio failed: ${audioErr.message}\n`)
         }
-      }
+      })
+
+      // Sort results by pageIndex to maintain order
+      audioResults.sort((a, b) => a.pageIndex - b.pageIndex)
 
       store.slidesOptions.narrationStatus = 'done'
       if (audioResults.length > 0) {

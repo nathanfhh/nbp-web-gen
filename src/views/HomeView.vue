@@ -191,14 +191,19 @@ const isSlidesAnalyzing = computed(() => {
 const slidesEtaMs = ref(0)
 let slidesEtaIntervalId = null
 
-// Progress percentage: completed pages / total pages
-// currentPageIndex is 0-based and represents the page currently being generated
-// So completed pages = currentPageIndex (pages 0 to currentPageIndex-1 are done)
+const slidesCounts = computed(() => {
+  const pages = store.slidesOptions.pages || []
+  const generating = pages.filter((p) => p.status === 'generating').length
+  const settled = pages.filter((p) => p.status === 'done' || p.status === 'error').length
+  const started = Math.min(store.slidesOptions.totalPages || pages.length, generating + settled)
+  return { generating, settled, started }
+})
+
+// Progress percentage: started pages / total pages (works for concurrent generation)
 const slidesProgressPercent = computed(() => {
-  const opts = store.slidesOptions
-  if (opts.currentPageIndex < 0 || opts.totalPages === 0) return 0
-  // When generating page N (0-indexed), N pages are completed (0 to N-1)
-  return Math.round((opts.currentPageIndex / opts.totalPages) * 100)
+  const total = store.slidesOptions.totalPages || 0
+  if (total === 0) return 0
+  return Math.round((slidesCounts.value.started / total) * 100)
 })
 
 // Calculate ETA based on completed page times
@@ -208,9 +213,7 @@ const calculateSlidesEta = () => {
   if (!times || times.length === 0) return 0
 
   const avgTimePerPage = times.reduce((sum, t) => sum + t, 0) / times.length
-  // Remaining pages = total - completed = total - currentPageIndex
-  // Plus 1 for the current page being generated
-  const remainingPages = opts.totalPages - opts.currentPageIndex
+  const remainingPages = opts.totalPages - slidesCounts.value.settled
   if (remainingPages <= 0) return 0
   return avgTimePerPage * remainingPages
 }
@@ -963,7 +966,7 @@ const handleAddToReferences = (referenceData) => {
 
             <!-- Slides Generation Progress Bar -->
             <div
-              v-if="store.currentMode === 'slides' && store.isGenerating && store.slidesOptions.currentPageIndex >= 0"
+              v-if="store.currentMode === 'slides' && store.isGenerating && store.slidesOptions.totalPages > 0"
               class="mt-6 p-4 rounded-xl bg-mode-generate-muted/30 border border-mode-generate space-y-3"
             >
               <!-- Progress Header -->
@@ -971,7 +974,7 @@ const handleAddToReferences = (referenceData) => {
                 <div class="flex items-center gap-2">
                   <div class="w-2 h-2 rounded-full bg-mode-generate animate-pulse" />
                   <span class="text-sm font-medium text-mode-generate">
-                    {{ $t('slides.generatingPage', { current: store.slidesOptions.currentPageIndex + 1, total: store.slidesOptions.totalPages }) }}
+                    {{ $t('slides.generatingPage', { current: slidesCounts.started, total: store.slidesOptions.totalPages }) }}
                   </span>
                 </div>
                 <span class="text-sm font-mono text-mode-generate">{{ slidesProgressPercent }}%</span>
@@ -987,8 +990,61 @@ const handleAddToReferences = (referenceData) => {
 
               <!-- ETA Display -->
               <div class="flex items-center justify-between text-xs text-text-muted">
-                <span>{{ $t('slides.progressCompleted', { count: store.slidesOptions.currentPageIndex }) }}</span>
+                <span>{{ $t('slides.progressCompleted', { count: slidesCounts.settled }) }}</span>
                 <span v-if="slidesEtaFormatted">{{ $t('slides.eta', { time: slidesEtaFormatted }) }}</span>
+              </div>
+            </div>
+
+            <!-- Parallel Processing Settings (slides mode only) -->
+            <div
+              v-if="store.currentMode === 'slides'"
+              class="mt-6 p-4 rounded-xl bg-bg-muted/50 border border-border-muted space-y-4"
+            >
+              <h4 class="text-sm font-medium text-text-secondary flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {{ $t('slides.parallelSettings') }}
+              </h4>
+              <div class="grid grid-cols-2 gap-4">
+                <!-- Image Concurrency -->
+                <div class="space-y-1">
+                  <label class="block text-xs text-text-muted">{{ $t('slides.concurrency') }}</label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="1"
+                      class="slider-premium flex-1"
+                      :value="store.slidesOptions.concurrency || 3"
+                      :disabled="store.isGenerating"
+                      @input="store.slidesOptions.concurrency = parseInt($event.target.value, 10)"
+                    />
+                    <span class="w-6 text-right text-xs font-mono text-text-secondary">
+                      {{ store.slidesOptions.concurrency || 3 }}
+                    </span>
+                  </div>
+                </div>
+                <!-- Audio Concurrency -->
+                <div v-if="store.slidesOptions.narration?.enabled" class="space-y-1">
+                  <label class="block text-xs text-text-muted">{{ $t('slides.audioConcurrency') }}</label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="1"
+                      class="slider-premium flex-1"
+                      :value="store.slidesOptions.audioConcurrency || 2"
+                      :disabled="store.isGenerating"
+                      @input="store.slidesOptions.audioConcurrency = parseInt($event.target.value, 10)"
+                    />
+                    <span class="w-6 text-right text-xs font-mono text-text-secondary">
+                      {{ store.slidesOptions.audioConcurrency || 2 }}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

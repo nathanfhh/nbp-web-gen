@@ -81,6 +81,16 @@ if (store.slidesOptions.styleGuidance === undefined) {
   store.slidesOptions.styleGuidance = ''
 }
 
+// Ensure concurrency exists (for backward compatibility with old localStorage data)
+if (store.slidesOptions.concurrency === undefined) {
+  store.slidesOptions.concurrency = 3
+}
+
+// Ensure audioConcurrency exists (for backward compatibility with old localStorage data)
+if (store.slidesOptions.audioConcurrency === undefined) {
+  store.slidesOptions.audioConcurrency = 2
+}
+
 // Check if page count exceeds limit
 const isPageLimitExceeded = computed(() => options.value.totalPages > MAX_PAGES)
 
