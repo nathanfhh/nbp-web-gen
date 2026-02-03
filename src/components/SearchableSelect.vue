@@ -88,6 +88,22 @@ const filteredFlat = computed(() => {
 
 const hasResults = computed(() => filteredFlat.value.length > 0)
 
+// Scroll to selected option when dropdown opens
+// Uses scrollTop instead of scrollIntoView to avoid scrolling outer containers
+const scrollToSelected = () => {
+  nextTick(() => {
+    const list = listRef.value
+    const selectedEl = list?.querySelector('[data-selected="true"]')
+    if (list && selectedEl) {
+      // Calculate scroll position to center the selected item in the list
+      const listRect = list.getBoundingClientRect()
+      const selectedRect = selectedEl.getBoundingClientRect()
+      const scrollOffset = selectedEl.offsetTop - list.offsetTop - (listRect.height / 2) + (selectedRect.height / 2)
+      list.scrollTop = Math.max(0, scrollOffset)
+    }
+  })
+}
+
 // Open / close
 const open = () => {
   if (props.disabled) return
@@ -96,6 +112,7 @@ const open = () => {
   highlightIndex.value = -1
   nextTick(() => {
     searchInputRef.value?.focus()
+    scrollToSelected()
   })
 }
 
@@ -250,6 +267,7 @@ onBeforeUnmount(() => {
                   'searchable-select__option--highlighted': idx === highlightIndex,
                 }"
                 :data-highlighted="idx === highlightIndex"
+                :data-selected="opt.value === modelValue"
                 @click="selectOption(opt.value)"
                 @mouseenter="highlightIndex = idx"
               >
@@ -292,6 +310,7 @@ onBeforeUnmount(() => {
                       filteredFlat.indexOf(opt) === highlightIndex,
                   }"
                   :data-highlighted="filteredFlat.indexOf(opt) === highlightIndex"
+                  :data-selected="opt.value === modelValue"
                   @click="selectOption(opt.value)"
                   @mouseenter="highlightIndex = filteredFlat.indexOf(opt)"
                 >
