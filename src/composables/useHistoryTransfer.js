@@ -7,6 +7,7 @@ import { useConversationStorage } from './useConversationStorage'
 import { useOPFS } from './useOPFS'
 import { generateUUID } from './useUUID'
 import { generateThumbnailFromBlob } from './useImageCompression'
+import { getAudioExtension } from '@/utils/audioEncoder'
 
 const EXPORT_VERSION = 4 // Bumped for agent mode conversation support
 
@@ -347,7 +348,7 @@ export function useHistoryTransfer() {
                 for (let j = 0; j < binaryString.length; j++) {
                   bytes[j] = binaryString.charCodeAt(j)
                 }
-                const ext = audioEntry.mimeType === 'audio/wav' ? 'wav' : 'mp3'
+                const ext = getAudioExtension(audioEntry.mimeType)
                 const blob = new Blob([bytes], { type: audioEntry.mimeType || 'audio/mpeg' })
                 const opfsPath = `/audio/${historyId}/${audioEntry.pageIndex}.${ext}`
 

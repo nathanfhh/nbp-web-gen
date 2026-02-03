@@ -10,6 +10,7 @@ import {
   blobToBase64,
   MSG_TYPE_CHUNK,
 } from './peerSyncUtils'
+import { getAudioExtension } from '@/utils/audioEncoder'
 
 /**
  * Composable for peer-to-peer data receiving (receiver side)
@@ -568,7 +569,7 @@ export function usePeerDataReceiver(deps) {
 
         if (audioFiles.length > 0) {
           for (const audioFile of audioFiles) {
-            const ext = audioFile.mimeType === 'audio/wav' ? 'wav' : 'mp3'
+            const ext = getAudioExtension(audioFile.mimeType)
             const opfsPath = `/audio/${historyId}/${audioFile.pageIndex}.${ext}`
             const blob = new Blob([audioFile.data], { type: audioFile.mimeType || 'audio/mpeg' })
 

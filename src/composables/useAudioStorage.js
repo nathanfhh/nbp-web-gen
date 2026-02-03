@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useOPFS } from './useOPFS'
 import { formatFileSize } from './useImageCompression'
+import { getAudioExtension } from '@/utils/audioEncoder'
 
 /**
  * Audio Storage Composable
@@ -38,7 +39,7 @@ export function useAudioStorage() {
       const dirPath = `audio/${historyId}`
       await opfs.getOrCreateDirectory(dirPath)
 
-      const ext = audioBlob.type === 'audio/wav' ? 'wav' : 'mp3'
+      const ext = getAudioExtension(audioBlob.type)
       const filePath = `/${dirPath}/${pageIndex}.${ext}`
 
       // Clear cached URL for this path before overwriting (handles regeneration)

@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
 import { useGeneratorStore } from '@/stores/generator'
-import { convertTtsResponseToMp3, convertPcmToWav } from '@/utils/audioEncoder'
+import { convertTtsResponseToAudio } from '@/utils/audioEncoder'
 import { getLanguageDirectives } from '@/constants/voiceOptions'
 import { t } from '@/i18n'
 
@@ -315,15 +315,8 @@ ${
 
       const { data, mimeType } = audioPart.inlineData
 
-      // Convert PCM to MP3, fallback to WAV if encoding fails
-      try {
-        const mp3Blob = await convertTtsResponseToMp3(data, mimeType)
-        return { blob: mp3Blob, mimeType: 'audio/mpeg' }
-      } catch (encodeErr) {
-        console.warn('MP3 encoding failed, falling back to WAV:', encodeErr)
-        const wavBlob = convertPcmToWav(data, mimeType)
-        return { blob: wavBlob, mimeType: 'audio/wav' }
-      }
+      // Convert PCM to compressed audio (Opus → MP3 → WAV fallback)
+      return await convertTtsResponseToAudio(data, mimeType)
     }, 'text')
 
     return result
