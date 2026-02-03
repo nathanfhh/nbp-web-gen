@@ -2,6 +2,21 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.14
+
+_2026-02-03_
+
+### New Features
+- **Slides**: Parallel image and audio generation for significantly faster multi-page slide creation
+- **UI**: Dropdown auto-scrolls to selected option when opened
+
+### Fixes
+- **Narration**: Correct Schedar voice gender label (female → male)
+- **Slides**: Fix progress tracking and ETA calculation for parallel generation
+
+### Refactor
+- Split useApi.js into promptBuilders.js and useSlidesApi.js for better code maintainability
+
 ## v0.26.13
 
 _2026-02-03_

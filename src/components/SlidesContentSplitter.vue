@@ -2,13 +2,13 @@
 import { ref, computed, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import { useApi } from '@/composables/useApi'
+import { useSlidesApi } from '@/composables/useSlidesApi'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
 const toast = useToast()
-const { splitSlidesContent } = useApi()
+const { splitSlidesContent } = useSlidesApi()
 
 // Modal state
 const isOpen = ref(false)

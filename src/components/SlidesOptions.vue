@@ -4,6 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useSlidesGeneration } from '@/composables/useSlidesGeneration'
 import { useToast } from '@/composables/useToast'
+import {
+  DEFAULT_SLIDES_OPTIONS,
+  CONCURRENCY_LIMITS,
+  TTS_CONCURRENCY_LIMITS,
+} from '@/constants'
 import SlidesContentSplitter from './SlidesContentSplitter.vue'
 import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 import NarrationSection from './NarrationSection.vue'
@@ -80,6 +85,37 @@ const options = computed(() => store.slidesOptions)
 if (store.slidesOptions.styleGuidance === undefined) {
   store.slidesOptions.styleGuidance = ''
 }
+
+// Helper to clamp numeric options to supported ranges with a safe fallback
+// Always returns an integer to prevent RangeError in Array(concurrency)
+const clampToRange = (value, min, max, fallback) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) {
+    return fallback
+  }
+  // Truncate to integer before clamping
+  const intNum = Math.trunc(num)
+  if (intNum < min) return min
+  if (intNum > max) return max
+  return intNum
+}
+
+// Normalize concurrency (for backward compatibility with old localStorage data)
+// Also clamps invalid values (0, NaN, out of range) to valid range
+store.slidesOptions.concurrency = clampToRange(
+  store.slidesOptions.concurrency ?? DEFAULT_SLIDES_OPTIONS.concurrency,
+  CONCURRENCY_LIMITS.min,
+  CONCURRENCY_LIMITS.max,
+  DEFAULT_SLIDES_OPTIONS.concurrency,
+)
+
+// Normalize audioConcurrency (for backward compatibility with old localStorage data)
+store.slidesOptions.audioConcurrency = clampToRange(
+  store.slidesOptions.audioConcurrency ?? DEFAULT_SLIDES_OPTIONS.audioConcurrency,
+  TTS_CONCURRENCY_LIMITS.min,
+  TTS_CONCURRENCY_LIMITS.max,
+  DEFAULT_SLIDES_OPTIONS.audioConcurrency,
+)
 
 // Check if page count exceeds limit
 const isPageLimitExceeded = computed(() => options.value.totalPages > MAX_PAGES)

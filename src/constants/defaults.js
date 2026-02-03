@@ -91,6 +91,12 @@ export const DEFAULT_SLIDES_OPTIONS = {
   resolution: '2k', // 1k | 2k | 4k
   ratio: '16:9', // 16:9 | 4:3 | 1:1
 
+  // Concurrent generation (1-10)
+  concurrency: 3,
+
+  // Audio concurrent generation (1-5, TTS API limit is 10 RPM)
+  audioConcurrency: 2,
+
   // Analysis model selection
   analysisModel: 'gemini-3-flash-preview',
 

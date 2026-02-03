@@ -305,7 +305,10 @@
     "noPages": "Please enter presentation content",
     "tooManyPages": "Too many pages (max {max})",
     "pagesList": "Page List",
-    "generatingPage": "Generating page {current}/{total}",
+    "parallelSettings": "Parallel Processing",
+    "concurrency": "Images",
+    "audioConcurrency": "Audio",
+    "generatingPage": "Generating {current}/{total}",
     "progressCompleted": "{count} pages completed",
     "eta": "ETA: {time}",
     "status": {

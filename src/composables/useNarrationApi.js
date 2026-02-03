@@ -4,6 +4,14 @@ import { useGeneratorStore } from '@/stores/generator'
 import { convertTtsResponseToAudio } from '@/utils/audioEncoder'
 import { getLanguageDirectives } from '@/constants/voiceOptions'
 import { t } from '@/i18n'
+import { createMinIntervalLimiter } from './requestScheduler'
+import { TTS_MIN_START_INTERVAL_MS } from '@/constants'
+
+// Module-level singleton for TTS rate limiting
+// TTS API limit is 10 RPM, so minimum 6 seconds between request starts
+const ttsStartLimiter = createMinIntervalLimiter({
+  minIntervalMs: TTS_MIN_START_INTERVAL_MS,
+})
 
 /**
  * JSON Schema for narration script generation
@@ -258,6 +266,10 @@ ${
     script,
     settings,
   ) => {
+    // Acquire rate limiter slot before making API call
+    // This ensures requests are spaced at least 6 seconds apart (10 RPM limit)
+    await ttsStartLimiter.acquire()
+
     const ttsModel = settings.ttsModel || 'gemini-2.5-flash-preview-tts'
 
     // Build TTS prompt with style directives and language-specific accent
