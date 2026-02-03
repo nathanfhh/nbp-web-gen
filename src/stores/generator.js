@@ -702,6 +702,64 @@ export const useGeneratorStore = defineStore('generator', () => {
   }
 
   /**
+   * Generate a fallback ID for legacy messages without id field
+   * Uses a simple hash of message content to create a stable identifier
+   * @param {Object} msg - Message object
+   * @returns {string} Fallback ID
+   */
+  const generateFallbackId = (msg) => {
+    const content = JSON.stringify({
+      role: msg.role,
+      timestamp: msg.timestamp || 0,
+      firstPartPreview: msg.parts?.[0]?.content?.slice(0, 50) || '',
+    })
+
+    let hash = 0
+    for (const char of content) {
+      hash = (hash << 5) - hash + char.charCodeAt(0)
+      hash = hash & hash // Convert to 32-bit integer
+    }
+
+    return `legacy-${Math.abs(hash).toString(36)}`
+  }
+
+  /**
+   * Merge two conversation arrays for multi-tab conflict resolution
+   * Strategy:
+   * - Use message id as key (or fallback id for legacy messages)
+   * - Same id with different timestamps: keep the newer one
+   * - Different ids: keep both, sort by timestamp
+   * @param {Array} existingMessages - Messages from OPFS (other tabs' saves)
+   * @param {Array} localMessages - Messages from current tab
+   * @returns {Array} Merged conversation array
+   */
+  const mergeConversations = (existingMessages, localMessages) => {
+    const messageMap = new Map()
+
+    // 1. Add existing messages first
+    for (const msg of existingMessages) {
+      const key = msg.id || generateFallbackId(msg)
+      messageMap.set(key, msg)
+    }
+
+    // 2. Merge local messages (same id: keep newer timestamp)
+    for (const msg of localMessages) {
+      const key = msg.id || generateFallbackId(msg)
+      const existing = messageMap.get(key)
+
+      if (!existing || (msg.timestamp || 0) > (existing.timestamp || 0)) {
+        messageMap.set(key, msg)
+      }
+    }
+
+    // 3. Sort by timestamp
+    const merged = Array.from(messageMap.values())
+    merged.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+
+    return merged
+  }
+
+  /**
    * Start a new agent session
    */
   const startNewAgentSession = () => {
@@ -821,6 +879,29 @@ export const useGeneratorStore = defineStore('generator', () => {
         conversationSnapshot.push(streamingCopy)
       }
 
+      // === Multi-tab merge: read existing and merge with local ===
+      const existingHistoryId = currentAgentHistoryId.value
+      let mergedFromExisting = false
+      let existingMessages = []
+
+      if (existingHistoryId) {
+        try {
+          const opfsPath = `/conversations/${existingHistoryId}/conversation.json`
+          existingMessages = await conversationStorage.loadConversation(opfsPath)
+
+          if (existingMessages && existingMessages.length > 0) {
+            conversationSnapshot = mergeConversations(existingMessages, conversationSnapshot)
+            mergedFromExisting = true
+            console.log(
+              `[saveAgentConversation] Merged ${existingMessages.length} existing + ${agentConversation.value.length} local → ${conversationSnapshot.length} total`,
+            )
+          }
+        } catch (err) {
+          // Merge failure is not fatal - fallback to overwrite behavior
+          console.warn('[saveAgentConversation] Failed to load existing for merge, will overwrite:', err)
+        }
+      }
+
       // Skip if nothing to save after processing
       if (conversationSnapshot.length === 0) {
         return null
@@ -885,12 +966,29 @@ export const useGeneratorStore = defineStore('generator', () => {
       }
 
       // Collect and compress only NEW images for OPFS storage
-      // Skip images that have already been saved (tracked by savedAgentImageCount)
+      // Skip images that have already been saved (tracked by savedAgentImageCount or dataStoredExternally flag)
       const newImages = []
       const { compressToWebP, blobToBase64 } = await import('@/composables/useImageCompression')
 
+      // If merged from existing, count images that are already stored externally
+      let alreadySavedCount = savedAgentImageCount.value
+      if (mergedFromExisting) {
+        let existingStoredCount = 0
+        for (const msg of existingMessages) {
+          for (const part of msg.parts || []) {
+            if (
+              (part.type === 'image' || part.type === 'generatedImage') &&
+              part.dataStoredExternally
+            ) {
+              existingStoredCount++
+            }
+          }
+        }
+        // Use the max to ensure we don't re-save already stored images
+        alreadySavedCount = Math.max(alreadySavedCount, existingStoredCount)
+      }
+
       let imageIndex = 0
-      const alreadySavedCount = savedAgentImageCount.value
 
       for (const msg of conversationSnapshot) {
         for (const part of msg.parts || []) {

@@ -2,6 +2,20 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.12
+
+_2026-02-03_
+
+### New Features
+- **Agentic Vision**: Enable "Include images in context" by default for better conversation continuity
+- **Agentic Vision**: Smart scroll behavior - preserves scroll position when user scrolls up to read history instead of forcing scroll to bottom
+- **Agentic Vision**: Platform-aware keyboard hints (shows ⌘+Enter on Mac, Ctrl+Enter on Windows/Linux)
+- **Slides**: Add expandable content preview in page list for viewing longer or multi-line page content
+
+### Fixes
+- **Agentic Vision**: Fix clear button not vertically centered in multi-line textarea
+- **Agentic Vision**: Fix multi-tab editing of the same conversation causing data loss where later saves would overwrite earlier saves
+
 ## v0.26.11
 
 _2026-02-01_
