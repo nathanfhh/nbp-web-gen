@@ -199,11 +199,12 @@ const slidesCounts = computed(() => {
   return { generating, settled, started }
 })
 
-// Progress percentage: started pages / total pages (works for concurrent generation)
+// Progress percentage: settled (done+error) pages / total pages
+// Using settled instead of started ensures progress reaches 100% only when all jobs complete
 const slidesProgressPercent = computed(() => {
   const total = store.slidesOptions.totalPages || 0
   if (total === 0) return 0
-  return Math.round((slidesCounts.value.started / total) * 100)
+  return Math.round((slidesCounts.value.settled / total) * 100)
 })
 
 // Calculate ETA based on completed page times
@@ -1017,12 +1018,12 @@ const handleAddToReferences = (referenceData) => {
                       max="10"
                       step="1"
                       class="slider-premium flex-1"
-                      :value="store.slidesOptions.concurrency || 3"
+                      :value="store.slidesOptions.concurrency ?? 3"
                       :disabled="store.isGenerating"
                       @input="store.slidesOptions.concurrency = parseInt($event.target.value, 10)"
                     />
                     <span class="w-6 text-right text-xs font-mono text-text-secondary">
-                      {{ store.slidesOptions.concurrency || 3 }}
+                      {{ store.slidesOptions.concurrency ?? 3 }}
                     </span>
                   </div>
                 </div>
@@ -1036,12 +1037,12 @@ const handleAddToReferences = (referenceData) => {
                       max="5"
                       step="1"
                       class="slider-premium flex-1"
-                      :value="store.slidesOptions.audioConcurrency || 2"
+                      :value="store.slidesOptions.audioConcurrency ?? 2"
                       :disabled="store.isGenerating"
                       @input="store.slidesOptions.audioConcurrency = parseInt($event.target.value, 10)"
                     />
                     <span class="w-6 text-right text-xs font-mono text-text-secondary">
-                      {{ store.slidesOptions.audioConcurrency || 2 }}
+                      {{ store.slidesOptions.audioConcurrency ?? 2 }}
                     </span>
                   </div>
                 </div>

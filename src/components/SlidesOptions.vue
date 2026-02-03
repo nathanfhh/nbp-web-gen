@@ -4,6 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useSlidesGeneration } from '@/composables/useSlidesGeneration'
 import { useToast } from '@/composables/useToast'
+import {
+  DEFAULT_SLIDES_OPTIONS,
+  CONCURRENCY_LIMITS,
+  TTS_CONCURRENCY_LIMITS,
+} from '@/constants'
 import SlidesContentSplitter from './SlidesContentSplitter.vue'
 import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 import NarrationSection from './NarrationSection.vue'
@@ -81,15 +86,33 @@ if (store.slidesOptions.styleGuidance === undefined) {
   store.slidesOptions.styleGuidance = ''
 }
 
-// Ensure concurrency exists (for backward compatibility with old localStorage data)
-if (store.slidesOptions.concurrency === undefined) {
-  store.slidesOptions.concurrency = 3
+// Helper to clamp numeric options to supported ranges with a safe fallback
+const clampToRange = (value, min, max, fallback) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) {
+    return fallback
+  }
+  if (num < min) return min
+  if (num > max) return max
+  return num
 }
 
-// Ensure audioConcurrency exists (for backward compatibility with old localStorage data)
-if (store.slidesOptions.audioConcurrency === undefined) {
-  store.slidesOptions.audioConcurrency = 2
-}
+// Normalize concurrency (for backward compatibility with old localStorage data)
+// Also clamps invalid values (0, NaN, out of range) to valid range
+store.slidesOptions.concurrency = clampToRange(
+  store.slidesOptions.concurrency ?? DEFAULT_SLIDES_OPTIONS.concurrency,
+  CONCURRENCY_LIMITS.min,
+  CONCURRENCY_LIMITS.max,
+  DEFAULT_SLIDES_OPTIONS.concurrency,
+)
+
+// Normalize audioConcurrency (for backward compatibility with old localStorage data)
+store.slidesOptions.audioConcurrency = clampToRange(
+  store.slidesOptions.audioConcurrency ?? DEFAULT_SLIDES_OPTIONS.audioConcurrency,
+  TTS_CONCURRENCY_LIMITS.min,
+  TTS_CONCURRENCY_LIMITS.max,
+  DEFAULT_SLIDES_OPTIONS.audioConcurrency,
+)
 
 // Check if page count exceeds limit
 const isPageLimitExceeded = computed(() => options.value.totalPages > MAX_PAGES)
