@@ -586,8 +586,8 @@ export function useApi() {
         onJobUpdate?.({ id: job.id, status: 'succeeded', startedAt, finishedAt, result })
       } catch (err) {
         const finishedAt = Date.now()
-        // Error classification (attached by generateImageStream, or classify here as fallback)
-        const fallbackClass = err.errorCategory ? null : classifyError(err)
+        // Error classification: always compute fallback to avoid null access when err.isRetriable is undefined
+        const fallbackClass = classifyError(err)
         const errorInfo = {
           id: job.id,
           status: 'failed',
