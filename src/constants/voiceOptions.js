@@ -27,7 +27,7 @@ export const VOICES = [
   { name: 'Laomedeia', characteristic: 'Upbeat', gender: 'female' },
   { name: 'Achernar', characteristic: 'Soft', gender: 'female' },
   { name: 'Alnilam', characteristic: 'Firm', gender: 'male' },
-  { name: 'Schedar', characteristic: 'Even', gender: 'female' },
+  { name: 'Schedar', characteristic: 'Even', gender: 'male' },
   { name: 'Gacrux', characteristic: 'Mature', gender: 'female' },
   { name: 'Pulcherrima', characteristic: 'Forward', gender: 'female' },
   { name: 'Achird', characteristic: 'Friendly', gender: 'male' },
