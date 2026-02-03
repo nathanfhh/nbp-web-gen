@@ -11,7 +11,7 @@ const SLIDE_STYLE_SCHEMA = {
     globalStyle: {
       type: 'string',
       description:
-        'Overall design style recommendation for the entire presentation (2-3 sentences)',
+        'Overall design style recommendation for the entire presentation as a detailed design system (4-6 sentences)',
     },
     pageStyles: {
       type: 'array',

@@ -784,10 +784,13 @@ export function useSlidesGeneration() {
     const audioResults = []
 
     try {
+      // Pre-index scripts by pageId for O(1) lookup (instead of O(pages × scripts))
+      const scriptsByPageId = new Map(scripts.map((s) => [s.pageId, s]))
+
       // Build jobs array for concurrent processing
       const jobs = options.pages
         .map((page, i) => {
-          const pageScript = scripts.find((s) => s.pageId === page.id)
+          const pageScript = scriptsByPageId.get(page.id)
           if (!pageScript) {
             console.warn(`No script found for page ${page.id}, skipping audio`)
             return null

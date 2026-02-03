@@ -998,7 +998,7 @@ const handleAddToReferences = (referenceData) => {
 
               <!-- ETA Display -->
               <div class="flex items-center justify-between text-xs text-text-muted">
-                <span>{{ $t('slides.progressCompleted', { count: slidesCounts.settled }) }}</span>
+                <span>{{ $t('slides.progressCompleted', { count: slidesCounts.done }) }}</span>
                 <span v-if="slidesEtaFormatted">{{ $t('slides.eta', { time: slidesEtaFormatted }) }}</span>
               </div>
             </div>
