@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useApi } from './useApi'
+import { useSlidesApi } from './useSlidesApi'
 import { useNarrationApi } from './useNarrationApi'
 import { useToast } from './useToast'
 import { generateShortId } from './useUUID'
@@ -19,11 +20,8 @@ export function useSlidesGeneration() {
   const store = useGeneratorStore()
   const toast = useToast()
   const { t } = useI18n()
-  const {
-    generateImageStream,
-    generateImagesBatch,
-    analyzeSlideStyle: apiAnalyzeSlideStyle,
-  } = useApi()
+  const { generateImageStream, generateImagesBatch } = useApi()
+  const { analyzeSlideStyle: apiAnalyzeSlideStyle } = useSlidesApi()
   const { generateNarrationScripts, generatePageAudio } = useNarrationApi()
   const imageStorage = useImageStorage()
   const audioStorage = useAudioStorage()

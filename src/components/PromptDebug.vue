@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import { buildPrompt } from '@/composables/useApi'
+import { buildPrompt } from '@/composables/promptBuilders'
 import { useCharacterExtraction } from '@/composables/useCharacterExtraction'
 import { useToast } from '@/composables/useToast'
 
