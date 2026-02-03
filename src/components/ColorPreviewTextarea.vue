@@ -86,7 +86,7 @@ watch(
       :placeholder="placeholder"
       :disabled="disabled"
       :rows="rows"
-      class="edit-layer input-premium text-sm resize-y"
+      class="edit-layer input-premium resize-y"
       @input="handleInput"
       @scroll="syncScroll"
     />
@@ -102,9 +102,9 @@ watch(
 .render-layer {
   position: absolute;
   inset: 0;
-  padding: 12px 14px; /* Match input-premium padding */
+  padding: 14px 18px; /* Match input-premium padding */
   font-family: inherit;
-  font-size: 0.875rem; /* text-sm */
+  font-size: 15px; /* Match input-premium font-size */
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
