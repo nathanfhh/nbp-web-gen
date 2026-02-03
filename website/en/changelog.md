@@ -2,6 +2,17 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.13
+
+_2026-02-03_
+
+### New Features
+- **Narration**: Add inline voice preview in speaker settings for instant voice testing
+- **Narration**: Switch audio encoding from MP3 (64kbps) to WebM/Opus (48kbps) for smaller files and better quality
+
+### Fixes
+- **Slides**: Fix style guide text color preview underline misalignment with textarea text
+
 ## v0.26.12
 
 _2026-02-03_
