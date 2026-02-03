@@ -207,7 +207,7 @@ const slidesProgressPercent = computed(() => {
   return Math.round((slidesCounts.value.settled / total) * 100)
 })
 
-// Calculate ETA based on completed page times
+// Calculate ETA based on completed page times, adjusted for concurrent generation
 const calculateSlidesEta = () => {
   const opts = store.slidesOptions
   const times = opts.pageGenerationTimes
@@ -216,7 +216,14 @@ const calculateSlidesEta = () => {
   const avgTimePerPage = times.reduce((sum, t) => sum + t, 0) / times.length
   const remainingPages = opts.totalPages - slidesCounts.value.settled
   if (remainingPages <= 0) return 0
-  return avgTimePerPage * remainingPages
+
+  // Adjust ETA for concurrent generation:
+  // Use the current number of generating slides as an estimate of parallelism,
+  // but cap it by remainingPages and ensure it is at least 1 to avoid division by zero.
+  const currentGenerating = slidesCounts.value.generating || 0
+  const effectiveParallelism = Math.max(1, Math.min(currentGenerating || 1, remainingPages))
+
+  return (avgTimePerPage * remainingPages) / effectiveParallelism
 }
 
 // Formatted ETA display

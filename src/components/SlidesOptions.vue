@@ -87,14 +87,17 @@ if (store.slidesOptions.styleGuidance === undefined) {
 }
 
 // Helper to clamp numeric options to supported ranges with a safe fallback
+// Always returns an integer to prevent RangeError in Array(concurrency)
 const clampToRange = (value, min, max, fallback) => {
   const num = Number(value)
   if (!Number.isFinite(num)) {
     return fallback
   }
-  if (num < min) return min
-  if (num > max) return max
-  return num
+  // Truncate to integer before clamping
+  const intNum = Math.trunc(num)
+  if (intNum < min) return min
+  if (intNum > max) return max
+  return intNum
 }
 
 // Normalize concurrency (for backward compatibility with old localStorage data)

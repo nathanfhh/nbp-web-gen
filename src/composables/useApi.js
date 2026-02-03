@@ -276,9 +276,25 @@ export function useApi() {
       // Get model
       const model = options.model || DEFAULT_MODEL
 
+      // Guard to prevent stale attempts from emitting chunks after timeout/retry
+      // When a timeout occurs, the old stream continues in background but its chunks should be ignored
+      let currentAttemptId = 0
+
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         // Intentional sleeping to respect RPM limits (start-rate)
         await imageStartLimiter.acquire()
+
+        // Capture this attempt's ID - stale attempts will have a different ID
+        const thisAttemptId = ++currentAttemptId
+
+        // Guarded callback that only emits if this attempt is still current
+        const guardedThinkingChunk = onThinkingChunk
+          ? (chunk) => {
+              if (thisAttemptId === currentAttemptId) {
+                onThinkingChunk(chunk)
+              }
+            }
+          : null
 
         try {
           // Wrap the entire streaming operation with timeout
@@ -319,8 +335,8 @@ export function useApi() {
                       images.push(imageData)
 
                       // If this is a thought image, send it to the thinking callback
-                      if (part.thought && onThinkingChunk) {
-                        onThinkingChunk({
+                      if (part.thought && guardedThinkingChunk) {
+                        guardedThinkingChunk({
                           type: 'image',
                           data: part.inlineData.data,
                           mimeType: part.inlineData.mimeType || 'image/png',
@@ -330,8 +346,8 @@ export function useApi() {
                       // Check if this is thinking content (thought: true flag)
                       if (part.thought) {
                         // This is thinking/reasoning text
-                        if (onThinkingChunk) {
-                          onThinkingChunk(part.text)
+                        if (guardedThinkingChunk) {
+                          guardedThinkingChunk(part.text)
                         }
                         thinkingText += part.text
                       } else {
@@ -429,8 +445,8 @@ export function useApi() {
             jitterMs: backoffJitterMs,
           })
 
-          if (onThinkingChunk) {
-            onThinkingChunk(
+          if (guardedThinkingChunk) {
+            guardedThinkingChunk(
               `\n[Retry ${attempt}/${maxAttempts - 1} due to ${errorClass.reason}, waiting ${Math.ceil(delayMs / 1000)}s]\n`,
             )
           }
