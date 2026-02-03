@@ -386,6 +386,7 @@
       "speakerName": "講者名稱",
       "voiceSelect": "選擇聲音",
       "voicePreviewLink": "前往 AI Studio 試聽",
+      "previewVoice": "試聽聲音",
       "duplicateVoiceWarning": "建議兩位講者選擇不同的聲音",
       "style": "風格",
       "discussion": "討論",

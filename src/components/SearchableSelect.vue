@@ -259,6 +259,7 @@ onBeforeUnmount(() => {
                     {{ opt.description }}
                   </span>
                 </span>
+                <slot name="option-suffix" :option="opt" />
                 <svg
                   v-if="opt.value === modelValue"
                   class="searchable-select__check"
@@ -300,6 +301,7 @@ onBeforeUnmount(() => {
                       {{ opt.description }}
                     </span>
                   </span>
+                  <slot name="option-suffix" :option="opt" />
                   <svg
                     v-if="opt.value === modelValue"
                     class="searchable-select__check"

@@ -386,6 +386,7 @@
       "speakerName": "Speaker Name",
       "voiceSelect": "Select Voice",
       "voicePreviewLink": "Preview in AI Studio",
+      "previewVoice": "Preview voice",
       "duplicateVoiceWarning": "Consider using different voices for each speaker",
       "style": "Style",
       "discussion": "Discussion",

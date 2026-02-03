@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { VOICES, DEFAULT_LANGUAGES, NARRATION_STYLES, SCRIPT_MODELS, TTS_MODELS } from '@/constants/voiceOptions'
 import SearchableSelect from '@/components/SearchableSelect.vue'
+import VoicePreviewButton from '@/components/VoicePreviewButton.vue'
 
 const props = defineProps({
   modelValue: {
@@ -192,7 +193,11 @@ const temperatureValue = computed(() => store.temperature)
           @update:modelValue="updateSpeaker(0, 'voiceName', $event)"
           :groups="voiceGroups"
           :placeholder="$t('slides.narration.voiceSelect')"
-        />
+        >
+          <template #option-suffix="{ option }">
+            <VoicePreviewButton :voiceName="option.value" :size="24" />
+          </template>
+        </SearchableSelect>
       </div>
     </div>
 
@@ -213,7 +218,11 @@ const temperatureValue = computed(() => store.temperature)
           @update:modelValue="updateSpeaker(1, 'voiceName', $event)"
           :groups="voiceGroups"
           :placeholder="$t('slides.narration.voiceSelect')"
-        />
+        >
+          <template #option-suffix="{ option }">
+            <VoicePreviewButton :voiceName="option.value" :size="24" />
+          </template>
+        </SearchableSelect>
       </div>
 
       <!-- Duplicate voice warning -->
