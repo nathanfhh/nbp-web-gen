@@ -25,7 +25,9 @@
     "undo": "Undo",
     "redo": "Redo",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "play": "Play",
+    "pause": "Pause"
   },
   "hero": {
     "subtitle": "AI Image & Video Generator",
@@ -894,7 +896,10 @@
     },
     "audioOnlyTitle": "Audio Only",
     "audioOnlyDesc": "Image generation failed, but {count} audio file(s) were generated successfully",
-    "audioPage": "Page {page}"
+    "audioPage": "Page {page}",
+    "playbackSpeed": "Playback Speed",
+    "autoPlay": "Auto Play",
+    "autoPlayHint": "Auto advance to next page when audio ends"
   },
   "stickerCropper": {
     "title": "Sticker Cropper Tool",

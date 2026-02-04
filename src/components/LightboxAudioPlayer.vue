@@ -1,29 +1,75 @@
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { registerPlaying, unregisterPlaying } from '@/composables/useGlobalAudioManager'
+
+const { t } = useI18n()
 
 const props = defineProps({
   audioUrl: {
     type: String,
     default: null,
   },
+  // Whether to show auto-play toggle (for slides mode with multiple audio)
+  showAutoPlay: {
+    type: Boolean,
+    default: false,
+  },
+  // v-model for auto-play state
+  autoPlay: {
+    type: Boolean,
+    default: false,
+  },
 })
+
+const emit = defineEmits(['ended', 'update:autoPlay'])
+
+// Playback speed options (sorted for menu display)
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2]
+const STORAGE_KEY = 'nbp-audio-playback-rate'
 
 const audioRef = ref(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const isDragging = ref(false)
+const playbackRate = ref(1)
+const showSpeedMenu = ref(false)
 
-const progressPercent = computed(() => {
+// Flag to auto-play when audio is ready (for auto-play feature)
+const playWhenReady = ref(false)
+
+// Flag to auto-play next audio after current one ends (internal auto-play logic)
+const pendingAutoPlayNext = ref(false)
+
+// Load saved playback rate from localStorage
+onMounted(() => {
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (saved) {
+    const rate = parseFloat(saved)
+    if (SPEED_OPTIONS.includes(rate)) {
+      playbackRate.value = rate
+    }
+  }
+})
+
+const progressPercent = () => {
   if (!duration.value) return 0
   return (currentTime.value / duration.value) * 100
-})
+}
 
 const formatTime = (seconds) => {
   if (!seconds || !isFinite(seconds)) return '0:00'
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+// Pause function for global audio manager
+const pausePlayback = () => {
+  if (audioRef.value) {
+    audioRef.value.pause()
+  }
 }
 
 const togglePlay = () => {
@@ -35,6 +81,35 @@ const togglePlay = () => {
   }
 }
 
+// Toggle auto-play
+const toggleAutoPlay = () => {
+  emit('update:autoPlay', !props.autoPlay)
+}
+
+// Toggle speed menu
+const toggleSpeedMenu = () => {
+  showSpeedMenu.value = !showSpeedMenu.value
+}
+
+// Select playback speed from menu
+const selectSpeed = (speed) => {
+  playbackRate.value = speed
+  showSpeedMenu.value = false
+
+  // Save to localStorage
+  localStorage.setItem(STORAGE_KEY, speed.toString())
+
+  // Apply to audio element
+  if (audioRef.value) {
+    audioRef.value.playbackRate = speed
+  }
+}
+
+// Close menu when clicking outside
+const onClickOutside = () => {
+  showSpeedMenu.value = false
+}
+
 const onTimeUpdate = () => {
   if (!isDragging.value && audioRef.value) {
     currentTime.value = audioRef.value.currentTime
@@ -44,20 +119,41 @@ const onTimeUpdate = () => {
 const onLoadedMetadata = () => {
   if (audioRef.value) {
     duration.value = audioRef.value.duration
+    // Apply saved playback rate when audio loads
+    audioRef.value.playbackRate = playbackRate.value
+
+    // Auto-play if flag is set (from play() called before audio was ready)
+    if (playWhenReady.value) {
+      playWhenReady.value = false
+      audioRef.value.play()
+    }
   }
 }
 
 const onPlay = () => {
   isPlaying.value = true
+  // Register with global audio manager
+  registerPlaying(audioRef.value, pausePlayback)
 }
 
 const onPause = () => {
   isPlaying.value = false
+  // Unregister from global audio manager
+  unregisterPlaying(pausePlayback)
 }
 
 const onEnded = () => {
   isPlaying.value = false
   currentTime.value = 0
+  unregisterPlaying(pausePlayback)
+
+  // If auto-play is enabled, set flag to play next audio when it loads
+  if (props.autoPlay) {
+    pendingAutoPlayNext.value = true
+  }
+
+  // Emit ended event for parent to advance to next page
+  emit('ended')
 }
 
 // Progress bar seek
@@ -110,16 +206,45 @@ const onProgressTouchEnd = () => {
 // Stop playback when audio URL changes (page switch)
 watch(
   () => props.audioUrl,
-  () => {
+  (newUrl) => {
+    if (isPlaying.value) {
+      unregisterPlaying(pausePlayback)
+    }
     isPlaying.value = false
     currentTime.value = 0
     duration.value = 0
+    showSpeedMenu.value = false
+
+    // If pending auto-play from previous audio ending, transfer to playWhenReady
+    if (pendingAutoPlayNext.value && newUrl) {
+      pendingAutoPlayNext.value = false
+      playWhenReady.value = true
+    }
   },
 )
+
+// Play method for parent component (auto-play feature)
+// If audio is not ready yet, set flag to play when ready
+const play = () => {
+  if (!audioRef.value) return
+
+  // Check if audio is ready (has duration)
+  if (audioRef.value.readyState >= 1) {
+    audioRef.value.play()
+  } else {
+    // Audio not ready yet, set flag to play when loaded
+    playWhenReady.value = true
+  }
+}
+
+defineExpose({ play, togglePlay })
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', onProgressMouseMove)
   document.removeEventListener('mouseup', onProgressMouseUp)
+  if (isPlaying.value) {
+    unregisterPlaying(pausePlayback)
+  }
 })
 </script>
 
@@ -137,7 +262,11 @@ onUnmounted(() => {
 
     <div class="audio-player-inner">
       <!-- Play/Pause Button -->
-      <button @click="togglePlay" class="audio-play-btn">
+      <button
+        @click="togglePlay"
+        class="audio-play-btn"
+        :title="isPlaying ? t('common.pause') : t('common.play')"
+      >
         <!-- Play Icon -->
         <svg v-if="!isPlaying" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
           <path d="M8 5v14l11-7z" />
@@ -158,8 +287,8 @@ onUnmounted(() => {
         @touchend="onProgressTouchEnd"
       >
         <div class="audio-progress-track">
-          <div class="audio-progress-fill" :style="{ width: `${progressPercent}%` }" />
-          <div class="audio-progress-thumb" :style="{ left: `${progressPercent}%` }" />
+          <div class="audio-progress-fill" :style="{ width: `${progressPercent()}%` }" />
+          <div class="audio-progress-thumb" :style="{ left: `${progressPercent()}%` }" />
         </div>
       </div>
 
@@ -167,6 +296,56 @@ onUnmounted(() => {
       <span class="audio-time">
         {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
       </span>
+
+      <!-- Playback Speed Dropdown -->
+      <div class="audio-speed-wrapper">
+        <button
+          @click="toggleSpeedMenu"
+          class="audio-speed-btn"
+          :title="t('lightbox.playbackSpeed')"
+        >
+          {{ playbackRate }}x
+        </button>
+
+        <!-- Speed Menu -->
+        <Transition name="speed-menu">
+          <div v-if="showSpeedMenu" class="audio-speed-menu" @click.stop>
+            <div class="audio-speed-menu-backdrop" @click="onClickOutside" />
+            <div class="audio-speed-menu-content">
+              <button
+                v-for="speed in SPEED_OPTIONS"
+                :key="speed"
+                @click="selectSpeed(speed)"
+                class="audio-speed-option"
+                :class="{ 'active': playbackRate === speed }"
+              >
+                {{ speed }}x
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+
+      <!-- Auto-play Toggle (slides mode) -->
+      <button
+        v-if="showAutoPlay"
+        @click="toggleAutoPlay"
+        class="audio-autoplay-btn"
+        :class="{ 'active': autoPlay }"
+        :title="t('lightbox.autoPlayHint')"
+      >
+        <!-- Play in circle (off) / Pause in circle (on) -->
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <!-- Circle -->
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+          <!-- Play triangle (when off) or Pause bars (when on) -->
+          <path v-if="!autoPlay" d="M10 8l6 4-6 4V8z" />
+          <g v-else>
+            <rect x="9" y="8" width="2" height="8" rx="0.5" />
+            <rect x="13" y="8" width="2" height="8" rx="0.5" />
+          </g>
+        </svg>
+      </button>
     </div>
   </div>
 </template>
@@ -264,6 +443,119 @@ onUnmounted(() => {
   text-align: right;
 }
 
+/* Speed dropdown wrapper */
+.audio-speed-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.audio-speed-btn {
+  min-width: 40px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.audio-speed-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Speed menu */
+.audio-speed-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+}
+
+.audio-speed-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+.audio-speed-menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.audio-speed-option {
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.audio-speed-option:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.audio-speed-option.active {
+  background: var(--color-mode-generate);
+  color: white;
+}
+
+/* Auto-play button */
+.audio-autoplay-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.audio-autoplay-btn:hover {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.audio-autoplay-btn.active {
+  color: white;
+  background: var(--color-mode-generate);
+  border-color: var(--color-mode-generate);
+}
+
+/* Menu transition */
+.speed-menu-enter-active,
+.speed-menu-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.speed-menu-enter-from,
+.speed-menu-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
 /* Mobile responsive */
 @media (max-width: 640px) {
   .lightbox-audio-player {
@@ -271,6 +563,10 @@ onUnmounted(() => {
     padding: 6px 12px;
     border-radius: 8px;
     bottom: 4rem;
+  }
+
+  .audio-player-inner {
+    gap: 8px;
   }
 
   .audio-time {
@@ -281,6 +577,22 @@ onUnmounted(() => {
   .audio-play-btn {
     width: 28px;
     height: 28px;
+  }
+
+  .audio-speed-btn {
+    min-width: 36px;
+    padding: 3px 6px;
+    font-size: 0.65rem;
+  }
+
+  .audio-speed-option {
+    padding: 8px 20px;
+    font-size: 0.8rem;
+  }
+
+  .audio-autoplay-btn {
+    width: 26px;
+    height: 26px;
   }
 }
 </style>

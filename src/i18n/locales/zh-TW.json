@@ -25,7 +25,9 @@
     "undo": "復原",
     "redo": "重做",
     "expand": "展開",
-    "collapse": "收合"
+    "collapse": "收合",
+    "play": "播放",
+    "pause": "暫停"
   },
   "hero": {
     "subtitle": "AI 圖像與影片生成工具",
@@ -894,7 +896,10 @@
     },
     "audioOnlyTitle": "僅有語音內容",
     "audioOnlyDesc": "圖片生成失敗，但已成功生成 {count} 段語音",
-    "audioPage": "第 {page} 頁"
+    "audioPage": "第 {page} 頁",
+    "playbackSpeed": "播放速度",
+    "autoPlay": "自動播放",
+    "autoPlayHint": "音訊播完自動跳下一頁"
   },
   "stickerCropper": {
     "title": "貼圖裁切工具",

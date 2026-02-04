@@ -3,6 +3,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 // JSZip is dynamically imported when needed to reduce initial bundle size
 import { useGeneratorStore } from '@/stores/generator'
+import { registerPlaying, unregisterPlaying } from '@/composables/useGlobalAudioManager'
 import { formatElapsed } from '@/composables/useFormatTime'
 import { usePdfGenerator } from '@/composables/usePdfGenerator'
 import { useMp4Encoder } from '@/composables/useMp4Encoder'
@@ -324,6 +325,29 @@ const clearImages = () => {
   store.clearGeneratedImagesMetadata()
   store.clearGeneratedAudioUrls()
 }
+
+// Audio mutual exclusion - when one audio starts, pause others
+// Use WeakMap to store pauseFn reference for each audio element
+const audioPauseFnMap = new WeakMap()
+
+const handleAudioPlay = (index, event) => {
+  const audioEl = event.target
+  // Create and store pauseFn for this audio element
+  const pauseFn = () => audioEl.pause()
+  audioPauseFnMap.set(audioEl, pauseFn)
+  // Register this audio with global manager (will pause any other playing audio)
+  registerPlaying(audioEl, pauseFn)
+}
+
+const handleAudioPause = (index, event) => {
+  const audioEl = event.target
+  // Retrieve the same pauseFn reference that was registered
+  const pauseFn = audioPauseFnMap.get(audioEl)
+  if (pauseFn) {
+    unregisterPlaying(pauseFn)
+    audioPauseFnMap.delete(audioEl)
+  }
+}
 </script>
 
 <template>
@@ -529,6 +553,8 @@ const clearImages = () => {
             controls
             class="preview-audio-element"
             @click.stop
+            @play="handleAudioPlay(index, $event)"
+            @pause="handleAudioPause(index, $event)"
           />
         </div>
       </div>
@@ -543,6 +569,7 @@ const clearImages = () => {
       :history-id="store.currentHistoryId"
       :is-historical="false"
       :is-sticker-mode="store.currentMode === 'sticker'"
+      :is-slides-mode="store.currentMode === 'slides'"
       :narration-audio-urls="store.generatedAudioUrls"
     />
 

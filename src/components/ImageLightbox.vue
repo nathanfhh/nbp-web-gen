@@ -11,6 +11,7 @@ import { useLightboxZoom } from '@/composables/useLightboxZoom'
 import { useLightboxTouch } from '@/composables/useLightboxTouch'
 import { useLightboxDownload } from '@/composables/useLightboxDownload'
 import { useMp4Encoder } from '@/composables/useMp4Encoder'
+import { pauseAll as pauseAllAudio } from '@/composables/useGlobalAudioManager'
 import StickerCropper from '@/components/StickerCropper.vue'
 import LightboxAudioPlayer from '@/components/LightboxAudioPlayer.vue'
 import Mp4QualityModal from '@/components/Mp4QualityModal.vue'
@@ -250,6 +251,9 @@ const { pushState, popState, cleanupBeforeNavigation } = useHistoryState('lightb
 // Watch for external open
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
+    // Pause any audio playing outside the lightbox
+    pauseAllAudio()
+
     currentIndex.value = props.initialIndex
     isVisible.value = true
     isClosing.value = false
@@ -364,6 +368,13 @@ const handleKeydown = (e) => {
       // Reset zoom with 0 key
       e.preventDefault()
       resetTransform()
+      break
+    case ' ':
+      // Space bar toggles audio playback
+      if (currentAudioUrl.value && audioPlayerRef.value) {
+        e.preventDefault()
+        audioPlayerRef.value.togglePlay()
+      }
       break
   }
 }
@@ -546,6 +557,28 @@ const isAudioOnlyMode = computed(() => {
 const totalAudioCount = computed(() => {
   return props.narrationAudioUrls.filter(url => !!url).length
 })
+
+// Auto-play feature for slides mode
+const autoPlay = ref(false)
+const audioPlayerRef = ref(null)
+
+// Show auto-play toggle only in slides mode with multiple audio files
+const showAutoPlayToggle = computed(() => {
+  return props.isSlidesMode && totalAudioCount.value > 1
+})
+
+// Handle audio ended event - auto advance to next page if enabled
+const onAudioEnded = () => {
+  if (!autoPlay.value) return
+  if (!hasNext.value) {
+    // Reached the last page, stop auto-play
+    autoPlay.value = false
+    return
+  }
+
+  // Go to next page - LightboxAudioPlayer will auto-play when new audio loads
+  goToNext()
+}
 
 const downloadCurrentAudio = async () => {
   await downloadDownloadCurrentAudio({
@@ -1040,7 +1073,13 @@ const goToSlideToPptx = async () => {
         </div>
 
         <!-- Audio Player (for slides with narration) -->
-        <LightboxAudioPlayer :audioUrl="currentAudioUrl" />
+        <LightboxAudioPlayer
+          ref="audioPlayerRef"
+          :audioUrl="currentAudioUrl"
+          :showAutoPlay="showAutoPlayToggle"
+          v-model:autoPlay="autoPlay"
+          @ended="onAudioEnded"
+        />
 
         <!-- Image Info (centered, responsive) -->
         <div v-if="currentImageInfo || isAudioOnlyMode" class="lightbox-info">
