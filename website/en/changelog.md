@@ -2,6 +2,19 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.16
+
+_2026-02-04_
+
+### New Features
+- **Slides**: Add confirmation modal before resetting all settings to prevent accidental data loss
+- **Slides Narration**: Audio player auto-hides after 3 seconds of inactivity, shows on hover or touch
+
+### Fixes
+- **Slides**: Fix narration settings (voice style, speakers, custom prompt, etc.) not being saved to history
+- **Slides**: Fix narration scripts not being saved to history
+- **Slides**: Fix single page audio regeneration not syncing narration settings
+
 ## v0.26.15
 
 _2026-02-04_
