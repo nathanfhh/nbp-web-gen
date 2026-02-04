@@ -196,34 +196,50 @@ const slidesCounts = computed(() => {
   const generating = pages.filter((p) => p.status === 'generating').length
   const settled = pages.filter((p) => p.status === 'done' || p.status === 'error').length
   const started = Math.min(store.slidesOptions.totalPages || pages.length, generating + settled)
-  return { generating, settled, started }
+
+  // Audio progress tracking
+  const audioCompleted = store.slidesOptions.audioCompletedCount || 0
+  const audioTotal = store.slidesOptions.audioTotalCount || 0
+
+  return { generating, settled, started, audioCompleted, audioTotal }
 })
 
-// Progress percentage: settled (done+error) pages / total pages
-// Using settled instead of started ensures progress reaches 100% only when all jobs complete
+// Progress percentage: (completed images + completed audio) / (total images + total audio)
+// When narration is enabled, progress includes both image and audio generation
 const slidesProgressPercent = computed(() => {
-  const total = store.slidesOptions.totalPages || 0
-  if (total === 0) return 0
-  return Math.round((slidesCounts.value.settled / total) * 100)
+  const imageTotal = store.slidesOptions.totalPages || 0
+  if (imageTotal === 0) return 0
+
+  const imageSettled = slidesCounts.value.settled
+  const audioTotal = slidesCounts.value.audioTotal
+  const audioCompleted = slidesCounts.value.audioCompleted
+
+  // If audio is being generated, include it in the progress calculation
+  if (audioTotal > 0) {
+    const totalSteps = imageTotal + audioTotal
+    const completedSteps = imageSettled + audioCompleted
+    return Math.round((completedSteps / totalSteps) * 100)
+  }
+
+  // No audio, just track images
+  return Math.round((imageSettled / imageTotal) * 100)
 })
 
-// Calculate ETA based on completed page times, adjusted for concurrent generation
+// Calculate ETA based on elapsed time and total progress percentage
+// This approach works for both image-only and image+audio generation
 const calculateSlidesEta = () => {
   const opts = store.slidesOptions
-  const times = opts.pageGenerationTimes
-  if (!times || times.length === 0) return 0
+  const startTime = opts.progressStartTime
+  if (!startTime) return 0
 
-  const avgTimePerPage = times.reduce((sum, t) => sum + t, 0) / times.length
-  const remainingPages = opts.totalPages - slidesCounts.value.settled
-  if (remainingPages <= 0) return 0
+  const elapsed = Date.now() - startTime
+  const progressPercent = slidesProgressPercent.value
 
-  // Adjust ETA for concurrent generation:
-  // Use the current number of generating slides as an estimate of parallelism,
-  // but cap it by remainingPages and ensure it is at least 1 to avoid division by zero.
-  const currentGenerating = slidesCounts.value.generating || 0
-  const effectiveParallelism = Math.max(1, Math.min(currentGenerating || 1, remainingPages))
+  // Need some progress to estimate, and not yet complete
+  if (progressPercent <= 0 || progressPercent >= 100) return 0
 
-  return (avgTimePerPage * remainingPages) / effectiveParallelism
+  // ETA = elapsed time * (remaining progress / completed progress)
+  return (elapsed * (100 - progressPercent)) / progressPercent
 }
 
 // Formatted ETA display
@@ -237,9 +253,9 @@ const slidesEtaFormatted = computed(() => {
   return `${minutes}m ${remainingSeconds}s`
 })
 
-// Watch for page completion to recalculate ETA
+// Watch for progress changes (images or audio) to recalculate ETA
 watch(
-  () => store.slidesOptions.pageGenerationTimes?.length,
+  slidesProgressPercent,
   () => {
     if (store.isGenerating && store.currentMode === 'slides') {
       slidesEtaMs.value = calculateSlidesEta()
@@ -998,7 +1014,7 @@ const handleAddToReferences = (referenceData) => {
 
               <!-- ETA Display -->
               <div class="flex items-center justify-between text-xs text-text-muted">
-                <span>{{ $t('slides.progressCompleted', { count: slidesCounts.done }) }}</span>
+                <span>{{ $t('slides.progressCompleted', { count: slidesCounts.settled }) }}</span>
                 <span v-if="slidesEtaFormatted">{{ $t('slides.eta', { time: slidesEtaFormatted }) }}</span>
               </div>
             </div>

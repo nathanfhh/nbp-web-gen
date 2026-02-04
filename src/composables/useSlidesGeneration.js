@@ -799,6 +799,10 @@ export function useSlidesGeneration() {
         })
         .filter(Boolean)
 
+      // Initialize audio progress tracking
+      store.slidesOptions.audioTotalCount = jobs.length
+      store.slidesOptions.audioCompletedCount = 0
+
       // Process audio generation concurrently with rate limiting
       // Note: Rate limiting is handled inside generatePageAudio via ttsStartLimiter
       await mapConcurrent(jobs, concurrency, async (job) => {
@@ -822,9 +826,14 @@ export function useSlidesGeneration() {
             blob: result.blob,
             mimeType: result.mimeType,
           })
+
+          // Update audio progress counter
+          store.slidesOptions.audioCompletedCount++
         } catch (audioErr) {
           console.error(`Failed to generate audio for page ${job.pageIndex + 1}:`, audioErr)
           onThinkingChunk?.(`\n⚠️ [Page ${job.pageIndex + 1}] Audio failed: ${audioErr.message}\n`)
+          // Still count failed audio as "completed" for progress purposes
+          store.slidesOptions.audioCompletedCount++
         }
       })
 

@@ -138,6 +138,8 @@ export const DEFAULT_SLIDES_OPTIONS = {
   narrationGlobalStyle: '', // Global style directive from script generation
   narrationStatus: 'idle', // 'idle' | 'generating-scripts' | 'generating-audio' | 'done' | 'error'
   narrationError: null,
+  audioCompletedCount: 0, // Number of audio files completed (for progress tracking)
+  audioTotalCount: 0, // Total number of audio files to generate
 }
 
 // Common settings defaults

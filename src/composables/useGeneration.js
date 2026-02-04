@@ -108,32 +108,38 @@ export function useGeneration() {
         const narrationEnabled = store.slidesOptions.narration?.enabled
         const hasScripts = (store.slidesOptions.narrationScripts?.length || 0) > 0
 
-        if (narrationEnabled && hasScripts) {
-          // Run image generation and TTS audio in parallel
-          const [imageSettled, audioSettled] = await Promise.allSettled([
-            generateAllPages(onThinkingChunk),
-            generateAllAudio(onThinkingChunk),
-          ])
+        try {
+          if (narrationEnabled && hasScripts) {
+            // Run image generation and TTS audio in parallel
+            const [imageSettled, audioSettled] = await Promise.allSettled([
+              generateAllPages(onThinkingChunk),
+              generateAllAudio(onThinkingChunk),
+            ])
 
-          const result = imageSettled.status === 'fulfilled' ? imageSettled.value : null
-          const audioResults = audioSettled.status === 'fulfilled' ? audioSettled.value : []
+            const result = imageSettled.status === 'fulfilled' ? imageSettled.value : null
+            const audioResults = audioSettled.status === 'fulfilled' ? audioSettled.value : []
 
-          if (audioSettled.status === 'rejected') {
-            console.error('Narration audio generation failed:', audioSettled.reason)
-            toast.warning(t('toast.narrationAudioFailed'))
+            if (audioSettled.status === 'rejected') {
+              console.error('Narration audio generation failed:', audioSettled.reason)
+              toast.warning(t('toast.narrationAudioFailed'))
+            }
+
+            if (imageSettled.status === 'rejected') {
+              throw imageSettled.reason
+            }
+
+            // Attach audio results for later saving
+            if (result && audioResults.length > 0) {
+              result.audioResults = audioResults
+            }
+            return result
+          } else {
+            return await generateAllPages(onThinkingChunk)
           }
-
-          if (imageSettled.status === 'rejected') {
-            throw imageSettled.reason
-          }
-
-          // Attach audio results for later saving
-          if (result && audioResults.length > 0) {
-            result.audioResults = audioResults
-          }
-          return result
-        } else {
-          return await generateAllPages(onThinkingChunk)
+        } finally {
+          // Reset audio progress counters after slides generation completes
+          store.slidesOptions.audioCompletedCount = 0
+          store.slidesOptions.audioTotalCount = 0
         }
       }
 
