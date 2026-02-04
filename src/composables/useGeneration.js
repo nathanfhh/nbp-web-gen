@@ -210,6 +210,8 @@ export function useGeneration() {
           language: options.narration?.language,
           scriptModel: options.narration?.scriptModel,
           ttsModel: options.narration?.ttsModel,
+          customLanguages: options.narration?.customLanguages,
+          customPrompt: options.narration?.customPrompt,
         },
       }
 
@@ -328,6 +330,13 @@ export function useGeneration() {
           ?.filter((p) => p.styleGuide?.trim())
           .map((p) => ({ pageNumber: p.pageNumber, styleGuide: p.styleGuide }))
 
+        // Save each page's content (excluding binary data like referenceImages)
+        const pagesContent = options.pages?.map((p) => ({
+          id: p.id,
+          pageNumber: p.pageNumber,
+          content: p.content,
+        }))
+
         historyOptions = {
           resolution: options.resolution,
           ratio: options.ratio,
@@ -338,6 +347,8 @@ export function useGeneration() {
           seed: options.seed,
           pagesRaw: options.pagesRaw || '',
           pageStyleGuides: pageStyleGuides?.length > 0 ? pageStyleGuides : undefined,
+          styleGuidance: options.styleGuidance || '',
+          pagesContent,
         }
       } else {
         historyOptions = { ...options }
@@ -375,16 +386,25 @@ export function useGeneration() {
         saveImagesToStorage(historyId, result.images)
       }
 
-      // Save narration audio and metadata (slides mode with narration)
-      if (store.currentMode === 'slides' && result?.audioResults?.length > 0) {
-        // Build live preview audio URLs (sparse array indexed by pageIndex)
-        const audioUrls = []
-        for (const ar of result.audioResults) {
-          audioUrls[ar.pageIndex] = URL.createObjectURL(ar.blob)
-        }
-        store.setGeneratedAudioUrls(audioUrls)
+      // Save narration data (slides mode)
+      // Save if: has audio results OR has scripts (even without audio)
+      if (store.currentMode === 'slides') {
+        const hasAudio = result?.audioResults?.length > 0
+        const hasScripts = options.narrationScripts?.length > 0
 
-        saveNarrationToStorage(historyId, result.audioResults, options)
+        if (hasAudio) {
+          // Build live preview audio URLs (sparse array indexed by pageIndex)
+          const audioUrls = []
+          for (const ar of result.audioResults) {
+            audioUrls[ar.pageIndex] = URL.createObjectURL(ar.blob)
+          }
+          store.setGeneratedAudioUrls(audioUrls)
+        }
+
+        // Save narration metadata even if no audio (preserves scripts and settings)
+        if (hasAudio || hasScripts) {
+          saveNarrationToStorage(historyId, result?.audioResults || [], options)
+        }
       }
 
       // Set current history ID for ImagePreview to use

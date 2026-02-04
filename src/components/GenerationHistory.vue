@@ -222,6 +222,7 @@ const loadHistoryItem = async (item) => {
     store.slidesOptions.analysisModel = item.options.analysisModel || 'gemini-3-flash-preview'
     store.slidesOptions.analyzedStyle = item.options.analyzedStyle || ''
     store.slidesOptions.styleConfirmed = item.options.styleConfirmed || false
+    store.slidesOptions.styleGuidance = item.options.styleGuidance || ''
     // Note: temperature and seed are already restored at store level (line 134-135)
 
     // Restore pagesRaw (this will trigger parsePages via watch)
@@ -242,6 +243,32 @@ const loadHistoryItem = async (item) => {
           }
         })
       }
+    }
+
+    // Restore narration settings from record.narration
+    if (item.narration?.settings) {
+      const ns = item.narration.settings
+      store.slidesOptions.narration.speakerMode = ns.speakerMode || 'single'
+      store.slidesOptions.narration.speakers = ns.speakers || [
+        { name: 'Speaker 1', voiceName: 'Zephyr' },
+        { name: 'Speaker 2', voiceName: 'Puck' },
+      ]
+      store.slidesOptions.narration.style = ns.style || 'discussion'
+      store.slidesOptions.narration.language = ns.language || 'en-US'
+      store.slidesOptions.narration.scriptModel = ns.scriptModel || 'gemini-3-flash-preview'
+      store.slidesOptions.narration.ttsModel = ns.ttsModel || 'gemini-2.5-flash-preview-tts'
+      store.slidesOptions.narration.customLanguages = ns.customLanguages || []
+      store.slidesOptions.narration.customPrompt = ns.customPrompt || ''
+      // Enable narration if we have settings (user had configured it before)
+      store.slidesOptions.narration.enabled = true
+    }
+
+    // Restore narration scripts and global style directive
+    if (item.narration?.scripts?.length > 0) {
+      store.slidesOptions.narrationScripts = item.narration.scripts
+    }
+    if (item.narration?.globalStyleDirective) {
+      store.slidesOptions.narrationGlobalStyle = item.narration.globalStyleDirective
     }
   } else if (item.mode === 'agent') {
     // Load agent conversation from OPFS and continue

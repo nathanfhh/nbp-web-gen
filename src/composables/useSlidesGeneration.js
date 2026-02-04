@@ -556,8 +556,28 @@ export function useSlidesGeneration() {
       // Sort by pageIndex
       existingAudio.sort((a, b) => a.pageIndex - b.pageIndex)
 
+      // Get current scripts and settings from store (ensures latest data is saved)
+      const options = store.slidesOptions
+      const currentScripts = (options.narrationScripts || []).map((s) => ({
+        pageId: s.pageId,
+        styleDirective: s.styleDirective,
+        script: s.script,
+      }))
+      const currentSettings = {
+        speakerMode: options.narration?.speakerMode,
+        speakers: options.narration?.speakers,
+        style: options.narration?.style,
+        language: options.narration?.language,
+        scriptModel: options.narration?.scriptModel,
+        ttsModel: options.narration?.ttsModel,
+        customLanguages: options.narration?.customLanguages,
+        customPrompt: options.narration?.customPrompt,
+      }
+
       const updatedNarration = {
-        ...existingNarration,
+        globalStyleDirective: options.narrationGlobalStyle || existingNarration.globalStyleDirective || '',
+        scripts: currentScripts.length > 0 ? currentScripts : existingNarration.scripts || [],
+        settings: currentScripts.length > 0 ? currentSettings : existingNarration.settings || {},
         audio: existingAudio,
       }
 
