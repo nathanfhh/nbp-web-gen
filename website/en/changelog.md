@@ -2,6 +2,20 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.15
+
+_2026-02-04_
+
+### New Features
+- **Slides Narration**: Add playback speed control (0.5x - 2x) with auto-save preference
+- **Slides Narration**: Add auto-play feature for continuous page playback when audio ends
+- **Slides Narration**: Support space bar keyboard shortcut to toggle audio playback
+- **Slides Narration**: Global audio mutual exclusion ensures only one audio plays at a time
+
+### Improvements
+- **Slides Generation**: Progress bar now reflects combined image and audio generation progress
+- **Slides Generation**: Improved ETA calculation based on elapsed time and total progress percentage
+
 ## v0.26.14
 
 _2026-02-03_
