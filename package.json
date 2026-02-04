@@ -1,6 +1,6 @@
 {
   "name": "nbp-web-gen",
-  "version": "0.26.14",
+  "version": "0.26.15",
   "private": true,
   "type": "module",
   "engines": {
