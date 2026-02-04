@@ -14,6 +14,7 @@ import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 import NarrationSection from './NarrationSection.vue'
 import SlidesRegenerateModal from './SlidesRegenerateModal.vue'
 import SlidesPageCard from './SlidesPageCard.vue'
+import ConfirmModal from './ConfirmModal.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -34,6 +35,9 @@ const {
 
 // Content splitter modal ref
 const contentSplitterRef = ref(null)
+
+// Confirm modal ref
+const confirmModal = ref(null)
 
 // Thinking panel refs
 const thinkingPanelRef = ref(null)
@@ -381,7 +385,16 @@ const togglePageStyle = (pageId) => {
 }
 
 // Reset all slides options to defaults
-const resetSlidesOptions = () => {
+const resetSlidesOptions = async () => {
+  const confirmed = await confirmModal.value?.show({
+    title: t('slides.resetConfirmTitle'),
+    message: t('slides.resetConfirmMessage'),
+    confirmText: t('slides.resetConfirmButton'),
+    cancelText: t('common.cancel'),
+  })
+
+  if (!confirmed) return
+
   store.resetCurrentOptions()
   // Also clear the main prompt (used as global description in slides mode)
   store.prompt = ''
@@ -911,6 +924,9 @@ const resetSlidesOptions = () => {
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Confirm Modal -->
+    <ConfirmModal ref="confirmModal" />
   </div>
 </template>
 

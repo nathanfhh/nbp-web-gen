@@ -359,6 +359,9 @@
     "pageStyleHint": "若此頁有特殊內容（圖表、引言等），可指定專屬風格",
     "imageLoadError": "圖片讀取失敗",
     "reset": "重設所有設定",
+    "resetConfirmTitle": "重設所有設定",
+    "resetConfirmMessage": "此操作會清除所有簡報設定，包括風格指引、頁面內容和參考圖片。確定要繼續嗎？",
+    "resetConfirmButton": "確定重設",
     "resetSuccess": "已重設所有簡報設定",
     "contentSplitter": {
       "button": "AI 幫我規劃",

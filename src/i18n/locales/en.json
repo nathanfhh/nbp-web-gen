@@ -359,6 +359,9 @@
     "pageStyleHint": "Specify custom style for pages with special content (charts, quotes, etc.)",
     "imageLoadError": "Failed to load image",
     "reset": "Reset All",
+    "resetConfirmTitle": "Reset All Settings",
+    "resetConfirmMessage": "This will clear all slides settings, including style guide, page content, and reference images. Are you sure you want to continue?",
+    "resetConfirmButton": "Reset",
     "resetSuccess": "All slides settings have been reset",
     "contentSplitter": {
       "button": "AI Planning",
