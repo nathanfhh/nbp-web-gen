@@ -27,6 +27,7 @@ const emit = defineEmits(['ended', 'update:autoPlay'])
 // Playback speed options (sorted for menu display)
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2]
 const STORAGE_KEY = 'nbp-audio-playback-rate'
+const IDLE_TIMEOUT = 3000 // Hide after 3 seconds of inactivity
 
 const audioRef = ref(null)
 const isPlaying = ref(false)
@@ -35,6 +36,31 @@ const duration = ref(0)
 const isDragging = ref(false)
 const playbackRate = ref(1)
 const showSpeedMenu = ref(false)
+
+// Auto-hide functionality
+const isVisible = ref(true)
+let idleTimer = null
+
+const showPlayer = () => {
+  isVisible.value = true
+  resetIdleTimer()
+}
+
+const hidePlayer = () => {
+  // Don't hide if speed menu is open
+  if (showSpeedMenu.value) return
+  isVisible.value = false
+}
+
+const resetIdleTimer = () => {
+  if (idleTimer) clearTimeout(idleTimer)
+  idleTimer = setTimeout(hidePlayer, IDLE_TIMEOUT)
+}
+
+// Show on any interaction
+const onInteraction = () => {
+  showPlayer()
+}
 
 // Flag to auto-play when audio is ready (for auto-play feature)
 const playWhenReady = ref(false)
@@ -49,8 +75,15 @@ onMounted(() => {
     const rate = parseFloat(saved)
     if (SPEED_OPTIONS.includes(rate)) {
       playbackRate.value = rate
+      // If audio is already loaded, apply rate immediately
+      // (loadedmetadata may have fired before onMounted)
+      if (audioRef.value) {
+        audioRef.value.playbackRate = rate
+      }
     }
   }
+  // Start idle timer for auto-hide
+  resetIdleTimer()
 })
 
 const progressPercent = () => {
@@ -103,6 +136,9 @@ const selectSpeed = (speed) => {
   if (audioRef.value) {
     audioRef.value.playbackRate = speed
   }
+
+  // Reset idle timer after interaction
+  resetIdleTimer()
 }
 
 // Close menu when clicking outside
@@ -132,6 +168,11 @@ const onLoadedMetadata = () => {
 
 const onPlay = () => {
   isPlaying.value = true
+  // Ensure playback rate is applied when playback starts
+  // (some browsers may reset it, or it may not have been set yet)
+  if (audioRef.value) {
+    audioRef.value.playbackRate = playbackRate.value
+  }
   // Register with global audio manager
   registerPlaying(audioRef.value, pausePlayback)
 }
@@ -215,6 +256,11 @@ watch(
     duration.value = 0
     showSpeedMenu.value = false
 
+    // Show player when new audio loads
+    if (newUrl) {
+      showPlayer()
+    }
+
     // If pending auto-play from previous audio ending, transfer to playWhenReady
     if (pendingAutoPlayNext.value && newUrl) {
       pendingAutoPlayNext.value = false
@@ -245,20 +291,34 @@ onUnmounted(() => {
   if (isPlaying.value) {
     unregisterPlaying(pausePlayback)
   }
+  // Clean up idle timer
+  if (idleTimer) clearTimeout(idleTimer)
 })
 </script>
 
 <template>
-  <div v-if="audioUrl" class="lightbox-audio-player" @click.stop @mousedown.stop @touchstart.stop>
-    <audio
-      ref="audioRef"
-      :src="audioUrl"
-      @timeupdate="onTimeUpdate"
-      @loadedmetadata="onLoadedMetadata"
-      @play="onPlay"
-      @pause="onPause"
-      @ended="onEnded"
-    />
+  <!-- Hover zone - always visible and interactive for hover detection -->
+  <div
+    v-if="audioUrl"
+    class="lightbox-audio-hover-zone"
+    @mouseenter="onInteraction"
+    @touchstart.stop="onInteraction"
+  >
+    <div
+      class="lightbox-audio-player"
+      :class="{ 'is-hidden': !isVisible }"
+      @click.stop="onInteraction"
+      @mousedown.stop="onInteraction"
+    >
+      <audio
+        ref="audioRef"
+        :src="audioUrl"
+        @timeupdate="onTimeUpdate"
+        @loadedmetadata="onLoadedMetadata"
+        @play="onPlay"
+        @pause="onPause"
+        @ended="onEnded"
+      />
 
     <div class="audio-player-inner">
       <!-- Play/Pause Button -->
@@ -348,21 +408,46 @@ onUnmounted(() => {
       </button>
     </div>
   </div>
+  </div>
 </template>
 
 <style scoped>
-.lightbox-audio-player {
+/* Hover zone - always interactive, positioned at bottom of lightbox */
+.lightbox-audio-hover-zone {
   position: absolute;
   bottom: 4.5rem;
   left: 50%;
   transform: translateX(-50%);
   width: max(280px, 40vw);
   max-width: 600px;
+  /* Extend hover zone slightly beyond the player for easier targeting */
+  padding: 12px 0;
+  /* Always allow interaction for hover detection */
+  pointer-events: auto;
+}
+
+.lightbox-audio-player {
+  width: 100%;
   padding: 8px 16px;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
+  /* Auto-hide transition */
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Hidden state - fade out and allow clicks through */
+.lightbox-audio-player.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Show player when hovering on zone (desktop) */
+.lightbox-audio-hover-zone:hover .lightbox-audio-player.is-hidden {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .audio-player-inner {
@@ -558,11 +643,14 @@ onUnmounted(() => {
 
 /* Mobile responsive */
 @media (max-width: 640px) {
-  .lightbox-audio-player {
+  .lightbox-audio-hover-zone {
     width: max(240px, 70vw);
+    bottom: 4rem;
+  }
+
+  .lightbox-audio-player {
     padding: 6px 12px;
     border-radius: 8px;
-    bottom: 4rem;
   }
 
   .audio-player-inner {
