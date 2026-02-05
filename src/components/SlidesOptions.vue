@@ -297,7 +297,7 @@ const handleConfirmChoice = async () => {
     if (imageChoice.value === 'new') {
       await confirmRegeneration(comparingPage.value.id, { useNewImage: true })
     } else {
-      cancelRegeneration(comparingPage.value.id)
+      cancelRegeneration(comparingPage.value.id, { type: 'image' })
     }
   } else if (type === 'audio') {
     // Audio-only comparison
