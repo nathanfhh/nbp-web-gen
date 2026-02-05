@@ -579,9 +579,7 @@ export function useSlidesGeneration() {
     }
 
     // Show appropriate toast based on what was updated
-    if (newImage && audioResult) {
-      toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
-    } else if (newImage) {
+    if (newImage) {
       toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
     } else if (audioResult) {
       toast.success(t('slides.regenerateModal.audioSuccess', { page: page.pageNumber }))
