@@ -176,13 +176,18 @@ export const useGeneratorStore = defineStore('generator', () => {
       }
     })
 
-    // Reset transient page states for slides (status, error, pendingImage are not meant to persist)
+    // Reset transient page states for slides (status, error, pendingImage, pendingAudio are not meant to persist)
     if (slidesOptions.value.pages && slidesOptions.value.pages.length > 0) {
       slidesOptions.value.pages.forEach((page) => {
         if (page.status === 'generating' || page.status === 'comparing') {
           page.status = page.image ? 'done' : 'pending'
         }
         page.pendingImage = null
+        // Revoke objectUrl before clearing (defensive - normally already revoked on page reload)
+        if (page.pendingAudio?.objectUrl) {
+          URL.revokeObjectURL(page.pendingAudio.objectUrl)
+        }
+        page.pendingAudio = null
         page.error = null
       })
     }
@@ -227,11 +232,12 @@ export const useGeneratorStore = defineStore('generator', () => {
 
   /**
    * Sanitize slidesOptions for localStorage persistence
-   * Removes large image data that shouldn't be persisted:
+   * Removes large data that shouldn't be persisted:
    * - globalReferenceImages (user preference: no persistence)
    * - pages[].image (generated slide images)
    * - pages[].referenceImages (per-page reference images)
    * - pages[].pendingImage (temporary comparison images)
+   * - pages[].pendingAudio (temporary comparison audio with blob/objectUrl)
    */
   const sanitizeSlidesOptionsForStorage = (options) => {
     const sanitized = { ...options }
@@ -239,13 +245,14 @@ export const useGeneratorStore = defineStore('generator', () => {
     // Remove global reference images entirely
     sanitized.globalReferenceImages = []
 
-    // Sanitize pages array - keep structure but remove image data
+    // Sanitize pages array - keep structure but remove image/audio data
     if (sanitized.pages && Array.isArray(sanitized.pages)) {
       sanitized.pages = sanitized.pages.map((page) => ({
         ...page,
         image: null,
         referenceImages: [],
         pendingImage: null,
+        pendingAudio: null,
       }))
     }
 
