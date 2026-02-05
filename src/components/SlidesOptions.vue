@@ -15,6 +15,7 @@ import NarrationSection from './NarrationSection.vue'
 import SlidesRegenerateModal from './SlidesRegenerateModal.vue'
 import SlidesPageCard from './SlidesPageCard.vue'
 import ConfirmModal from './ConfirmModal.vue'
+import AudioComparisonSection from './AudioComparisonSection.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -26,8 +27,9 @@ const {
   regeneratePageAudio,
   regeneratePageWithAudio,
   confirmRegeneration,
-  confirmAudioRegeneration,
+  confirmAudioOnlyRegeneration,
   cancelRegeneration,
+  cancelAudioRegeneration,
   reorderPages,
   parsePages,
   deletePage,
@@ -201,7 +203,6 @@ const editStyle = () => {
 
 // Regenerate options modal state
 const regenerateModalPageId = ref(null)
-const pendingAudioResult = ref(null) // Store audio result during comparison
 
 // Check if page has narration script (for showing regenerate options)
 const hasNarrationForPage = (pageId) => {
@@ -227,25 +228,19 @@ const executeRegeneration = async (choice) => {
   if (!pageId) return
 
   regenerateModalPageId.value = null // Close modal
-  pendingAudioResult.value = null
 
   switch (choice) {
     case 'image':
       await regeneratePage(pageId)
       break
-    case 'audio': {
-      const audioResult = await regeneratePageAudio(pageId)
-      if (audioResult) {
-        await confirmAudioRegeneration(pageId, audioResult)
-      }
+    case 'audio':
+      // Audio regeneration now enters comparing mode (pendingAudio stored in page)
+      await regeneratePageAudio(pageId)
       break
-    }
-    case 'both': {
-      const { audioResult } = await regeneratePageWithAudio(pageId)
-      // Store audio result for later confirmation
-      pendingAudioResult.value = audioResult
+    case 'both':
+      // Both are stored in pending state for user comparison
+      await regeneratePageWithAudio(pageId)
       break
-    }
   }
 }
 
@@ -254,26 +249,75 @@ const comparingPage = computed(() => {
   return store.slidesOptions.pages.find((p) => p.status === 'comparing')
 })
 
-// Comparison modal selection state ('original' or 'new')
-const comparisonChoice = ref('new')
+// Determine comparison type based on what's pending
+const comparisonType = computed(() => {
+  if (!comparingPage.value) return null
+  const hasPendingImage = !!comparingPage.value.pendingImage
+  const hasPendingAudio = !!comparingPage.value.pendingAudio
+  if (hasPendingImage && hasPendingAudio) return 'both'
+  if (hasPendingImage) return 'image'
+  if (hasPendingAudio) return 'audio'
+  return null
+})
 
-// Reset choice when comparing page changes
+// Get existing audio URL for the comparing page (from generatedAudioUrls)
+const existingAudioUrl = computed(() => {
+  if (!comparingPage.value) return null
+  const pageIndex = store.slidesOptions.pages.findIndex((p) => p.id === comparingPage.value.id)
+  if (pageIndex === -1) return null
+  return store.generatedAudioUrls[pageIndex] || null
+})
+
+// Can keep original audio? (false if no existing audio - first-time generation)
+const canKeepOriginalAudio = computed(() => {
+  return !!existingAudioUrl.value
+})
+
+// Comparison modal selection states
+const imageChoice = ref('new') // 'original' or 'new'
+const audioChoice = ref('new') // 'original' or 'new'
+
+// Reset choices when comparing page changes
 watch(comparingPage, (newVal) => {
   if (newVal) {
-    comparisonChoice.value = 'new' // Default to new image
+    imageChoice.value = 'new' // Default to new image
+    // For audio: if no existing audio, force new; otherwise default to new
+    audioChoice.value = 'new'
   }
 })
 
-// Confirm the selected choice
+// Confirm the selected choices
 const handleConfirmChoice = async () => {
   if (!comparingPage.value) return
-  if (comparisonChoice.value === 'new') {
-    // Pass pending audio result if available (from 'both' regeneration)
-    await confirmRegeneration(comparingPage.value.id, pendingAudioResult.value)
-    pendingAudioResult.value = null
-  } else {
-    cancelRegeneration(comparingPage.value.id)
-    pendingAudioResult.value = null
+
+  const type = comparisonType.value
+
+  if (type === 'image') {
+    // Image-only comparison
+    if (imageChoice.value === 'new') {
+      await confirmRegeneration(comparingPage.value.id, { useNewImage: true })
+    } else {
+      cancelRegeneration(comparingPage.value.id)
+    }
+  } else if (type === 'audio') {
+    // Audio-only comparison
+    if (audioChoice.value === 'new') {
+      await confirmAudioOnlyRegeneration(comparingPage.value.id)
+    } else {
+      cancelAudioRegeneration(comparingPage.value.id)
+    }
+  } else if (type === 'both') {
+    // Both image and audio comparison
+    const useNewImage = imageChoice.value === 'new'
+    const useNewAudio = audioChoice.value === 'new'
+
+    if (!useNewImage && !useNewAudio) {
+      // User chose to keep both originals - cancel all
+      cancelRegeneration(comparingPage.value.id, { type: 'both' })
+    } else {
+      // At least one is new - use confirmRegeneration
+      await confirmRegeneration(comparingPage.value.id, { useNewImage, useNewAudio })
+    }
   }
 }
 
@@ -854,61 +898,81 @@ const resetSlidesOptions = async () => {
       @confirm="executeRegeneration"
     />
 
-    <!-- Image Comparison Modal (for regeneration) -->
+    <!-- Comparison Modal (for regeneration - supports image, audio, or both) -->
     <Teleport to="body">
       <Transition name="modal">
         <div
           v-if="comparingPage"
           class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay"
         >
-          <div class="bg-bg-card rounded-2xl shadow-2xl max-w-4xl w-full mx-4 overflow-hidden">
+          <div class="bg-bg-card rounded-2xl shadow-2xl max-w-4xl w-full mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
             <!-- Header -->
             <div class="px-6 py-4 border-b border-border-default">
               <h3 class="text-lg font-semibold text-text-primary">
-                {{ $t('slides.compareImages') }}
+                {{ comparisonType === 'both' ? $t('slides.compareBoth') : comparisonType === 'audio' ? $t('slides.compareAudio') : $t('slides.compareImages') }}
               </h3>
               <p class="text-sm text-text-muted mt-1">
-                {{ $t('slides.compareImagesHint', { page: comparingPage.pageNumber }) }}
+                {{ comparisonType === 'both' ? $t('slides.compareBothHint', { page: comparingPage.pageNumber }) : comparisonType === 'audio' ? $t('slides.compareAudioHint', { page: comparingPage.pageNumber }) : $t('slides.compareImagesHint', { page: comparingPage.pageNumber }) }}
               </p>
             </div>
 
-            <!-- Image Comparison -->
-            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <!-- Original Image -->
-              <div class="space-y-3">
-                <div class="text-sm font-medium text-text-secondary text-center">
-                  {{ $t('slides.originalImage') }}
-                </div>
-                <div
-                  class="aspect-video bg-bg-muted rounded-xl overflow-hidden cursor-pointer ring-2 transition-all"
-                  :class="comparisonChoice === 'original' ? 'ring-brand-primary' : 'ring-transparent hover:ring-border-default'"
-                  @click="comparisonChoice = 'original'"
-                >
-                  <img
-                    v-if="comparingPage.image"
-                    :src="`data:${comparingPage.image.mimeType};base64,${comparingPage.image.data}`"
-                    class="w-full h-full object-contain"
-                  />
-                </div>
+            <!-- Image Comparison Section (shown for 'image' or 'both') -->
+            <div v-if="comparisonType === 'image' || comparisonType === 'both'" class="p-6 space-y-4">
+              <!-- Section title for 'both' mode -->
+              <div v-if="comparisonType === 'both'" class="text-sm font-medium text-text-secondary text-center">
+                {{ $t('slides.imageSection') }}
               </div>
 
-              <!-- New Image -->
-              <div class="space-y-3">
-                <div class="text-sm font-medium text-text-secondary text-center">
-                  {{ $t('slides.newImage') }}
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- Original Image -->
+                <div class="space-y-3">
+                  <div class="text-sm font-medium text-text-secondary text-center">
+                    {{ $t('slides.originalImage') }}
+                  </div>
+                  <div
+                    class="aspect-video bg-bg-muted rounded-xl overflow-hidden cursor-pointer ring-2 transition-all"
+                    :class="imageChoice === 'original' ? 'ring-brand-primary' : 'ring-transparent hover:ring-border-default'"
+                    @click="imageChoice = 'original'"
+                  >
+                    <img
+                      v-if="comparingPage.image"
+                      :src="`data:${comparingPage.image.mimeType};base64,${comparingPage.image.data}`"
+                      class="w-full h-full object-contain"
+                    />
+                  </div>
                 </div>
-                <div
-                  class="aspect-video bg-bg-muted rounded-xl overflow-hidden cursor-pointer ring-2 transition-all"
-                  :class="comparisonChoice === 'new' ? 'ring-mode-generate' : 'ring-transparent hover:ring-border-default'"
-                  @click="comparisonChoice = 'new'"
-                >
-                  <img
-                    v-if="comparingPage.pendingImage"
-                    :src="`data:${comparingPage.pendingImage.mimeType};base64,${comparingPage.pendingImage.data}`"
-                    class="w-full h-full object-contain"
-                  />
+
+                <!-- New Image -->
+                <div class="space-y-3">
+                  <div class="text-sm font-medium text-text-secondary text-center">
+                    {{ $t('slides.newImage') }}
+                  </div>
+                  <div
+                    class="aspect-video bg-bg-muted rounded-xl overflow-hidden cursor-pointer ring-2 transition-all"
+                    :class="imageChoice === 'new' ? 'ring-mode-generate' : 'ring-transparent hover:ring-border-default'"
+                    @click="imageChoice = 'new'"
+                  >
+                    <img
+                      v-if="comparingPage.pendingImage"
+                      :src="`data:${comparingPage.pendingImage.mimeType};base64,${comparingPage.pendingImage.data}`"
+                      class="w-full h-full object-contain"
+                    />
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Divider for 'both' mode -->
+            <div v-if="comparisonType === 'both'" class="border-t border-border-muted mx-6" />
+
+            <!-- Audio Comparison Section (shown for 'audio' or 'both') -->
+            <div v-if="comparisonType === 'audio' || comparisonType === 'both'" class="p-6">
+              <AudioComparisonSection
+                v-model="audioChoice"
+                :original-audio-url="existingAudioUrl"
+                :new-audio-url="comparingPage.pendingAudio?.objectUrl"
+                :can-keep-original="canKeepOriginalAudio"
+              />
             </div>
 
             <!-- Footer with Confirm Button -->
@@ -917,7 +981,7 @@ const resetSlidesOptions = async () => {
                 @click="handleConfirmChoice"
                 class="w-full py-2.5 rounded-xl bg-mode-generate text-text-on-brand hover:opacity-90 transition-colors text-sm font-medium"
               >
-                {{ comparisonChoice === 'new' ? $t('slides.useNew') : $t('slides.keepOriginal') }}
+                {{ $t('common.confirm') }}
               </button>
             </div>
           </div>
