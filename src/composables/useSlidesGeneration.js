@@ -457,6 +457,13 @@ export function useSlidesGeneration() {
       store.slidesOptions.pages[pageIndex].error = t('slides.regenerateFailed')
       return false
     } catch (err) {
+      // Cleanup any pending resources before setting error
+      const page = store.slidesOptions.pages[pageIndex]
+      if (page.pendingAudio?.objectUrl) {
+        URL.revokeObjectURL(page.pendingAudio.objectUrl)
+      }
+      store.slidesOptions.pages[pageIndex].pendingImage = null
+      store.slidesOptions.pages[pageIndex].pendingAudio = null
       store.slidesOptions.pages[pageIndex].status = 'error'
       store.slidesOptions.pages[pageIndex].error = err.message
       toast.error(t('slides.regenerateFailed'))
@@ -731,7 +738,15 @@ export function useSlidesGeneration() {
     }
 
     store.slidesOptions.pages[pageIndex].status = 'done'
-    toast.info(t('slides.regenerateCancelled'))
+
+    // Show appropriate message based on what was cancelled
+    const messageKey =
+      type === 'image'
+        ? 'slides.regenerateCancelled'
+        : type === 'audio'
+          ? 'slides.regenerateAudioCancelled'
+          : 'slides.regenerateBothCancelled'
+    toast.info(t(messageKey))
   }
 
   /**

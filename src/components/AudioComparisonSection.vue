@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -35,14 +35,32 @@ const isPlayingNew = ref(false)
 const originalAudioRef = ref(null)
 const newAudioRef = ref(null)
 
+// Helper to stop all audio playback
+const stopAllAudio = () => {
+  if (originalAudioRef.value) {
+    originalAudioRef.value.pause()
+    originalAudioRef.value.currentTime = 0
+  }
+  if (newAudioRef.value) {
+    newAudioRef.value.pause()
+    newAudioRef.value.currentTime = 0
+  }
+  isPlayingOriginal.value = false
+  isPlayingNew.value = false
+}
+
 // Reset playback state when URLs change
 watch(
   () => [props.originalAudioUrl, props.newAudioUrl],
   () => {
-    isPlayingOriginal.value = false
-    isPlayingNew.value = false
+    stopAllAudio()
   },
 )
+
+// Cleanup on unmount - stop audio when modal closes
+onUnmounted(() => {
+  stopAllAudio()
+})
 
 // Play/pause original audio
 const toggleOriginalAudio = () => {
@@ -58,7 +76,9 @@ const toggleOriginalAudio = () => {
     originalAudioRef.value.pause()
     isPlayingOriginal.value = false
   } else {
-    originalAudioRef.value.play()
+    originalAudioRef.value.play().catch(() => {
+      isPlayingOriginal.value = false
+    })
     isPlayingOriginal.value = true
   }
 }
@@ -77,7 +97,9 @@ const toggleNewAudio = () => {
     newAudioRef.value.pause()
     isPlayingNew.value = false
   } else {
-    newAudioRef.value.play()
+    newAudioRef.value.play().catch(() => {
+      isPlayingNew.value = false
+    })
     isPlayingNew.value = true
   }
 }
@@ -126,6 +148,7 @@ const selectOption = (value) => {
             <!-- Play/Pause Button -->
             <button
               @click.stop="toggleOriginalAudio"
+              :aria-label="isPlayingOriginal ? t('slides.pauseOriginalAudio') : t('slides.playOriginalAudio')"
               class="w-12 h-12 rounded-full flex items-center justify-center transition-all"
               :class="
                 isPlayingOriginal
@@ -191,6 +214,7 @@ const selectOption = (value) => {
             <!-- Play/Pause Button -->
             <button
               @click.stop="toggleNewAudio"
+              :aria-label="isPlayingNew ? t('slides.pauseNewAudio') : t('slides.playNewAudio')"
               class="w-12 h-12 rounded-full flex items-center justify-center transition-all"
               :class="
                 isPlayingNew

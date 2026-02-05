@@ -183,6 +183,10 @@ export const useGeneratorStore = defineStore('generator', () => {
           page.status = page.image ? 'done' : 'pending'
         }
         page.pendingImage = null
+        // Revoke objectUrl before clearing (defensive - normally already revoked on page reload)
+        if (page.pendingAudio?.objectUrl) {
+          URL.revokeObjectURL(page.pendingAudio.objectUrl)
+        }
         page.pendingAudio = null
         page.error = null
       })

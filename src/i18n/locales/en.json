@@ -327,6 +327,11 @@
     "regenerateFailed": "Regeneration failed",
     "regenerateCancelled": "Cancelled, keeping original image",
     "regenerateAudioCancelled": "Cancelled, keeping original audio",
+    "regenerateBothCancelled": "Cancelled, keeping original image and audio",
+    "playOriginalAudio": "Play original audio",
+    "pauseOriginalAudio": "Pause original audio",
+    "playNewAudio": "Play new audio",
+    "pauseNewAudio": "Pause new audio",
     "regenerateModal": {
       "title": "Regenerate Options",
       "hint": "Choose what to regenerate",

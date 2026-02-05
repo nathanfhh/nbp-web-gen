@@ -327,6 +327,11 @@
     "regenerateFailed": "重新生成失敗",
     "regenerateCancelled": "已取消，保留原始圖片",
     "regenerateAudioCancelled": "已取消，保留原始語音",
+    "regenerateBothCancelled": "已取消，保留原始圖片與語音",
+    "playOriginalAudio": "播放原始語音",
+    "pauseOriginalAudio": "暫停原始語音",
+    "playNewAudio": "播放新語音",
+    "pauseNewAudio": "暫停新語音",
     "regenerateModal": {
       "title": "重新生成選項",
       "hint": "選擇要重新生成的內容",
