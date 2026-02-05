@@ -549,6 +549,7 @@ const handleAudioPause = (index, event) => {
             <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
           </svg>
           <audio
+            :key="store.generatedAudioUrls[index]"
             :src="store.generatedAudioUrls[index]"
             controls
             class="preview-audio-element"
