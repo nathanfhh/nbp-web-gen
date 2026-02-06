@@ -326,6 +326,8 @@ describe('OCR constants', () => {
   })
 
   it('DETECTION_STD values are positive', () => {
-    DETECTION_STD.forEach((v) => expect(v).toBeGreaterThan(0))
+    DETECTION_STD.forEach((v) => {
+      expect(v).toBeGreaterThan(0)
+    })
   })
 })
