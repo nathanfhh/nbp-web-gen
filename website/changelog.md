@@ -2,6 +2,18 @@
 
 此頁面記錄 Mediator 的版本更新內容。
 
+## v0.26.18
+
+_2026-02-06_
+
+### 測試基礎建設
+- 新增 Vitest 單元測試框架，搭配 happy-dom 環境與 v8 coverage
+- 新增 319 個單元測試，涵蓋 16 個檔案（純函式、OCR 演算法、錯誤分類、PPTX 匯出等）
+- 新增 `npm test`、`npm run test:watch`、`npm run test:coverage` 指令
+
+### 修復
+- **ESLint**: 排除 VitePress 快取目錄，為 scripts 目錄新增 Node.js 環境設定
+
 ## v0.26.17
 
 _2026-02-06_

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* global process */
 /**
  * 顏色遷移腳本
  * 將 Tailwind 硬編碼顏色類別替換為語義化 Token

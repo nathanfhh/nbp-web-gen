@@ -9,11 +9,33 @@ Nano Banana Pro Web Gen is a Vue 3 PWA for AI image generation using Google Gemi
 ## Commands
 
 ```bash
-npm run dev      # Start dev server (binds to 0.0.0.0)
-npm run build    # Production build
-npm run lint     # ESLint with auto-fix
-npm run format   # Prettier formatting for src/
+npm run dev          # Start dev server (binds to 0.0.0.0)
+npm run build        # Production build
+npm run lint         # ESLint with auto-fix
+npm run format       # Prettier formatting for src/
+npm test             # Run all tests (single run, CI-friendly)
+npm run test:watch   # Run tests in watch mode (development)
+npm run test:coverage # Run tests with V8 coverage report
 ```
+
+### Testing Conventions
+
+- **Framework**: Vitest 4.x with happy-dom environment
+- **Config**: `vitest.config.js` (independent from `vite.config.js` — no Vue/Tailwind/PWA plugins)
+- **Co-located tests**: Test files live next to source files as `*.test.js` (e.g., `useFormatTime.test.js`)
+- **Explicit imports**: Always `import { describe, it, expect } from 'vitest'` — no globals
+- **Pure functions first**: Phase 1 tests cover pure utility functions only (no mocks needed)
+- **No setup file**: No global test setup — each test file is self-contained
+- **After any code modification**: Always run `npm test` to ensure no regressions before finishing
+
+### Linting
+
+- **ESLint config**: `eslint.config.js` — flat config format
+- **Target: 0 errors** — all source, scripts, and config files should lint clean
+- **Excluded from lint**: `website/.vitepress/cache/**` (third-party cached deps)
+- **Node.js env**: `scripts/**/*.{js,mjs}`, `website/.vitepress/*.js`, `*.config.js` have `globals.node`
+- **VitePress exception**: `vue/multi-word-component-names` disabled for `website/.vitepress/**/*.vue` (VitePress requires `Layout.vue`)
+- When checking lint, run `npm run lint` on the whole project (should be 0 errors)
 
 ## Architecture
 
