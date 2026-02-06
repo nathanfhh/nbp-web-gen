@@ -2,6 +2,18 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.18
+
+_2026-02-06_
+
+### Testing Infrastructure
+- Add Vitest unit testing framework with happy-dom environment and v8 coverage
+- Add 319 unit tests across 16 files covering pure functions, OCR algorithms, error classification, PPTX export, and more
+- Add `npm test`, `npm run test:watch`, `npm run test:coverage` scripts
+
+### Fixes
+- **ESLint**: Exclude VitePress cache directory and add Node.js environment for scripts
+
 ## v0.26.17
 
 _2026-02-06_
