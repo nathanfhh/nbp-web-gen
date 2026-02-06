@@ -12,6 +12,8 @@
  *   imageMimeTypes: string[]           - MIME types for each image
  *   audioPcmData: (Float32Array|null)[] - Pre-decoded mono PCM at 48kHz (null = no audio)
  *   defaultPageDuration: number         - Duration in seconds for pages without audio
+ *   maxWidth: number                    - Max output video width (default 1920)
+ *   maxHeight: number                   - Max output video height (default 1080)
  *
  * Output messages:
  *   { type: 'progress', current, total, phase }
@@ -26,8 +28,6 @@ const AUDIO_BITRATE = 128_000
 const OPUS_BITRATE = 96_000 // Opus uses lower bitrate for similar quality
 const DEFAULT_VIDEO_BITRATE = 8_000_000
 const AUDIO_CHUNK_SIZE = 4096
-const MAX_VIDEO_WIDTH = 1920
-const MAX_VIDEO_HEIGHT = 1080
 
 // Static page frame rate (for player compatibility)
 // Using 2 fps to ensure standard video structure while keeping file size reasonable
@@ -63,6 +63,68 @@ function isValidPcm(pcm) {
   return true
 }
 
+/**
+ * Sample border color from an ImageBitmap by averaging 8 edge points
+ * (4 corners + 4 edge midpoints). Used for letterbox background color.
+ * @param {ImageBitmap} bitmap
+ * @returns {{r: number, g: number, b: number}}
+ */
+function sampleBorderColor(bitmap) {
+  const canvas = new OffscreenCanvas(1, 1)
+  const ctx = canvas.getContext('2d')
+  const w = bitmap.width
+  const h = bitmap.height
+
+  // 8 sample points: 4 corners + 4 edge midpoints
+  const points = [
+    [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1], // corners
+    [Math.floor(w / 2), 0], [Math.floor(w / 2), h - 1], // top/bottom mid
+    [0, Math.floor(h / 2)], [w - 1, Math.floor(h / 2)], // left/right mid
+  ]
+
+  let totalR = 0, totalG = 0, totalB = 0
+  let count = 0
+
+  for (const [sx, sy] of points) {
+    ctx.drawImage(bitmap, sx, sy, 1, 1, 0, 0, 1, 1)
+    const pixel = ctx.getImageData(0, 0, 1, 1).data
+    totalR += pixel[0]
+    totalG += pixel[1]
+    totalB += pixel[2]
+    count++
+  }
+
+  return {
+    r: Math.round(totalR / count),
+    g: Math.round(totalG / count),
+    b: Math.round(totalB / count),
+  }
+}
+
+/**
+ * Convert {r,g,b} to CSS rgb() string
+ * @param {{r: number, g: number, b: number}} color
+ * @returns {string}
+ */
+function rgbToString(color) {
+  return `rgb(${color.r},${color.g},${color.b})`
+}
+
+/**
+ * Linearly interpolate between two RGB colors
+ * @param {{r: number, g: number, b: number}} colorA
+ * @param {{r: number, g: number, b: number}} colorB
+ * @param {number} t - Interpolation factor (0 = colorA, 1 = colorB)
+ * @returns {string} CSS rgb() string
+ */
+function lerpColor(colorA, colorB, t) {
+  return rgbToString({
+    r: Math.round(colorA.r + (colorB.r - colorA.r) * t),
+    g: Math.round(colorA.g + (colorB.g - colorA.g) * t),
+    b: Math.round(colorA.b + (colorB.b - colorA.b) * t),
+  })
+}
+
 self.onmessage = async (e) => {
   const {
     images,
@@ -70,6 +132,8 @@ self.onmessage = async (e) => {
     audioPcmData,
     defaultPageDuration = 5,
     videoBitrate = DEFAULT_VIDEO_BITRATE,
+    maxWidth = 1920,
+    maxHeight = 1080,
   } = e.data
 
   const pageCount = images.length
@@ -95,9 +159,9 @@ self.onmessage = async (e) => {
       }
     }
 
-    // Determine video dimensions from first valid image (capped to AVC level limits)
-    let videoWidth = 1920
-    let videoHeight = 1080
+    // Determine video dimensions from first valid image (capped to requested max)
+    let videoWidth = Math.min(1920, maxWidth)
+    let videoHeight = Math.min(1080, maxHeight)
     let firstBitmap = null
 
     if (firstValidIdx >= 0) {
@@ -108,9 +172,9 @@ self.onmessage = async (e) => {
         let w = firstBitmap.width
         let h = firstBitmap.height
 
-        // Scale down if exceeds max dimensions (H.264 encoder level constraint)
-        if (w > MAX_VIDEO_WIDTH || h > MAX_VIDEO_HEIGHT) {
-          const scale = Math.min(MAX_VIDEO_WIDTH / w, MAX_VIDEO_HEIGHT / h)
+        // Scale down if exceeds max dimensions
+        if (w > maxWidth || h > maxHeight) {
+          const scale = Math.min(maxWidth / w, maxHeight / h)
           w = Math.round(w * scale)
           h = Math.round(h * scale)
         }
@@ -160,7 +224,59 @@ self.onmessage = async (e) => {
       )
     }
 
-    // Phase 3: Set up mp4-muxer with detected audio codec
+    // Phase 3: Set up VideoEncoder with dynamic H.264 level selection
+    // Level 4.0 (avc1.640028): up to ~8192 macroblocks (e.g. 2048×1024)
+    // Level 5.0 (avc1.640032): up to 22080 macroblocks (e.g. 3840×2160)
+    const totalMacroblocks = Math.ceil(videoWidth / 16) * Math.ceil(videoHeight / 16)
+    const autoCodec = totalMacroblocks > 8192 ? 'avc1.640032' : 'avc1.640028'
+
+    const baseConfig = {
+      width: videoWidth,
+      height: videoHeight,
+      bitrate: videoBitrate,
+      bitrateMode: 'variable',
+      latencyMode: 'quality',
+    }
+
+    // Fallback chain: auto level → Level 4.0 → downscale to 1080p
+    let videoConfig = null
+    const codecCandidates = [autoCodec]
+    if (autoCodec !== 'avc1.640028') codecCandidates.push('avc1.640028')
+
+    for (const codec of codecCandidates) {
+      const config = { ...baseConfig, codec }
+      const support = await VideoEncoder.isConfigSupported(config)
+      if (support.supported) {
+        videoConfig = config
+        break
+      }
+    }
+
+    // Last resort: downscale to 1080p with Level 4.0
+    if (!videoConfig && (videoWidth > 1920 || videoHeight > 1080)) {
+      const scale = Math.min(1920 / videoWidth, 1080 / videoHeight)
+      videoWidth = makeEven(Math.round(videoWidth * scale))
+      videoHeight = makeEven(Math.round(videoHeight * scale))
+      const fallbackConfig = {
+        codec: 'avc1.640028',
+        width: videoWidth,
+        height: videoHeight,
+        bitrate: videoBitrate,
+        bitrateMode: 'variable',
+        latencyMode: 'quality',
+      }
+      const support = await VideoEncoder.isConfigSupported(fallbackConfig)
+      if (support.supported) {
+        videoConfig = fallbackConfig
+        console.info(`[MP4 Encoder] Downscaled to ${videoWidth}x${videoHeight} for codec compatibility`)
+      }
+    }
+
+    if (!videoConfig) {
+      throw new Error(`VideoEncoder config not supported: ${videoWidth}x${videoHeight} H.264`)
+    }
+
+    // Phase 4: Set up mp4-muxer (after videoConfig is finalized, dimensions may have changed)
     const target = new ArrayBufferTarget()
     const muxer = new Muxer({
       target,
@@ -177,22 +293,8 @@ self.onmessage = async (e) => {
       fastStart: 'in-memory',
     })
 
-    // Phase 4: Set up VideoEncoder with support check
-    const videoConfig = {
-      codec: 'avc1.640028', // H.264 High L4.0
-      width: videoWidth,
-      height: videoHeight,
-      bitrate: videoBitrate,
-      bitrateMode: 'constant',
-    }
-
-    // Check if VideoEncoder supports this configuration
-    const videoSupport = await VideoEncoder.isConfigSupported(videoConfig)
-    if (!videoSupport.supported) {
-      throw new Error(`VideoEncoder config not supported: ${videoWidth}x${videoHeight} H.264`)
-    }
-
     let encoderError = null
+    // Phase 5: Set up VideoEncoder
     let currentEncodingPage = -1 // Declared here, used by both encoders
     const videoEncoder = new VideoEncoder({
       output: (chunk, meta) => {
@@ -209,7 +311,7 @@ self.onmessage = async (e) => {
 
     videoEncoder.configure(videoConfig)
 
-    // Phase 5: Set up AudioEncoder
+    // Phase 6: Set up AudioEncoder
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => {
         muxer.addAudioChunk(chunk, meta)
@@ -226,12 +328,12 @@ self.onmessage = async (e) => {
 
     audioEncoder.configure(audioConfig)
 
-    // Phase 6: Encode each page with crossfade transitions
+    // Phase 7: Encode each page with crossfade transitions
     const canvas = new OffscreenCanvas(videoWidth, videoHeight)
     const ctx = canvas.getContext('2d')
 
     /**
-     * Draw a bitmap onto canvas with letterbox (fit-contain, white background)
+     * Draw a bitmap onto canvas with letterbox (fit-contain)
      * @param {ImageBitmap} bitmap - The bitmap to draw
      * @param {number} alpha - Opacity (0-1), defaults to 1
      */
@@ -252,6 +354,11 @@ self.onmessage = async (e) => {
     let cachedNextBitmap = null // Reuse bitmap created during transition
     let audioSamplesConsumed = 0 // Samples already encoded during previous transition
 
+    // Background color tracking for letterbox areas (avoids white flash on dark themes)
+    const defaultBgColor = { r: 255, g: 255, b: 255 }
+    let lastValidBgColor = firstBitmap ? sampleBorderColor(firstBitmap) : defaultBgColor
+    let cachedNextBgColor = null
+
     for (let i = 0; i < pageCount; i++) {
       currentEncodingPage = i // Track for error reporting
       self.postMessage({ type: 'progress', current: i + 1, total: pageCount, phase: 'encoding' })
@@ -270,11 +377,17 @@ self.onmessage = async (e) => {
 
       // Resolve bitmap for this page (use cached bitmap from previous transition if available)
       let bitmap = null
+      let currentBgColor = lastValidBgColor
       if (cachedNextBitmap) {
         bitmap = cachedNextBitmap
         cachedNextBitmap = null
+        if (cachedNextBgColor) {
+          currentBgColor = cachedNextBgColor
+          cachedNextBgColor = null
+        }
         if (images[i]) {
           lastValidBitmap = bitmap
+          lastValidBgColor = currentBgColor
         }
       } else if (images[i]) {
         try {
@@ -286,6 +399,8 @@ self.onmessage = async (e) => {
             )
           }
           lastValidBitmap = bitmap
+          currentBgColor = sampleBorderColor(bitmap)
+          lastValidBgColor = currentBgColor
         } catch {
           bitmap = lastValidBitmap
         }
@@ -293,8 +408,8 @@ self.onmessage = async (e) => {
         bitmap = lastValidBitmap
       }
 
-      // Draw image on canvas with letterbox (fit-contain, white background)
-      ctx.fillStyle = '#FFFFFF'
+      // Draw image on canvas with letterbox (fit-contain, adaptive background)
+      ctx.fillStyle = rgbToString(currentBgColor)
       ctx.fillRect(0, 0, videoWidth, videoHeight)
       drawLetterbox(bitmap)
 
@@ -390,6 +505,17 @@ self.onmessage = async (e) => {
           nextBitmap = lastValidBitmap
         }
 
+        // Sample next page's border color for background interpolation
+        let nextBgColor = lastValidBgColor
+        if (nextBitmap) {
+          try {
+            nextBgColor = sampleBorderColor(nextBitmap)
+          } catch {
+            // keep lastValidBgColor
+          }
+          cachedNextBgColor = nextBgColor
+        }
+
         // Encode crossfade transition frames with silence audio
         const frameDurationUs = Math.round(TRANSITION_DURATION_US / TRANSITION_FRAMES)
         const transitionStartTimestamp = currentTimestamp
@@ -397,14 +523,14 @@ self.onmessage = async (e) => {
         for (let f = 0; f < TRANSITION_FRAMES; f++) {
           const alpha = (f + 1) / TRANSITION_FRAMES // 1/12 → 12/12
 
-          // Clear canvas with white background
-          ctx.fillStyle = '#FFFFFF'
+          // Interpolate background color between current and next page
+          ctx.fillStyle = lerpColor(currentBgColor, nextBgColor, alpha)
           ctx.fillRect(0, 0, videoWidth, videoHeight)
 
-          // Draw current page (fading out)
-          drawLetterbox(bitmap, 1 - alpha)
-
-          // Draw next page (fading in)
+          // Fixed compositing: draw outgoing page at full opacity (covers background),
+          // then overlay incoming page at alpha. Result: img2*α + img1*(1-α)
+          // This eliminates white bleed from source-over compositing math.
+          drawLetterbox(bitmap, 1)
           drawLetterbox(nextBitmap, alpha)
 
           // Encode transition frame
@@ -499,7 +625,7 @@ self.onmessage = async (e) => {
       }
     }
 
-    // Phase 7: Flush and finalize
+    // Phase 8: Flush and finalize
     self.postMessage({ type: 'progress', current: pageCount, total: pageCount, phase: 'finalizing' })
 
     await videoEncoder.flush()
