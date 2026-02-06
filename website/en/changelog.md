@@ -2,6 +2,24 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.17
+
+_2026-02-06_
+
+### New Features
+- **Slides**: Add audio preview comparison when regenerating — listen to old vs new audio before deciding to replace
+- **MP4 Export**: Add output resolution selection (1080p / 1440p / 2160p), auto-enables based on source image dimensions
+- **MP4 Export**: Quality option bitrate descriptions now dynamically adjust based on selected resolution
+
+### Fixes
+- **MP4 Export**: Fix white flash during transitions on dark-themed presentations (Canvas 2D compositing math fix)
+- **MP4 Export**: Fix noticeable quality degradation at the start of each slide (switched to VBR encoding mode)
+- **Slides**: Fix audio player not updating after regeneration
+
+### Improvements
+- **MP4 Export**: Auto-detect H.264 codec level (Level 4.0 / 5.0) — high-resolution videos no longer capped at 1080p
+- **MP4 Export**: Transition background color auto-sampled from slide edges, adapting to any theme color
+
 ## v0.26.16
 
 _2026-02-04_
