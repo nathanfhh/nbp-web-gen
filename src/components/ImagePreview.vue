@@ -158,10 +158,24 @@ onUnmounted(() => {
 
 // MP4 quality modal state
 const showMp4QualityModal = ref(false)
+const sourceImageDimensions = ref({ width: 1920, height: 1080 })
 
-// Open MP4 quality modal instead of directly downloading
-const handleMp4Click = () => {
+// Detect source image dimensions and open MP4 quality modal
+const handleMp4Click = async () => {
   showBatchMenu.value = false
+  const firstImage = store.generatedImages.find(img => img?.data)
+  if (firstImage) {
+    try {
+      const blob = imageToBlob(firstImage)
+      if (blob) {
+        const bmp = await createImageBitmap(blob)
+        sourceImageDimensions.value = { width: bmp.width, height: bmp.height }
+        bmp.close()
+      }
+    } catch {
+      // Keep default 1920x1080
+    }
+  }
   showMp4QualityModal.value = true
 }
 
@@ -261,8 +275,8 @@ const downloadAllAsPdf = async () => {
   }
 }
 
-// Download all images + audio as MP4 with specified bitrate
-const downloadAllAsMp4 = async (videoBitrate) => {
+// Download all images + audio as MP4 with specified bitrate and resolution
+const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight }) => {
   if (store.generatedImages.length === 0 || isBatchDownloading.value) return
 
   isBatchDownloading.value = true
@@ -311,6 +325,8 @@ const downloadAllAsMp4 = async (videoBitrate) => {
       imageMimeTypes,
       audioBuffers,
       videoBitrate,
+      maxWidth,
+      maxHeight,
     }, `slides-${Date.now()}`)
   } catch (err) {
     console.error('MP4 encoding failed:', err)
@@ -577,6 +593,8 @@ const handleAudioPause = (index, event) => {
     <!-- MP4 Quality Modal -->
     <Mp4QualityModal
       v-model="showMp4QualityModal"
+      :source-width="sourceImageDimensions.width"
+      :source-height="sourceImageDimensions.height"
       @confirm="downloadAllAsMp4"
     />
   </div>

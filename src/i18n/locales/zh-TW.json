@@ -895,12 +895,14 @@
     "mp4Quality": {
       "title": "選擇影片品質",
       "hint": "較高品質會產生較大的檔案",
+      "resolution": "輸出解析度",
+      "resolutionLimited": "較高解析度因來源圖片尺寸限制不可用",
       "low": "低品質",
-      "lowDesc": "4 Mbps，檔案較小",
+      "lowDesc": "{bitrate}，檔案較小",
       "medium": "中品質",
-      "mediumDesc": "8 Mbps，平衡品質與大小",
+      "mediumDesc": "{bitrate}，平衡品質與大小",
       "high": "高品質",
-      "highDesc": "12 Mbps，最佳畫質",
+      "highDesc": "{bitrate}，最佳畫質",
       "start": "開始編碼"
     },
     "narrationAudio": "旁白音頻",

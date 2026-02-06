@@ -53,6 +53,8 @@ export function useMp4Encoder() {
    * @param {(ArrayBuffer|null)[]} options.audioBuffers - Audio data (null = no audio)
    * @param {number} [options.defaultPageDuration=5] - Duration for pages without audio
    * @param {number} [options.videoBitrate=8000000] - Video bitrate in bps
+   * @param {number} [options.maxWidth] - Max output video width
+   * @param {number} [options.maxHeight] - Max output video height
    * @returns {Promise<ArrayBuffer>} MP4 data
    */
   const encodeMp4 = async (options) => {
@@ -128,6 +130,8 @@ export function useMp4Encoder() {
           audioPcmData,
           defaultPageDuration: options.defaultPageDuration ?? 5,
           videoBitrate: options.videoBitrate,
+          maxWidth: options.maxWidth,
+          maxHeight: options.maxHeight,
         }, transferables)
       })
 

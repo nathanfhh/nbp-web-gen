@@ -894,12 +894,14 @@
     "mp4Quality": {
       "title": "Select Video Quality",
       "hint": "Higher quality produces larger files",
+      "resolution": "Output Resolution",
+      "resolutionLimited": "Higher resolutions unavailable due to source image size",
       "low": "Low Quality",
-      "lowDesc": "4 Mbps, smaller file size",
+      "lowDesc": "{bitrate}, smaller file size",
       "medium": "Medium Quality",
-      "mediumDesc": "8 Mbps, balanced quality and size",
+      "mediumDesc": "{bitrate}, balanced quality and size",
       "high": "High Quality",
-      "highDesc": "12 Mbps, best visual quality",
+      "highDesc": "{bitrate}, best visual quality",
       "start": "Start Encoding"
     },
     "narrationAudio": "Narration Audio",

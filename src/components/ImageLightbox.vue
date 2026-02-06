@@ -150,6 +150,7 @@ const {
   isAnyDownloading,
   toggleDownloadMenu,
   closeDownloadMenu,
+  imageToBlob,
   getImageSrc,
   downloadWithFormat,
   downloadCurrentImage: downloadDownloadCurrentImage,
@@ -524,19 +525,35 @@ const downloadAllAsPdf = async () => {
 
 // MP4 quality modal state
 const showMp4QualityModal = ref(false)
+const sourceImageDimensions = ref({ width: 1920, height: 1080 })
 
-// Open MP4 quality modal instead of directly downloading
-const handleMp4Click = () => {
+// Detect source image dimensions and open MP4 quality modal
+const handleMp4Click = async () => {
   closeDownloadMenu()
+  const firstImage = props.images.find(img => img?.data || img?.url)
+  if (firstImage) {
+    try {
+      const blob = await imageToBlob(firstImage)
+      if (blob) {
+        const bmp = await createImageBitmap(blob)
+        sourceImageDimensions.value = { width: bmp.width, height: bmp.height }
+        bmp.close()
+      }
+    } catch {
+      // Keep default 1920x1080
+    }
+  }
   showMp4QualityModal.value = true
 }
 
-const downloadAllAsMp4 = async (videoBitrate) => {
+const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight }) => {
   await downloadDownloadAllAsMp4({
     images: props.images,
     historyId: props.historyId,
     audioUrls: props.narrationAudioUrls,
     videoBitrate,
+    maxWidth,
+    maxHeight,
   })
 }
 
@@ -1142,6 +1159,8 @@ const goToSlideToPptx = async () => {
     <!-- MP4 Quality Modal -->
     <Mp4QualityModal
       v-model="showMp4QualityModal"
+      :source-width="sourceImageDimensions.width"
+      :source-height="sourceImageDimensions.height"
       @confirm="downloadAllAsMp4"
     />
   </Teleport>
