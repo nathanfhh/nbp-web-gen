@@ -230,6 +230,9 @@ export function useGeneration() {
    * @param {Function} callbacks.onComplete - Called after generation completes
    */
   const handleGenerate = async (callbacks = {}) => {
+    // Guard against concurrent calls (e.g. double-click before Vue disables the button)
+    if (store.isGenerating) return { success: false, error: 'Already generating' }
+
     // Validate
     const validationError = validateGeneration()
     if (validationError) {
