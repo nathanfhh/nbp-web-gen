@@ -2,6 +2,22 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.21
+
+_2026-02-09_
+
+### Fixes
+- **Agentic Vision**: Fix ghost partial messages accumulating during auto-save, causing duplicate image storage (2 images saved 10 times)
+- **Agentic Vision**: Fix imageIndex misalignment during multi-tab merge, causing loaded history images to point to wrong files
+- **Agentic Vision**: Fix ERR_INVALID_URL when loading history conversations with dataStoredExternally image parts missing data field
+- **Export/Import**: Fix Agentic Vision records not showing thumbnails and not opening full-size preview on click
+
+### Improvements
+- **Agentic Vision**: History badge now shows image count instead of message count
+
+### Testing
+- Add 37 unit tests for agent conversation sync logic (merge, index alignment, ghost filtering, imageCount)
+
 ## v0.26.20
 
 _2026-02-09_

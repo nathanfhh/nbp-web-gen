@@ -2,6 +2,22 @@
 
 此頁面記錄 Mediator 的版本更新內容。
 
+## v0.26.21
+
+_2026-02-09_
+
+### 修復
+- **Agentic Vision**: 修正自動儲存時 ghost partial 訊息累積，導致圖片重複存儲（2 張圖被存 10 次）的問題
+- **Agentic Vision**: 修正多分頁合併時 imageIndex 錯位，載入歷史對話後圖片路徑指向錯誤檔案
+- **Agentic Vision**: 修正載入歷史對話時因 dataStoredExternally 圖片缺少 data 欄位導致 ERR_INVALID_URL 錯誤
+- **匯出/匯入**: 修正 Agentic Vision 記錄的縮圖未顯示、無法點擊放大預覽的問題
+
+### 改進
+- **Agentic Vision**: 歷史紀錄 badge 改為顯示圖片數量（取代原本的訊息數量）
+
+### 測試
+- 新增 37 個單元測試驗證 agent 對話同步邏輯（merge、index 對齊、ghost filtering、imageCount）
+
 ## v0.26.20
 
 _2026-02-09_
