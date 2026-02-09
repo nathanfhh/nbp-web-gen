@@ -276,21 +276,25 @@ export function useApi() {
       // Get model
       const model = options.model || DEFAULT_MODEL
 
-      // Guard to prevent stale attempts from emitting chunks after timeout/retry
-      // When a timeout occurs, the old stream continues in background but its chunks should be ignored
-      let currentAttemptId = 0
+      // AbortController to cancel in-flight requests on timeout/retry
+      // Prevents ghost requests from consuming API quota after timeout
+      let currentAbortController = null
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         // Intentional sleeping to respect RPM limits (start-rate)
         await imageStartLimiter.acquire()
 
-        // Capture this attempt's ID - stale attempts will have a different ID
-        const thisAttemptId = ++currentAttemptId
+        // Abort previous attempt's request if still in-flight
+        if (currentAbortController) {
+          currentAbortController.abort()
+        }
+        currentAbortController = new AbortController()
+        const attemptAbortController = currentAbortController
 
-        // Guarded callback that only emits if this attempt is still current
+        // Guarded callback that only emits if this attempt hasn't been aborted
         const guardedThinkingChunk = onThinkingChunk
           ? (chunk) => {
-              if (thisAttemptId === currentAttemptId) {
+              if (!attemptAbortController.signal.aborted) {
                 onThinkingChunk(chunk)
               }
             }
@@ -298,19 +302,16 @@ export function useApi() {
 
         try {
           // Wrap the entire streaming operation with timeout
-          // NOTE: withTimeout does NOT cancel the underlying stream request when timeout occurs.
-          // The Google GenAI SDK currently doesn't expose an AbortController mechanism.
-          // This means on timeout, the old stream may continue in the background while retry starts.
-          // The rate limiter and exponential backoff help mitigate duplicate request costs.
+          // On timeout, the AbortController cancels the underlying fetch request
           const streamOperation = async () => {
             // Initialize SDK client (fresh per attempt)
             const ai = new GoogleGenAI({ apiKey })
 
-            // Make streaming API request using SDK
+            // Make streaming API request using SDK with abort signal
             const response = await ai.models.generateContentStream({
               model,
               contents: [{ role: 'user', parts }],
-              config,
+              config: { ...config, abortSignal: attemptAbortController.signal },
             })
 
             // Process stream
@@ -381,12 +382,22 @@ export function useApi() {
             }
           } // End of streamOperation
 
-          // Execute with timeout
+          // Execute with timeout - on timeout, abort the in-flight request
+          const streamPromise = streamOperation()
           const { images, textResponse, thinkingText, metadata } = await withTimeout(
-            streamOperation(),
+            streamPromise,
             timeoutMs,
             `Image generation (attempt ${attempt})`,
-          )
+          ).catch((err) => {
+            // On timeout (or any error), abort this attempt's request to stop the ghost fetch
+            if (!attemptAbortController.signal.aborted) {
+              attemptAbortController.abort()
+            }
+            // Suppress unhandled rejection from the aborted stream
+            // (the for-await loop throws AbortError when signal fires)
+            streamPromise.catch(() => {})
+            throw err
+          })
 
           // Filter: prefer non-thought images, but use thought images as fallback
           let finalImages = images.filter((img) => !img.isThought)
@@ -418,6 +429,12 @@ export function useApi() {
           }
         } catch (err) {
           error.value = err.message
+
+          // If this attempt was intentionally aborted (by timeout handler or next retry),
+          // and the error is AbortError, don't classify or retry - just continue the loop
+          if (attemptAbortController.signal.aborted && err.name === 'AbortError') {
+            continue
+          }
 
           // Classify the error to determine if retry is worthwhile
           const isTimeout = err instanceof TimeoutError

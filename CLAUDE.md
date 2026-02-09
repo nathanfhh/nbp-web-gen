@@ -243,6 +243,40 @@ Key points:
 - **Edit Mode**: Region changes require inpaint; separator-only changes only need remerge
 - **Gemini Confirmation Modal**: Shows when regions changed + Gemini method; user must choose action (no X button, no ESC close)
 
+### Timeout, Retry & Ghost Request Prevention
+
+**⚠️ CRITICAL: `withTimeout` (Promise.race) does NOT cancel the underlying promise**
+
+`requestScheduler.js`'s `withTimeout` uses `Promise.race`. When timeout wins, the original API request **continues running in the background** (ghost request), consuming API quota without producing visible results.
+
+**Solution implemented in `generateImageStream`:**
+```javascript
+// Each attempt holds its own AbortController
+const attemptAbortController = new AbortController()
+
+// Pass abort signal to SDK — cancels the underlying fetch
+ai.models.generateContentStream({
+  config: { ...config, abortSignal: attemptAbortController.signal },
+})
+
+// On timeout, abort immediately to kill the HTTP connection
+withTimeout(streamPromise, timeoutMs).catch((err) => {
+  attemptAbortController.abort()
+  streamPromise.catch(() => {}) // Suppress unhandled rejection
+  throw err
+})
+```
+
+**Key learnings:**
+- `@google/genai` SDK supports `abortSignal` in `GenerateContentConfig` (since v1.x)
+- AbortError from intentional abort must NOT be classified as retriable (defensive `continue` in catch block)
+- `handleGenerate` in `useGeneration.js` has a re-entry guard (`if (store.isGenerating) return`) because Vue DOM `:disabled` binding updates are async — double-click can bypass it
+
+**DO NOT:**
+- Remove the AbortController mechanism or revert to integer-based attempt guards (they don't cancel HTTP requests)
+- Remove the `streamPromise.catch(() => {})` (prevents unhandled rejection warnings in browser console)
+- Remove the `isGenerating` re-entry guard in `handleGenerate` (prevents concurrent generation from rapid clicks)
+
 ### Prompt Building
 `useApi.js` contains `buildPrompt()` function that constructs enhanced prompts based on mode. Each mode has a dedicated builder function (`buildGeneratePrompt`, `buildStickerPrompt`, etc.) that adds mode-specific suffixes and options.
 
