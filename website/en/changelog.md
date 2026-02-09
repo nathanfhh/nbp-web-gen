@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.19
+
+_2026-02-09_
+
+### Fixes
+- **Generation**: Prevent race condition from rapid clicks causing duplicate generation (parallel API requests and doubled costs)
+
 ## v0.26.18
 
 _2026-02-06_
