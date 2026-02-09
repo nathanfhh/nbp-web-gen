@@ -134,6 +134,7 @@ export function useHistoryTransfer() {
         if (record.mode === 'agent') {
           exportRecord.messageCount = record.messageCount
           exportRecord.userMessageCount = record.userMessageCount
+          exportRecord.imageCount = record.imageCount
           exportRecord.thumbnail = record.thumbnail
 
           // Load conversation from OPFS
@@ -247,6 +248,7 @@ export function useHistoryTransfer() {
             ...(record.mode === 'agent' && {
               messageCount: record.messageCount,
               userMessageCount: record.userMessageCount,
+              imageCount: record.imageCount,
               thumbnail: record.thumbnail,
             }),
           }

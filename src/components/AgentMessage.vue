@@ -313,7 +313,7 @@ const isCodeSuccess = (part) => {
 
         <!-- Generated image -->
         <div
-          v-else-if="part.type === 'generatedImage'"
+          v-else-if="part.type === 'generatedImage' && part.data"
           class="max-w-[280px] space-y-2"
         >
           <div
@@ -339,7 +339,7 @@ const isCodeSuccess = (part) => {
 
         <!-- User uploaded image -->
         <div
-          v-else-if="part.type === 'image'"
+          v-else-if="part.type === 'image' && part.data"
           class="max-w-[120px]"
           :class="isUser ? 'ml-auto' : ''"
         >

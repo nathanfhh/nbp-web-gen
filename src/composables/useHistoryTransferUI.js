@@ -147,11 +147,12 @@ export function useHistoryTransferUI(deps) {
   const openHistoryPreview = async (item, e) => {
     e?.stopPropagation()
 
-    // Check if item has video or images
+    // Check if item has video, images, or agent thumbnail
     const hasVideo = !!item.video?.opfsPath
     const hasImages = !!item.images?.[0]?.opfsPath
+    const hasAgentThumbnail = item.mode === 'agent' && !!item.thumbnail
 
-    if (!hasVideo && !hasImages) return
+    if (!hasVideo && !hasImages && !hasAgentThumbnail) return
 
     previewHistoryItem.value = item
     isLoadingPreview.value = true
@@ -165,6 +166,16 @@ export function useHistoryTransferUI(deps) {
         // Load image from OPFS
         const url = await imageStorage.loadImage(item.images[0].opfsPath)
         previewHistoryImageUrl.value = url
+      } else if (hasAgentThumbnail) {
+        // Agent mode: images stored at /images/{historyId}/{index}.webp
+        // Try to load full-size first image from OPFS (same pattern as other modes)
+        const imagePath = `/images/${item.id}/0.webp`
+        const url = await imageStorage.loadImage(imagePath)
+        if (url) {
+          previewHistoryImageUrl.value = url
+        }
+        // If OPFS image not found (e.g. imported record), falls back to thumbnail
+        // via getHistoryPreviewSrc() in HistoryTransfer.vue
       }
     } catch (err) {
       console.error('Failed to load preview:', err)

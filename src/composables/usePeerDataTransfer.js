@@ -225,6 +225,7 @@ export function usePeerDataTransfer(deps) {
           ...(record.mode === 'agent' && {
             messageCount: record.messageCount,
             userMessageCount: record.userMessageCount,
+            imageCount: record.imageCount,
             thumbnail: record.thumbnail,
             hasConversation: true,
           }),

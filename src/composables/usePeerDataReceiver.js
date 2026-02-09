@@ -487,6 +487,7 @@ export function usePeerDataReceiver(deps) {
         ...(meta.mode === 'agent' && {
           messageCount: meta.messageCount,
           userMessageCount: meta.userMessageCount,
+          imageCount: meta.imageCount,
           thumbnail: meta.thumbnail,
         }),
       }

@@ -205,6 +205,10 @@ const getHistoryThumbnail = (item) => {
   if (item.video?.thumbnail) {
     return item.video.thumbnail
   }
+  // Agent mode stores thumbnail directly on the record
+  if (item.mode === 'agent' && item.thumbnail) {
+    return `data:image/webp;base64,${item.thumbnail}`
+  }
   // Fall back to image thumbnail (needs base64 prefix)
   return item.images?.[0]?.thumbnail ? `data:image/webp;base64,${item.images[0].thumbnail}` : null
 }
@@ -219,6 +223,9 @@ const getCharPreviewSrc = () => {
 
 const getHistoryPreviewSrc = () => {
   if (previewHistoryImageUrl.value) return previewHistoryImageUrl.value
+  if (previewHistoryItem.value?.thumbnail) {
+    return `data:image/webp;base64,${previewHistoryItem.value.thumbnail}`
+  }
   if (previewHistoryItem.value?.images?.[0]?.thumbnail) {
     return `data:image/webp;base64,${previewHistoryItem.value.images[0].thumbnail}`
   }
@@ -320,7 +327,7 @@ const getHistoryPreviewSrc = () => {
                 :key="item.id"
                 :selected="selectedIds.has(item.id)"
                 :thumbnail-src="getHistoryThumbnail(item)"
-                :can-preview="!!item.video?.opfsPath || !!item.images?.[0]?.opfsPath"
+                :can-preview="!!item.video?.opfsPath || !!item.images?.[0]?.opfsPath || (item.mode === 'agent' && !!item.thumbnail)"
                 @toggle="toggleSelect(item.id)"
                 @preview="openHistoryPreview(item, $event)"
               >
@@ -336,8 +343,8 @@ const getHistoryPreviewSrc = () => {
                   </p>
                 </template>
                 <template #extra>
-                  <div v-if="item.images?.length" class="text-xs text-text-muted flex-shrink-0">
-                    {{ item.images.length }} {{ item.images.length > 1 ? 'imgs' : 'img' }}
+                  <div v-if="item.imageCount || item.images?.length" class="text-xs text-text-muted flex-shrink-0">
+                    {{ item.imageCount || item.images.length }} {{ (item.imageCount || item.images.length) > 1 ? 'imgs' : 'img' }}
                   </div>
                 </template>
               </TransferListItem>
@@ -504,8 +511,8 @@ const getHistoryPreviewSrc = () => {
           {{ previewHistoryItem?.mode ? t(`modes.${previewHistoryItem.mode}.name`) : '' }}
         </span>
         <span class="text-xs text-text-muted">{{ previewHistoryItem?.timestamp ? formatRelativeTime(previewHistoryItem.timestamp) : '' }}</span>
-        <span v-if="previewHistoryItem?.images?.length > 1" class="text-xs text-text-muted">
-          · {{ previewHistoryItem.images.length }} {{ t('common.images') || 'images' }}
+        <span v-if="(previewHistoryItem?.imageCount || previewHistoryItem?.images?.length || 0) > 1" class="text-xs text-text-muted">
+          · {{ previewHistoryItem.imageCount || previewHistoryItem.images?.length }} {{ t('common.images') || 'images' }}
         </span>
       </div>
       <p class="text-sm text-text-muted max-w-lg">{{ previewHistoryItem?.prompt }}</p>

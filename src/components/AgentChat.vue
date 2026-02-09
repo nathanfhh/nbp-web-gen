@@ -172,8 +172,12 @@ const sendMessage = async () => {
       console.error('[AgentChat] Failed to save user message:', err)
     }
 
-    // Prepare streaming message
+    // Prepare streaming message with a stable ID.
+    // The same ID must be reused across all onPart updates so that auto-save
+    // merges recognize it as the same message (preventing ghost partial accumulation).
+    const streamingMsgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
     store.setAgentStreamingMessage({
+      id: streamingMsgId,
       role: 'model',
       parts: [],
       isStreaming: true,
@@ -186,8 +190,9 @@ const sendMessage = async () => {
       {
         conversation: conversationSnapshot,
         onPart: (part, accumulatedParts) => {
-          // Update streaming message with accumulated parts
+          // Update streaming message with accumulated parts (preserve stable ID)
           store.setAgentStreamingMessage({
+            id: streamingMsgId,
             role: 'model',
             parts: [...accumulatedParts],
             isStreaming: true,

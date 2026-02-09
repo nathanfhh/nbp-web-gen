@@ -39,18 +39,39 @@ export function useConversationStorage() {
 
       // Strip large image data from messages for JSON storage
       // Images are stored separately in /images/{historyId}/
-      // Assign imageIndex to each image part for later retrieval
-      let imageIndex = 0
+      // Preserve existing imageIndex for already-stored images (from multi-tab merge),
+      // assign new sequential indices to new images starting after the max existing index.
+      let nextImageIndex = 0
+      // First pass: find the highest existing imageIndex to avoid collisions
+      for (const msg of messages) {
+        for (const part of msg.parts || []) {
+          if (
+            (part.type === 'image' || part.type === 'generatedImage') &&
+            part.dataStoredExternally &&
+            part.imageIndex !== undefined
+          ) {
+            nextImageIndex = Math.max(nextImageIndex, part.imageIndex + 1)
+          }
+        }
+      }
       const messagesForStorage = messages.map((msg) => ({
         ...msg,
         parts: msg.parts?.map((part) => {
-          // Keep image metadata but remove base64 data (stored in OPFS images)
           if (part.type === 'image' || part.type === 'generatedImage') {
-            const currentIndex = imageIndex++
+            // Preserve existing index for already-stored images
+            if (part.dataStoredExternally && part.imageIndex !== undefined) {
+              return {
+                type: part.type,
+                mimeType: part.mimeType,
+                imageIndex: part.imageIndex,
+                dataStoredExternally: true,
+              }
+            }
+            // New image: assign next available index
+            const currentIndex = nextImageIndex++
             return {
               type: part.type,
               mimeType: part.mimeType,
-              // Store the image index for later retrieval from OPFS
               imageIndex: currentIndex,
               dataStoredExternally: true,
             }

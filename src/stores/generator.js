@@ -383,6 +383,44 @@ export const useGeneratorStore = defineStore('generator', () => {
   const loadHistory = async () => {
     history.value = await getHistory(50)
     historyCount.value = await getHistoryCount()
+
+    // Background migration: backfill imageCount for agent records that don't have it
+    const agentRecordsToFix = history.value.filter(
+      (r) => r.mode === 'agent' && r.imageCount === undefined,
+    )
+    if (agentRecordsToFix.length > 0) {
+      backfillAgentImageCounts(agentRecordsToFix)
+    }
+  }
+
+  /**
+   * Background migration: compute imageCount for agent records missing it.
+   * Loads conversation from OPFS, counts image parts, updates IndexedDB + local state.
+   */
+  const backfillAgentImageCounts = async (records) => {
+    for (const record of records) {
+      try {
+        const opfsPath = `/conversations/${record.id}/conversation.json`
+        const conversation = await conversationStorage.loadConversation(opfsPath)
+        if (!conversation) continue
+
+        let imageCount = 0
+        for (const msg of conversation) {
+          if (msg._isPartial) continue
+          for (const part of msg.parts || []) {
+            if (part.type === 'image' || part.type === 'generatedImage') {
+              imageCount++
+            }
+          }
+        }
+
+        await updateHistory(record.id, { imageCount })
+        // Update local state directly to avoid full reload
+        record.imageCount = imageCount
+      } catch {
+        // Non-critical migration, skip on error
+      }
+    }
   }
 
   const removeFromHistory = async (id) => {
@@ -754,7 +792,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       const key = msg.id || generateFallbackId(msg)
       const existing = messageMap.get(key)
 
-      if (!existing || (msg.timestamp || 0) > (existing.timestamp || 0)) {
+      if (!existing || (msg.timestamp || 0) >= (existing.timestamp || 0)) {
         messageMap.set(key, msg)
       }
     }
@@ -897,6 +935,12 @@ export const useGeneratorStore = defineStore('generator', () => {
           existingMessages = await conversationStorage.loadConversation(opfsPath)
 
           if (existingMessages && existingMessages.length > 0) {
+            // Filter out partial messages (from previous emergency/auto saves during streaming).
+            // Partials are transient artifacts — each auto-save generates a new partial with a new ID,
+            // so old partials become "ghosts" that accumulate in OPFS, inflate imageIndex, and cause
+            // data-bearing images to be re-saved with higher indices on every save cycle.
+            existingMessages = existingMessages.filter((msg) => !msg._isPartial)
+
             conversationSnapshot = mergeConversations(existingMessages, conversationSnapshot)
             mergedFromExisting = true
             console.log(
@@ -973,73 +1017,111 @@ export const useGeneratorStore = defineStore('generator', () => {
       }
 
       // Collect and compress only NEW images for OPFS storage
-      // Skip images that have already been saved (tracked by savedAgentImageCount or dataStoredExternally flag)
+      // Index logic must match saveConversation: preserve ext indices, assign new after max
       const newImages = []
       const { compressToWebP, blobToBase64 } = await import('@/composables/useImageCompression')
 
-      // If merged from existing, count images that are already stored externally
+      // Find the highest existing imageIndex from ext parts IN the merged conversation.
+      // This determines where new sequential indices start (to avoid collision with preserved ext indices).
+      // Note: only check conversationSnapshot (post-merge), NOT existingMessages,
+      // because merge may have replaced ext parts with data-bearing local versions.
+      let maxExtIndex = -1
+      for (const msg of conversationSnapshot) {
+        for (const part of msg.parts || []) {
+          if (
+            (part.type === 'image' || part.type === 'generatedImage') &&
+            part.dataStoredExternally &&
+            part.imageIndex !== undefined
+          ) {
+            maxExtIndex = Math.max(maxExtIndex, part.imageIndex)
+          }
+        }
+      }
+
+      // alreadySavedCount: indices below this are already in OPFS (from this tab's previous saves
+      // or from other tabs' saves visible in existingMessages).
       let alreadySavedCount = savedAgentImageCount.value
       if (mergedFromExisting) {
-        let existingStoredCount = 0
+        let maxExistingIndex = -1
         for (const msg of existingMessages) {
           for (const part of msg.parts || []) {
             if (
               (part.type === 'image' || part.type === 'generatedImage') &&
-              part.dataStoredExternally
+              part.dataStoredExternally &&
+              part.imageIndex !== undefined
             ) {
-              existingStoredCount++
+              maxExistingIndex = Math.max(maxExistingIndex, part.imageIndex)
             }
           }
         }
-        // Use the max to ensure we don't re-save already stored images
-        alreadySavedCount = Math.max(alreadySavedCount, existingStoredCount)
+        alreadySavedCount = Math.max(alreadySavedCount, maxExistingIndex + 1)
       }
 
-      let imageIndex = 0
+      // Assign indices matching saveConversation's logic:
+      // - ext parts: preserve their existing index (skip in iteration)
+      // - data parts: assign next sequential index starting after max ext index in merged conv
+      let nextImageIndex = Math.max(0, maxExtIndex + 1)
 
       for (const msg of conversationSnapshot) {
         for (const part of msg.parts || []) {
-          if ((part.type === 'image' || part.type === 'generatedImage') && part.data) {
-            // Skip already-saved images
-            if (imageIndex < alreadySavedCount) {
-              imageIndex++
+          if (part.type === 'image' || part.type === 'generatedImage') {
+            // Skip already-stored images (from OPFS merge)
+            if (part.dataStoredExternally) {
               continue
             }
 
-            // Compress new image to WebP before storing
-            try {
-              const compressed = await compressToWebP(
-                { data: part.data, mimeType: part.mimeType || 'image/png' },
-                { quality: 0.85 },
-              )
-              const webpBase64 = await blobToBase64(compressed.blob)
+            if (part.data) {
+              const currentIndex = nextImageIndex++
 
-              newImages.push({
-                data: webpBase64,
-                mimeType: 'image/webp',
-                messageId: msg.id,
-                partType: part.type,
-                width: compressed.width,
-                height: compressed.height,
-                index: imageIndex, // Explicit index for OPFS path
-              })
-            } catch (err) {
-              console.warn('[saveAgentConversation] Failed to compress image, using original:', err)
-              // Fallback to original if compression fails
-              newImages.push({
-                data: part.data,
-                mimeType: part.mimeType || 'image/png',
-                messageId: msg.id,
-                partType: part.type,
-                index: imageIndex,
-              })
+              // Skip images already saved in previous rounds (optimization)
+              if (currentIndex < alreadySavedCount) {
+                continue
+              }
+
+              // Compress new image to WebP before storing
+              try {
+                const compressed = await compressToWebP(
+                  { data: part.data, mimeType: part.mimeType || 'image/png' },
+                  { quality: 0.85 },
+                )
+                const webpBase64 = await blobToBase64(compressed.blob)
+
+                newImages.push({
+                  data: webpBase64,
+                  mimeType: 'image/webp',
+                  messageId: msg.id,
+                  partType: part.type,
+                  width: compressed.width,
+                  height: compressed.height,
+                  index: currentIndex,
+                })
+              } catch (err) {
+                console.warn('[saveAgentConversation] Failed to compress image, using original:', err)
+                newImages.push({
+                  data: part.data,
+                  mimeType: part.mimeType || 'image/png',
+                  messageId: msg.id,
+                  partType: part.type,
+                  index: currentIndex,
+                })
+              }
             }
-            imageIndex++
           }
         }
       }
 
-      const totalImageCount = imageIndex
+      const totalImageCount = nextImageIndex
+
+      // Count actual image parts (for badge display, not index space)
+      let imageCount = 0
+      for (const msg of conversationSnapshot) {
+        if (msg._isPartial) continue
+        for (const part of msg.parts || []) {
+          if (part.type === 'image' || part.type === 'generatedImage') {
+            imageCount++
+          }
+        }
+      }
 
       const historyData = {
         prompt: prompt || 'Agent conversation',
@@ -1053,6 +1135,7 @@ export const useGeneratorStore = defineStore('generator', () => {
         thinkingText: thinkingTexts.join('\n\n').slice(0, 5000),
         messageCount: conversationSnapshot.length,
         userMessageCount: conversationSnapshot.filter((m) => m.role === 'user').length,
+        imageCount,
         thumbnail,
       }
 
@@ -1138,10 +1221,12 @@ export const useGeneratorStore = defineStore('generator', () => {
       // Load image data from OPFS and restore to conversation
       // Images are stored at /images/{historyId}/{index}.webp
       let loadedImageCount = 0
+      let maxImageIndex = -1
       for (const msg of conversation) {
         if (!msg.parts) continue
         for (const part of msg.parts) {
           if (part.dataStoredExternally && part.imageIndex !== undefined) {
+            maxImageIndex = Math.max(maxImageIndex, part.imageIndex)
             try {
               const imagePath = `/images/${historyId}/${part.imageIndex}.webp`
               const base64 = await imageStorage.getImageBase64(imagePath)
@@ -1168,13 +1253,14 @@ export const useGeneratorStore = defineStore('generator', () => {
       currentAgentHistoryId.value = historyId
       agentSessionId.value = `session-${Date.now()}`
       agentStreamingMessage.value = null
-      savedAgentImageCount.value = loadedImageCount // Track already-saved images
+      // Use max imageIndex + 1 to match saveConversation's index space
+      savedAgentImageCount.value = maxImageIndex + 1
 
       const removedPartialCount = conversation.length - cleanedConversation.length
       if (removedPartialCount > 0) {
         console.log(`[loadAgentFromHistory] Removed ${removedPartialCount} partial message(s)`)
       }
-      console.log('[loadAgentFromHistory] Loaded conversation with', cleanedConversation.length, 'messages')
+      console.log(`[loadAgentFromHistory] Loaded conversation with ${cleanedConversation.length} messages, ${loadedImageCount}/${maxImageIndex + 1} images restored`)
       return true
     } catch (err) {
       console.error('[loadAgentFromHistory] Failed:', err)
