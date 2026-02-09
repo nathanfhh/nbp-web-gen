@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.20
+
+_2026-02-09_
+
+### Fixes
+- **Generation**: Fix ghost API requests persisting after timeout retry, consuming quota without producing results (cancel in-flight HTTP connections via AbortController)
+
 ## v0.26.19
 
 _2026-02-09_
