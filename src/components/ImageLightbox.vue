@@ -303,8 +303,21 @@ const close = () => {
 /**
  * Navigate with View Transition API (crossfade effect)
  * Falls back to instant change for unsupported browsers (Firefox)
+ * Supports rapid navigation: skips in-progress animation and updates DOM directly
+ * (avoids starting a second View Transition which causes a background flash)
  */
+let currentTransition = null
+
 const navigateWithTransition = (updateFn) => {
+  // Rapid navigation: skip current animation, update DOM directly (no new transition)
+  if (currentTransition) {
+    currentTransition.skipTransition()
+    currentTransition = null
+    isAnimating.value = false
+    updateFn()
+    return
+  }
+
   // Fallback for browsers without View Transition API
   if (!document.startViewTransition) {
     updateFn()
@@ -315,28 +328,32 @@ const navigateWithTransition = (updateFn) => {
   const transition = document.startViewTransition(() => {
     updateFn()
   })
+  currentTransition = transition
 
   transition.finished.finally(() => {
-    isAnimating.value = false
+    if (currentTransition === transition) {
+      currentTransition = null
+      isAnimating.value = false
+    }
   })
 }
 
 const goToPrev = () => {
-  if (!hasPrev.value || isAnimating.value) return
+  if (!hasPrev.value) return
   navigateWithTransition(() => {
     currentIndex.value--
   })
 }
 
 const goToNext = () => {
-  if (!hasNext.value || isAnimating.value) return
+  if (!hasNext.value) return
   navigateWithTransition(() => {
     currentIndex.value++
   })
 }
 
 const goToIndex = (index) => {
-  if (index === currentIndex.value || isAnimating.value) return
+  if (index === currentIndex.value) return
   navigateWithTransition(() => {
     currentIndex.value = index
   })
@@ -1060,17 +1077,66 @@ const goToSlideToPptx = async () => {
           </svg>
         </button>
 
-        <!-- Thumbnails / Dots -->
-        <div v-if="images.length > 1" class="lightbox-dots">
-          <button
-            v-for="(image, index) in images"
-            :key="index"
-            @click="goToIndex(index)"
-            class="lightbox-dot"
-            :class="{ 'active': index === currentIndex }"
-          >
-            <span class="sr-only">Image {{ index + 1 }}</span>
-          </button>
+        <!-- Bottom bar: info (top) + dots (bottom) -->
+        <div class="lightbox-bottom-bar">
+          <!-- Image Info (centered, responsive) -->
+          <div v-if="currentImageInfo || isAudioOnlyMode" class="lightbox-info">
+            <!-- Audio-only mode: show audio counter instead of image info -->
+            <div v-if="isAudioOnlyMode" class="lightbox-info-row">
+              <span class="lightbox-counter-inline">
+                {{ $t('lightbox.audioPage', { page: currentIndex + 1 }) }} / {{ totalAudioCount }}
+              </span>
+            </div>
+            <!-- Normal mode: show image info -->
+            <template v-else>
+              <!-- Row 1: Basic info -->
+              <div class="lightbox-info-row">
+                <!-- Dimensions -->
+                <span v-if="currentImageInfo.width && currentImageInfo.height">
+                  {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
+                </span>
+
+                <!-- Simple size (no compression info) -->
+                <template v-if="!hasCompressionInfo && currentImageInfo.size">
+                  <span class="lightbox-info-divider"></span>
+                  <span>{{ currentImageInfo.size }}</span>
+                </template>
+
+                <!-- Historical indicator -->
+                <template v-if="isHistorical">
+                  <span class="lightbox-info-divider"></span>
+                  <span class="text-status-warning">{{ $t('lightbox.historical') }}</span>
+                </template>
+
+                <!-- Counter -->
+                <span class="lightbox-info-divider"></span>
+                <span class="lightbox-counter-inline">{{ currentIndex + 1 }} / {{ images.length }}</span>
+              </div>
+            </template>
+
+            <!-- Row 2: Compression info (separate row on mobile) -->
+            <div v-if="hasCompressionInfo && !hideFileSize" class="lightbox-info-row lightbox-info-compression">
+              <span class="text-text-muted">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
+              <span class="text-text-muted">{{ currentImageInfo.originalSize }}</span>
+              <span class="lightbox-info-arrow">→</span>
+              <span class="text-mode-generate">WebP</span>
+              <span class="text-mode-generate">{{ currentImageInfo.compressedSize }}</span>
+              <span class="lightbox-info-ratio text-status-success">-{{ currentImageInfo.compressionRatio }}%</span>
+            </div>
+          </div>
+
+          <!-- Thumbnails / Dots -->
+          <div v-if="images.length > 1" class="lightbox-dots">
+            <button
+              v-for="(image, index) in images"
+              :key="index"
+              @click="goToIndex(index)"
+              class="lightbox-dot"
+              :class="{ 'active': index === currentIndex }"
+            >
+              <span class="sr-only">Image {{ index + 1 }}</span>
+            </button>
+          </div>
         </div>
 
         <!-- Audio selector for audio-only mode -->
@@ -1098,51 +1164,6 @@ const goToSlideToPptx = async () => {
           @ended="onAudioEnded"
         />
 
-        <!-- Image Info (centered, responsive) -->
-        <div v-if="currentImageInfo || isAudioOnlyMode" class="lightbox-info">
-          <!-- Audio-only mode: show audio counter instead of image info -->
-          <div v-if="isAudioOnlyMode" class="lightbox-info-row">
-            <span class="lightbox-counter-inline">
-              {{ $t('lightbox.audioPage', { page: currentIndex + 1 }) }} / {{ totalAudioCount }}
-            </span>
-          </div>
-          <!-- Normal mode: show image info -->
-          <template v-else>
-            <!-- Row 1: Basic info -->
-            <div class="lightbox-info-row">
-              <!-- Dimensions -->
-              <span v-if="currentImageInfo.width && currentImageInfo.height">
-                {{ currentImageInfo.width }} × {{ currentImageInfo.height }}
-              </span>
-
-              <!-- Simple size (no compression info) -->
-              <template v-if="!hasCompressionInfo && currentImageInfo.size">
-                <span class="lightbox-info-divider"></span>
-                <span>{{ currentImageInfo.size }}</span>
-              </template>
-
-              <!-- Historical indicator -->
-              <template v-if="isHistorical">
-                <span class="lightbox-info-divider"></span>
-                <span class="text-status-warning">{{ $t('lightbox.historical') }}</span>
-              </template>
-
-              <!-- Counter -->
-              <span class="lightbox-info-divider"></span>
-              <span class="lightbox-counter-inline">{{ currentIndex + 1 }} / {{ images.length }}</span>
-            </div>
-          </template>
-
-          <!-- Row 2: Compression info (separate row on mobile) -->
-          <div v-if="hasCompressionInfo && !hideFileSize" class="lightbox-info-row lightbox-info-compression">
-            <span class="text-text-muted">{{ currentImageInfo.originalFormat?.split('/')[1]?.toUpperCase() || 'PNG' }}</span>
-            <span class="text-text-muted">{{ currentImageInfo.originalSize }}</span>
-            <span class="lightbox-info-arrow">→</span>
-            <span class="text-mode-generate">WebP</span>
-            <span class="text-mode-generate">{{ currentImageInfo.compressedSize }}</span>
-            <span class="lightbox-info-ratio text-status-success">-{{ currentImageInfo.compressionRatio }}%</span>
-          </div>
-        </div>
       </div>
     </Transition>
 
@@ -1389,11 +1410,24 @@ const goToSlideToPptx = async () => {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-.lightbox-dots {
+.lightbox-bottom-bar {
   position: absolute;
-  bottom: 1.5rem;
+  bottom: 1rem;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lightbox-bottom-bar > * {
+  pointer-events: auto;
+}
+
+.lightbox-dots {
   display: flex;
   gap: 0.5rem;
 }
@@ -1438,10 +1472,6 @@ const goToSlideToPptx = async () => {
 }
 
 .lightbox-info {
-  position: absolute;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;

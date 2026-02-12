@@ -415,7 +415,7 @@ onUnmounted(() => {
 /* Hover zone - always interactive, positioned at bottom of lightbox */
 .lightbox-audio-hover-zone {
   position: absolute;
-  bottom: 4.5rem;
+  bottom: 5rem;
   left: 50%;
   transform: translateX(-50%);
   width: max(280px, 40vw);
@@ -645,7 +645,7 @@ onUnmounted(() => {
 @media (max-width: 640px) {
   .lightbox-audio-hover-zone {
     width: max(240px, 70vw);
-    bottom: 4rem;
+    bottom: 5.5rem;
   }
 
   .lightbox-audio-player {
