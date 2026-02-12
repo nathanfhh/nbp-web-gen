@@ -2,6 +2,14 @@
 
 This page documents version updates for Mediator.
 
+## v0.26.22
+
+_2026-02-12_
+
+### Fixes
+- **Lightbox**: Fix bottom info bar and navigation dots overlapping (stack vertically with flexbox wrapper)
+- **Lightbox**: Fix rapid arrow key presses or clicks being blocked during View Transition animation (skip in-progress transition)
+
 ## v0.26.21
 
 _2026-02-09_
