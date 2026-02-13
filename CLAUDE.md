@@ -317,7 +317,7 @@ When using `pdfjs-dist`, the CDN worker URL version **MUST exactly match** the i
 ```javascript
 // In pdfToImages.worker.js - version must match package.json
 pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs'
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.worker.min.mjs'
 ```
 If you update `pdfjs-dist` in package.json, you **MUST** also update the CDN URL in the worker file.
 

@@ -8,7 +8,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 // Use jsdelivr CDN for PDF.js worker (mirrors npm packages)
 // IMPORTANT: Version must match the installed pdfjs-dist package version
 pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs'
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.worker.min.mjs'
 
 let isReady = false
 
