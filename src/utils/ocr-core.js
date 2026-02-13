@@ -95,7 +95,7 @@ export function mergeTextRegions(rawResults, separatorLines = [], layoutSettings
 
   // 4. Block Creation
   // Convert each leaf zone into a text block
-  return allLeafZones.map((regions) => createBlockFromRegions(regions, settings))
+  return allLeafZones.map((regions) => createBlockFromRegions(regions, settings)).filter(Boolean)
 }
 
 /**
