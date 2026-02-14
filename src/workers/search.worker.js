@@ -370,11 +370,14 @@ async function indexRecord(record, conversation = null) {
   if (uncachedIndices.length > 0) {
     const uncachedTexts = uncachedIndices.map((i) => chunks[i].text)
     let newEmbeddings = []
+    const embStart = performance.now()
     try {
       newEmbeddings = await embed(uncachedTexts, 'passage')
     } catch (err) {
       console.warn('[search.worker] Embedding failed for uncached chunks:', err.message)
     }
+    const embTime = Math.round(performance.now() - embStart)
+    console.log(`[search.worker] Embedded ${uncachedTexts.length} chunks for parent=${parentId} (${embTime}ms, cached=${chunks.length - uncachedIndices.length})`)
     for (let j = 0; j < uncachedIndices.length; j++) {
       const i = uncachedIndices[j]
       const embedding = newEmbeddings[j] || new Array(EMBEDDING_DIMS).fill(0)

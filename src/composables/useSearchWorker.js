@@ -184,11 +184,15 @@ function handleHistoryAdded(event) {
   }
 
   // Index the new record in background (fire-and-forget)
+  console.log(`[RAG Search] Real-time indexing: id=${id}, mode=${record.mode}, prompt="${(record.prompt || '').slice(0, 60)}..."`)
   sendRequest('index', { records: [{ record: stripped }] })
     .then(() => {
+      console.log(`[RAG Search] Real-time indexed: id=${id} → total ${indexedCount.value} records`)
       sendRequest('persist').catch(() => {})
     })
-    .catch(() => {})
+    .catch((err) => {
+      console.warn(`[RAG Search] Real-time indexing failed: id=${id}`, err.message)
+    })
 }
 
 function handleHistoryDeleted(event) {
