@@ -170,9 +170,13 @@ function handleWorkerMessage(event) {
 // ============================================================================
 
 function handleHistoryAdded(event) {
-  if (!isReady.value || !worker) return
   const { id, record } = event.detail || {}
   if (!id || !record) return
+
+  if (!isReady.value || !worker) {
+    console.log(`[RAG Search] Event received but worker not ready — id=${id} will be caught by selfHeal`)
+    return
+  }
 
   // Agent records are indexed via selfHeal (conversation may not be saved yet)
   if (record.mode === 'agent') return
@@ -221,6 +225,9 @@ function handleHistoryImported() {
   // For now, just note that a re-sync is needed
 }
 
+// Eagerly register events at module load so real-time indexing works
+// even if the user hasn't opened the SearchModal yet.
+// Events fired before worker is ready are silently skipped (selfHeal catches up).
 let eventsRegistered = false
 function registerEvents() {
   if (eventsRegistered) return
@@ -240,6 +247,9 @@ function unregisterEvents() {
   window.removeEventListener('nbp-history-imported', handleHistoryImported)
 }
 
+// Register immediately so events are captured from the start
+registerEvents()
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -256,6 +266,9 @@ export function useSearchWorker() {
     isModelLoading.value = true
     modelProgress.value = 0
     modelStatus.value = 'Initializing...'
+
+    // Re-register events (in case terminate() was called previously)
+    registerEvents()
 
     initPromise = new Promise((resolve, reject) => {
       initResolve = resolve
@@ -285,9 +298,6 @@ export function useSearchWorker() {
           unregisterEvents()
           initPromise = null
         }
-
-        // Register sync events
-        registerEvents()
 
         // Send init command
         worker.postMessage({ type: 'init' })
