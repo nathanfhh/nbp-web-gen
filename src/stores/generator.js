@@ -377,7 +377,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const addToHistory = async (record) => {
     const id = await addHistory(record)
     await loadHistory()
-    window.dispatchEvent(new CustomEvent('nbp-history-added', { detail: { id, record: { ...record, id } } }))
+    window.dispatchEvent(new CustomEvent('nbp-history-added', { detail: { id, record: { ...record, id, timestamp: Date.now() } } }))
     return id
   }
 

@@ -276,6 +276,7 @@ async function initEmbedder() {
       } else if (progress.status === 'progress' && progress.file && progress.progress != null) {
         fileProgress.set(progress.file, progress.progress)
         // Compute overall progress as average across all tracked files
+        if (fileProgress.size === 0) return
         let total = 0
         for (const p of fileProgress.values()) total += p
         const overall = Math.round(total / fileProgress.size)
