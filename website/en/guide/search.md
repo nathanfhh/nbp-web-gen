@@ -53,8 +53,6 @@ You can filter search results by generation mode:
 - Slides
 - Agent
 
-![Mode Filter](/images/search-mode-filter.webp)
-
 ## Sort Options
 
 Search results support three sort orders:
@@ -76,7 +74,6 @@ When you first open the search panel, the system performs initialization:
 The language model only needs to be downloaded once and is cached in the browser. The index is persisted, so it won't need to be rebuilt next time.
 :::
 
-![Model Loading Progress](/images/search-model-loading.webp)
 
 ## Real-Time Sync
 

@@ -53,8 +53,6 @@
 - 簡報
 - Agent
 
-![模式篩選](/images/search-mode-filter.webp)
-
 ## 排序方式
 
 搜尋結果支援三種排序：
@@ -76,7 +74,6 @@
 語言模型只需下載一次，之後會快取在瀏覽器中。索引建立後會持久儲存，下次開啟時不需重新建立。
 :::
 
-![模型載入進度](/images/search-model-loading.webp)
 
 ## 即時同步
 
