@@ -152,11 +152,13 @@ function handleWorkerMessage(event) {
       } else {
         // Global error (e.g., init failure)
         error.value = errMsg
+        isModelLoading.value = false
         if (initReject) {
           initReject(new Error(errMsg))
           initResolve = null
           initReject = null
         }
+        initPromise = null
       }
       break
     }
@@ -271,6 +273,13 @@ export function useSearchWorker() {
             initResolve = null
             initReject = null
           }
+          // Reset state so re-init is possible
+          if (worker) {
+            worker.terminate()
+            worker = null
+          }
+          unregisterEvents()
+          initPromise = null
         }
 
         // Register sync events
@@ -281,7 +290,12 @@ export function useSearchWorker() {
       } catch (err) {
         error.value = err.message
         isModelLoading.value = false
+        if (worker) {
+          worker.terminate()
+          worker = null
+        }
         unregisterEvents()
+        initPromise = null
         reject(err)
       }
     })

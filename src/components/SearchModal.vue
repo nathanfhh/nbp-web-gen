@@ -343,7 +343,7 @@ function getThumbnailSrc(item) {
         :aria-label="$t('search.title')"
       >
         <!-- Backdrop (click does NOT close) -->
-        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div class="absolute inset-0 bg-bg-overlay backdrop-blur-sm" />
 
         <!-- Modal -->
         <div class="relative w-full max-w-lg glass-strong rounded-2xl shadow-xl overflow-hidden max-h-[80vh] flex flex-col">
@@ -355,6 +355,7 @@ function getThumbnailSrc(item) {
             <button
               @click="close"
               class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
+              :aria-label="$t('common.close')"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -382,6 +383,7 @@ function getThumbnailSrc(item) {
               <button
                 v-if="query && !isSearching"
                 @click="query = ''; results = []; hasSearched = false"
+                :aria-label="$t('common.clear')"
                 class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -443,7 +445,13 @@ function getThumbnailSrc(item) {
                   <span class="text-xs text-text-muted">{{ modelLoadingLabel }}</span>
                   <span class="text-xs text-text-muted font-mono">{{ searchWorker.modelProgress.value }}%</span>
                 </div>
-                <div class="w-full h-1.5 bg-bg-muted rounded-full overflow-hidden">
+                <div
+                  class="w-full h-1.5 bg-bg-muted rounded-full overflow-hidden"
+                  role="progressbar"
+                  :aria-valuenow="searchWorker.modelProgress.value"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                >
                   <div
                     class="h-full bg-brand-primary rounded-full transition-all duration-300"
                     :style="{ width: `${searchWorker.modelProgress.value}%` }"

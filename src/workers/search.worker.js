@@ -454,7 +454,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
   let results
 
   if (strategy === 'fulltext') {
-    results = search(oramaDb, {
+    results = await search(oramaDb, {
       term: query,
       properties: ['chunkText'],
       limit: SEARCH_DEFAULTS.searchLimit,
@@ -468,7 +468,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
     console.log(
       `[search.worker] Query embedding: "${query}" → [${queryVec.slice(0, 8).map((v) => v.toFixed(4)).join(', ')}, ...] (${queryVec.length}d, ${embTime}ms)`,
     )
-    results = search(oramaDb, {
+    results = await search(oramaDb, {
       mode: 'vector',
       vector: {
         value: queryVec,
@@ -486,7 +486,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
     console.log(
       `[search.worker] Query embedding: "${query}" → [${queryVec.slice(0, 8).map((v) => v.toFixed(4)).join(', ')}, ...] (${queryVec.length}d, ${embTime}ms)`,
     )
-    results = search(oramaDb, {
+    results = await search(oramaDb, {
       mode: 'hybrid',
       term: query,
       properties: ['chunkText'],
@@ -518,7 +518,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
 // Remove
 // ============================================================================
 
-function removeByParentIds(parentIds) {
+async function removeByParentIds(parentIds) {
   if (!oramaDb) return
 
   const removedPids = new Set()
@@ -530,18 +530,25 @@ function removeByParentIds(parentIds) {
     // Use tracked doc IDs for reliable removal (no empty-term search needed)
     const docIds = parentDocIds.get(pid)
     if (docIds && docIds.size > 0) {
-      removeMultiple(oramaDb, [...docIds])
+      await removeMultiple(oramaDb, [...docIds])
       parentDocIds.delete(pid)
     }
     indexedParentIds.delete(pid)
   }
 
-  // Remove from snapshot and in-memory embedding cache
+  // Remove from snapshot
   snapshotDocs = snapshotDocs.filter((d) => !removedPids.has(d.parentId))
-  for (const pid of removedPids) {
-    for (const key of [...embeddingCache.keys()]) {
-      if (key.startsWith(pid + ':')) embeddingCache.delete(key)
+
+  // Clean embedding cache in single pass (O(n) instead of O(n*m))
+  const keysToDelete = []
+  for (const key of embeddingCache.keys()) {
+    const sepIndex = key.indexOf(':')
+    if (sepIndex !== -1 && removedPids.has(key.slice(0, sepIndex))) {
+      keysToDelete.push(key)
     }
+  }
+  for (const key of keysToDelete) {
+    embeddingCache.delete(key)
   }
 }
 
@@ -557,7 +564,7 @@ function removeAllDocs() {
 // Self-Heal
 // ============================================================================
 
-function selfHeal(allHistoryIds) {
+async function selfHeal(allHistoryIds) {
   const allIds = new Set(allHistoryIds.map(String))
 
   // Find IDs present in history but not in index
@@ -576,7 +583,7 @@ function selfHeal(allHistoryIds) {
     }
   }
   if (orphanIds.length > 0) {
-    removeByParentIds(orphanIds)
+    await removeByParentIds(orphanIds)
   }
 
   return missingIds
@@ -675,7 +682,7 @@ self.addEventListener('message', async (event) => {
       }
 
       case 'remove': {
-        removeByParentIds(event.data.parentIds)
+        await removeByParentIds(event.data.parentIds)
         self.postMessage({ type: 'removed', requestId })
         break
       }
@@ -688,7 +695,7 @@ self.addEventListener('message', async (event) => {
       }
 
       case 'selfHeal': {
-        const missingIds = selfHeal(event.data.allHistoryIds)
+        const missingIds = await selfHeal(event.data.allHistoryIds)
         self.postMessage({ type: 'selfHealResult', requestId, missingIds })
         break
       }
