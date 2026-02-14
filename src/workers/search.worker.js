@@ -397,7 +397,7 @@ async function indexRecord(record, conversation = null) {
     embedding: embeddings[i] || new Array(EMBEDDING_DIMS).fill(0),
   }))
 
-  const insertedIds = insertMultiple(oramaDb, docs)
+  const insertedIds = await insertMultiple(oramaDb, docs)
   indexedParentIds.add(parentId)
 
   // Track Orama internal doc IDs for reliable removal
@@ -611,8 +611,13 @@ async function initialize() {
 
     // 3. If snapshot exists, bulk-insert → immediately searchable (no embedding needed)
     if (Array.isArray(savedDocs) && savedDocs.length > 0) {
-      snapshotDocs = savedDocs
-      const insertedIds = insertMultiple(oramaDb, snapshotDocs)
+      // Sanitize: ensure every doc has a valid embedding array (null/undefined → zero vector)
+      const zeroVec = new Array(EMBEDDING_DIMS).fill(0)
+      snapshotDocs = savedDocs.map((doc) => ({
+        ...doc,
+        embedding: Array.isArray(doc.embedding) ? doc.embedding : zeroVec,
+      }))
+      const insertedIds = await insertMultiple(oramaDb, snapshotDocs)
 
       // Rebuild tracking maps from restored snapshot
       for (let i = 0; i < snapshotDocs.length; i++) {
