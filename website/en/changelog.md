@@ -2,6 +2,32 @@
 
 This page documents version updates for Mediator.
 
+## v0.27.0
+
+_2026-02-14_
+
+### New Features
+- **Smart Search**: Add RAG hybrid search system for history, combining BM25 keyword matching with semantic vector search (multilingual-e5-small)
+- **Smart Search**: Support three search strategies (hybrid/semantic/fulltext), mode filtering, and multiple sort options
+- **Smart Search**: Auto-save search preferences to localStorage, restored on next open
+- **Smart Search**: Real-time index sync — automatically updates when records are added, deleted, or imported
+
+### Fixes
+- **Smart Search**: Fix null embeddings on snapshot restore causing search failures
+- **Smart Search**: Fix search events not registered eagerly, preventing real-time indexing on generation complete
+- **i18n**: Add missing common.close translation key
+- **Slide Conversion**: Fix TypeError from null entries in mergeTextRegions
+
+### Documentation
+- Add Smart Search user guide (zh-TW & English)
+- Add search system technical architecture doc
+
+### Testing
+- Add search-core pure function tests (50+ test cases)
+
+### Maintenance
+- Upgrade project dependencies
+
 ## v0.26.22
 
 _2026-02-12_
@@ -294,221 +320,26 @@ _2026-01-28_
 ### Documentation
 - Update slide generation and history docs to cover narration audio features
 
-## v0.25.23
-
-_2026-01-28_
-
-### New Features
-- **Sticker**: Add standalone "Sticker Grid Cutter" tool page for uploading and cropping externally generated grid sticker sheets
-- **Sticker**: Add grid cutter tool entry card in sticker mode
-
-### Documentation
-- **Docs Site**: Replace static hero image with looping video and fade transition
-
-## v0.25.22
-
-_2026-01-27_
-
-### Fixes
-- **Docs Site**: Fix double-click reset not working on touch devices (add double-tap detection)
-
-## v0.25.21
-
-_2026-01-27_
-
-### New Features
-- **Docs Site**: Add drag-to-rotate with physics (inertia + friction) to 3D banana model, supports mouse and touch, double-click to smoothly reset; hover follow effect preserved
-
-## v0.25.20
-
-_2026-01-26_
-
-### Documentation
-- Add Local-First / BYOK value proposition section to README
-
-### Fixes
-- **Slide Conversion**: Use aspect-ratio adaptive font sizing to fix oversized fonts for vertical text
-
-### Removed
-- Remove Google Analytics 4 tracking to align with "No Middleman" privacy-first philosophy
-
-## v0.25.19
-
-_2026-01-25_
-
-### Documentation
-- Add changelog pages with full version history (v0.1.0 ~ v0.25.18)
-- Add changelog maintenance workflow to CLAUDE.md
-
-## v0.25.18
-
-_2026-01-25_
-
-### New Features
-- **Slide Conversion**: Add leave confirmation to prevent accidental loss of undownloaded results
-- **Docs**: Add "Try It" button to standalone tool pages
-
-## v0.25.17
-
-_2026-01-25_
-
-### Documentation
-- Add inpaint before/after comparison images to slide conversion page
-
-### Fixes
-- **OCR**: Add rotation-aware line break detection for trapezoid regions
-
-## v0.25.16
-
-_2026-01-25_
-
-### New Features
-- **Region Editor**: Add keyboard shortcuts (Delete to remove, Escape to deselect)
-
-### Fixes
-- **Region Editor**: Fix resize handle click priority issue
-- **OCR**: Improve polygon region merging to prevent self-intersection
-
-### Documentation
-- Add keyboard shortcuts section
-
-## v0.25.15
-
-_2026-01-25_
-
-### New Features
-- **Slide Conversion**: Add trapezoid mode for slanted text regions
-
-### Documentation
-- Add trapezoid mode documentation with screenshots
-
-## v0.25.14
-
-_2026-01-24_
-
-### New Features
-- **Docs**: Add touch support and adjust lighting for 3D banana model
-
-## v0.25.13
-
-_2026-01-24_
-
-### Fixes
-- **Docs**: Fix banana.glb path for GitHub Pages
-
-## v0.25.12
-
-_2026-01-24_
-
-### New Features
-- **Docs**: Add 3D banana model to hero section
-
-### Fixes
-- **Docs**: Fix "Back to App" link and add tagline line break
-
-## v0.25.11
-
-_2026-01-24_
-
-### Fixes
-- **Sketch**: Prevent selection box appearing in pan mode
-
-### Documentation
-- Add medium-zoom lightbox effect
-- Add DeepWiki technical documentation link
-- Correct misleading documentation across multiple pages
-
-## v0.25.10
-
-_2026-01-24_
-
-### Fixes
-- **Docs**: Fix newline character handling in TryItButton
-
-## v0.25.9
-
-_2026-01-24_
-
-### Fixes
-- **Docs**: Convert multiline TryItButton prompts to single line
-
-## v0.25.8
-
-_2026-01-24_
-
-### New Features
-- **Slide Conversion**: Add Gemini reprocess confirmation dialog to prevent unexpected API charges
-
-## v0.25.7
-
-_2026-01-24_
-
-### New Features
-- **Deep Linking**: Support URL query params for docs integration
-
-### Documentation
-- Add "Try It" button to feature guide pages
-- Add API Key video tutorials
-- Add NotebookLM and other use cases to slide conversion page
-
-## v0.25.6
-
-_2026-01-24_
-
-### Performance
-- Lazy load SketchCanvas to reduce HomeView bundle size
-
-### Fixes
-- **Docs**: Correct sitemap alternate links and add GA4 tracking
-
-## v0.25.5
-
-_2026-01-24_
-
-### Fixes
-- **PWA**: Exclude /docs/ from service worker navigation fallback
-
-## v0.25.4
-
-_2026-01-24_
-
-### Fixes
-- **Docs**: Correct sitemap URLs with base path
-
-## v0.25.3
-
-_2026-01-23_
-
-### Fixes
-- **Deploy**: Correct VitePress outDir path
-
-## v0.25.2
-
-_2026-01-23_
-
-### Refactor
-- Simplify VitePress base path detection
-
-## v0.25.1
-
-_2026-01-23_
-
-### New Features
-- Add documentation link and tour step
-
-## v0.25.0
-
-_2026-01-23_
-
-### Major Updates
-- **Documentation Site**: Add VitePress documentation site
-- **Story Mode**: Use previous step image as reference for character continuity
-- **SEO**: Add sitemap index for app and docs
-
-### Fixes
-- **i18n**: Add missing video error message keys
-
 ---
+
+## Earlier Versions
+
+### v0.25.x - Documentation Site, Slide Conversion & Privacy-First
+
+_2026-01-23 ~ 2026-01-28_
+
+- **v0.25.23** _(01-28)_: Standalone sticker grid cutter tool, docs hero looping video
+- **v0.25.21** _(01-27)_: 3D banana model drag-to-rotate with physics
+- **v0.25.20** _(01-26)_: Remove GA4 tracking, aspect-ratio adaptive font sizing fix
+- **v0.25.19** _(01-25)_: Add changelog pages
+- **v0.25.18** _(01-25)_: Slide conversion leave confirmation
+- **v0.25.16** _(01-25)_: Region editor keyboard shortcuts
+- **v0.25.15** _(01-25)_: Trapezoid mode for slanted text regions
+- **v0.25.12** _(01-24)_: 3D banana model in hero section
+- **v0.25.8** _(01-24)_: Gemini reprocess confirmation dialog
+- **v0.25.7** _(01-24)_: Deep linking, "Try It" buttons, API Key video tutorials
+- **v0.25.6** _(01-24)_: Lazy load SketchCanvas component
+- **v0.25.0** _(01-23)_: VitePress documentation site, story mode character continuity, sitemap index
 
 ## Earlier Versions
 

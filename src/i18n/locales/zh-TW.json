@@ -11,6 +11,7 @@
     "download": "下載",
     "downloadAll": "全部下載",
     "copy": "複製",
+    "close": "關閉",
     "confirm": "確定",
     "loading": "載入中...",
     "remove": "移除",
@@ -780,6 +781,35 @@
     "filter": {
       "all": "全部",
       "noResults": "無符合條件的紀錄"
+    }
+  },
+  "search": {
+    "title": "搜尋歷史記錄",
+    "placeholder": "輸入關鍵字或描述...",
+    "strategy": {
+      "hybrid": "混合搜尋",
+      "vector": "語意搜尋",
+      "fulltext": "關鍵字搜尋"
+    },
+    "results": "{count} 筆結果",
+    "elapsed": "{time}ms",
+    "noResults": "找不到相關記錄",
+    "noQuery": "輸入關鍵字開始搜尋",
+    "model": {
+      "downloading": "下載搜尋模型中...",
+      "initializing": "載入搜尋模型中...",
+      "ready": "搜尋模型已就緒"
+    },
+    "indexing": "索引中 {current}/{total}...",
+    "indexed": "已索引 {count} 筆記錄",
+    "error": "搜尋系統錯誤",
+    "filterAll": "全部",
+    "strategyLabel": "搜尋策略：",
+    "sortLabel": "排序依據：",
+    "sort": {
+      "relevance": "相關度",
+      "dateDesc": "日期（新→舊）",
+      "dateAsc": "日期（舊→新）"
     }
   },
   "historyTransfer": {

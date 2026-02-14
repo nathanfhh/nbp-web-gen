@@ -439,6 +439,58 @@ First-time user guidance system:
 - `useSketchCanvas.js` - Fabric.js canvas for hand-drawing (see Sketch Canvas section)
 - `useSketchHistory.js` - Undo/redo using Pinia store (see Sketch Canvas section)
 - `useMp4Encoder.js` - MP4 encoding orchestration (see MP4 Encoding section)
+- `useSearchWorker.js` - RAG search worker management (Singleton, see RAG Search section)
+
+### RAG Search System
+
+Browser-side hybrid search (BM25 + semantic) over generation history using Orama + multilingual-e5-small.
+
+**Architecture:**
+```text
+SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.worker.js (長駐 Worker)
+                                                               ├── Orama DB (hybrid search)
+                                                               └── Transformers.js (embeddings)
+```
+
+**核心原則**：搜尋系統是*只讀附加層*，不修改現有 IndexedDB schema、不改 export v4 格式、不影響 WebRTC 傳輸。
+
+**檔案對照表：**
+
+| 檔案 | 職責 |
+|------|------|
+| `utils/search-core.js` | 純函式：extractText, chunkText, deduplicateByParent, highlightSnippet |
+| `utils/search-core.test.js` | 測試（~50+ tests） |
+| `workers/search.worker.js` | 長駐 Worker：Orama + Transformers.js pipeline |
+| `composables/useSearchWorker.js` | Singleton composable：Worker 生命週期管理 |
+| `components/SearchModal.vue` | 搜尋 UI Modal |
+
+**獨立 IndexedDB**：`nanobanana-search`（存放 Orama 全文件快照，包含文字 + embedding 向量。冷啟動時直接載入快照 → bulk insert → 立即可搜尋。selfHeal 僅處理差異。）
+
+**CustomEvent 索引同步：**
+
+| 事件 | 觸發位置 | 用途 |
+|------|----------|------|
+| `nbp-history-added` | `generator.js:addToHistory` | 即時索引新記錄 |
+| `nbp-history-deleted` | `generator.js:removeFromHistory` | 移除索引 |
+| `nbp-history-cleared` | `generator.js:clearHistory` | 清空全部索引 |
+| `nbp-history-imported` | `GenerationHistory.vue:handleImported` | 觸發 selfHeal 補索引 |
+
+**E5 模型前綴規則：**
+- 文件嵌入：`"passage: <text>"` 前綴
+- 查詢嵌入：`"query: <text>"` 前綴
+- 模型：`intfloat/multilingual-e5-small`（384 dims, ~33MB quantized）
+
+**搜尋策略：**
+
+| 策略 | 說明 |
+|------|------|
+| `hybrid` | BM25 + 向量混合（預設） |
+| `vector` | 純語意搜尋 |
+| `fulltext` | 純關鍵字 BM25 |
+
+**自我修復（selfHeal）：** 開啟 SearchModal 時自動執行，比對 history IDs 與索引，補缺、清孤兒。
+
+> **Architecture Details**: See [`docs/search-architecture.md`](docs/search-architecture.md)
 
 ### Sketch Canvas (Hand-Drawing Feature)
 

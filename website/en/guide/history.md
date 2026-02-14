@@ -121,6 +121,7 @@ P2P connections use WebRTC technology. In certain network environments (such as 
 
 ## Next Steps
 
+- [Smart Search](./search) - Quickly search through history
 - [Character Library](./character-library) - Create characters from history
 - [Image Editing](./image-editing) - Edit images from history
 - [Slide Conversion](./slide-conversion) - Convert images from history to PPTX

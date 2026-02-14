@@ -104,6 +104,7 @@ export default defineConfig({
           // Heavy libraries
           'jszip': ['jszip'],
           'peerjs': ['peerjs'],
+          'orama': ['@orama/orama'],
         },
       },
       plugins: [
