@@ -802,7 +802,8 @@
     "indexing": "Indexing {current}/{total}...",
     "indexed": "{count} records indexed",
     "error": "Search system error",
-    "filterAll": "All"
+    "filterAll": "All",
+    "strategyLabel": "Search strategy"
   },
   "historyTransfer": {
     "title": "Export/Import",

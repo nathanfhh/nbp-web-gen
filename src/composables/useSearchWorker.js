@@ -281,6 +281,7 @@ export function useSearchWorker() {
       } catch (err) {
         error.value = err.message
         isModelLoading.value = false
+        unregisterEvents()
         reject(err)
       }
     })
@@ -355,6 +356,11 @@ export function useSearchWorker() {
       worker.terminate()
       worker = null
     }
+    // Reject all pending requests before clearing
+    for (const [, pending] of pendingRequests) {
+      pending.reject(new Error('Worker terminated'))
+    }
+    pendingRequests.clear()
     // Reset state
     isReady.value = false
     isModelLoading.value = false
@@ -367,7 +373,6 @@ export function useSearchWorker() {
     initPromise = null
     initResolve = null
     initReject = null
-    pendingRequests.clear()
   }
 
   return {

@@ -107,45 +107,58 @@ function openSnapshotDB() {
 }
 
 async function loadSnapshot() {
+  let db
   try {
-    const db = await openSnapshotDB()
-    return new Promise((resolve, reject) => {
+    db = await openSnapshotDB()
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readonly')
       const store = tx.objectStore(DB_STORE)
       const request = store.get('docs')
       request.onsuccess = () => resolve(request.result || null)
       request.onerror = () => reject(request.error)
       tx.oncomplete = () => db.close()
+      tx.onerror = () => db.close()
     })
   } catch {
+    if (db) db.close()
     return null
   }
 }
 
 async function saveSnapshot() {
-  const db = await openSnapshotDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(DB_STORE, 'readwrite')
-    const store = tx.objectStore(DB_STORE)
-    const request = store.put(snapshotDocs, 'docs')
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error)
-    tx.oncomplete = () => db.close()
-  })
+  let db
+  try {
+    db = await openSnapshotDB()
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite')
+      const store = tx.objectStore(DB_STORE)
+      const request = store.put(snapshotDocs, 'docs')
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+      tx.oncomplete = () => db.close()
+      tx.onerror = () => db.close()
+    })
+  } catch (err) {
+    if (db) db.close()
+    throw err
+  }
 }
 
 async function clearSnapshot() {
+  let db
   try {
-    const db = await openSnapshotDB()
-    return new Promise((resolve, reject) => {
+    db = await openSnapshotDB()
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite')
       const store = tx.objectStore(DB_STORE)
       const request = store.clear()
       request.onsuccess = () => resolve()
       request.onerror = () => reject(request.error)
       tx.oncomplete = () => db.close()
+      tx.onerror = () => db.close()
     })
   } catch {
+    if (db) db.close()
     // Non-critical
   }
 }

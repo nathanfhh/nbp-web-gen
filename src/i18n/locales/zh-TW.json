@@ -802,7 +802,8 @@
     "indexing": "索引中 {current}/{total}...",
     "indexed": "已索引 {count} 筆記錄",
     "error": "搜尋系統錯誤",
-    "filterAll": "全部"
+    "filterAll": "全部",
+    "strategyLabel": "搜尋策略"
   },
   "historyTransfer": {
     "title": "匯出/匯入",

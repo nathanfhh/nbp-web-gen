@@ -338,6 +338,9 @@ function getThumbnailSrc(item) {
         class="fixed inset-0 z-[9990] flex items-start justify-center pt-[5vh] sm:pt-[10vh] px-4"
         @keydown="handleKeydown"
         tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="$t('search.title')"
       >
         <!-- Backdrop (click does NOT close) -->
         <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" />
@@ -370,6 +373,7 @@ function getThumbnailSrc(item) {
                 v-model="query"
                 type="text"
                 :placeholder="$t('search.placeholder')"
+                :aria-label="$t('search.placeholder')"
                 class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-bg-input border border-border-muted text-text-primary placeholder-text-muted text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 transition-all"
                 :disabled="!searchWorker.isReady.value && !searchWorker.isModelLoading.value"
                 @keydown.esc="close"
@@ -410,6 +414,7 @@ function getThumbnailSrc(item) {
                     ? 'bg-brand-primary text-text-on-brand'
                     : 'bg-bg-muted text-text-secondary hover:bg-bg-interactive'
                 "
+                :aria-pressed="selectedMode === mode"
               >
                 {{ mode === '' ? $t('search.filterAll') : modeLabels[mode] }}
               </button>
@@ -419,6 +424,7 @@ function getThumbnailSrc(item) {
             <div class="flex items-center gap-2">
               <select
                 v-model="selectedStrategy"
+                :aria-label="$t('search.strategyLabel')"
                 class="text-xs px-2 py-1 rounded-lg bg-bg-muted text-text-secondary border border-border-muted focus:outline-none focus:ring-1 focus:ring-brand-primary/50"
               >
                 <option v-for="s in strategies" :key="s" :value="s">
@@ -466,7 +472,7 @@ function getThumbnailSrc(item) {
           </div>
 
           <!-- Results -->
-          <div class="flex-1 overflow-y-auto px-5 pb-3 min-h-0">
+          <div class="flex-1 overflow-y-auto px-5 pb-3 min-h-0" aria-live="polite">
             <!-- Result header -->
             <div v-if="hasSearched && !isSearching" class="flex items-center justify-between mb-2">
               <span class="text-xs text-text-muted">
@@ -483,7 +489,11 @@ function getThumbnailSrc(item) {
                 v-for="item in results"
                 :key="item.id"
                 @click="handleResultClick(item)"
-                class="group flex items-start gap-3 p-3 rounded-xl bg-bg-muted/50 hover:bg-bg-interactive cursor-pointer transition-all"
+                @keydown.enter="handleResultClick(item)"
+                @keydown.space.prevent="handleResultClick(item)"
+                tabindex="0"
+                role="button"
+                class="group flex items-start gap-3 p-3 rounded-xl bg-bg-muted/50 hover:bg-bg-interactive focus:bg-bg-interactive focus:outline-none focus:ring-2 focus:ring-brand-primary/50 cursor-pointer transition-all"
               >
                 <!-- Thumbnail -->
                 <div v-if="getThumbnailSrc(item)" class="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden">

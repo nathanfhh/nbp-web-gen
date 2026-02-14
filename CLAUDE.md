@@ -446,7 +446,7 @@ First-time user guidance system:
 Browser-side hybrid search (BM25 + semantic) over generation history using Orama + multilingual-e5-small.
 
 **Architecture:**
-```
+```text
 SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.worker.js (長駐 Worker)
                                                                ├── Orama DB (hybrid search)
                                                                └── Transformers.js (embeddings)
@@ -455,6 +455,7 @@ SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.wo
 **核心原則**：搜尋系統是*只讀附加層*，不修改現有 IndexedDB schema、不改 export v4 格式、不影響 WebRTC 傳輸。
 
 **檔案對照表：**
+
 | 檔案 | 職責 |
 |------|------|
 | `utils/search-core.js` | 純函式：extractText, chunkText, deduplicateByParent, highlightSnippet |
@@ -466,6 +467,7 @@ SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.wo
 **獨立 IndexedDB**：`nanobanana-search`（存放 Orama 全文件快照，包含文字 + embedding 向量。冷啟動時直接載入快照 → bulk insert → 立即可搜尋。selfHeal 僅處理差異。）
 
 **CustomEvent 索引同步：**
+
 | 事件 | 觸發位置 | 用途 |
 |------|----------|------|
 | `nbp-history-added` | `generator.js:addToHistory` | 即時索引新記錄 |
@@ -479,6 +481,7 @@ SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.wo
 - 模型：`intfloat/multilingual-e5-small`（384 dims, ~33MB quantized）
 
 **搜尋策略：**
+
 | 策略 | 說明 |
 |------|------|
 | `hybrid` | BM25 + 向量混合（預設） |
