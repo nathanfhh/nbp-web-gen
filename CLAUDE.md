@@ -490,6 +490,8 @@ SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.wo
 
 **自我修復（selfHeal）：** 開啟 SearchModal 時自動執行，比對 history IDs 與索引，補缺、清孤兒。
 
+> **Architecture Details**: See [`docs/search-architecture.md`](docs/search-architecture.md)
+
 ### Sketch Canvas (Hand-Drawing Feature)
 
 **⚠️ CRITICAL: 修改 Sketch Canvas 相關邏輯前，必須先閱讀 [`docs/sketch-history.md`](docs/sketch-history.md)**

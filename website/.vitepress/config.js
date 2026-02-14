@@ -38,6 +38,7 @@ const zhTWSidebar = [
       { text: 'API Key 管理', link: '/guide/api-key-management' },
       { text: '角色庫', link: '/guide/character-library' },
       { text: '歷史紀錄', link: '/guide/history' },
+      { text: '智慧搜尋', link: '/guide/search' },
     ],
   },
   {
@@ -78,6 +79,7 @@ const enSidebar = [
       { text: 'API Key Management', link: '/en/guide/api-key-management' },
       { text: 'Character Library', link: '/en/guide/character-library' },
       { text: 'History', link: '/en/guide/history' },
+      { text: 'Smart Search', link: '/en/guide/search' },
     ],
   },
   {

@@ -121,6 +121,7 @@ P2P 連線使用 WebRTC 技術。在某些網路環境下（如嚴格的 NAT 或
 
 ## 下一步
 
+- [智慧搜尋](./search) - 快速搜尋歷史紀錄
 - [角色庫](./character-library) - 從歷史紀錄建立角色
 - [圖片編輯](./image-editing) - 編輯歷史紀錄中的圖片
 - [簡報轉換](./slide-conversion) - 將歷史紀錄中的圖片轉換為 PPTX
