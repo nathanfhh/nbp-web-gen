@@ -79,7 +79,8 @@ This project is a testament to the power of AI-assisted development:
     *   **Per-Page Customization:** Add page-specific style guides and reference images.
     *   **Progress Tracking:** Real-time progress bar with ETA during generation.
     *   **AI Narration (TTS):** Generate voice narration scripts with Gemini and convert to audio using Google TTS. Supports single/dual speaker modes with configurable voices and speaking styles.
-    *   **MP4 Export:** Export slides with synchronized narration audio as MP4 video.
+    *   **MP4 Export:** Export slides with synchronized narration audio as MP4 video. Supports resolution selection (1080p/1440p/2160p) with dynamic bitrate scaling.
+    *   **Parallel Generation:** Concurrent image and TTS audio generation with automatic retry and rate limiting.
 *   **Visual Storytelling:** Create consistent multi-step storyboards or process visualizations.
 *   **Technical Diagrams:** Generate flowcharts, architecture diagrams, and mind maps from text.
 *   **AI Thinking Process:** Watch the AI's reasoning in real-time with streaming thought visualization - see how Gemini thinks before generating.
@@ -97,6 +98,7 @@ This project is a testament to the power of AI-assisted development:
     *   **PDF Support:** Upload PDFs directly - automatically converted to images page by page.
     *   **Per-Page Settings:** Customize OCR and inpainting settings for individual slides.
 *   **Smart History:** Local storage using IndexedDB and OPFS (Origin Private File System) for your generation history.
+*   **Smart Search (RAG):** Browser-side hybrid search over generation history using BM25 + semantic search with multilingual-e5-small embeddings. Supports keyword, semantic, and hybrid search strategies with mode filtering.
 *   **History Export/Import:** Export your generation history to a JSON file (with embedded images and narration audio) and import on another browser.
 *   **WebRTC Cross-Device Sync:** Real-time sync between devices via WebRTC. Supports Cloudflare TURN relay for NAT traversal. Sync history records (including narration audio) and saved characters.
 *   **Batch Download:** Download all generated images as ZIP archive or PDF document.
@@ -236,7 +238,8 @@ npm run build
     *   **頁面客製化：** 可為每頁加入專屬的風格指引與參考圖片。
     *   **進度追蹤：** 生成時顯示即時進度條與預估剩餘時間。
     *   **AI 語音旁白 (TTS)：** 使用 Gemini 生成語音旁白逐字稿，並透過 Google TTS 轉換為音訊。支援單人/雙人講者模式，可自訂語音與說話風格。
-    *   **MP4 匯出：** 將簡報與同步的語音旁白匯出為 MP4 影片。
+    *   **MP4 匯出：** 將簡報與同步的語音旁白匯出為 MP4 影片，支援解析度選擇（1080p/1440p/2160p）與動態位元率調整。
+    *   **平行生成：** 圖片與 TTS 音訊並行生成，內建自動重試與速率限制機制。
 *   **視覺故事模式：** 可生成連貫的多步驟故事板或流程圖。
 *   **技術圖表生成：** 透過文字描述產生流程圖、系統架構圖與心智圖。
 *   **AI 思考過程視覺化：** 即時串流呈現 AI 的推理過程，讓您看見 Gemini 在生成圖像前的思考脈絡。
@@ -254,6 +257,7 @@ npm run build
     *   **PDF 支援：** 可直接上傳 PDF，自動逐頁轉換為圖片。
     *   **逐頁設定：** 可為個別頁面自訂 OCR 與文字移除設定。
 *   **智慧歷史紀錄：** 使用 IndexedDB 與 OPFS (Origin Private File System) 將您的生成紀錄完整保存在本地端。
+*   **智慧搜尋 (RAG)：** 瀏覽器端混合搜尋，結合 BM25 關鍵字搜尋與 multilingual-e5-small 語意搜尋。支援關鍵字、語意及混合搜尋策略，可依生成模式篩選。
 *   **歷史記錄匯出/匯入：** 將生成歷史匯出為 JSON 檔案（含嵌入圖片與語音旁白音訊），可於其他瀏覽器匯入。
 *   **WebRTC 跨裝置同步：** 透過 WebRTC 實現裝置間即時同步，支援 Cloudflare TURN 中繼伺服器穿越 NAT。可同步歷史紀錄（含語音旁白音訊）與已儲存的角色。
 *   **批次下載：** 可將所有生成圖片打包為 ZIP 壓縮檔或 PDF 文件下載。
