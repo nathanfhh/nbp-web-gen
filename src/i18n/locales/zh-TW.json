@@ -782,6 +782,28 @@
       "noResults": "無符合條件的紀錄"
     }
   },
+  "search": {
+    "title": "搜尋歷史記錄",
+    "placeholder": "輸入關鍵字或描述...",
+    "strategy": {
+      "hybrid": "混合搜尋",
+      "vector": "語意搜尋",
+      "fulltext": "關鍵字搜尋"
+    },
+    "results": "{count} 筆結果",
+    "elapsed": "{time}ms",
+    "noResults": "找不到相關記錄",
+    "noQuery": "輸入關鍵字開始搜尋",
+    "model": {
+      "downloading": "下載搜尋模型中...",
+      "initializing": "載入搜尋模型中...",
+      "ready": "搜尋模型已就緒"
+    },
+    "indexing": "索引中 {current}/{total}...",
+    "indexed": "已索引 {count} 筆記錄",
+    "error": "搜尋系統錯誤",
+    "filterAll": "全部"
+  },
   "historyTransfer": {
     "title": "匯出/匯入",
     "historyTab": "歷史紀錄",

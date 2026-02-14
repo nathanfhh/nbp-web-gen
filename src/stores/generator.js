@@ -377,6 +377,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   const addToHistory = async (record) => {
     const id = await addHistory(record)
     await loadHistory()
+    window.dispatchEvent(new CustomEvent('nbp-history-added', { detail: { id, record: { ...record, id } } }))
     return id
   }
 
@@ -453,6 +454,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     await loadHistory()
     // Update storage usage
     await updateStorageUsage()
+    window.dispatchEvent(new CustomEvent('nbp-history-deleted', { detail: { ids: [id] } }))
   }
 
   const clearHistory = async () => {
@@ -485,6 +487,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     await loadHistory()
     // Update storage usage
     await updateStorageUsage()
+    window.dispatchEvent(new CustomEvent('nbp-history-cleared'))
   }
 
   // ============================================================================

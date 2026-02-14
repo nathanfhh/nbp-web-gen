@@ -16,6 +16,7 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import VideoLightbox from '@/components/VideoLightbox.vue'
 import HistoryTransfer from '@/components/HistoryTransfer.vue'
+import SearchModal from '@/components/SearchModal.vue'
 
 dayjs.extend(relativeTime)
 
@@ -309,7 +310,7 @@ const clearAll = async () => {
 
 // Open lightbox for history images
 const openHistoryLightbox = async (item, event) => {
-  event.stopPropagation()
+  event?.stopPropagation()
 
   // Allow opening if has images OR has narration audio (slides mode)
   const hasImages = item.images && item.images.length > 0
@@ -362,7 +363,7 @@ const closeLightbox = () => {
 
 // Open video lightbox
 const openVideoLightbox = async (item, event) => {
-  event.stopPropagation()
+  event?.stopPropagation()
 
   if (!item.video) return
 
@@ -401,7 +402,7 @@ const openAgentLightbox = async (item, event) => {
   // If no thumbnail, let the click bubble up to loadHistoryItem
   if (!item.thumbnail) return
 
-  event.stopPropagation()
+  event?.stopPropagation()
 
   isLoadingImages.value = true
 
@@ -462,6 +463,19 @@ const openAgentLightbox = async (item, event) => {
   }
 }
 
+// Search modal
+const showSearchModal = ref(false)
+
+const handleSearchOpenLightbox = async (item) => {
+  if (item.mode === 'video') {
+    await openVideoLightbox(item)
+  } else if (item.mode === 'agent') {
+    await openAgentLightbox(item)
+  } else {
+    await openHistoryLightbox(item)
+  }
+}
+
 // History transfer (export/import)
 const showTransfer = ref(false)
 
@@ -469,6 +483,7 @@ const handleImported = async () => {
   // Reload history after import
   await store.loadHistory()
   await store.updateStorageUsage()
+  window.dispatchEvent(new CustomEvent('nbp-history-imported'))
 }
 </script>
 
@@ -483,6 +498,16 @@ const handleImported = async () => {
         <span v-if="store.historyCount > 0" class="badge">{{ store.historyCount }}</span>
       </h3>
       <div class="flex items-center gap-2">
+        <!-- Search button -->
+        <button
+          @click="showSearchModal = true"
+          class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-mode-generate transition-all"
+          :title="$t('search.title')"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
         <!-- Transfer (Export/Import) button -->
         <button
           @click="showTransfer = true"
@@ -768,6 +793,12 @@ const handleImported = async () => {
     <HistoryTransfer
       v-model="showTransfer"
       @imported="handleImported"
+    />
+
+    <!-- Search Modal -->
+    <SearchModal
+      v-model="showSearchModal"
+      @openLightbox="handleSearchOpenLightbox"
     />
   </div>
 </template>

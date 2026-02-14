@@ -782,6 +782,28 @@
       "noResults": "No matching records"
     }
   },
+  "search": {
+    "title": "Search History",
+    "placeholder": "Enter keywords or description...",
+    "strategy": {
+      "hybrid": "Hybrid Search",
+      "vector": "Semantic Search",
+      "fulltext": "Keyword Search"
+    },
+    "results": "{count} results",
+    "elapsed": "{time}ms",
+    "noResults": "No matching records found",
+    "noQuery": "Enter keywords to start searching",
+    "model": {
+      "downloading": "Downloading search model...",
+      "initializing": "Loading search model...",
+      "ready": "Search model ready"
+    },
+    "indexing": "Indexing {current}/{total}...",
+    "indexed": "{count} records indexed",
+    "error": "Search system error",
+    "filterAll": "All"
+  },
   "historyTransfer": {
     "title": "Export/Import",
     "historyTab": "History",
