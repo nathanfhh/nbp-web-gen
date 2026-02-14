@@ -38,6 +38,7 @@ const searchInputRef = ref(null)
 const query = ref('')
 const selectedMode = ref('')
 const selectedStrategy = ref('hybrid')
+const sortBy = ref('relevance')
 const results = ref([])
 const searchElapsed = ref(0)
 const isSearching = ref(false)
@@ -45,7 +46,38 @@ const isIndexing = ref(false)
 const hasSearched = ref(false)
 
 const strategies = ['hybrid', 'vector', 'fulltext']
+const sortOptions = ['relevance', 'dateDesc', 'dateAsc']
 const modeFilters = ['', 'generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides', 'agent']
+
+// ============================================================================
+// localStorage Persistence
+// ============================================================================
+
+const LS_KEY = 'nbp-search-prefs'
+
+function loadPreferences() {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return
+    const prefs = JSON.parse(raw)
+    if (prefs.mode != null) selectedMode.value = prefs.mode
+    if (prefs.strategy && strategies.includes(prefs.strategy)) selectedStrategy.value = prefs.strategy
+    if (prefs.sortBy && sortOptions.includes(prefs.sortBy)) sortBy.value = prefs.sortBy
+  } catch { /* ignore corrupt data */ }
+}
+
+function savePreferences() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      mode: selectedMode.value,
+      strategy: selectedStrategy.value,
+      sortBy: sortBy.value,
+    }))
+  } catch { /* quota exceeded — ignore */ }
+}
+
+// Load saved preferences on first evaluation
+loadPreferences()
 
 const modeLabels = computed(() => ({
   generate: t('modes.generate.name'),
@@ -251,7 +283,7 @@ async function performSearch() {
       recordMap.set(String(rec.id), rec)
     }
 
-    results.value = deduped
+    let merged = deduped
       .map((hit) => {
         const record = recordMap.get(hit.parentId)
         if (!record) return null
@@ -262,6 +294,16 @@ async function performSearch() {
         }
       })
       .filter(Boolean)
+
+    // Apply sort
+    if (sortBy.value === 'dateDesc') {
+      merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+    } else if (sortBy.value === 'dateAsc') {
+      merged.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+    }
+    // 'relevance' keeps the Orama score order (default)
+
+    results.value = merged
   } catch (err) {
     console.error('[RAG Search] Search failed:', err)
     results.value = []
@@ -285,7 +327,8 @@ watch(() => props.modelValue, (open) => {
   }
 })
 
-watch([selectedMode, selectedStrategy], () => {
+watch([selectedMode, selectedStrategy, sortBy], () => {
+  savePreferences()
   if (query.value.trim()) {
     performSearch()
   }
@@ -422,17 +465,32 @@ function getThumbnailSrc(item) {
               </button>
             </div>
 
-            <!-- Strategy selector -->
-            <div class="flex items-center gap-2">
-              <select
-                v-model="selectedStrategy"
-                :aria-label="$t('search.strategyLabel')"
-                class="text-xs px-2 py-1 rounded-lg bg-bg-muted text-text-secondary border border-border-muted focus:outline-none focus:ring-1 focus:ring-brand-primary/50"
-              >
-                <option v-for="s in strategies" :key="s" :value="s">
-                  {{ $t(`search.strategy.${s}`) }}
-                </option>
-              </select>
+            <!-- Strategy + Sort selectors -->
+            <div class="flex items-center gap-3 flex-wrap">
+              <label class="flex items-center gap-1">
+                <span class="text-xs text-text-muted whitespace-nowrap">{{ $t('search.strategyLabel') }}</span>
+                <select
+                  v-model="selectedStrategy"
+                  :aria-label="$t('search.strategyLabel')"
+                  class="text-xs px-2 py-1 rounded-lg bg-bg-muted text-text-secondary border border-border-muted focus:outline-none focus:ring-1 focus:ring-brand-primary/50"
+                >
+                  <option v-for="s in strategies" :key="s" :value="s">
+                    {{ $t(`search.strategy.${s}`) }}
+                  </option>
+                </select>
+              </label>
+              <label class="flex items-center gap-1">
+                <span class="text-xs text-text-muted whitespace-nowrap">{{ $t('search.sortLabel') }}</span>
+                <select
+                  v-model="sortBy"
+                  :aria-label="$t('search.sortLabel')"
+                  class="text-xs px-2 py-1 rounded-lg bg-bg-muted text-text-secondary border border-border-muted focus:outline-none focus:ring-1 focus:ring-brand-primary/50"
+                >
+                  <option v-for="s in sortOptions" :key="s" :value="s">
+                    {{ $t(`search.sort.${s}`) }}
+                  </option>
+                </select>
+              </label>
             </div>
           </div>
 
@@ -504,7 +562,7 @@ function getThumbnailSrc(item) {
                 class="group flex items-start gap-3 p-3 rounded-xl bg-bg-muted/50 hover:bg-bg-interactive focus:bg-bg-interactive focus:outline-none focus:ring-2 focus:ring-brand-primary/50 cursor-pointer transition-all"
               >
                 <!-- Thumbnail -->
-                <div v-if="getThumbnailSrc(item)" class="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden">
+                <div v-if="getThumbnailSrc(item)" class="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden cursor-zoom-in">
                   <img
                     :src="getThumbnailSrc(item)"
                     :alt="item.prompt"

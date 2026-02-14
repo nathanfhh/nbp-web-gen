@@ -804,7 +804,13 @@
     "indexed": "{count} records indexed",
     "error": "Search system error",
     "filterAll": "All",
-    "strategyLabel": "Search strategy"
+    "strategyLabel": "Strategy:",
+    "sortLabel": "Sort:",
+    "sort": {
+      "relevance": "Relevance",
+      "dateDesc": "Date (newest)",
+      "dateAsc": "Date (oldest)"
+    }
   },
   "historyTransfer": {
     "title": "Export/Import",
