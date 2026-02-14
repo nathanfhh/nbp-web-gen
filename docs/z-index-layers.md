@@ -12,6 +12,12 @@
 
 ## 完整層級表
 
+### 搜尋 Modal（Lightbox 之下）
+
+| z-index | 元素 | 檔案 | 說明 |
+|---------|------|------|------|
+| **9990** | `SearchModal` | `SearchModal.vue` | RAG 搜尋 Modal（低於 Lightbox，點擊結果可開啟 Lightbox 覆蓋其上） |
+
 ### Modal 類（最高層級）
 
 | z-index | 元素 | 檔案 | 說明 |
@@ -23,7 +29,7 @@
 | **10010** | `PreviewLightbox` | `PreviewLightbox.vue` | 預覽 Lightbox |
 | **10010** | `Mp4QualityModal` | `Mp4QualityModal.vue` | MP4 品質選擇 |
 
-> **規則**：所有 Modal 統一使用 z-index: 10010，確保在所有其他 UI 之上。
+> **規則**：所有 Modal 統一使用 z-index: 10010，確保在所有其他 UI 之上。SearchModal 例外使用 9990，允許 Lightbox 覆蓋其上。
 
 ### Lightbox 相關元素
 
@@ -120,3 +126,4 @@ body
 | 2026-01-21 | SVG Overlay 加入 `z-index: 1` | 確保區域標記顯示在圖片之上 |
 | 2026-01-21 | 所有 Modal 統一提升到 z-index: 10010 | 確保 Modal 在所有 UI 之上 |
 | 2026-01-31 | 新增 `Mp4QualityModal` (z-index: 10010) | MP4 品質選擇功能 |
+| 2026-02-14 | 新增 `SearchModal` (z-index: 9990) | RAG 搜尋功能，低於 Lightbox 層以支援從搜尋結果開啟 Lightbox |
