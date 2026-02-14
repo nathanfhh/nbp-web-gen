@@ -611,12 +611,18 @@ async function initialize() {
 
     // 3. If snapshot exists, bulk-insert → immediately searchable (no embedding needed)
     if (Array.isArray(savedDocs) && savedDocs.length > 0) {
-      // Sanitize: ensure every doc has a valid embedding array (null/undefined → zero vector)
-      const zeroVec = new Array(EMBEDDING_DIMS).fill(0)
-      snapshotDocs = savedDocs.map((doc) => ({
-        ...doc,
-        embedding: Array.isArray(doc.embedding) ? doc.embedding : zeroVec,
-      }))
+      // Filter out docs with invalid embeddings (null or all-zero vectors).
+      // E5 model always produces normalized (magnitude=1) vectors, so all-zero means
+      // the embedding was never computed. These docs will be caught by selfHeal
+      // and re-indexed with proper embeddings.
+      snapshotDocs = savedDocs.filter((doc) =>
+        Array.isArray(doc.embedding) && doc.embedding.some((v) => v !== 0),
+      )
+      if (snapshotDocs.length < savedDocs.length) {
+        console.warn(
+          `[search.worker] Dropped ${savedDocs.length - snapshotDocs.length} docs with invalid embeddings from snapshot`,
+        )
+      }
       const insertedIds = await insertMultiple(oramaDb, snapshotDocs)
 
       // Rebuild tracking maps from restored snapshot
