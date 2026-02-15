@@ -217,9 +217,12 @@ async function indexMissingRecords(missingIds) {
           const conversation = await conversationStorage.loadConversation(opfsPath)
           if (conversation) {
             item.conversation = stripConversationForIndexing(conversation)
+            console.log(`[RAG Search] Agent record ${record.id}: loaded conversation (${conversation.length} msgs → ${item.conversation?.length ?? 0} stripped)`)
+          } else {
+            console.warn(`[RAG Search] Agent record ${record.id}: no conversation in OPFS, will use prompt fallback`)
           }
-        } catch {
-          // Skip conversation loading errors
+        } catch (err) {
+          console.error(`[RAG Search] Agent record ${record.id}: conversation load error:`, err)
         }
       }
 

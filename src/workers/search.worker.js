@@ -757,7 +757,10 @@ async function indexRecord(record, conversation = null) {
 
   // Extract and chunk text
   const fullText = extractText(record, conversation)
-  if (!fullText || fullText.trim().length === 0) return 0
+  if (!fullText || fullText.trim().length === 0) {
+    console.warn(`[search.worker] Skipping record ${parentId} (mode=${mode}): extractText returned empty (conversation=${!!conversation})`)
+    return 0
+  }
 
   // Use provider-specific chunk parameters (or SEARCH_DEFAULTS fallback when no provider)
   const chunkOpts = activeProvider
@@ -771,12 +774,21 @@ async function indexRecord(record, conversation = null) {
   let chunks
   if (mode === 'agent' && conversation) {
     const allMsgs = extractAgentMessages(conversation)
-    chunks = allMsgs.map((m, i) => ({ text: m.text, contextText: m.text, index: i }))
+    if (allMsgs.length > 0) {
+      chunks = allMsgs.map((m, i) => ({ text: m.text, contextText: m.text, index: i }))
+    } else {
+      // Conversation exists but no extractable text (e.g., image-only) — fall back to fullText
+      console.warn(`[search.worker] Agent record ${parentId}: conversation has no text messages, falling back to prompt`)
+      chunks = chunkText(fullText, chunkOpts)
+    }
   } else {
     chunks = chunkText(fullText, chunkOpts)
   }
 
-  if (chunks.length === 0) return 0
+  if (chunks.length === 0) {
+    console.warn(`[search.worker] Skipping record ${parentId} (mode=${mode}): no chunks produced from text (len=${fullText?.length || 0})`)
+    return 0
+  }
 
   const dims = getActiveDims()
 
@@ -810,8 +822,12 @@ async function indexRecord(record, conversation = null) {
       const i = uncachedIndices[j]
       const embedding = newEmbeddings[j] || new Array(dims).fill(0)
       embeddings[i] = embedding
-      // Cache the new embedding
-      embeddingCache.set(`${activeProvider}:${parentId}:${chunks[i].index}`, embedding)
+      // Only cache non-zero embeddings — zero vectors indicate API failure
+      // and should be retried on next indexing attempt
+      const isZero = !embedding.some((v) => v !== 0)
+      if (!isZero) {
+        embeddingCache.set(`${activeProvider}:${parentId}:${chunks[i].index}`, embedding)
+      }
     }
   }
 
@@ -1217,6 +1233,26 @@ async function switchProvider(newProvider, requestId) {
     }
 
     console.log(`[search.worker] Loaded ${snapshotDocs.length} docs from snapshot-${newProvider}`)
+
+    // Remove records with all-zero embeddings for selfHeal retry
+    const zeroEmbParents = new Set()
+    const nonZeroParents = new Set()
+    for (const doc of snapshotDocs) {
+      const emb = doc.embedding
+      if (Array.isArray(emb) && emb.some((v) => v !== 0)) {
+        nonZeroParents.add(doc.parentId)
+      } else {
+        zeroEmbParents.add(doc.parentId)
+      }
+    }
+    const toRetry = []
+    for (const pid of zeroEmbParents) {
+      if (!nonZeroParents.has(pid)) toRetry.push(pid)
+    }
+    if (toRetry.length > 0) {
+      console.log(`[search.worker] Found ${toRetry.length} records with all-zero embeddings, marking for re-index`)
+      await removeByParentIds(toRetry)
+    }
   } else if (savedData) {
     console.log(
       `[search.worker] Snapshot for ${newProvider} incompatible (version=${savedData.version}, config=${savedData.configVersion}), will rebuild via selfHeal`,
@@ -1308,6 +1344,31 @@ async function initialize(keys = {}) {
         console.log(
           `[search.worker] Restored ${oramaDocs.length} docs (${indexedParentIds.size} records) from snapshot-${activeProvider}`,
         )
+
+        // Detect records where ALL chunks have zero embeddings (API failure during indexing).
+        // Remove them so selfHeal re-indexes with fresh API calls.
+        if (activeProvider) {
+          const zeroEmbParents = new Set()
+          const nonZeroParents = new Set()
+          for (const doc of snapshotDocs) {
+            const emb = doc.embedding
+            const hasEmb = Array.isArray(emb) && emb.some((v) => v !== 0)
+            if (hasEmb) {
+              nonZeroParents.add(doc.parentId)
+            } else {
+              zeroEmbParents.add(doc.parentId)
+            }
+          }
+          // Only remove parents where ALL chunks are zero (not partially embedded)
+          const toRetry = []
+          for (const pid of zeroEmbParents) {
+            if (!nonZeroParents.has(pid)) toRetry.push(pid)
+          }
+          if (toRetry.length > 0) {
+            console.log(`[search.worker] Found ${toRetry.length} records with all-zero embeddings, marking for re-index`)
+            await removeByParentIds(toRetry)
+          }
+        }
       }
     }
 
@@ -1386,8 +1447,12 @@ self.addEventListener('message', async (event) => {
           const batch = records.slice(i, i + BATCH_SIZE)
 
           for (const item of batch) {
-            const count = await indexRecord(item.record, item.conversation || null)
-            totalChunks += count
+            try {
+              const count = await indexRecord(item.record, item.conversation || null)
+              totalChunks += count
+            } catch (indexErr) {
+              console.error(`[search.worker] indexRecord FAILED for id=${item.record?.id} mode=${item.record?.mode}:`, indexErr)
+            }
           }
 
           // Report progress
