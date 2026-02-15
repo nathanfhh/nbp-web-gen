@@ -74,6 +74,7 @@
     "freeTierPlaceholder": "輸入您的 Free Tier API Key...",
     "addFreeTier": "新增 Free Tier 金鑰",
     "freeTierHint": "Free Tier 金鑰可用於角色萃取、簡報風格分析等文字處理功能，額度用盡時會自動切換到主要金鑰。",
+    "freeTierPrivacyWarning": "Google 可能會使用 Free Tier 的輸入與輸出資料來改進其產品與模型。若有隱私疑慮，建議僅使用上方的付費 API Key。",
     "showKey": "顯示金鑰",
     "hideKey": "隱藏金鑰"
   },
