@@ -58,6 +58,25 @@ const PROVIDER_CONFIG = {
   local: { dims: 384, model: 'intfloat/multilingual-e5-small', chunkSize: 200, chunkOverlap: 50, contextWindow: 400 },
 }
 
+// Bump when extractText/indexRecord logic changes to force snapshot rebuild.
+// v1: initial, v2: agent mode indexes user+model messages + modeLabel field
+const EXTRACTION_VERSION = 2
+
+/**
+ * Searchable mode labels for BM25 matching (English + Chinese).
+ * Allows users to search "agentic vision", "簡報", "影片" etc.
+ */
+const MODE_SEARCH_LABELS = {
+  generate: 'generate image 圖片生成',
+  sticker: 'sticker LINE 貼圖',
+  edit: 'edit image 圖片編輯',
+  story: 'story 故事',
+  diagram: 'diagram 圖表',
+  video: 'video 影片',
+  slides: 'slides presentation 簡報',
+  agent: 'agent agentic vision 智慧視覺',
+}
+
 /**
  * Compute a config version string for a provider's chunk parameters.
  * Used to detect when snapshot needs rebuild due to parameter changes.
@@ -67,7 +86,7 @@ const PROVIDER_CONFIG = {
 function getProviderConfigVersion(provider) {
   if (!provider) return null
   const cfg = PROVIDER_CONFIG[provider]
-  return `cs${cfg.chunkSize}_co${cfg.chunkOverlap}_cw${cfg.contextWindow}`
+  return `cs${cfg.chunkSize}_co${cfg.chunkOverlap}_cw${cfg.contextWindow}_ev${EXTRACTION_VERSION}`
 }
 
 // ============================================================================
@@ -440,6 +459,7 @@ function createFreshDb(provider) {
       chunkIndex: 'number',
       chunkText: 'string',
       mode: 'string',
+      modeLabel: 'string',
       timestamp: 'number',
       embedding: `vector[${dims}]`,
     },
@@ -796,11 +816,13 @@ async function indexRecord(record, conversation = null) {
   }
 
   // Insert into Orama (chunkText only — contextText stays out of BM25 index)
+  const modeLabel = MODE_SEARCH_LABELS[mode] || mode
   const docs = chunks.map((chunk, i) => ({
     parentId,
     chunkIndex: chunk.index,
     chunkText: chunk.text,
     mode,
+    modeLabel,
     timestamp,
     embedding: embeddings[i] || new Array(dims).fill(0),
   }))
@@ -830,6 +852,7 @@ async function indexRecord(record, conversation = null) {
       chunkText: docs[i].chunkText,
       contextText: chunks[i].contextText,
       mode: docs[i].mode,
+      modeLabel: docs[i].modeLabel,
       timestamp: docs[i].timestamp,
       embedding: docs[i].embedding,
     })
@@ -936,7 +959,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
   if (strategy === 'fulltext') {
     results = await search(oramaDb, {
       term: query,
-      properties: ['chunkText', 'mode'],
+      properties: ['chunkText', 'modeLabel'],
       limit: SEARCH_DEFAULTS.searchLimit,
       ...(Object.keys(where).length > 0 ? { where } : {}),
     })
@@ -968,7 +991,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
     // Phase 1: BM25 keyword search (reliable, fast)
     const bm25Results = await search(oramaDb, {
       term: query,
-      properties: ['chunkText', 'mode'],
+      properties: ['chunkText', 'modeLabel'],
       limit: SEARCH_DEFAULTS.searchLimit,
       ...(Object.keys(where).length > 0 ? { where } : {}),
     })
@@ -1175,6 +1198,7 @@ async function switchProvider(newProvider, requestId) {
         chunkIndex: doc.chunkIndex,
         chunkText: doc.chunkText,
         mode: doc.mode,
+        modeLabel: doc.modeLabel || MODE_SEARCH_LABELS[doc.mode] || doc.mode,
         timestamp: doc.timestamp,
         embedding: hasEmb ? emb : new Array(dims).fill(0),
       })
@@ -1262,6 +1286,7 @@ async function initialize(keys = {}) {
             chunkIndex: doc.chunkIndex,
             chunkText: doc.chunkText,
             mode: doc.mode,
+            modeLabel: doc.modeLabel || MODE_SEARCH_LABELS[doc.mode] || doc.mode,
             timestamp: doc.timestamp,
             embedding: hasEmb ? emb : new Array(dims).fill(0),
           })

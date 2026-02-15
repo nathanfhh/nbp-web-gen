@@ -182,7 +182,7 @@ async function runSelfHeal() {
 
 /**
  * Strip heavy fields from agent conversation messages.
- * Worker only needs user text messages (no images, no model replies).
+ * Keeps user + model text parts only (no images, no thinking, no partial).
  */
 function stripConversationForIndexing(conversation) {
   if (!Array.isArray(conversation)) return null
