@@ -2,6 +2,30 @@
 
 This page documents version updates for Mediator.
 
+## v0.28.0
+
+_2026-02-15_
+
+### New Features
+- **Smart Search**: Add dual embedding engines — Gemini Embedding API (768-dim, cloud, higher quality) and local Transformers.js multilingual-e5-small (384-dim, free/offline), switchable anytime
+- **Smart Search**: Add Embedding 3D Explorer with UMAP dimensionality reduction and Plotly.js interactive 3D scatter plot visualization
+- **API Key**: Add privacy warning for Free Tier API keys — Google may use free tier data for model training
+
+### Improvements
+- **Smart Search**: Reduce chunk size (500→200) and overlap (100→50) for finer-grained retrieval
+- **Smart Search**: Add multi-chunk aggregated scoring for better search relevance
+- **Smart Search**: Embedding 3D Explorer uses lazy loading (Plotly.js ~4.8MB loaded only when opened)
+
+### Fixes
+- **Smart Search**: Fix zero-vector documents being inserted into snapshots, degrading search quality
+- **Smart Search**: Fix snapshot deduplication logic and per-provider independent storage
+- **Smart Search**: Fix Plotly modebar position obscuring chart and modal height clipping
+
+### Documentation
+- Update search docs with dual engine details, privacy warning, and 3D Explorer guide
+- Update API Key management docs with Free Tier privacy notice
+- Update README to reflect dual engines and 3D Explorer features
+
 ## v0.27.0
 
 _2026-02-14_
@@ -28,301 +52,37 @@ _2026-02-14_
 ### Maintenance
 - Upgrade project dependencies
 
-## v0.26.22
-
-_2026-02-12_
-
-### Fixes
-- **Lightbox**: Fix bottom info bar and navigation dots overlapping (stack vertically with flexbox wrapper)
-- **Lightbox**: Fix rapid arrow key presses or clicks being blocked during View Transition animation (skip in-progress transition)
-
-## v0.26.21
-
-_2026-02-09_
-
-### Fixes
-- **Agentic Vision**: Fix ghost partial messages accumulating during auto-save, causing duplicate image storage (2 images saved 10 times)
-- **Agentic Vision**: Fix imageIndex misalignment during multi-tab merge, causing loaded history images to point to wrong files
-- **Agentic Vision**: Fix ERR_INVALID_URL when loading history conversations with dataStoredExternally image parts missing data field
-- **Export/Import**: Fix Agentic Vision records not showing thumbnails and not opening full-size preview on click
-
-### Improvements
-- **Agentic Vision**: History badge now shows image count instead of message count
-
-### Testing
-- Add 37 unit tests for agent conversation sync logic (merge, index alignment, ghost filtering, imageCount)
-
-## v0.26.20
-
-_2026-02-09_
-
-### Fixes
-- **Generation**: Fix ghost API requests persisting after timeout retry, consuming quota without producing results (cancel in-flight HTTP connections via AbortController)
-
-## v0.26.19
-
-_2026-02-09_
-
-### Fixes
-- **Generation**: Prevent race condition from rapid clicks causing duplicate generation (parallel API requests and doubled costs)
-
-## v0.26.18
-
-_2026-02-06_
-
-### Testing Infrastructure
-- Add Vitest unit testing framework with happy-dom environment and v8 coverage
-- Add 319 unit tests across 16 files covering pure functions, OCR algorithms, error classification, PPTX export, and more
-- Add `npm test`, `npm run test:watch`, `npm run test:coverage` scripts
-
-### Fixes
-- **ESLint**: Exclude VitePress cache directory and add Node.js environment for scripts
-
-## v0.26.17
-
-_2026-02-06_
-
-### New Features
-- **Slides**: Add audio preview comparison when regenerating — listen to old vs new audio before deciding to replace
-- **MP4 Export**: Add output resolution selection (1080p / 1440p / 2160p), auto-enables based on source image dimensions
-- **MP4 Export**: Quality option bitrate descriptions now dynamically adjust based on selected resolution
-
-### Fixes
-- **MP4 Export**: Fix white flash during transitions on dark-themed presentations (Canvas 2D compositing math fix)
-- **MP4 Export**: Fix noticeable quality degradation at the start of each slide (switched to VBR encoding mode)
-- **Slides**: Fix audio player not updating after regeneration
-
-### Improvements
-- **MP4 Export**: Auto-detect H.264 codec level (Level 4.0 / 5.0) — high-resolution videos no longer capped at 1080p
-- **MP4 Export**: Transition background color auto-sampled from slide edges, adapting to any theme color
-
-## v0.26.16
-
-_2026-02-04_
-
-### New Features
-- **Slides**: Add confirmation modal before resetting all settings to prevent accidental data loss
-- **Slides Narration**: Audio player auto-hides after 3 seconds of inactivity, shows on hover or touch
-
-### Fixes
-- **Slides**: Fix narration settings (voice style, speakers, custom prompt, etc.) not being saved to history
-- **Slides**: Fix narration scripts not being saved to history
-- **Slides**: Fix single page audio regeneration not syncing narration settings
-
-## v0.26.15
-
-_2026-02-04_
-
-### New Features
-- **Slides Narration**: Add playback speed control (0.5x - 2x) with auto-save preference
-- **Slides Narration**: Add auto-play feature for continuous page playback when audio ends
-- **Slides Narration**: Support space bar keyboard shortcut to toggle audio playback
-- **Slides Narration**: Global audio mutual exclusion ensures only one audio plays at a time
-
-### Improvements
-- **Slides Generation**: Progress bar now reflects combined image and audio generation progress
-- **Slides Generation**: Improved ETA calculation based on elapsed time and total progress percentage
-
-## v0.26.14
-
-_2026-02-03_
-
-### New Features
-- **Slides**: Parallel image and audio generation for significantly faster multi-page slide creation
-- **UI**: Dropdown auto-scrolls to selected option when opened
-
-### Fixes
-- **Narration**: Correct Schedar voice gender label (female → male)
-- **Slides**: Fix progress tracking and ETA calculation for parallel generation
-
-### Refactor
-- Split useApi.js into promptBuilders.js and useSlidesApi.js for better code maintainability
-
-## v0.26.13
-
-_2026-02-03_
-
-### New Features
-- **Narration**: Add inline voice preview in speaker settings for instant voice testing
-- **Narration**: Switch audio encoding from MP3 (64kbps) to WebM/Opus (48kbps) for smaller files and better quality
-
-### Fixes
-- **Slides**: Fix style guide text color preview underline misalignment with textarea text
-
-## v0.26.12
-
-_2026-02-03_
-
-### New Features
-- **Agentic Vision**: Enable "Include images in context" by default for better conversation continuity
-- **Agentic Vision**: Smart scroll behavior - preserves scroll position when user scrolls up to read history instead of forcing scroll to bottom
-- **Agentic Vision**: Platform-aware keyboard hints (shows ⌘+Enter on Mac, Ctrl+Enter on Windows/Linux)
-- **Slides**: Add expandable content preview in page list for viewing longer or multi-line page content
-
-### Fixes
-- **Agentic Vision**: Fix clear button not vertically centered in multi-line textarea
-- **Agentic Vision**: Fix multi-tab editing of the same conversation causing data loss where later saves would overwrite earlier saves
-
-## v0.26.11
-
-_2026-02-01_
-
-### Fixes
-- **Slide to PPTX**: Fix text with significantly different font sizes being incorrectly merged into the same text box (`fontSizeDiffThreshold` parameter now takes effect)
-- **i18n**: Add missing `common.undo` and `common.redo` translation keys
-
-## v0.26.10
-
-_2026-02-01_
-
-### Fixes
-- **Sticker Cropper**: Fix mouse wheel scroll not working in crop result panel when opened from lightbox
-
-## v0.26.9
-
-_2026-01-31_
-
-### New Features
-- **MP4 Export**: Add quality selection dialog with Low (4 Mbps), Medium (8 Mbps), and High (12 Mbps) options; preference is automatically saved
-- **Agentic Vision**: Add auto-save during streaming to prevent conversation loss on unexpected interruptions
-
-## v0.26.8
-
-_2026-01-30_
-
-### New Features
-- **Agentic Vision**: Add clear conversation button and improve send icon design
-
-### Fixes
-- **Agentic Vision**: Fix prompt leaking from other modes into agent input
-- **Agentic Vision**: Enable camera option in Android file picker
-- **Agentic Vision**: User uploaded images now support lightbox viewing
-
-### Refactor
-- Remove dead code and consolidate isQuotaError utility function
-
-## v0.26.7
-
-_2026-01-30_
-
-### New Features
-- **Sticker Cropper**: Add Undo/Redo for separator lines with toolbar buttons and keyboard shortcuts (Ctrl+Z / Ctrl+Shift+Z)
-- **History**: Agent mode conversations now support clicking thumbnails to open image lightbox
-
-### Fixes
-- **Sticker Cropper**: Improve separator line precision and selection UX (visible dashed lines now clickable for selection)
-- **Sticker Cropper**: Improve manual crop UX (drag to adjust endpoints, larger tap targets)
-- **Agentic Vision**: Improve mobile chat UX (hide avatars, full-width message bubbles)
-
-## v0.26.6
-
-_2026-01-29_
-
-### New Features
-- **Sticker Cropper**: Add "Manual Split" mode allowing users to draw separator lines for precise crop region control when auto detection fails
-- **Sticker Cropper**: Automatically trim transparent padding from cropped stickers for tighter results
-
-### Documentation
-- Add manual crop mode usage guide with screenshots
-- Update README sticker grid cutter feature description
-
-## v0.26.5
-
-_2026-01-29_
-
-### New Features
-- **Agentic Vision Mode**: Add intelligent chat powered by Gemini 3 Flash Agentic Vision, featuring Think → Act → Observe loop, code execution, and image annotation
-
-### Fixes
-- **Agentic Vision**: Fix prompt not auto-filling in chat input when entering via URL query params
-
-### Documentation
-- Add Agentic Vision mode documentation (zh-TW and English) covering features, settings, and use cases
-- Update README with Agentic Vision feature description
-- Add chat interface and analysis result screenshots
-
-## v0.26.4
-
-_2026-01-29_
-
-### Fixes
-- **MP4 Export**: Add Opus codec fallback when AAC is not supported, fixing MP4 generation failure on Linux platforms
-- **Narration**: Fix incorrect script Pro model ID (gemini-2.5-pro-preview-06-05 → gemini-3-pro-preview)
-
-## v0.26.3
-
-_2026-01-29_
-
-### New Features
-- **Slide Regeneration**: Add per-page image/audio regeneration options for retrying failed pages individually
-- **Slide Narration**: Allow viewing and downloading audio via Lightbox when all images fail but audio succeeds
-- **MP4 Export**: Add crossfade transition effect between slides
-
-### Fixes
-- **Slide Regeneration**: Fix regenerated images not updating in preview area and history records
-- **Slide Regeneration**: Fix status tag not updating from failed/partial to success after regeneration
-- **Slide Regeneration**: Fix audio cache issue where regenerated audio still played old content
-- **MP4 Export**: Improve error handling and diagnostics for WebCodecs encoders
-
-### Documentation
-- Update README to cover narration TTS, MP4 export, and sticker grid cutter features
-- Clarify that narration section appears only after style confirmation
-- Document changelog retention policy for two most recent minor versions
-
-## v0.26.2
-
-_2026-01-28_
-
-### New Features
-- **Backup & Transfer**: JSON export/import and WebRTC P2P transfer now fully support narration audio (scripts + audio files); export format upgraded to v3 (backward compatible with v2)
-- **History**: Slide presentations with narration audio now display an audio indicator icon on thumbnails
-
-### Fixes
-- **Narration**: Fix TTS prompts missing explicit language and accent directives
-- **MP4 Export**: Fix audio decoding failure in Worker by moving to main thread; cap AVC encoding resolution
-- **i18n**: Clarify temperature setting hint wording
-
-### Documentation
-- Add sticker edge erosion and grid cutter tool documentation
-- Add MP4 export and audio indicator to slide and history guides
-- Add backup compatibility guidance for new artifact types
-
-## v0.26.1
-
-_2026-01-28_
-
-### New Features
-- **Sticker**: Add Edge Erosion control (0/1/2/3px) to remove boundary artifacts after background removal
-- **Sticker**: Upgrade background removal from 4-connected to 8-connected flood fill for more thorough removal through diagonal gaps
-
-### Fixes
-- **Sticker**: Use 8-connected flood fill in edit mode to match automatic background removal behavior
-
-## v0.26.0
-
-_2026-01-28_
-
-### New Features
-- **Slide Narration**: Add TTS narration audio generation with single speaker monologue and dual speaker conversation (discussion, critical, debate styles)
-- **Slide Narration**: AI auto-generates narration scripts with review/edit support; narrative structure includes intro on first page and closing on last page
-- **Slide Narration**: Image and TTS generation run in parallel (Promise.allSettled); partial page failures don't affect other pages
-- **Slide Narration**: Mini audio player below each image card for live preview in generation results
-- **Slide Narration**: Lightbox audio player at bottom; download menu adds "Narration Audio" section (current page / all as ZIP)
-- **Slide Narration**: ZIP download automatically includes narration audio files (narration-1.mp3, etc.)
-- **Slide Narration**: Historical records automatically restore narration audio from OPFS
-- **Components**: Add SearchableSelect filterable dropdown component (grouped options, keyboard navigation)
-
-### Fixes
-- **Audio Encoding**: Automatic WAV fallback when MP3 encoding fails, ensuring no audio loss
-- **Audio Encoding**: Wrap lamejs with `?raw` import + `new Function()` to resolve Vite CJS bundling compatibility
-- **Lightbox**: Reposition audio player as absolute overlay to prevent image squeezing; use fixed light colors for dark background visibility
-
-### Documentation
-- Update slide generation and history docs to cover narration audio features
-
 ---
 
 ## Earlier Versions
+
+### v0.26.x - Smart Search, Slide Narration & Agentic Vision
+
+_2026-01-28 ~ 2026-02-12_
+
+- **v0.26.22** _(02-12)_: Lightbox navigation overlap fix, View Transition animation improvements
+- **v0.26.21** _(02-09)_: Agentic Vision ghost message and imageIndex alignment fixes, export/import thumbnail support
+- **v0.26.20** _(02-09)_: Fix ghost API requests via AbortController cancellation
+- **v0.26.19** _(02-09)_: Prevent duplicate generation from rapid clicks
+- **v0.26.18** _(02-06)_: Vitest unit testing framework with 319 tests, ESLint cleanup
+- **v0.26.17** _(02-06)_: Audio preview comparison, MP4 resolution selection (1080p/1440p/2160p), transition fixes
+- **v0.26.16** _(02-04)_: Settings reset confirmation, auto-hiding audio player, narration settings persistence
+- **v0.26.15** _(02-04)_: Playback speed control, auto-play, space bar shortcut, global audio exclusion
+- **v0.26.14** _(02-03)_: Parallel image+audio generation, dropdown auto-scroll, useApi.js refactor
+- **v0.26.13** _(02-03)_: Inline voice preview, WebM/Opus audio encoding
+- **v0.26.12** _(02-03)_: Agentic Vision UX improvements, expandable slide content preview
+- **v0.26.11** _(02-01)_: Fix font-size merge threshold, missing i18n keys
+- **v0.26.10** _(02-01)_: Fix sticker cropper scroll in lightbox
+- **v0.26.9** _(01-31)_: MP4 quality selection, agent auto-save during streaming
+- **v0.26.8** _(01-30)_: Agent clear conversation, camera upload, lightbox viewing for user images
+- **v0.26.7** _(01-30)_: Sticker cropper undo/redo, agent history thumbnail lightbox
+- **v0.26.6** _(01-29)_: Manual split mode for sticker cropper, transparent padding trimming
+- **v0.26.5** _(01-29)_: Agentic Vision mode with Think→Act→Observe loop and code execution
+- **v0.26.4** _(01-29)_: Opus codec fallback for MP4, fix Schedar voice model ID
+- **v0.26.3** _(01-29)_: Per-page regeneration, crossfade transitions, audio lightbox viewing
+- **v0.26.2** _(01-28)_: Narration audio export/import and WebRTC transfer support (v3 format)
+- **v0.26.1** _(01-28)_: Sticker edge erosion, 8-connected flood fill background removal
+- **v0.26.0** _(01-28)_: Slide narration TTS (single/dual speaker), SearchableSelect component
 
 ### v0.25.x - Documentation Site, Slide Conversion & Privacy-First
 
@@ -340,8 +100,6 @@ _2026-01-23 ~ 2026-01-28_
 - **v0.25.7** _(01-24)_: Deep linking, "Try It" buttons, API Key video tutorials
 - **v0.25.6** _(01-24)_: Lazy load SketchCanvas component
 - **v0.25.0** _(01-23)_: VitePress documentation site, story mode character continuity, sitemap index
-
-## Earlier Versions
 
 ### v0.24.x - Sketch Canvas & Slide Conversion Enhancements
 

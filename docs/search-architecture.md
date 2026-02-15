@@ -54,7 +54,7 @@
 
 ### 1. Orama 搜尋引擎
 
-**Schema**:
+**Schema**（維度根據 active provider 動態決定）:
 ```javascript
 {
   parentId: 'string',           // 對應 history record ID
@@ -62,7 +62,7 @@
   chunkText: 'string',          // 分塊文字（BM25 搜尋目標）
   mode: 'string',               // 生成模式（篩選用）
   timestamp: 'number',          // 生成時間（排序用）
-  embedding: 'vector[384]'      // 語意向量（向量搜尋用）
+  embedding: 'vector[N]'        // 語意向量（Gemini=768d, Local=384d）
 }
 ```
 
@@ -80,26 +80,24 @@ Orama 預設 tokenizer 不支援中日韓文分詞。自訂 tokenizer 使用 uni
 | `U+AC00–U+D7AF` | 韓文音節 |
 | `U+FF00–U+FFEF` | 全形字元 |
 
-### 2. Embedding 模型
+### 2. Embedding 模型（雙 Provider）
 
-| 項目 | 值 |
-|------|-----|
-| 模型 | `intfloat/multilingual-e5-small` |
-| 維度 | 384 |
-| 大小 | ~33MB (quantized) |
-| 執行環境 | Web Worker (Transformers.js) |
+每個 provider 有獨立的 chunk 參數和 embedding 維度：
 
-**E5 前綴規則**：
+| Provider | 模型 | 維度 | chunkSize | chunkOverlap | contextWindow |
+|----------|------|------|-----------|--------------|---------------|
+| Gemini API | `gemini-embedding-001` | 768 | 400 | 100 | 600 |
+| Local (Transformers.js) | `intfloat/multilingual-e5-small` | 384 | 200 | 50 | 400 |
+
+Gemini 768d 需要較長的 chunk（~400 chars）以獲得好的語意區分度，而 Local 384d 用 200 chars 就足夠。
+
+**E5 前綴規則**（Local provider）：
 - 文件嵌入：`"passage: <text>"` — 索引時使用
 - 查詢嵌入：`"query: <text>"` — 搜尋時使用
 
 ### 3. 分塊策略 (Chunking)
 
-| 參數 | 值 |
-|------|-----|
-| 分塊大小 | 500 字元 |
-| 重疊長度 | 100 字元 |
-| 斷句偏好 | 句號、問號、驚嘆號、換行 |
+分塊參數由 active provider 決定（見上表），無 provider 時使用 `SEARCH_DEFAULTS`（cs200/co50/cw500）。
 
 分塊時優先在句子邊界（`。？！.?!\n`）斷開，避免在句子中間切割。
 
@@ -143,20 +141,36 @@ highlightSnippet()  — HTML escape + <mark> 標記
 
 ## 持久化
 
-### IndexedDB 快照
+### IndexedDB 快照（Per-Provider 獨立）
 
 | 項目 | 值 |
 |------|-----|
 | Database | `nanobanana-search` |
 | Object Store | `orama-snapshot` |
-| Version | 3 |
-| 內容 | 所有文件的完整快照（含文字 + embedding 向量） |
+| IDB Version | 3 |
+| Snapshot Version | 4 |
+
+**Per-Provider 儲存結構**：
+```
+orama-snapshot store:
+  key: 'snapshot-gemini' → { version: 4, configVersion: 'cs400_co100_cw600', docs: [...] }
+  key: 'snapshot-local'  → { version: 4, configVersion: 'cs200_co50_cw400', docs: [...] }
+```
+
+每個 doc 只有單一 `embedding` 欄位（不再有雙欄位 `embeddingGemini` + `embeddingLocal`）：
+```javascript
+{ parentId, chunkIndex, chunkText, contextText, mode, timestamp, embedding }
+```
+
+**Provider 切換**：save 當前 snapshot → load 目標 snapshot → rebuild Orama。
+兩個 provider 的 snapshot 互不影響，切換後不需重新 embed。
 
 **冷啟動流程**：
-1. 從 IndexedDB 載入快照
-2. 建立 Orama DB + bulk insert（立即可搜尋，不需重新 embed）
-3. 下載/初始化嵌入模型
-4. 執行 selfHeal 檢查遺漏
+1. 執行 v3→v4 migration（一次性，遷移 local embeddings，丟棄 gemini embeddings）
+2. 從 IndexedDB 載入 active provider 的 snapshot
+3. 建立 Orama DB + bulk insert（立即可搜尋）
+4. 下載/初始化嵌入模型
+5. 執行 selfHeal 檢查遺漏
 
 **暖啟動**：快照已載入 → 模型已在記憶體 → sub-100ms 回應
 
@@ -164,10 +178,10 @@ highlightSnippet()  — HTML escape + <mark> 標記
 
 | 項目 | 值 |
 |------|-----|
-| Key 格式 | `"parentId:chunkIndex"` |
+| Key 格式 | `"provider:parentId:chunkIndex"` |
 | 最大數量 | 5000 筆 |
 | 生命週期 | Session 內有效（不跨頁面載入） |
-| 淘汰策略 | 超過上限時清空全部 |
+| 淘汰策略 | FIFO（超過上限時刪除最早寫入的） |
 
 ## 索引同步
 
@@ -221,6 +235,8 @@ highlightSnippet()  — HTML escape + <mark> 標記
 |------|------|
 | Singleton Worker | 避免多個元件重複建立 Worker 和載入模型 |
 | 快照持久化 | 冷啟動時不需重新 embed 所有紀錄 |
+| Per-Provider 獨立快照 | 每個 provider 有自己的 chunk 參數和 embedding，互不依賴 |
+| Gemini cs400 / Local cs200 | 768d 模型需較長 chunk 以獲得好的語意區分度 |
 | CustomEvent 同步 | 解耦搜尋模組與歷史模組，不修改現有 IndexedDB schema |
 | CJK 自訂 tokenizer | Orama 預設不支援中日韓文分詞 |
 | E5 multilingual | 同時支援中英文語意搜尋 |

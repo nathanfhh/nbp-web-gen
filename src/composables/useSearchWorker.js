@@ -6,6 +6,7 @@
  * Worker is lazy-initialized on first `initialize()` call.
  */
 import { ref } from 'vue'
+import { stripRecordForIndexing } from '@/utils/search-core'
 
 // ============================================================================
 // Module-level Singleton State (shared across all useSearchWorker() calls)
@@ -18,6 +19,8 @@ const modelStatus = ref('')
 const modelStage = ref('') // 'download' | 'init' | 'ready' | ''
 const indexedCount = ref(0)
 const indexingProgress = ref({ current: 0, total: 0 })
+const embeddingCost = ref({ totalTokens: 0, estimatedCostUsd: 0 })
+const embeddingProvider = ref(null) // 'gemini' | 'local' | null
 const error = ref(null)
 
 let worker = null
@@ -73,6 +76,7 @@ function handleWorkerMessage(event) {
       break
 
     case 'searchResult': {
+      if (msg.embeddingCost) embeddingCost.value = msg.embeddingCost
       const pending = pendingRequests.get(requestId)
       if (pending) {
         pendingRequests.delete(requestId)
@@ -129,7 +133,18 @@ function handleWorkerMessage(event) {
           hasNonZeroVectors: msg.hasNonZeroVectors,
           chunkDistribution: msg.chunkDistribution,
           embeddingCacheSize: msg.embeddingCacheSize,
+          activeProvider: msg.activeProvider,
         })
+      }
+      break
+    }
+
+    case 'providerSwitched': {
+      indexedCount.value = msg.indexedCount || 0
+      const pending = pendingRequests.get(requestId)
+      if (pending) {
+        pendingRequests.delete(requestId)
+        pending.resolve({ provider: msg.provider, needBackfill: msg.needBackfill })
       }
       break
     }
@@ -181,11 +196,7 @@ function handleHistoryAdded(event) {
   // Agent records are indexed via selfHeal (conversation may not be saved yet)
   if (record.mode === 'agent') return
 
-  // Strip heavy fields (images, thumbnails, etc.) — worker only needs text metadata
-  const stripped = { id, mode: record.mode, prompt: record.prompt, timestamp: record.timestamp }
-  if (record.mode === 'slides' && record.options?.pagesContent) {
-    stripped.options = { pagesContent: record.options.pagesContent }
-  }
+  const stripped = stripRecordForIndexing(id, record)
 
   // Index the new record in background (fire-and-forget)
   console.log(`[RAG Search] Real-time indexing: id=${id}, mode=${record.mode}, prompt="${(record.prompt || '').slice(0, 60)}..."`)
@@ -196,6 +207,33 @@ function handleHistoryAdded(event) {
     })
     .catch((err) => {
       console.warn(`[RAG Search] Real-time indexing failed: id=${id}`, err.message)
+    })
+}
+
+function handleHistoryUpdated(event) {
+  const { id, record } = event.detail || {}
+  if (!id || !record) return
+
+  if (!isReady.value || !worker) {
+    console.log(`[RAG Search] Update received but worker not ready — id=${id} will be caught by selfHeal`)
+    return
+  }
+
+  if (record.mode === 'agent') return
+
+  const stripped = stripRecordForIndexing(id, record)
+
+  console.log(`[RAG Search] Updating index for id=${id}`)
+
+  // Remove first to clear cache, then re-index
+  sendRequest('remove', { parentIds: [id] })
+    .then(() => sendRequest('index', { records: [{ record: stripped }] }))
+    .then(() => {
+      console.log(`[RAG Search] Updated index for id=${id}`)
+      sendRequest('persist').catch(() => {})
+    })
+    .catch((err) => {
+      console.warn(`[RAG Search] Update failed: id=${id}`, err.message)
     })
 }
 
@@ -233,6 +271,7 @@ function registerEvents() {
   if (eventsRegistered) return
   eventsRegistered = true
   window.addEventListener('nbp-history-added', handleHistoryAdded)
+  window.addEventListener('nbp-history-updated', handleHistoryUpdated)
   window.addEventListener('nbp-history-deleted', handleHistoryDeleted)
   window.addEventListener('nbp-history-cleared', handleHistoryCleared)
   window.addEventListener('nbp-history-imported', handleHistoryImported)
@@ -242,6 +281,7 @@ function unregisterEvents() {
   if (!eventsRegistered) return
   eventsRegistered = false
   window.removeEventListener('nbp-history-added', handleHistoryAdded)
+  window.removeEventListener('nbp-history-updated', handleHistoryUpdated)
   window.removeEventListener('nbp-history-deleted', handleHistoryDeleted)
   window.removeEventListener('nbp-history-cleared', handleHistoryCleared)
   window.removeEventListener('nbp-history-imported', handleHistoryImported)
@@ -299,8 +339,16 @@ export function useSearchWorker() {
           initPromise = null
         }
 
-        // Send init command
-        worker.postMessage({ type: 'init' })
+        // Read API keys from localStorage (worker can't access it directly)
+        const apiKey = localStorage.getItem('nanobanana-api-key') || ''
+        const freeApiKey = localStorage.getItem('nanobanana-free-tier-api-key') || ''
+
+        // Read embedding provider preference from localStorage
+        const provider = localStorage.getItem('nbp-search-embedding-provider') || null
+        embeddingProvider.value = provider
+
+        // Send init command with API keys and provider
+        worker.postMessage({ type: 'init', apiKey, freeApiKey, provider })
       } catch (err) {
         error.value = err.message
         isModelLoading.value = false
@@ -376,6 +424,30 @@ export function useSearchWorker() {
   }
 
   /**
+   * Switch embedding provider in the worker.
+   * Rebuilds Orama DB with the new provider's dimensions.
+   * @param {'gemini'|'local'} provider
+   * @returns {Promise<{ provider: string, indexedCount: number }>}
+   */
+  function switchProvider(provider) {
+    return sendRequest('switchProvider', { provider }).then((result) => {
+      embeddingProvider.value = provider
+      return result
+    })
+  }
+
+  /**
+   * Update API keys in the worker (e.g., when user changes keys).
+   * Fire-and-forget — no response expected.
+   */
+  function updateApiKeys() {
+    if (!worker) return
+    const apiKey = localStorage.getItem('nanobanana-api-key') || ''
+    const freeApiKey = localStorage.getItem('nanobanana-free-tier-api-key') || ''
+    worker.postMessage({ type: 'updateApiKeys', apiKey, freeApiKey })
+  }
+
+  /**
    * Terminate the worker and clean up.
    */
   function terminate() {
@@ -397,6 +469,8 @@ export function useSearchWorker() {
     modelStage.value = ''
     indexedCount.value = 0
     indexingProgress.value = { current: 0, total: 0 }
+    embeddingCost.value = { totalTokens: 0, estimatedCostUsd: 0 }
+    embeddingProvider.value = null
     error.value = null
     initPromise = null
     initResolve = null
@@ -412,6 +486,8 @@ export function useSearchWorker() {
     modelStage,
     indexedCount,
     indexingProgress,
+    embeddingCost,
+    embeddingProvider,
     error,
     // Methods
     initialize,
@@ -422,6 +498,8 @@ export function useSearchWorker() {
     selfHeal,
     persistIndex,
     diagnose,
+    updateApiKeys,
+    switchProvider,
     terminate,
   }
 }

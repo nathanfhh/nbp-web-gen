@@ -74,6 +74,7 @@
     "freeTierPlaceholder": "Enter your Free Tier API Key...",
     "addFreeTier": "Add Free Tier Key",
     "freeTierHint": "Free Tier key can be used for character extraction, slide style analysis, and other text processing. When quota is exhausted, it automatically falls back to the main key.",
+    "freeTierPrivacyWarning": "Google may use Free Tier inputs and outputs to improve its products and models. If you have privacy concerns, use only the paid API Key above.",
     "showKey": "Show API Key",
     "hideKey": "Hide API Key"
   },
@@ -785,7 +786,8 @@
   },
   "search": {
     "title": "Search History",
-    "placeholder": "Enter keywords or description...",
+    "placeholder": "Enter keywords or description, press Enter...",
+    "searchButton": "Search",
     "strategy": {
       "hybrid": "Hybrid Search",
       "vector": "Semantic Search",
@@ -796,9 +798,9 @@
     "noResults": "No matching records found",
     "noQuery": "Enter keywords to start searching",
     "model": {
-      "downloading": "Downloading search model...",
-      "initializing": "Loading search model...",
-      "ready": "Search model ready"
+      "downloading": "Initializing search...",
+      "initializing": "Initializing search...",
+      "ready": "Search ready"
     },
     "indexing": "Indexing {current}/{total}...",
     "indexed": "{count} records indexed",
@@ -810,6 +812,53 @@
       "relevance": "Relevance",
       "dateDesc": "Date (newest)",
       "dateAsc": "Date (oldest)"
+    },
+    "providerModal": {
+      "title": "Choose Search Engine",
+      "subtitle": "Choose how semantic embeddings are generated. You can switch anytime.",
+      "local": {
+        "title": "Local Model",
+        "badge": "Free",
+        "description": "Generate semantic vectors using an on-device AI model",
+        "pros": "Free, works offline",
+        "cons": "First-time ~33MB download, moderate quality"
+      },
+      "gemini": {
+        "title": "Gemini API",
+        "badge": "Recommended",
+        "description": "Generate semantic vectors using Google Gemini Embedding API",
+        "pros": "Better quality, strong cross-language capability",
+        "cons": "Uses API key billing (~$0.15 / 1M tokens)"
+      },
+      "select": "Select",
+      "current": "Current",
+      "switchHint": "You can switch anytime from the search interface"
+    },
+    "providerLabel": "Engine:",
+    "backfilling": "Backfilling semantic index {current}/{total}...",
+    "costEstimate": "{tokens} tokens · ~${cost} USD"
+  },
+  "embeddingExplorer": {
+    "title": "Embedding 3D Explorer",
+    "dataSource": "Data Source",
+    "sampleSize": "Sample Size",
+    "fullData": "Use Full Data",
+    "colorBy": "Color",
+    "colorByMode": "By Mode",
+    "colorBySingle": "Single Color",
+    "hoverNone": "ID Only",
+    "hoverTruncate": "Truncated Text",
+    "hoverFull": "Full Text",
+    "start": "Start Process",
+    "processing": "Processing...",
+    "computing": "Running UMAP dimensionality reduction...",
+    "points": "points",
+    "emptyState": "Choose data source and click Start to visualize embedding distribution",
+    "errorHint": "Try reducing the sample size or switching data source",
+    "error": {
+      "NO_DATA": "No snapshot data found for this provider. Please index some records in search first.",
+      "NO_EMBEDDINGS": "No valid embeddings found in the snapshot.",
+      "TOO_FEW": "Need at least 4 data points for UMAP reduction."
     }
   },
   "historyTransfer": {

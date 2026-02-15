@@ -98,11 +98,12 @@ This project is a testament to the power of AI-assisted development:
     *   **PDF Support:** Upload PDFs directly - automatically converted to images page by page.
     *   **Per-Page Settings:** Customize OCR and inpainting settings for individual slides.
 *   **Smart History:** Local storage using IndexedDB and OPFS (Origin Private File System) for your generation history.
-*   **Smart Search (RAG):** Browser-side hybrid search over generation history using BM25 + semantic search with multilingual-e5-small embeddings. Supports keyword, semantic, and hybrid search strategies with mode filtering.
+*   **Smart Search (RAG):** Browser-side hybrid search over generation history with dual embedding engines — Gemini Embedding API (768-dim, cloud) and local Transformers.js multilingual-e5-small (384-dim, free/offline). Supports keyword, semantic, and hybrid search strategies with mode filtering.
+*   **Embedding 3D Explorer:** Interactive 3D scatter plot visualization of embedding vectors using UMAP dimensionality reduction and Plotly.js. Explore semantic clusters across generation modes.
 *   **History Export/Import:** Export your generation history to a JSON file (with embedded images and narration audio) and import on another browser.
 *   **WebRTC Cross-Device Sync:** Real-time sync between devices via WebRTC. Supports Cloudflare TURN relay for NAT traversal. Sync history records (including narration audio) and saved characters.
 *   **Batch Download:** Download all generated images as ZIP archive or PDF document.
-*   **Privacy First:** API keys are stored only in your browser's local storage; no backend server is involved.
+*   **Privacy First:** API keys are stored only in your browser's local storage; no backend server is involved. Free Tier API keys include a privacy warning as Google may use free tier data for model training.
 *   **Installable PWA:** Install as a native-like app with offline support and automatic updates.
 *   **14 Themes with View Transitions:** Choose from 14 carefully crafted themes including seasonal themes (Spring, Summer, Autumn, Winter), coffee themes (Espresso, Mocha), nature themes (Matcha, Everforest), and classics (Dark, Light, Warm, Nord, Gruvbox). Theme switching features a smooth ripple animation powered by the native [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transitions_API).
 
@@ -257,11 +258,12 @@ npm run build
     *   **PDF 支援：** 可直接上傳 PDF，自動逐頁轉換為圖片。
     *   **逐頁設定：** 可為個別頁面自訂 OCR 與文字移除設定。
 *   **智慧歷史紀錄：** 使用 IndexedDB 與 OPFS (Origin Private File System) 將您的生成紀錄完整保存在本地端。
-*   **智慧搜尋 (RAG)：** 瀏覽器端混合搜尋，結合 BM25 關鍵字搜尋與 multilingual-e5-small 語意搜尋。支援關鍵字、語意及混合搜尋策略，可依生成模式篩選。
+*   **智慧搜尋 (RAG)：** 瀏覽器端混合搜尋，支援雙 Embedding 引擎 — Gemini Embedding API（768 維，雲端）與本地 Transformers.js multilingual-e5-small（384 維，免費/離線）。支援關鍵字、語意及混合搜尋策略，可依生成模式篩選。
+*   **Embedding 3D 探索器：** 使用 UMAP 降維與 Plotly.js 將 embedding 向量以互動式 3D 散佈圖視覺化，探索不同生成模式的語意群集分佈。
 *   **歷史記錄匯出/匯入：** 將生成歷史匯出為 JSON 檔案（含嵌入圖片與語音旁白音訊），可於其他瀏覽器匯入。
 *   **WebRTC 跨裝置同步：** 透過 WebRTC 實現裝置間即時同步，支援 Cloudflare TURN 中繼伺服器穿越 NAT。可同步歷史紀錄（含語音旁白音訊）與已儲存的角色。
 *   **批次下載：** 可將所有生成圖片打包為 ZIP 壓縮檔或 PDF 文件下載。
-*   **隱私優先：** API Key 僅儲存於您的瀏覽器 Local Storage，完全不經過任何第三方伺服器。
+*   **隱私優先：** API Key 僅儲存於您的瀏覽器 Local Storage，完全不經過任何第三方伺服器。Free Tier API Key 附帶隱私提醒，因 Google 可能使用免費層級資料進行模型訓練。
 *   **可安裝 PWA：** 支援安裝為類原生應用程式，具備離線支援與自動更新功能。
 *   **14 種主題與原生過渡動畫：** 提供 14 種精心設計的主題，包括季節主題（春、夏、秋、冬）、咖啡主題（Espresso、Mocha）、自然主題（Matcha、Everforest）以及經典主題（Dark、Light、Warm、Nord、Gruvbox）。主題切換採用瀏覽器原生 [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transitions_API)，實現從點擊位置擴散的平滑動畫效果。
 

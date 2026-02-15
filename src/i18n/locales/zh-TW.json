@@ -74,6 +74,7 @@
     "freeTierPlaceholder": "輸入您的 Free Tier API Key...",
     "addFreeTier": "新增 Free Tier 金鑰",
     "freeTierHint": "Free Tier 金鑰可用於角色萃取、簡報風格分析等文字處理功能，額度用盡時會自動切換到主要金鑰。",
+    "freeTierPrivacyWarning": "Google 可能會使用 Free Tier 的輸入與輸出資料來改進其產品與模型。若有隱私疑慮，建議僅使用上方的付費 API Key。",
     "showKey": "顯示金鑰",
     "hideKey": "隱藏金鑰"
   },
@@ -785,7 +786,8 @@
   },
   "search": {
     "title": "搜尋歷史記錄",
-    "placeholder": "輸入關鍵字或描述...",
+    "placeholder": "輸入關鍵字或描述，按 Enter 搜尋...",
+    "searchButton": "搜尋",
     "strategy": {
       "hybrid": "混合搜尋",
       "vector": "語意搜尋",
@@ -796,9 +798,9 @@
     "noResults": "找不到相關記錄",
     "noQuery": "輸入關鍵字開始搜尋",
     "model": {
-      "downloading": "下載搜尋模型中...",
-      "initializing": "載入搜尋模型中...",
-      "ready": "搜尋模型已就緒"
+      "downloading": "初始化搜尋系統中...",
+      "initializing": "初始化搜尋系統中...",
+      "ready": "搜尋系統已就緒"
     },
     "indexing": "索引中 {current}/{total}...",
     "indexed": "已索引 {count} 筆記錄",
@@ -810,6 +812,53 @@
       "relevance": "相關度",
       "dateDesc": "日期（新→舊）",
       "dateAsc": "日期（舊→新）"
+    },
+    "providerModal": {
+      "title": "選擇搜尋引擎",
+      "subtitle": "選擇語意搜尋的 embedding 方式，之後可隨時切換",
+      "local": {
+        "title": "本地模型",
+        "badge": "免費",
+        "description": "使用裝置端 AI 模型產生語意向量",
+        "pros": "免費、離線可用",
+        "cons": "首次需下載 ~33MB、效果一般"
+      },
+      "gemini": {
+        "title": "Gemini API",
+        "badge": "推薦",
+        "description": "使用 Google Gemini Embedding API 產生語意向量",
+        "pros": "效果較佳、跨語言能力強",
+        "cons": "使用 API 金鑰計費（~$0.15 / 百萬 tokens）"
+      },
+      "select": "選擇",
+      "current": "使用中",
+      "switchHint": "之後可隨時在搜尋介面切換"
+    },
+    "providerLabel": "引擎：",
+    "backfilling": "補齊語意索引中 {current}/{total}...",
+    "costEstimate": "{tokens} tokens · ~${cost} USD"
+  },
+  "embeddingExplorer": {
+    "title": "Embedding 3D 探索器",
+    "dataSource": "資料來源",
+    "sampleSize": "抽樣數量",
+    "fullData": "使用全部資料",
+    "colorBy": "著色",
+    "colorByMode": "依模式",
+    "colorBySingle": "單一顏色",
+    "hoverNone": "僅顯示 ID",
+    "hoverTruncate": "截斷文字",
+    "hoverFull": "完整文字",
+    "start": "開始處理",
+    "processing": "處理中...",
+    "computing": "正在執行 UMAP 降維運算...",
+    "points": "個點",
+    "emptyState": "選擇資料來源並點擊「開始處理」以視覺化 embedding 分佈",
+    "errorHint": "嘗試減少抽樣數量或切換資料來源",
+    "error": {
+      "NO_DATA": "找不到此提供者的快照資料，請先在搜尋中索引一些記錄。",
+      "NO_EMBEDDINGS": "快照中找不到有效的 embedding 向量。",
+      "TOO_FEW": "UMAP 降維至少需要 4 個資料點。"
     }
   },
   "historyTransfer": {

@@ -39,6 +39,32 @@ Three search strategies are available for different use cases:
 Hybrid search is the default strategy and works best in most cases. If your description is vague, try switching to semantic search.
 :::
 
+## Embedding Engine
+
+The search system supports two embedding engines for generating semantic vectors:
+
+| Engine | Model | Dimensions | Description |
+|--------|-------|------------|-------------|
+| ☁️ Gemini | Gemini Embedding API | 768-dim | Cloud API, higher quality, consumes API quota |
+| 📱 Local | multilingual-e5-small | 384-dim | In-browser inference, free but requires model download (~33MB) |
+
+### First-Time Setup
+
+When you first open the search panel, the system asks you to choose an embedding engine:
+
+1. **Gemini** — Uses the Gemini Embedding API for semantic encoding. Higher quality, but consumes a small amount of API quota ($0.15 / million tokens)
+2. **Local** — Downloads and runs a Transformers.js model in the browser. Completely free; first use requires downloading ~33MB model file
+
+You can switch engines at any time from the search panel. After switching, the system automatically backfills embedding vectors for already-indexed records using the new engine.
+
+::: info Note
+Index data for each engine is stored independently. Switching engines does not delete existing indexes — you can switch back anytime.
+:::
+
+::: warning Privacy Notice
+When using the Gemini engine, your prompt text is sent to the Google API for embedding encoding. If you're using a Free Tier API Key, Google may use your input data for model training. For privacy-sensitive use cases, consider using the Local engine or a paid API Key.
+:::
+
 ## Mode Filter
 
 You can filter search results by generation mode:
@@ -63,18 +89,6 @@ Search results support three sort orders:
 | Newest First | Sort by generation time, descending |
 | Oldest First | Sort by generation time, ascending |
 
-## First-Time Setup
-
-When you first open the search panel, the system performs initialization:
-
-1. **Download language model** — An AI model for semantic search (~33MB); progress is shown in the panel
-2. **Build index** — Creates a search index for all history records
-
-::: info Note
-The language model only needs to be downloaded once and is cached in the browser. The index is persisted, so it won't need to be rebuilt next time.
-:::
-
-
 ## Real-Time Sync
 
 The search index automatically stays in sync with your history:
@@ -85,6 +99,32 @@ The search index automatically stays in sync with your history:
 - **Clear all** — Index cleared when history is cleared
 
 You don't need to manage the index manually — the system handles it in the background.
+
+## Embedding 3D Explorer
+
+The scatter chart button in the top right of the search panel opens the **Embedding 3D Explorer**, which visualizes all indexed record embedding vectors as an interactive 3D scatter plot.
+
+### Features
+
+- **Data source selection** — View embedding data from either the Local or Gemini engine
+- **Sampling control** — Set sample size or use full data
+- **Color mode** — Color by generation mode (each mode gets a different color) or single color
+- **Hover text** — Configure what shows on mouse hover (ID only, truncated text, full text)
+- **3D interaction** — Rotate, zoom, and pan to explore vector space distribution
+
+![Embedding 3D Explorer](/images/embedding-tool.webp)
+
+### How to Use
+
+1. Open the search panel
+2. Click the scatter chart icon in the top right
+3. Choose a data source (Local / Gemini)
+4. Click "Start Process"
+5. The system runs UMAP dimensionality reduction, mapping high-dimensional vectors (384/768-dim) to 3D
+
+::: tip Tip
+Points close together represent semantically similar records. By coloring by mode, you can observe whether different generation modes form clusters in vector space.
+:::
 
 ## Preference Memory
 
