@@ -427,11 +427,13 @@ export function useSearchWorker() {
    * Switch embedding provider in the worker.
    * Rebuilds Orama DB with the new provider's dimensions.
    * @param {'gemini'|'local'} provider
-   * @returns {Promise<{ provider: string, needBackfill: number }>}
+   * @returns {Promise<{ provider: string, indexedCount: number }>}
    */
   function switchProvider(provider) {
-    embeddingProvider.value = provider
-    return sendRequest('switchProvider', { provider })
+    return sendRequest('switchProvider', { provider }).then((result) => {
+      embeddingProvider.value = provider
+      return result
+    })
   }
 
   /**

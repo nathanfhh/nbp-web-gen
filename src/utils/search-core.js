@@ -181,7 +181,7 @@ export function chunkText(text, options = {}) {
     if (chunk.length > 0) {
       // Build context window centered on the child chunk
       const chunkLen = end - pos
-      const contextPadding = Math.floor((contextWindow - chunkLen) / 2)
+      const contextPadding = Math.max(0, Math.floor((contextWindow - chunkLen) / 2))
       let ctxStart = Math.max(0, pos - contextPadding)
       let ctxEnd = Math.min(trimmed.length, end + contextPadding)
 

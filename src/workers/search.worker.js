@@ -495,24 +495,26 @@ function getKeysToTry() {
  * @param {string[]} texts - Texts to count tokens for
  * @param {string} apiKey - API key to use
  */
-function countTokensInBackground(texts, apiKey) {
+async function countTokensInBackground(texts, apiKey) {
   const geminiModel = PROVIDER_CONFIG.gemini.model
   const url = `${GEMINI_API_BASE}/${geminiModel}:countTokens?key=${apiKey}`
   const body = {
     contents: [{ parts: texts.map((t) => ({ text: t })) }],
   }
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-    .then((resp) => (resp.ok ? resp.json() : null))
-    .then((data) => {
-      if (data?.totalTokens) {
-        sessionEmbeddingTokens += data.totalTokens
-      }
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     })
-    .catch((err) => console.warn('[search.worker] countTokens failed (non-critical):', err.message))
+    if (!resp.ok) return
+    const data = await resp.json()
+    if (data?.totalTokens) {
+      sessionEmbeddingTokens += data.totalTokens
+    }
+  } catch (err) {
+    console.warn('[search.worker] countTokens failed (non-critical):', err.message)
+  }
 }
 
 /**
@@ -1127,6 +1129,11 @@ async function selfHeal(allHistoryIds) {
  * provider's snapshot, and rebuilds Orama DB. selfHeal handles missing docs.
  */
 async function switchProvider(newProvider, requestId) {
+  if (!PROVIDER_CONFIG[newProvider]) {
+    self.postMessage({ type: 'error', requestId, message: `Unknown provider: ${newProvider}` })
+    return
+  }
+
   const previousProvider = activeProvider
 
   // Save current snapshot for previous provider

@@ -582,7 +582,7 @@ export function useSlidesGeneration() {
               content: p.content,
             }))
             
-            // Deep merge options to preserve other fields
+            // Shallow merge options to preserve other fields
             const updatedOptions = {
               ...record.options,
               pagesContent,
