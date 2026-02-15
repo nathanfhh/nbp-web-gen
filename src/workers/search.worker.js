@@ -1,12 +1,13 @@
 /**
  * RAG Search Web Worker
- * Long-lived worker for hybrid search: BM25 (Orama) + semantic (dual embedding provider)
+ * Long-lived worker for hybrid search: BM25 (Orama) + semantic (per-provider independent snapshots)
  *
  * Architecture: Snapshot + SelfHeal
  *   - Full Orama document snapshot persisted to IndexedDB (nanobanana-search)
  *   - On cold start: restore from snapshot → bulk insert → immediately searchable
  *   - SelfHeal runs in background to detect deltas (new/deleted records)
- *   - Dual embedding providers: Gemini API (768d) or local Transformers.js (384d)
+ *   - Per-provider independent snapshots: each provider has its own chunk params and embeddings
+ *   - Embedding providers: Gemini API (768d, cs400) or local Transformers.js (384d, cs200)
  *
  * Communication Protocol:
  * Main → Worker:
@@ -53,13 +54,21 @@ const BATCH_SIZE = 50 // Documents per indexing batch
 const MAX_CACHE_ENTRIES = 5000 // In-memory document embedding cache cap (not persisted)
 
 const PROVIDER_CONFIG = {
-  gemini: { dims: 768, model: 'gemini-embedding-001' },
-  local: { dims: 384, model: 'intfloat/multilingual-e5-small' },
+  gemini: { dims: 768, model: 'gemini-embedding-001', chunkSize: 400, chunkOverlap: 100, contextWindow: 600 },
+  local: { dims: 384, model: 'intfloat/multilingual-e5-small', chunkSize: 200, chunkOverlap: 50, contextWindow: 400 },
 }
 
-// Snapshot config version — bump when chunk/search parameters change to force rebuild.
-// Does NOT include model info: snapshot now stores dual embeddings for both providers.
-const SNAPSHOT_CONFIG_VERSION = `cs${SEARCH_DEFAULTS.chunkSize}_co${SEARCH_DEFAULTS.chunkOverlap}_cw${SEARCH_DEFAULTS.contextWindow}`
+/**
+ * Compute a config version string for a provider's chunk parameters.
+ * Used to detect when snapshot needs rebuild due to parameter changes.
+ * @param {string|null} provider
+ * @returns {string|null}
+ */
+function getProviderConfigVersion(provider) {
+  if (!provider) return null
+  const cfg = PROVIDER_CONFIG[provider]
+  return `cs${cfg.chunkSize}_co${cfg.chunkOverlap}_cw${cfg.contextWindow}`
+}
 
 // ============================================================================
 // Query Embedding LRU Cache
@@ -121,10 +130,13 @@ let sessionEmbeddingTokens = 0
 // Query embedding LRU cache (128 entries × 768 dims × 8 bytes ≈ 768 KB max)
 const queryEmbeddingCache = new QueryEmbeddingLRU(128)
 
+// In-flight query embedding promises — deduplicates concurrent identical queries
+const pendingQueryEmbeddings = new Map()
+
 /**
  * Snapshot documents — mirrors Orama contents for fast snapshot persistence.
- * v3 format: dual embedding fields (embeddingGemini + embeddingLocal).
- * Persisted to IndexedDB on `persist` command.
+ * v4 format: per-provider independent snapshot with single embedding field.
+ * Persisted to IndexedDB on `persist` command as 'snapshot-{provider}'.
  */
 let snapshotDocs = []
 
@@ -175,14 +187,16 @@ function openSnapshotDB() {
   })
 }
 
-async function loadSnapshot() {
+// --- Generic IDB key helpers ---
+
+async function loadSnapshotKey(key) {
   let db
   try {
     db = await openSnapshotDB()
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readonly')
       const store = tx.objectStore(DB_STORE)
-      const request = store.get('docs')
+      const request = store.get(key)
       request.onsuccess = () => resolve(request.result || null)
       request.onerror = () => reject(request.error)
       tx.oncomplete = () => db.close()
@@ -194,14 +208,14 @@ async function loadSnapshot() {
   }
 }
 
-async function saveSnapshot() {
+async function saveSnapshotKey(key, data) {
   let db
   try {
     db = await openSnapshotDB()
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite')
       const store = tx.objectStore(DB_STORE)
-      const request = store.put({ version: 3, configVersion: SNAPSHOT_CONFIG_VERSION, docs: snapshotDocs }, 'docs')
+      const request = store.put(data, key)
       request.onsuccess = () => resolve()
       request.onerror = () => reject(request.error)
       tx.oncomplete = () => db.close()
@@ -213,7 +227,41 @@ async function saveSnapshot() {
   }
 }
 
-async function clearSnapshot() {
+async function deleteSnapshotKey(key) {
+  let db
+  try {
+    db = await openSnapshotDB()
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite')
+      const store = tx.objectStore(DB_STORE)
+      const request = store.delete(key)
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+      tx.oncomplete = () => db.close()
+      tx.onerror = () => db.close()
+    })
+  } catch {
+    if (db) db.close()
+  }
+}
+
+// --- Provider-specific wrappers ---
+
+async function loadSnapshot(provider) {
+  if (!provider) return null
+  return loadSnapshotKey(`snapshot-${provider}`)
+}
+
+async function saveSnapshot(provider) {
+  if (!provider) return
+  return saveSnapshotKey(`snapshot-${provider}`, {
+    version: 4,
+    configVersion: getProviderConfigVersion(provider),
+    docs: snapshotDocs,
+  })
+}
+
+async function clearAllSnapshots() {
   let db
   try {
     db = await openSnapshotDB()
@@ -230,6 +278,82 @@ async function clearSnapshot() {
     if (db) db.close()
     // Non-critical
   }
+}
+
+// --- v3→v4 Migration ---
+
+/**
+ * One-time migration from v3 dual-embedding snapshot to v4 per-provider snapshots.
+ * - Local embeddings (384d) are preserved to 'snapshot-local' (chunk params match cs200)
+ * - Gemini embeddings are discarded (chunk size changed from 200→400, boundaries differ)
+ * - Old 'docs' key is deleted after migration
+ */
+async function migrateV3SnapshotIfExists() {
+  const savedData = await loadSnapshotKey('docs')
+  if (!savedData) return
+
+  // v1 format was raw array — discard
+  if (Array.isArray(savedData)) {
+    console.log('[search.worker] Deleting obsolete v1 snapshot')
+    await deleteSnapshotKey('docs')
+    return
+  }
+
+  if (typeof savedData !== 'object') {
+    await deleteSnapshotKey('docs')
+    return
+  }
+
+  // v2 — too old, just delete
+  if (savedData.version === 2) {
+    console.log('[search.worker] Deleting obsolete v2 snapshot')
+    await deleteSnapshotKey('docs')
+    return
+  }
+
+  if (savedData.version !== 3) {
+    await deleteSnapshotKey('docs')
+    return
+  }
+
+  // v3 format: dual embeddings (embeddingGemini + embeddingLocal)
+  const docs = savedData.docs
+  if (!Array.isArray(docs) || docs.length === 0) {
+    await deleteSnapshotKey('docs')
+    return
+  }
+
+  // Migrate local embeddings — chunk params match (v3 used cs200 which matches local provider)
+  const localDocs = []
+  for (const doc of docs) {
+    const emb = doc.embeddingLocal
+    if (Array.isArray(emb) && emb.length === 384 && emb.some((v) => v !== 0)) {
+      localDocs.push({
+        parentId: doc.parentId,
+        chunkIndex: doc.chunkIndex,
+        chunkText: doc.chunkText,
+        contextText: doc.contextText,
+        mode: doc.mode,
+        timestamp: doc.timestamp,
+        embedding: emb,
+      })
+    }
+  }
+
+  if (localDocs.length > 0) {
+    await saveSnapshotKey('snapshot-local', {
+      version: 4,
+      configVersion: getProviderConfigVersion('local'),
+      docs: localDocs,
+    })
+    console.log(`[search.worker] Migrated ${localDocs.length}/${docs.length} docs to snapshot-local (v3→v4)`)
+  }
+
+  // Gemini embeddings discarded — chunk size changed from 200→400
+  console.log('[search.worker] Gemini embeddings discarded (chunk params changed cs200→cs400)')
+
+  await deleteSnapshotKey('docs')
+  console.log('[search.worker] v3→v4 migration complete, old snapshot deleted')
 }
 
 // ============================================================================
@@ -613,12 +737,21 @@ async function indexRecord(record, conversation = null) {
   const fullText = extractText(record, conversation)
   if (!fullText || fullText.trim().length === 0) return 0
 
+  // Use provider-specific chunk parameters (or SEARCH_DEFAULTS fallback when no provider)
+  const chunkOpts = activeProvider
+    ? {
+        chunkSize: PROVIDER_CONFIG[activeProvider].chunkSize,
+        chunkOverlap: PROVIDER_CONFIG[activeProvider].chunkOverlap,
+        contextWindow: PROVIDER_CONFIG[activeProvider].contextWindow,
+      }
+    : {}
+
   let chunks
   if (mode === 'agent' && conversation) {
     const userMsgs = extractAgentUserMessages(conversation)
     chunks = userMsgs.map((m, i) => ({ text: m.text, contextText: m.text, index: i }))
   } else {
-    chunks = chunkText(fullText)
+    chunks = chunkText(fullText, chunkOpts)
   }
 
   if (chunks.length === 0) return 0
@@ -686,22 +819,9 @@ async function indexRecord(record, conversation = null) {
     contextTextMap.set(key, chunks[i].contextText)
   }
 
-  // Remove existing snapshot entries for this parent, preserving other provider's embeddings
-  const existingEmbeddings = new Map()
-  snapshotDocs = snapshotDocs.filter((d) => {
-    if (d.parentId === parentId) {
-      existingEmbeddings.set(d.chunkIndex, {
-        embeddingGemini: d.embeddingGemini,
-        embeddingLocal: d.embeddingLocal,
-      })
-      return false
-    }
-    return true
-  })
-
-  // Add new snapshot entries, merging with preserved embeddings from the other provider
+  // Update snapshot: simple replace (no merge — single provider per snapshot)
+  snapshotDocs = snapshotDocs.filter((d) => d.parentId !== parentId)
   for (let i = 0; i < docs.length; i++) {
-    const existing = existingEmbeddings.get(docs[i].chunkIndex)
     snapshotDocs.push({
       parentId: docs[i].parentId,
       chunkIndex: docs[i].chunkIndex,
@@ -709,8 +829,7 @@ async function indexRecord(record, conversation = null) {
       contextText: chunks[i].contextText,
       mode: docs[i].mode,
       timestamp: docs[i].timestamp,
-      embeddingGemini: activeProvider === 'gemini' ? docs[i].embedding : (existing?.embeddingGemini || null),
-      embeddingLocal: activeProvider === 'local' ? docs[i].embedding : (existing?.embeddingLocal || null),
+      embedding: docs[i].embedding,
     })
   }
 
@@ -733,7 +852,8 @@ async function indexRecord(record, conversation = null) {
 
 /**
  * Safely generate query embedding. Returns the vector or null on failure.
- * Uses LRU cache to avoid re-computing embeddings for the same query.
+ * Uses LRU cache + in-flight deduplication to avoid duplicate API calls
+ * when multiple concurrent searches use the same query.
  */
 async function safeEmbed(query) {
   if (!activeProvider) return null
@@ -746,34 +866,48 @@ async function safeEmbed(query) {
     return cached
   }
 
-  try {
-    const embStart = performance.now()
-    let queryVec
-
-    if (activeProvider === 'gemini') {
-      queryVec = await callGeminiSingleEmbed(query, 'RETRIEVAL_QUERY')
-    } else {
-      const [result] = await embedLocal([query], 'RETRIEVAL_QUERY')
-      queryVec = result
-    }
-
-    const dims = getActiveDims()
-    if (!queryVec || queryVec.length !== dims) {
-      console.warn(`[search.worker] safeEmbed: invalid result for "${query}"`)
-      return null
-    }
-
-    const embTime = Math.round(performance.now() - embStart)
-    console.log(
-      `[search.worker] Query embedding: "${query}" → [${queryVec.slice(0, 4).map((v) => v.toFixed(4)).join(', ')}, ...] (${dims}d, ${embTime}ms, provider=${activeProvider})`,
-    )
-
-    queryEmbeddingCache.set(cacheKey, queryVec)
-    return queryVec
-  } catch (err) {
-    console.warn(`[search.worker] safeEmbed failed for "${query}":`, err.message)
-    return null
+  // Deduplicate concurrent requests for the same query — avoids duplicate API calls
+  // when rapid Enter presses send multiple search messages before the first completes
+  if (pendingQueryEmbeddings.has(cacheKey)) {
+    console.log(`[search.worker] Query embedding dedup hit: "${query}"`)
+    return pendingQueryEmbeddings.get(cacheKey)
   }
+
+  const promise = (async () => {
+    try {
+      const embStart = performance.now()
+      let queryVec
+
+      if (activeProvider === 'gemini') {
+        queryVec = await callGeminiSingleEmbed(query, 'RETRIEVAL_QUERY')
+      } else {
+        const [result] = await embedLocal([query], 'RETRIEVAL_QUERY')
+        queryVec = result
+      }
+
+      const dims = getActiveDims()
+      if (!queryVec || queryVec.length !== dims) {
+        console.warn(`[search.worker] safeEmbed: invalid result for "${query}"`)
+        return null
+      }
+
+      const embTime = Math.round(performance.now() - embStart)
+      console.log(
+        `[search.worker] Query embedding: "${query}" → [${queryVec.slice(0, 4).map((v) => v.toFixed(4)).join(', ')}, ...] (${dims}d, ${embTime}ms, provider=${activeProvider})`,
+      )
+
+      queryEmbeddingCache.set(cacheKey, queryVec)
+      return queryVec
+    } catch (err) {
+      console.warn(`[search.worker] safeEmbed failed for "${query}":`, err.message)
+      return null
+    } finally {
+      pendingQueryEmbeddings.delete(cacheKey)
+    }
+  })()
+
+  pendingQueryEmbeddings.set(cacheKey, promise)
+  return promise
 }
 
 /**
@@ -951,6 +1085,7 @@ function removeAllDocs() {
   parentDocIds.clear()
   contextTextMap.clear()
   queryEmbeddingCache.clear()
+  pendingQueryEmbeddings.clear()
   snapshotDocs = []
 }
 
@@ -988,79 +1123,87 @@ async function selfHeal(allHistoryIds) {
 // ============================================================================
 
 /**
- * Switch to a new embedding provider. Rebuilds Orama DB with new dimensions
- * and populates from snapshot docs using the target provider's embeddings.
- * Returns the count of docs that need backfill (missing embeddings).
+ * Switch to a new embedding provider. Saves current snapshot, loads target
+ * provider's snapshot, and rebuilds Orama DB. selfHeal handles missing docs.
  */
 async function switchProvider(newProvider, requestId) {
+  const previousProvider = activeProvider
+
+  // Save current snapshot for previous provider
+  if (previousProvider) {
+    await saveSnapshot(previousProvider)
+  }
+
   activeProvider = newProvider
   queryEmbeddingCache.clear()
+  pendingQueryEmbeddings.clear()
 
+  // Clear in-memory tracking
   const dims = PROVIDER_CONFIG[newProvider].dims
-  const embeddingKey = newProvider === 'gemini' ? 'embeddingGemini' : 'embeddingLocal'
-
-  // Rebuild Orama DB with new vector dimensions
   oramaDb = createFreshDb(newProvider)
   indexedParentIds.clear()
   parentDocIds.clear()
   contextTextMap.clear()
+  snapshotDocs = []
 
-  // Only insert docs with valid embeddings for the new provider.
-  // Docs without embeddings are NOT inserted — selfHeal will backfill them
-  // with proper embeddings from the new provider.
-  const docsToInsert = []
-  const docsSourceIndices = []
-  const backfillParentIds = new Set()
+  // Load target provider's snapshot
+  const savedData = await loadSnapshot(newProvider)
+  const expectedConfigVersion = getProviderConfigVersion(newProvider)
 
-  for (let i = 0; i < snapshotDocs.length; i++) {
-    const doc = snapshotDocs[i]
-    const emb = doc[embeddingKey]
-    const hasEmb = Array.isArray(emb) && emb.length === dims && emb.some((v) => v !== 0)
-    if (hasEmb) {
+  if (
+    savedData &&
+    savedData.version === 4 &&
+    savedData.configVersion === expectedConfigVersion &&
+    Array.isArray(savedData.docs) &&
+    savedData.docs.length > 0
+  ) {
+    snapshotDocs = savedData.docs
+
+    const docsToInsert = []
+    for (const doc of snapshotDocs) {
+      const emb = doc.embedding
+      const hasEmb = Array.isArray(emb) && emb.length === dims && emb.some((v) => v !== 0)
       docsToInsert.push({
         parentId: doc.parentId,
         chunkIndex: doc.chunkIndex,
         chunkText: doc.chunkText,
         mode: doc.mode,
         timestamp: doc.timestamp,
-        embedding: emb,
+        embedding: hasEmb ? emb : new Array(dims).fill(0),
       })
-      docsSourceIndices.push(i)
-    } else {
-      backfillParentIds.add(doc.parentId)
     }
+
+    if (docsToInsert.length > 0) {
+      const insertedIds = await insertMultiple(oramaDb, docsToInsert)
+      for (let i = 0; i < docsToInsert.length; i++) {
+        const pid = docsToInsert[i].parentId
+        indexedParentIds.add(pid)
+        if (!parentDocIds.has(pid)) parentDocIds.set(pid, new Set())
+        parentDocIds.get(pid).add(insertedIds[i])
+        const ctxKey = `${pid}:${snapshotDocs[i].chunkIndex}`
+        contextTextMap.set(ctxKey, snapshotDocs[i].contextText || snapshotDocs[i].chunkText)
+      }
+    }
+
+    console.log(`[search.worker] Loaded ${snapshotDocs.length} docs from snapshot-${newProvider}`)
+  } else if (savedData) {
+    console.log(
+      `[search.worker] Snapshot for ${newProvider} incompatible (version=${savedData.version}, config=${savedData.configVersion}), will rebuild via selfHeal`,
+    )
   }
 
-  const needBackfill = backfillParentIds.size
-
-  if (docsToInsert.length > 0) {
-    const insertedIds = await insertMultiple(oramaDb, docsToInsert)
-
-    // Rebuild tracking maps (only for docs with valid embeddings)
-    for (let i = 0; i < docsToInsert.length; i++) {
-      const pid = docsToInsert[i].parentId
-      indexedParentIds.add(pid)
-      if (!parentDocIds.has(pid)) parentDocIds.set(pid, new Set())
-      parentDocIds.get(pid).add(insertedIds[i])
-      // Rebuild contextTextMap
-      const doc = snapshotDocs[docsSourceIndices[i]]
-      const ctxKey = `${pid}:${doc.chunkIndex}`
-      contextTextMap.set(ctxKey, doc.contextText || doc.chunkText)
-    }
-  }
-
-  // If switching to local and model not loaded yet, load it
+  // Load local model if needed
   if (newProvider === 'local' && !localPipeline) {
     await loadLocalModel()
   }
 
-  console.log(`[search.worker] Switched to provider=${newProvider}, dims=${dims}, indexed=${indexedParentIds.size}, needBackfill=${needBackfill}`)
+  console.log(`[search.worker] Switched to provider=${newProvider}, dims=${dims}, indexed=${indexedParentIds.size}`)
 
   self.postMessage({
     type: 'providerSwitched',
     requestId,
     provider: newProvider,
-    needBackfill,
+    needBackfill: 0, // selfHeal handles missing docs
     indexedCount: indexedParentIds.size,
   })
 }
@@ -1083,69 +1226,30 @@ async function initialize(keys = {}) {
   try {
     self.postMessage({ type: 'modelProgress', stage: 'init', value: 50, message: 'Initializing search...' })
 
-    // 1. Load snapshot from IndexedDB
-    const savedDocs = await loadSnapshot()
+    // 1. One-time migration from v3 (dual-embedding) to v4 (per-provider)
+    await migrateV3SnapshotIfExists()
 
-    // 2. Create fresh Orama DB with custom CJK tokenizer (dimensions based on active provider)
+    // 2. Load snapshot for active provider
+    const savedData = await loadSnapshot(activeProvider)
+
+    // 3. Create fresh Orama DB with custom CJK tokenizer
     oramaDb = createFreshDb(activeProvider)
     const dims = getActiveDims()
 
-    // 3. Parse snapshot format and migrate if needed
-    let rawDocs = null
-    if (savedDocs && typeof savedDocs === 'object' && !Array.isArray(savedDocs)) {
-      if (savedDocs.version === 3) {
-        // v3 format — check configVersion
-        if (savedDocs.configVersion && savedDocs.configVersion !== SNAPSHOT_CONFIG_VERSION) {
-          console.warn(
-            `[search.worker] Snapshot configVersion mismatch: ${savedDocs.configVersion} → ${SNAPSHOT_CONFIG_VERSION}. Discarding for rebuild.`,
-          )
-          rawDocs = null
-        } else {
-          rawDocs = savedDocs.docs
-          console.log(`[search.worker] Loaded v3 snapshot (config=${savedDocs.configVersion || 'none'})`)
-        }
-      } else if (savedDocs.version === 2) {
-        // v2 → v3 migration: existing embedding field is Gemini 768d
-        if (savedDocs.configVersion && !savedDocs.configVersion.startsWith(`cs${SEARCH_DEFAULTS.chunkSize}_co${SEARCH_DEFAULTS.chunkOverlap}`)) {
-          console.warn(`[search.worker] v2 snapshot chunk params changed, discarding for rebuild`)
-          rawDocs = null
-        } else {
-          const docs = savedDocs.docs || []
-          for (const doc of docs) {
-            doc.embeddingGemini = doc.embedding || null
-            doc.embeddingLocal = null
-            delete doc.embedding
-          }
-          rawDocs = docs
-          console.log(`[search.worker] Migrated v2 → v3 snapshot (${docs.length} docs)`)
-        }
-      }
-    } else if (Array.isArray(savedDocs)) {
-      // v1 format (raw array) — discard, will be rebuilt by selfHeal
-      console.warn('[search.worker] Discarding v1 snapshot — selfHeal will rebuild')
-      rawDocs = null
-    }
+    // 4. Validate and restore from snapshot
+    if (savedData && savedData.version === 4) {
+      const expectedConfigVersion = getProviderConfigVersion(activeProvider)
+      if (savedData.configVersion && savedData.configVersion !== expectedConfigVersion) {
+        console.warn(
+          `[search.worker] Snapshot configVersion mismatch: ${savedData.configVersion} → ${expectedConfigVersion}. Discarding for rebuild.`,
+        )
+      } else if (Array.isArray(savedData.docs) && savedData.docs.length > 0) {
+        snapshotDocs = savedData.docs
 
-    // 4. If snapshot exists, bulk-insert → immediately searchable
-    if (Array.isArray(rawDocs) && rawDocs.length > 0) {
-      const embeddingKey = activeProvider === 'local' ? 'embeddingLocal' : 'embeddingGemini'
-
-      // Keep all docs in snapshot (they may have embedding for the other provider)
-      snapshotDocs = [...rawDocs]
-
-      // When a provider is active: only insert docs with valid embeddings.
-      // Docs without embeddings are kept in snapshotDocs for future use,
-      // but NOT inserted into Orama — selfHeal will backfill them.
-      // When no provider (null): insert all docs for BM25-only search.
-      const oramaDocs = []
-      const oramaSourceIndices = []
-
-      for (let i = 0; i < snapshotDocs.length; i++) {
-        const doc = snapshotDocs[i]
-        const emb = doc[embeddingKey]
-        const hasEmb = activeProvider && Array.isArray(emb) && emb.length === dims && emb.some((v) => v !== 0)
-
-        if (hasEmb || !activeProvider) {
+        const oramaDocs = []
+        for (const doc of snapshotDocs) {
+          const emb = doc.embedding
+          const hasEmb = activeProvider && Array.isArray(emb) && emb.length === dims && emb.some((v) => v !== 0)
           oramaDocs.push({
             parentId: doc.parentId,
             chunkIndex: doc.chunkIndex,
@@ -1154,34 +1258,31 @@ async function initialize(keys = {}) {
             timestamp: doc.timestamp,
             embedding: hasEmb ? emb : new Array(dims).fill(0),
           })
-          oramaSourceIndices.push(i)
         }
-      }
 
-      if (oramaDocs.length > 0) {
-        const insertedIds = await insertMultiple(oramaDb, oramaDocs)
-
-        // Rebuild tracking maps and contextTextMap
-        for (let i = 0; i < oramaDocs.length; i++) {
-          const doc = snapshotDocs[oramaSourceIndices[i]]
-          const pid = doc.parentId
-          indexedParentIds.add(pid)
-          if (!parentDocIds.has(pid)) parentDocIds.set(pid, new Set())
-          parentDocIds.get(pid).add(insertedIds[i])
-          const key = `${pid}:${doc.chunkIndex}`
-          contextTextMap.set(key, doc.contextText || doc.chunkText)
+        if (oramaDocs.length > 0) {
+          const insertedIds = await insertMultiple(oramaDb, oramaDocs)
+          for (let i = 0; i < oramaDocs.length; i++) {
+            const doc = snapshotDocs[i]
+            const pid = doc.parentId
+            indexedParentIds.add(pid)
+            if (!parentDocIds.has(pid)) parentDocIds.set(pid, new Set())
+            parentDocIds.get(pid).add(insertedIds[i])
+            const key = `${pid}:${doc.chunkIndex}`
+            contextTextMap.set(key, doc.contextText || doc.chunkText)
+          }
         }
+
+        console.log(
+          `[search.worker] Restored ${oramaDocs.length} docs (${indexedParentIds.size} records) from snapshot-${activeProvider}`,
+        )
       }
-      console.log(
-        `[search.worker] Restored ${oramaDocs.length}/${snapshotDocs.length} docs (${indexedParentIds.size} records) from snapshot (provider=${activeProvider})`,
-      )
     }
 
-    // If local provider is active and no pipeline yet, load model
+    // 5. Load local model if needed
     if (activeProvider === 'local' && !localPipeline) {
       await loadLocalModel()
     } else {
-      // No model download needed — Gemini API is used or no provider selected
       self.postMessage({ type: 'modelProgress', stage: 'ready', value: 100, message: 'Ready' })
     }
 
@@ -1280,7 +1381,7 @@ self.addEventListener('message', async (event) => {
 
       case 'removeAll': {
         removeAllDocs()
-        await clearSnapshot()
+        await clearAllSnapshots()
         self.postMessage({ type: 'removedAll', requestId })
         break
       }
@@ -1305,20 +1406,16 @@ self.addEventListener('message', async (event) => {
         let hasNonZeroVectors = false
         if (snapshotDocs.length > 0) {
           const sample = snapshotDocs[0]
-          const geminiEmb = sample.embeddingGemini
-          const localEmb = sample.embeddingLocal
-          const hasGemini = Array.isArray(geminiEmb) && geminiEmb.some((v) => v !== 0)
-          const hasLocal = Array.isArray(localEmb) && localEmb.some((v) => v !== 0)
-          hasNonZeroVectors = hasGemini || hasLocal
+          const emb = sample.embedding
+          const hasEmb = Array.isArray(emb) && emb.some((v) => v !== 0)
+          hasNonZeroVectors = hasEmb
           sampleDoc = {
             parentId: sample.parentId,
             chunkIndex: sample.chunkIndex,
             chunkText: sample.chunkText?.substring(0, 80),
             mode: sample.mode,
-            embeddingGeminiDims: geminiEmb?.length || 0,
-            embeddingLocalDims: localEmb?.length || 0,
-            hasGeminiEmbedding: hasGemini,
-            hasLocalEmbedding: hasLocal,
+            embeddingDims: emb?.length || 0,
+            hasEmbedding: hasEmb,
           }
         }
 
@@ -1344,7 +1441,7 @@ self.addEventListener('message', async (event) => {
       }
 
       case 'persist': {
-        await saveSnapshot()
+        await saveSnapshot(activeProvider)
         self.postMessage({ type: 'persisted', requestId })
         break
       }

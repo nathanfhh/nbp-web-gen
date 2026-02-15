@@ -245,11 +245,8 @@ async function handleProviderSelect(provider) {
   }
 
   if (searchWorker.isReady.value) {
-    const result = await searchWorker.switchProvider(provider)
-    if (result.needBackfill > 0) {
-      // Backfill missing embeddings by running selfHeal
-      await runSelfHeal()
-    }
+    await searchWorker.switchProvider(provider)
+    await runSelfHeal()
   }
 }
 
@@ -273,6 +270,7 @@ async function performSearch() {
   }
 
   if (!searchWorker.isReady.value) return
+  if (isSearching.value) return // Prevent duplicate concurrent searches from rapid Enter
 
   isSearching.value = true
   hasSearched.value = true
