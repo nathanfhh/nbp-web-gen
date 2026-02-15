@@ -6,6 +6,7 @@ import {
   chunkText,
   deduplicateByParent,
   highlightSnippet,
+  stripRecordForIndexing,
 } from './search-core'
 
 // ============================================================================
@@ -14,11 +15,13 @@ import {
 
 describe('SEARCH_DEFAULTS', () => {
   it('has expected default values', () => {
-    expect(SEARCH_DEFAULTS.chunkSize).toBe(500)
-    expect(SEARCH_DEFAULTS.chunkOverlap).toBe(100)
-    expect(SEARCH_DEFAULTS.searchLimit).toBe(20)
+    expect(SEARCH_DEFAULTS.chunkSize).toBe(200)
+    expect(SEARCH_DEFAULTS.chunkOverlap).toBe(50)
+    expect(SEARCH_DEFAULTS.contextWindow).toBe(500)
+    expect(SEARCH_DEFAULTS.searchLimit).toBe(100)
     expect(SEARCH_DEFAULTS.resultLimit).toBe(10)
     expect(SEARCH_DEFAULTS.snippetContextLength).toBe(80)
+    expect(SEARCH_DEFAULTS.similarity).toBe(0.35)
   })
 })
 
@@ -95,6 +98,86 @@ describe('extractText', () => {
       },
     }
     expect(extractText(record)).toBe('slides\npage1\npage3')
+  })
+
+  it('extracts slides styleGuidance and analyzedStyle', () => {
+    const record = {
+      mode: 'slides',
+      prompt: 'OpenCV tutorial',
+      options: {
+        pagesContent: [{ content: '影像處理基礎' }],
+        styleGuidance: '簡約現代風',
+        analyzedStyle: 'Clean minimalist design with code snippets',
+      },
+    }
+    const text = extractText(record)
+    expect(text).toContain('OpenCV tutorial')
+    expect(text).toContain('影像處理基礎')
+    expect(text).toContain('簡約現代風')
+    expect(text).toContain('Clean minimalist design')
+  })
+
+  it('extracts slides pageStyleGuides', () => {
+    const record = {
+      mode: 'slides',
+      prompt: 'tech talk',
+      options: {
+        pageStyleGuides: [
+          { pageNumber: 1, styleGuide: 'Dark background with neon accents' },
+          { pageNumber: 2, styleGuide: 'Code-heavy layout' },
+        ],
+      },
+    }
+    const text = extractText(record)
+    expect(text).toContain('neon accents')
+    expect(text).toContain('Code-heavy layout')
+  })
+
+  it('extracts slides narration scripts', () => {
+    const record = {
+      mode: 'slides',
+      prompt: 'browser image processing',
+      options: { pagesContent: [{ content: 'OpenCV.js in browser' }] },
+      narration: {
+        globalStyleDirective: 'Professional narrator voice',
+        scripts: [
+          { pageId: 1, script: '在瀏覽器中可以使用 opencv.js 進行影像處理' },
+          { pageId: 2, script: 'WebAssembly 讓 C++ 程式碼在瀏覽器中運行' },
+        ],
+      },
+    }
+    const text = extractText(record)
+    expect(text).toContain('Professional narrator voice')
+    expect(text).toContain('opencv.js 進行影像處理')
+    expect(text).toContain('WebAssembly')
+  })
+
+  it('handles slides with partial narration data', () => {
+    const record = {
+      mode: 'slides',
+      prompt: 'test',
+      narration: { scripts: [{ pageId: 1 }, { pageId: 2, script: 'has script' }] },
+    }
+    const text = extractText(record)
+    expect(text).toContain('has script')
+    expect(text).toBe('test\nhas script')
+  })
+
+  // Video mode
+  it('extracts video negativePrompt', () => {
+    const record = {
+      mode: 'video',
+      prompt: 'a cat playing piano',
+      options: { negativePrompt: 'blurry, low quality' },
+    }
+    const text = extractText(record)
+    expect(text).toContain('a cat playing piano')
+    expect(text).toContain('blurry, low quality')
+  })
+
+  it('handles video without negativePrompt', () => {
+    const record = { mode: 'video', prompt: 'cat video' }
+    expect(extractText(record)).toBe('cat video')
   })
 
   // Agent mode
@@ -234,48 +317,47 @@ describe('chunkText', () => {
     expect(chunkText({})).toEqual([])
   })
 
-  it('returns single chunk for short text', () => {
+  it('returns single chunk for short text with contextText equal to text', () => {
     const result = chunkText('Hello world')
-    expect(result).toEqual([{ text: 'Hello world', index: 0 }])
+    expect(result).toEqual([{ text: 'Hello world', contextText: 'Hello world', index: 0 }])
   })
 
   it('returns single chunk for text exactly at chunkSize', () => {
-    const text = 'a'.repeat(500)
-    const result = chunkText(text, { chunkSize: 500 })
-    expect(result).toEqual([{ text, index: 0 }])
+    const text = 'a'.repeat(200)
+    const result = chunkText(text, { chunkSize: 200 })
+    expect(result).toEqual([{ text, contextText: text, index: 0 }])
   })
 
-  it('splits long text into multiple chunks', () => {
+  it('splits long text into multiple chunks with contextText', () => {
     const text = 'word '.repeat(200) // ~1000 chars
-    const result = chunkText(text, { chunkSize: 500, chunkOverlap: 100 })
+    const result = chunkText(text, { chunkSize: 200, chunkOverlap: 50 })
     expect(result.length).toBeGreaterThan(1)
-    // Each chunk should be <= chunkSize
     for (const chunk of result) {
-      expect(chunk.text.length).toBeLessThanOrEqual(500)
+      expect(chunk.text.length).toBeLessThanOrEqual(200)
+      expect(chunk.contextText).toBeDefined()
+      expect(chunk.contextText.length).toBeGreaterThanOrEqual(chunk.text.length)
     }
   })
 
   it('chunks have sequential indices', () => {
     const text = 'word '.repeat(200)
-    const result = chunkText(text, { chunkSize: 500, chunkOverlap: 100 })
+    const result = chunkText(text, { chunkSize: 200, chunkOverlap: 50 })
     for (let i = 0; i < result.length; i++) {
       expect(result[i].index).toBe(i)
     }
   })
 
   it('prefers sentence boundaries for splitting', () => {
-    // Create text with clear sentence boundaries
-    const sentence1 = 'A'.repeat(300) + '.'
-    const sentence2 = 'B'.repeat(300) + '.'
+    const sentence1 = 'A'.repeat(150) + '.'
+    const sentence2 = 'B'.repeat(150) + '.'
     const text = sentence1 + ' ' + sentence2
-    const result = chunkText(text, { chunkSize: 400, chunkOverlap: 50 })
-    // The first chunk should end at or near the period
+    const result = chunkText(text, { chunkSize: 200, chunkOverlap: 50 })
     expect(result[0].text).toContain('.')
   })
 
   it('handles text with no sentence breaks', () => {
-    const text = 'a'.repeat(600)
-    const result = chunkText(text, { chunkSize: 500, chunkOverlap: 50 })
+    const text = 'a'.repeat(300)
+    const result = chunkText(text, { chunkSize: 200, chunkOverlap: 50 })
     expect(result.length).toBe(2)
   })
 
@@ -284,7 +366,6 @@ describe('chunkText', () => {
     for (let i = 0; i < 100; i++) words.push(`word${i}`)
     const text = words.join(' ')
     const result = chunkText(text, { chunkSize: 200, chunkOverlap: 50 })
-    // Every word should appear in at least one chunk
     for (const w of words) {
       const found = result.some((c) => c.text.includes(w))
       expect(found).toBe(true)
@@ -302,7 +383,28 @@ describe('chunkText', () => {
 
   it('trims input text', () => {
     const result = chunkText('  hello world  ')
-    expect(result).toEqual([{ text: 'hello world', index: 0 }])
+    expect(result).toEqual([{ text: 'hello world', contextText: 'hello world', index: 0 }])
+  })
+
+  it('contextText does not exceed original text length', () => {
+    const text = 'word '.repeat(200)
+    const result = chunkText(text, { chunkSize: 200, chunkOverlap: 50, contextWindow: 500 })
+    for (const chunk of result) {
+      expect(chunk.contextText.length).toBeLessThanOrEqual(text.trim().length)
+    }
+  })
+
+  it('contextText contains the child chunk text', () => {
+    const text = 'The quick brown fox jumps over the lazy dog. '.repeat(20)
+    const result = chunkText(text, { chunkSize: 100, chunkOverlap: 20, contextWindow: 300 })
+    for (const chunk of result) {
+      // contextText should contain the child chunk (possibly with minor boundary trimming)
+      // Check that the core of the child chunk appears in contextText
+      const core = chunk.text.slice(5, -5)
+      if (core.length > 0) {
+        expect(chunk.contextText).toContain(core)
+      }
+    }
   })
 })
 
@@ -317,20 +419,27 @@ describe('deduplicateByParent', () => {
     expect(deduplicateByParent([])).toEqual([])
   })
 
-  it('passes through single hit', () => {
+  it('passes through single hit with matchCount 1', () => {
     const hits = [{ parentId: '1', score: 0.9, chunkText: 'hello' }]
     const result = deduplicateByParent(hits)
-    expect(result).toEqual([{ parentId: '1', score: 0.9, chunkText: 'hello' }])
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ parentId: '1', chunkText: 'hello', matchCount: 1 })
+    // matchCount=1 → log10(1)=0 → no boost
+    expect(result[0].score).toBeCloseTo(0.9, 5)
   })
 
-  it('keeps best score per parent', () => {
+  it('keeps best scoring chunk data per parent with aggregated score', () => {
     const hits = [
       { parentId: '1', score: 0.5, chunkText: 'low' },
       { parentId: '1', score: 0.9, chunkText: 'high' },
       { parentId: '1', score: 0.7, chunkText: 'mid' },
     ]
     const result = deduplicateByParent(hits)
-    expect(result).toEqual([{ parentId: '1', score: 0.9, chunkText: 'high' }])
+    expect(result).toHaveLength(1)
+    expect(result[0].chunkText).toBe('high')
+    expect(result[0].matchCount).toBe(3)
+    // 0.9 * (1 + 0.3 * log10(3)) ≈ 0.9 * 1.143 ≈ 1.029
+    expect(result[0].score).toBeCloseTo(0.9 * (1 + 0.3 * Math.log10(3)), 5)
   })
 
   it('deduplicates multiple parents', () => {
@@ -342,11 +451,11 @@ describe('deduplicateByParent', () => {
     ]
     const result = deduplicateByParent(hits)
     expect(result).toHaveLength(2)
-    expect(result[0]).toMatchObject({ parentId: '1', score: 0.9 })
-    expect(result[1]).toMatchObject({ parentId: '2', score: 0.8 })
+    expect(result[0]).toMatchObject({ parentId: '1', matchCount: 2 })
+    expect(result[1]).toMatchObject({ parentId: '2', matchCount: 2 })
   })
 
-  it('sorts by score descending', () => {
+  it('sorts by aggregated score descending', () => {
     const hits = [
       { parentId: '3', score: 0.3, chunkText: '' },
       { parentId: '1', score: 0.9, chunkText: '' },
@@ -363,7 +472,7 @@ describe('deduplicateByParent', () => {
     ]
     const result = deduplicateByParent(hits)
     expect(result).toHaveLength(1)
-    expect(result[0].score).toBe(0.8)
+    expect(result[0].matchCount).toBe(2)
   })
 
   it('skips hits with null/undefined parentId', () => {
@@ -375,6 +484,29 @@ describe('deduplicateByParent', () => {
     const result = deduplicateByParent(hits)
     expect(result).toHaveLength(1)
     expect(result[0].parentId).toBe('1')
+  })
+
+  it('matchCount=1 does not boost score', () => {
+    const hits = [{ parentId: '1', score: 0.75, chunkText: 'only one' }]
+    const result = deduplicateByParent(hits)
+    expect(result[0].score).toBeCloseTo(0.75, 5)
+    expect(result[0].matchCount).toBe(1)
+  })
+
+  it('multi-hit parent beats similar-score single-hit parent', () => {
+    const hits = [
+      // Parent A: 3 hits, max score 0.7
+      { parentId: 'A', score: 0.7, chunkText: 'a1' },
+      { parentId: 'A', score: 0.5, chunkText: 'a2' },
+      { parentId: 'A', score: 0.6, chunkText: 'a3' },
+      // Parent B: 1 hit, score 0.72
+      { parentId: 'B', score: 0.72, chunkText: 'b1' },
+    ]
+    const result = deduplicateByParent(hits)
+    // A: 0.7 * (1 + 0.3 * log10(3)) ≈ 0.7 * 1.143 ≈ 0.800
+    // B: 0.72 * (1 + 0.3 * log10(1)) = 0.72
+    expect(result[0].parentId).toBe('A')
+    expect(result[1].parentId).toBe('B')
   })
 })
 
@@ -447,5 +579,74 @@ describe('highlightSnippet', () => {
   it('handles short text without truncation', () => {
     const result = highlightSnippet('cat', 'cat')
     expect(result).toBe('<mark>cat</mark>')
+  })
+})
+
+// ============================================================================
+// stripRecordForIndexing
+// ============================================================================
+
+describe('stripRecordForIndexing', () => {
+  it('strips basic record to essential fields', () => {
+    const record = {
+      id: 'abc',
+      mode: 'generate',
+      prompt: 'a cat',
+      timestamp: 1000,
+      images: ['data:image/png;base64,...'],
+      thumbnail: 'data:image/png;base64,...',
+      options: { style: 'anime', ratio: '1:1' },
+    }
+    const result = stripRecordForIndexing('abc', record)
+    expect(result).toEqual({ id: 'abc', mode: 'generate', prompt: 'a cat', timestamp: 1000 })
+    expect(result.images).toBeUndefined()
+    expect(result.thumbnail).toBeUndefined()
+    expect(result.options).toBeUndefined()
+  })
+
+  it('preserves slides mode searchable fields', () => {
+    const record = {
+      mode: 'slides',
+      prompt: 'OpenCV tutorial',
+      timestamp: 2000,
+      options: {
+        pagesContent: [{ content: 'page1' }],
+        styleGuidance: 'modern',
+        analyzedStyle: 'clean',
+        pageStyleGuides: [{ styleGuide: 'dark theme' }],
+        pagesRaw: 'raw data',
+      },
+      narration: {
+        globalStyleDirective: 'professional',
+        scripts: [{ pageId: 1, script: 'hello', audioBlob: 'binary' }],
+      },
+      images: ['heavy'],
+    }
+    const result = stripRecordForIndexing('s1', record)
+    expect(result.options.pagesContent).toEqual([{ content: 'page1' }])
+    expect(result.options.styleGuidance).toBe('modern')
+    expect(result.options.analyzedStyle).toBe('clean')
+    expect(result.options.pageStyleGuides).toEqual([{ styleGuide: 'dark theme' }])
+    expect(result.options.pagesRaw).toBeUndefined()
+    expect(result.narration.globalStyleDirective).toBe('professional')
+    expect(result.narration.scripts).toEqual([{ pageId: 1, script: 'hello' }])
+    expect(result.images).toBeUndefined()
+  })
+
+  it('preserves video negativePrompt', () => {
+    const record = {
+      mode: 'video',
+      prompt: 'cat video',
+      timestamp: 3000,
+      options: { negativePrompt: 'blurry', resolution: '1080p' },
+    }
+    const result = stripRecordForIndexing('v1', record)
+    expect(result.options).toEqual({ negativePrompt: 'blurry' })
+  })
+
+  it('skips video options when no negativePrompt', () => {
+    const record = { mode: 'video', prompt: 'cat', timestamp: 3000, options: { resolution: '1080p' } }
+    const result = stripRecordForIndexing('v1', record)
+    expect(result.options).toBeUndefined()
   })
 })

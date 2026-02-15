@@ -4,11 +4,13 @@
 // ============================================================================
 
 export const SEARCH_DEFAULTS = {
-  chunkSize: 500,
-  chunkOverlap: 100,
-  searchLimit: 20,
+  chunkSize: 200,
+  chunkOverlap: 50,
+  contextWindow: 500,
+  searchLimit: 100,
   resultLimit: 10,
   snippetContextLength: 80,
+  similarity: 0.35,
 }
 
 // ============================================================================
@@ -32,10 +34,32 @@ export function extractText(record, conversation = null) {
   switch (mode) {
     case 'slides': {
       const parts = [prompt]
+      // Page content (AI-generated slide text)
       const pages = record.options?.pagesContent
       if (Array.isArray(pages)) {
         for (const page of pages) {
           if (page?.content) parts.push(page.content)
+        }
+      }
+      // Style guidance (user-provided style preferences)
+      if (record.options?.styleGuidance) parts.push(record.options.styleGuidance)
+      // Analyzed style (AI-generated global style description)
+      if (record.options?.analyzedStyle) parts.push(record.options.analyzedStyle)
+      // Per-page style guides
+      const psg = record.options?.pageStyleGuides
+      if (Array.isArray(psg)) {
+        for (const guide of psg) {
+          if (guide?.styleGuide) parts.push(guide.styleGuide)
+        }
+      }
+      // Narration scripts (voiceover text)
+      const narration = record.narration
+      if (narration) {
+        if (narration.globalStyleDirective) parts.push(narration.globalStyleDirective)
+        if (Array.isArray(narration.scripts)) {
+          for (const s of narration.scripts) {
+            if (s?.script) parts.push(s.script)
+          }
         }
       }
       return parts.join('\n')
@@ -52,8 +76,14 @@ export function extractText(record, conversation = null) {
       return prompt
     }
 
+    case 'video': {
+      const parts = [prompt]
+      if (record.options?.negativePrompt) parts.push(record.options.negativePrompt)
+      return parts.join('\n')
+    }
+
     default:
-      // generate, sticker, edit, story, diagram, video
+      // generate, sticker, edit, story, diagram
       return prompt
   }
 }
@@ -95,19 +125,24 @@ export function extractAgentUserMessages(messages) {
 const SENTENCE_BREAK_RE = /[。？！.?!\n]/
 
 /**
- * Split text into overlapping chunks for indexing.
- * Short texts (< chunkSize) produce a single chunk.
+ * Split text into overlapping chunks for indexing (parent/child chunking).
+ * Each chunk includes a broader contextText window for snippet display.
+ * Short texts (< chunkSize) produce a single chunk where contextText === text.
  * Prefers splitting at sentence boundaries when possible.
  *
  * @param {string} text - Input text
  * @param {Object} options
- * @param {number} options.chunkSize - Max chars per chunk (default 500)
- * @param {number} options.chunkOverlap - Overlap chars between chunks (default 100)
- * @returns {Array<{ text: string, index: number }>}
+ * @param {number} options.chunkSize - Max chars per child chunk (default 200)
+ * @param {number} options.chunkOverlap - Overlap chars between chunks (default 50)
+ * @param {number} options.contextWindow - Context window size around each chunk (default 500)
+ * @returns {Array<{ text: string, contextText: string, index: number }>}
  */
 export function chunkText(text, options = {}) {
-  const { chunkSize = SEARCH_DEFAULTS.chunkSize, chunkOverlap = SEARCH_DEFAULTS.chunkOverlap } =
-    options
+  const {
+    chunkSize = SEARCH_DEFAULTS.chunkSize,
+    chunkOverlap = SEARCH_DEFAULTS.chunkOverlap,
+    contextWindow = SEARCH_DEFAULTS.contextWindow,
+  } = options
 
   if (!text || typeof text !== 'string') return []
 
@@ -115,7 +150,7 @@ export function chunkText(text, options = {}) {
   if (trimmed.length === 0) return []
 
   if (trimmed.length <= chunkSize) {
-    return [{ text: trimmed, index: 0 }]
+    return [{ text: trimmed, contextText: trimmed, index: 0 }]
   }
 
   const chunks = []
@@ -144,7 +179,29 @@ export function chunkText(text, options = {}) {
 
     const chunk = trimmed.slice(pos, end).trim()
     if (chunk.length > 0) {
-      chunks.push({ text: chunk, index })
+      // Build context window centered on the child chunk
+      const chunkLen = end - pos
+      const contextPadding = Math.floor((contextWindow - chunkLen) / 2)
+      let ctxStart = Math.max(0, pos - contextPadding)
+      let ctxEnd = Math.min(trimmed.length, end + contextPadding)
+
+      // Expand to nearest word/space boundary (avoid cutting mid-word)
+      if (ctxStart > 0) {
+        const spaceIdx = trimmed.indexOf(' ', ctxStart)
+        if (spaceIdx !== -1 && spaceIdx < ctxStart + 20) {
+          ctxStart = spaceIdx + 1
+        }
+      }
+      if (ctxEnd < trimmed.length) {
+        const spaceIdx = trimmed.lastIndexOf(' ', ctxEnd)
+        if (spaceIdx !== -1 && spaceIdx > ctxEnd - 20) {
+          ctxEnd = spaceIdx
+        }
+      }
+
+      const contextText = trimmed.slice(ctxStart, ctxEnd).trim()
+
+      chunks.push({ text: chunk, contextText, index })
       index++
     }
 
@@ -164,11 +221,17 @@ export function chunkText(text, options = {}) {
 // ============================================================================
 
 /**
- * Deduplicate search hits by parent record ID, keeping the best score per parent.
- * Returns results sorted by score descending.
+ * Deduplicate search hits by parent record ID with multi-chunk aggregated scoring.
+ * Tracks matchCount per parent and boosts score for records with multiple chunk hits.
+ * Returns results sorted by aggregated score descending.
+ *
+ * Aggregation: aggregatedScore = maxScore * (1 + 0.3 * log10(matchCount))
+ *   - matchCount=1 → no boost (log10(1)=0)
+ *   - matchCount=3 → +14% boost
+ *   - matchCount=10 → +30% boost
  *
  * @param {Array} hits - Raw search hits with { parentId, score, chunkText, ... }
- * @returns {Array<{ parentId: string|number, score: number, chunkText: string, ... }>}
+ * @returns {Array<{ parentId: string|number, score: number, matchCount: number, chunkText: string, ... }>}
  */
 export function deduplicateByParent(hits) {
   if (!Array.isArray(hits) || hits.length === 0) return []
@@ -180,9 +243,22 @@ export function deduplicateByParent(hits) {
     if (pid === undefined || pid === null) continue
 
     const existing = parentMap.get(pid)
-    if (!existing || hit.score > existing.score) {
-      parentMap.set(pid, { ...hit })
+    if (!existing) {
+      parentMap.set(pid, { ...hit, matchCount: 1 })
+    } else {
+      existing.matchCount++
+      if (hit.score > existing.score) {
+        // Keep the best-scoring chunk's data but preserve matchCount
+        const mc = existing.matchCount
+        parentMap.set(pid, { ...hit, matchCount: mc })
+      }
     }
+  }
+
+  // Apply aggregated scoring
+  for (const entry of parentMap.values()) {
+    const maxScore = entry.score
+    entry.score = maxScore * (1 + 0.3 * Math.log10(entry.matchCount))
   }
 
   return Array.from(parentMap.values()).sort((a, b) => b.score - a.score)
@@ -273,4 +349,38 @@ export function highlightSnippet(chunkText, query, contextLength = SEARCH_DEFAUL
   const highlighted = escaped.replace(markRe, '<mark>$1</mark>')
 
   return prefix + highlighted + suffix
+}
+
+// ============================================================================
+// Record Stripping (shared between SearchModal and useSearchWorker)
+// ============================================================================
+
+/**
+ * Strip heavy fields from a history record for worker indexing.
+ * Keeps all text-searchable fields, drops images/thumbnails/binary data.
+ *
+ * @param {string|number} id - Record ID
+ * @param {Object} record - Full history record
+ * @returns {Object} Stripped record safe for postMessage to worker
+ */
+export function stripRecordForIndexing(id, record) {
+  const stripped = { id, mode: record.mode, prompt: record.prompt, timestamp: record.timestamp }
+  if (record.mode === 'slides') {
+    const opts = record.options || {}
+    stripped.options = {}
+    if (opts.pagesContent) stripped.options.pagesContent = opts.pagesContent
+    if (opts.styleGuidance) stripped.options.styleGuidance = opts.styleGuidance
+    if (opts.analyzedStyle) stripped.options.analyzedStyle = opts.analyzedStyle
+    if (opts.pageStyleGuides) stripped.options.pageStyleGuides = opts.pageStyleGuides
+    if (record.narration) {
+      stripped.narration = {}
+      if (record.narration.globalStyleDirective) stripped.narration.globalStyleDirective = record.narration.globalStyleDirective
+      if (record.narration.scripts) {
+        stripped.narration.scripts = record.narration.scripts.map((s) => ({ pageId: s.pageId, script: s.script }))
+      }
+    }
+  } else if (record.mode === 'video' && record.options?.negativePrompt) {
+    stripped.options = { negativePrompt: record.options.negativePrompt }
+  }
+  return stripped
 }
