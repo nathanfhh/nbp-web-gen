@@ -566,7 +566,11 @@ async function embedLocal(texts, taskType) {
  * @returns {Promise<Array<Array<number>>>}
  */
 async function embed(texts, taskType = 'RETRIEVAL_DOCUMENT') {
-  if (!activeProvider || texts.length === 0) return []
+  if (texts.length === 0) return []
+  if (!activeProvider) {
+    console.warn('[search.worker] embed() called without active provider — returning empty embeddings')
+    return []
+  }
 
   if (activeProvider === 'gemini') {
     if (!getApiKey()) return []
@@ -592,7 +596,8 @@ async function embed(texts, taskType = 'RETRIEVAL_DOCUMENT') {
  * Get current embedding dimensions for the active provider.
  */
 function getActiveDims() {
-  return activeProvider ? PROVIDER_CONFIG[activeProvider].dims : 768
+  // Fallback to Gemini dims (768) when no provider is active — only used to allocate zero-vectors
+  return activeProvider ? PROVIDER_CONFIG[activeProvider].dims : PROVIDER_CONFIG.gemini.dims
 }
 
 /**
@@ -709,7 +714,8 @@ async function indexRecord(record, conversation = null) {
     })
   }
 
-  // Evict oldest in-memory cache entries if over limit
+  // Evict oldest in-memory cache entries if over limit (FIFO, not LRU —
+  // embeddings are write-once per chunk so access-order tracking is unnecessary)
   if (embeddingCache.size > MAX_CACHE_ENTRIES) {
     const excess = embeddingCache.size - MAX_CACHE_ENTRIES
     const keys = embeddingCache.keys()
@@ -919,11 +925,12 @@ async function removeByParentIds(parentIds) {
   const keysToDelete = []
   for (const key of embeddingCache.keys()) {
     // Key format: "provider:parentId:chunkIndex"
-    const parts = key.split(':')
-    if (parts.length >= 3) {
-      const pid = parts[1]
-      if (removedPids.has(pid)) keysToDelete.push(key)
-    }
+    const firstSep = key.indexOf(':')
+    if (firstSep === -1) continue
+    const secondSep = key.indexOf(':', firstSep + 1)
+    if (secondSep === -1) continue
+    const pid = key.slice(firstSep + 1, secondSep)
+    if (removedPids.has(pid)) keysToDelete.push(key)
   }
   for (const key of keysToDelete) {
     embeddingCache.delete(key)
