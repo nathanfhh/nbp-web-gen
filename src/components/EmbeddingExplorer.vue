@@ -366,7 +366,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Plot Area -->
-          <div class="plot-area flex-1 relative min-h-0 mx-5 mb-5 rounded-xl border border-border-muted overflow-hidden">
+          <div class="plot-area flex-1 relative min-h-0 mx-5 mb-5 rounded-xl border border-border-muted">
             <!-- Loading Overlay -->
             <div
               v-if="isProcessing"
@@ -428,10 +428,7 @@ onBeforeUnmount(() => {
   min-height: 300px;
 }
 
-/* Move Plotly modebar from top-right to bottom-right.
-   Both .modebar-container (inline style) and .modebar (SCSS)
-   default to position:absolute; top:2px; right:2px.
-   Override only top→bottom on both; keep right:2px intact. */
+/* Move Plotly modebar from default top-right to bottom-right to avoid legend overlap */
 .plot-area :deep(.modebar-container) {
   top: auto !important;
   bottom: 4px !important;
