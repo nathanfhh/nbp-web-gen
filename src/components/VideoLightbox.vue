@@ -129,6 +129,7 @@ const handleKeydown = (e) => {
 
   switch (e.key) {
     case 'Escape':
+      e.stopPropagation()
       e.preventDefault()
       close()
       break
@@ -146,11 +147,11 @@ const handleKeydown = (e) => {
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleKeydown, true)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keydown', handleKeydown, true)
   document.body.style.overflow = ''
 })
 </script>

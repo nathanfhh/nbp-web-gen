@@ -379,6 +379,7 @@ const handleKeydown = (e) => {
       goToNext()
       break
     case 'Escape':
+      e.stopPropagation()
       e.preventDefault()
       close()
       break
@@ -440,14 +441,14 @@ const handleTouchEnd = (e) => {
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleKeydown, true)
   window.addEventListener('mouseup', handleGlobalMouseUp)
   // Use non-passive listener to allow preventing default scroll
   window.addEventListener('wheel', handleWheel, { passive: false })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keydown', handleKeydown, true)
   window.removeEventListener('mouseup', handleGlobalMouseUp)
   window.removeEventListener('wheel', handleWheel)
   document.body.style.overflow = ''
