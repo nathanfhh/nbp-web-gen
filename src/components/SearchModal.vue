@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -10,7 +10,9 @@ import { useHistoryState } from '@/composables/useHistoryState'
 import { deduplicateByParent, highlightSnippet, stripRecordForIndexing, SEARCH_DEFAULTS } from '@/utils/search-core'
 import { getModeTagStyle } from '@/constants'
 import EmbeddingProviderModal from '@/components/EmbeddingProviderModal.vue'
-import EmbeddingExplorer from '@/components/EmbeddingExplorer.vue'
+
+// Lazy load: Plotly.js (~1MB) + umap-js only loaded when user opens the explorer
+const EmbeddingExplorer = defineAsyncComponent(() => import('@/components/EmbeddingExplorer.vue'))
 
 dayjs.extend(relativeTime)
 

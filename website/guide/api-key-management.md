@@ -33,7 +33,12 @@ Mediator 支援雙 API Key 架構，幫助你更有效率地使用 API 額度。
 
 - 角色萃取
 - 簡報風格分析
+- 搜尋 Embedding 編碼（選用 Gemini 引擎時）
 - 其他文字處理
+
+::: warning 隱私提醒
+Google 可能會使用 Free Tier API Key 的輸入與輸出資料來改進其產品與模型。若有隱私疑慮，建議僅使用付費 API Key，或在搜尋功能中選擇 Local 引擎。
+:::
 
 ## 設定方式
 

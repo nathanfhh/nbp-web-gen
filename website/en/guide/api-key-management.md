@@ -33,7 +33,12 @@ Used for text processing operations:
 
 - Character extraction
 - Slide style analysis
+- Search embedding encoding (when using the Gemini engine)
 - Other text processing
+
+::: warning Privacy Notice
+Google may use Free Tier API Key inputs and outputs to improve its products and models. If you have privacy concerns, use only a paid API Key, or choose the Local engine for search.
+:::
 
 ## Setup Method
 
