@@ -569,7 +569,10 @@ export function useIndexedDB() {
         if (record) {
           record.narration = JSON.parse(JSON.stringify(narration))
           const putRequest = store.put(record)
-          putRequest.onsuccess = () => resolve(true)
+          putRequest.onsuccess = () => {
+            window.dispatchEvent(new CustomEvent('nbp-history-updated', { detail: { id, record } }))
+            resolve(true)
+          }
           putRequest.onerror = () => reject(putRequest.error)
         } else {
           reject(new Error(`History record with id ${id} not found`))
@@ -630,7 +633,10 @@ export function useIndexedDB() {
             }
           }
           const putRequest = store.put(record)
-          putRequest.onsuccess = () => resolve(true)
+          putRequest.onsuccess = () => {
+            window.dispatchEvent(new CustomEvent('nbp-history-updated', { detail: { id, record } }))
+            resolve(true)
+          }
           putRequest.onerror = () => reject(putRequest.error)
         } else {
           reject(new Error(`History record with id ${id} not found`))

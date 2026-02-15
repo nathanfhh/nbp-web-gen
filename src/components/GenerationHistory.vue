@@ -800,6 +800,7 @@ const handleImported = async () => {
     <SearchModal
       v-model="showSearchModal"
       @openLightbox="handleSearchOpenLightbox"
+      @loadItem="loadHistoryItem"
     />
   </div>
 </template>

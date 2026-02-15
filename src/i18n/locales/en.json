@@ -785,7 +785,8 @@
   },
   "search": {
     "title": "Search History",
-    "placeholder": "Enter keywords or description...",
+    "placeholder": "Enter keywords or description, press Enter...",
+    "searchButton": "Search",
     "strategy": {
       "hybrid": "Hybrid Search",
       "vector": "Semantic Search",
@@ -796,9 +797,9 @@
     "noResults": "No matching records found",
     "noQuery": "Enter keywords to start searching",
     "model": {
-      "downloading": "Downloading search model...",
-      "initializing": "Loading search model...",
-      "ready": "Search model ready"
+      "downloading": "Initializing search...",
+      "initializing": "Initializing search...",
+      "ready": "Search ready"
     },
     "indexing": "Indexing {current}/{total}...",
     "indexed": "{count} records indexed",
@@ -810,7 +811,31 @@
       "relevance": "Relevance",
       "dateDesc": "Date (newest)",
       "dateAsc": "Date (oldest)"
-    }
+    },
+    "providerModal": {
+      "title": "Choose Search Engine",
+      "subtitle": "Choose how semantic embeddings are generated. You can switch anytime.",
+      "local": {
+        "title": "Local Model",
+        "badge": "Free",
+        "description": "Generate semantic vectors using an on-device AI model",
+        "pros": "Free, works offline",
+        "cons": "First-time ~33MB download, moderate quality"
+      },
+      "gemini": {
+        "title": "Gemini API",
+        "badge": "Recommended",
+        "description": "Generate semantic vectors using Google Gemini Embedding API",
+        "pros": "Better quality, strong cross-language capability",
+        "cons": "Uses API key billing (~$0.15 / 1M tokens)"
+      },
+      "select": "Select",
+      "current": "Current",
+      "switchHint": "You can switch anytime from the search interface"
+    },
+    "providerLabel": "Engine:",
+    "backfilling": "Backfilling semantic index {current}/{total}...",
+    "costEstimate": "{tokens} tokens · ~${cost} USD"
   },
   "historyTransfer": {
     "title": "Export/Import",

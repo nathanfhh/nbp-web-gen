@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -7,15 +7,16 @@ import { useSearchWorker } from '@/composables/useSearchWorker'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useConversationStorage } from '@/composables/useConversationStorage'
 import { useHistoryState } from '@/composables/useHistoryState'
-import { deduplicateByParent, highlightSnippet, SEARCH_DEFAULTS } from '@/utils/search-core'
+import { deduplicateByParent, highlightSnippet, stripRecordForIndexing, SEARCH_DEFAULTS } from '@/utils/search-core'
 import { getModeTagStyle } from '@/constants'
+import EmbeddingProviderModal from '@/components/EmbeddingProviderModal.vue'
 
 dayjs.extend(relativeTime)
 
 const props = defineProps({
   modelValue: Boolean,
 })
-const emit = defineEmits(['update:modelValue', 'openLightbox'])
+const emit = defineEmits(['update:modelValue', 'openLightbox', 'loadItem'])
 
 const { t, locale } = useI18n()
 const searchWorker = useSearchWorker()
@@ -37,13 +38,19 @@ const { pushState, popState } = useHistoryState('searchModal', {
 const searchInputRef = ref(null)
 const query = ref('')
 const selectedMode = ref('')
-const selectedStrategy = ref('hybrid')
+const selectedStrategy = ref('fulltext')
 const sortBy = ref('relevance')
 const results = ref([])
 const searchElapsed = ref(0)
 const isSearching = ref(false)
 const isIndexing = ref(false)
 const hasSearched = ref(false)
+
+// IME composition state (prevents Enter during CJK input)
+const isComposing = ref(false)
+
+// Provider selection modal
+const showProviderModal = ref(false)
 
 const strategies = ['hybrid', 'vector', 'fulltext']
 const sortOptions = ['relevance', 'dateDesc', 'dateAsc']
@@ -95,9 +102,18 @@ const modeLabels = computed(() => ({
 // ============================================================================
 
 const modelLoadingLabel = computed(() => {
-  const stage = searchWorker.modelStage.value
-  if (stage === 'init') return t('search.model.initializing')
-  return t('search.model.downloading')
+  return t('search.model.initializing')
+})
+
+// ============================================================================
+// Provider label for UI
+// ============================================================================
+
+const providerDisplayLabel = computed(() => {
+  const p = searchWorker.embeddingProvider.value
+  if (p === 'gemini') return '☁️ Gemini'
+  if (p === 'local') return '📱 Local'
+  return ''
 })
 
 // ============================================================================
@@ -122,6 +138,7 @@ async function runDiagnostic() {
     const diag = await searchWorker.diagnose()
     console.group('[RAG Search] === Diagnostic Report ===')
     console.log('Orama chunks:', diag.totalDocs, '| Unique parents:', diag.uniqueParents)
+    console.log('Active provider:', diag.activeProvider)
     console.log('Embedding cache size:', diag.embeddingCacheSize)
     console.log('Parent IDs (first 50):', diag.parentIds)
     console.log('Chunk distribution (chunks/parent → count):', diag.chunkDistribution)
@@ -153,24 +170,6 @@ async function runSelfHeal() {
 }
 
 /**
- * Strip heavy fields from a record before sending to worker.
- * Worker only needs: id, mode, prompt, timestamp, options.pagesContent
- */
-function stripRecordForIndexing(record) {
-  const stripped = {
-    id: record.id,
-    mode: record.mode,
-    prompt: record.prompt,
-    timestamp: record.timestamp,
-  }
-  // Slides mode needs pagesContent
-  if (record.mode === 'slides' && record.options?.pagesContent) {
-    stripped.options = { pagesContent: record.options.pagesContent }
-  }
-  return stripped
-}
-
-/**
  * Strip heavy fields from agent conversation messages.
  * Worker only needs user text messages (no images, no model replies).
  */
@@ -199,7 +198,7 @@ async function indexMissingRecords(missingIds) {
     // Prepare lightweight records for worker
     const preparedRecords = []
     for (const record of records) {
-      const item = { record: stripRecordForIndexing(record) }
+      const item = { record: stripRecordForIndexing(record.id, record) }
 
       if (record.mode === 'agent') {
         try {
@@ -233,14 +232,36 @@ async function indexMissingRecords(missingIds) {
 }
 
 // ============================================================================
-// Search
+// Provider Selection
 // ============================================================================
 
-let debounceTimer = null
+async function handleProviderSelect(provider) {
+  showProviderModal.value = false
+  localStorage.setItem('nbp-search-embedding-provider', provider)
 
-function debouncedSearch() {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => performSearch(), 300)
+  // Auto-switch to hybrid strategy now that semantic search is available
+  if (selectedStrategy.value === 'fulltext') {
+    selectedStrategy.value = 'hybrid'
+  }
+
+  if (searchWorker.isReady.value) {
+    const result = await searchWorker.switchProvider(provider)
+    if (result.needBackfill > 0) {
+      // Backfill missing embeddings by running selfHeal
+      await runSelfHeal()
+    }
+  }
+}
+
+// ============================================================================
+// Search (manual trigger: Enter key or button)
+// ============================================================================
+
+function handleSearchKeydown(e) {
+  if (e.key === 'Enter' && !isComposing.value) {
+    e.preventDefault()
+    performSearch()
+  }
 }
 
 async function performSearch() {
@@ -290,7 +311,7 @@ async function performSearch() {
         return {
           ...record,
           score: hit.score,
-          snippet: highlightSnippet(hit.chunkText, q),
+          snippet: highlightSnippet(hit.contextText || hit.chunkText, q),
         }
       })
       .filter(Boolean)
@@ -324,22 +345,25 @@ watch(() => props.modelValue, (open) => {
     nextTick(() => {
       setTimeout(() => searchInputRef.value?.focus(), 100)
     })
+    // Show provider selection modal if provider not yet chosen
+    if (!searchWorker.embeddingProvider.value) {
+      showProviderModal.value = true
+    }
   }
 })
 
-watch([selectedMode, selectedStrategy, sortBy], () => {
+// Strategy watcher — re-search when strategy changes
+watch(selectedStrategy, () => {
   savePreferences()
-  if (query.value.trim()) {
+  if (query.value.trim() && hasSearched.value) performSearch()
+})
+
+// Mode / sort filter watcher — re-search if user already searched
+watch([selectedMode, sortBy], () => {
+  savePreferences()
+  if (query.value.trim() && hasSearched.value) {
     performSearch()
   }
-})
-
-watch(query, () => {
-  debouncedSearch()
-})
-
-onUnmounted(() => {
-  if (debounceTimer) clearTimeout(debounceTimer)
 })
 
 // ============================================================================
@@ -356,6 +380,12 @@ function handleKeydown(e) {
 }
 
 function handleResultClick(record) {
+  close()
+  emit('loadItem', record)
+}
+
+function handleThumbnailClick(record, event) {
+  event.stopPropagation()
   emit('openLightbox', record)
 }
 
@@ -418,30 +448,48 @@ function getThumbnailSrc(item) {
                 type="text"
                 :placeholder="$t('search.placeholder')"
                 :aria-label="$t('search.placeholder')"
-                class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-bg-input border border-border-muted text-text-primary placeholder-text-muted text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 transition-all"
+                class="w-full pl-10 pr-20 py-2.5 rounded-xl bg-bg-input border border-border-muted text-text-primary placeholder-text-muted text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 transition-all"
                 :disabled="!searchWorker.isReady.value && !searchWorker.isModelLoading.value"
+                @keydown="handleSearchKeydown"
                 @keydown.esc="close"
+                @compositionstart="isComposing = true"
+                @compositionend="isComposing = false"
               />
-              <!-- Clear button -->
-              <button
-                v-if="query && !isSearching"
-                @click="query = ''; results = []; hasSearched = false"
-                :aria-label="$t('common.clear')"
-                class="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <!-- Right-side actions (clear / spinner / search button) -->
+              <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                <!-- Clear button -->
+                <button
+                  v-if="query && !isSearching"
+                  @click="query = ''; results = []; hasSearched = false"
+                  :aria-label="$t('common.clear')"
+                  class="p-0.5 rounded-full hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <!-- Spinner -->
+                <svg
+                  v-if="isSearching"
+                  class="w-4 h-4 animate-spin text-text-muted"
+                  fill="none" viewBox="0 0 24 24"
+                >
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-              </button>
-              <!-- Spinner in input -->
-              <svg
-                v-if="isSearching"
-                class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-text-muted"
-                fill="none" viewBox="0 0 24 24"
-              >
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+                <!-- Search button -->
+                <button
+                  v-if="!isSearching"
+                  @click="performSearch"
+                  :disabled="!query.trim() || !searchWorker.isReady.value"
+                  :aria-label="$t('search.searchButton')"
+                  class="p-1 rounded-lg text-text-muted hover:text-brand-primary hover:bg-bg-interactive disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -465,7 +513,7 @@ function getThumbnailSrc(item) {
               </button>
             </div>
 
-            <!-- Strategy + Sort selectors -->
+            <!-- Strategy + Sort + Provider selectors -->
             <div class="flex items-center gap-3 flex-wrap">
               <label class="flex items-center gap-1">
                 <span class="text-xs text-text-muted whitespace-nowrap">{{ $t('search.strategyLabel') }}</span>
@@ -490,6 +538,16 @@ function getThumbnailSrc(item) {
                     {{ $t(`search.sort.${s}`) }}
                   </option>
                 </select>
+              </label>
+              <!-- Provider toggle button -->
+              <label v-if="searchWorker.embeddingProvider.value" class="flex items-center gap-1">
+                <span class="text-xs text-text-muted whitespace-nowrap">{{ $t('search.providerLabel') }}</span>
+                <button
+                  @click="showProviderModal = true"
+                  class="text-xs px-2 py-1 rounded-lg bg-bg-muted text-text-secondary border border-border-muted hover:border-brand-primary hover:text-brand-primary transition-all"
+                >
+                  {{ providerDisplayLabel }}
+                </button>
               </label>
             </div>
           </div>
@@ -561,8 +619,12 @@ function getThumbnailSrc(item) {
                 role="button"
                 class="group flex items-start gap-3 p-3 rounded-xl bg-bg-muted/50 hover:bg-bg-interactive focus:bg-bg-interactive focus:outline-none focus:ring-2 focus:ring-brand-primary/50 cursor-pointer transition-all"
               >
-                <!-- Thumbnail -->
-                <div v-if="getThumbnailSrc(item)" class="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden cursor-zoom-in">
+                <!-- Thumbnail (click → lightbox) -->
+                <div
+                  v-if="getThumbnailSrc(item)"
+                  @click="handleThumbnailClick(item, $event)"
+                  class="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden cursor-zoom-in hover:ring-2 hover:ring-brand-primary-light transition-all"
+                >
                   <img
                     :src="getThumbnailSrc(item)"
                     :alt="item.prompt"
@@ -610,14 +672,24 @@ function getThumbnailSrc(item) {
           </div>
 
           <!-- Footer -->
-          <div v-if="searchWorker.isReady.value" class="px-5 py-3 border-t border-border-muted">
+          <div v-if="searchWorker.isReady.value" class="px-5 py-3 border-t border-border-muted flex items-center justify-between gap-2">
             <span class="text-xs text-text-muted">
               {{ $t('search.indexed', { count: searchWorker.indexedCount.value }) }}
+            </span>
+            <span v-if="searchWorker.embeddingCost.value.totalTokens > 0" class="text-xs text-text-muted font-mono">
+              {{ $t('search.costEstimate', { tokens: searchWorker.embeddingCost.value.totalTokens.toLocaleString(), cost: searchWorker.embeddingCost.value.estimatedCostUsd.toFixed(6) }) }}
             </span>
           </div>
         </div>
       </div>
     </Transition>
+
+    <!-- Embedding Provider Selection Modal -->
+    <EmbeddingProviderModal
+      v-model="showProviderModal"
+      :current-provider="searchWorker.embeddingProvider.value"
+      @select="handleProviderSelect"
+    />
   </Teleport>
 </template>
 

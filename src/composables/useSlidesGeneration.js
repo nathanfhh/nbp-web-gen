@@ -25,7 +25,7 @@ export function useSlidesGeneration() {
   const { generateNarrationScripts, generatePageAudio } = useNarrationApi()
   const imageStorage = useImageStorage()
   const audioStorage = useAudioStorage()
-  const { updateHistoryImages, updateHistoryNarration, updateHistoryStatus, getRecord } = useIndexedDB()
+  const { updateHistoryImages, updateHistoryNarration, updateHistoryStatus, updateHistory, getHistoryById: getRecord } = useIndexedDB()
 
   const isGenerating = ref(false)
 
@@ -571,6 +571,30 @@ export function useSlidesGeneration() {
           newStatus = 'partial'
         }
         await updateHistoryStatus(historyId, newStatus)
+
+        // Update pagesContent in history to ensure search index reflects text changes
+        try {
+          const record = await getRecord(historyId)
+          if (record && record.options) {
+            const pagesContent = store.slidesOptions.pages.map((p) => ({
+              id: p.id,
+              pageNumber: p.pageNumber,
+              content: p.content,
+            }))
+            
+            // Deep merge options to preserve other fields
+            const updatedOptions = {
+              ...record.options,
+              pagesContent,
+              // Also update pagesRaw if it exists, to keep it in sync
+              pagesRaw: store.slidesOptions.pagesRaw || record.options.pagesRaw
+            }
+
+            await updateHistory(historyId, { options: updatedOptions })
+          }
+        } catch (err) {
+          console.error('Failed to update history content:', err)
+        }
 
         await store.loadHistory()
       } catch (err) {
