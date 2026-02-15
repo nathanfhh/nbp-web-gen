@@ -42,9 +42,13 @@ function close() {
 
 watch(
   () => props.modelValue,
-  (val) => {
+  async (val) => {
     if (!val) {
       destroyPlot()
+    } else if (plotData.value) {
+      // Re-render existing data when modal reopens (plot was purged on close)
+      await nextTick()
+      renderPlot()
     }
   },
 )

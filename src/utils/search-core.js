@@ -258,7 +258,7 @@ export function deduplicateByParent(hits) {
   // Apply aggregated scoring
   for (const entry of parentMap.values()) {
     const maxScore = entry.score
-    entry.score = maxScore * (1 + 0.3 * Math.log10(entry.matchCount))
+    entry.score = maxScore * (1 + 0.3 * Math.log10(Math.max(1, entry.matchCount)))
   }
 
   return Array.from(parentMap.values()).sort((a, b) => b.score - a.score)

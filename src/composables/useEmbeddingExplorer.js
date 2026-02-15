@@ -49,7 +49,11 @@ function loadBool(key, fallback) {
 }
 
 function save(key, value) {
-  localStorage.setItem(key, String(value))
+  try {
+    localStorage.setItem(key, String(value))
+  } catch {
+    // Quota exceeded or private browsing — non-critical, skip silently
+  }
 }
 
 // ============================================================================

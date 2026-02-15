@@ -261,7 +261,7 @@ async function handleProviderSelect(provider) {
 // ============================================================================
 
 function handleSearchKeydown(e) {
-  if (e.key === 'Enter' && !isComposing.value) {
+  if (e.key === 'Enter' && !isComposing.value && !e.isComposing) {
     e.preventDefault()
     performSearch()
   }
