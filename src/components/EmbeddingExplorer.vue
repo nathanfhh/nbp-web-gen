@@ -362,7 +362,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Plot Area -->
-          <div class="flex-1 relative min-h-[560px] mx-5 mb-5 rounded-xl border border-border-muted overflow-hidden">
+          <div class="plot-area flex-1 relative min-h-0 mx-5 mb-5 rounded-xl border border-border-muted overflow-hidden">
             <!-- Loading Overlay -->
             <div
               v-if="isProcessing"
@@ -403,7 +403,7 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- Plotly container -->
-            <div ref="plotContainer" class="w-full h-full" style="min-height: 560px" />
+            <div ref="plotContainer" class="w-full h-full" />
 
             <!-- Data info badge -->
             <div
@@ -420,6 +420,23 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.plot-area {
+  min-height: 300px;
+}
+
+/* Move Plotly modebar from top-right to bottom-right.
+   Both .modebar-container (inline style) and .modebar (SCSS)
+   default to position:absolute; top:2px; right:2px.
+   Override only top→bottom on both; keep right:2px intact. */
+.plot-area :deep(.modebar-container) {
+  top: auto !important;
+  bottom: 4px !important;
+}
+.plot-area :deep(.modebar) {
+  top: auto !important;
+  bottom: 0 !important;
+}
+
 .explorer-modal-enter-active,
 .explorer-modal-leave-active {
   transition: opacity 0.2s ease;
