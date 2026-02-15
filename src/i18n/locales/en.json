@@ -838,6 +838,29 @@
     "backfilling": "Backfilling semantic index {current}/{total}...",
     "costEstimate": "{tokens} tokens · ~${cost} USD"
   },
+  "embeddingExplorer": {
+    "title": "Embedding 3D Explorer",
+    "dataSource": "Data Source",
+    "sampleSize": "Sample Size",
+    "fullData": "Use Full Data",
+    "colorBy": "Color",
+    "colorByMode": "By Mode",
+    "colorBySingle": "Single Color",
+    "hoverNone": "ID Only",
+    "hoverTruncate": "Truncated Text",
+    "hoverFull": "Full Text",
+    "start": "Start Process",
+    "processing": "Processing...",
+    "computing": "Running UMAP dimensionality reduction...",
+    "points": "points",
+    "emptyState": "Choose data source and click Start to visualize embedding distribution",
+    "errorHint": "Try reducing the sample size or switching data source",
+    "error": {
+      "NO_DATA": "No snapshot data found for this provider. Please index some records in search first.",
+      "NO_EMBEDDINGS": "No valid embeddings found in the snapshot.",
+      "TOO_FEW": "Need at least 4 data points for UMAP reduction."
+    }
+  },
   "historyTransfer": {
     "title": "Export/Import",
     "historyTab": "History",

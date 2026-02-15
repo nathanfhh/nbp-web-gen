@@ -10,6 +10,7 @@ import { useHistoryState } from '@/composables/useHistoryState'
 import { deduplicateByParent, highlightSnippet, stripRecordForIndexing, SEARCH_DEFAULTS } from '@/utils/search-core'
 import { getModeTagStyle } from '@/constants'
 import EmbeddingProviderModal from '@/components/EmbeddingProviderModal.vue'
+import EmbeddingExplorer from '@/components/EmbeddingExplorer.vue'
 
 dayjs.extend(relativeTime)
 
@@ -51,6 +52,9 @@ const isComposing = ref(false)
 
 // Provider selection modal
 const showProviderModal = ref(false)
+
+// Embedding Explorer modal
+const showEmbeddingExplorer = ref(false)
 
 const strategies = ['hybrid', 'vector', 'fulltext']
 const sortOptions = ['relevance', 'dateDesc', 'dateAsc']
@@ -423,15 +427,34 @@ function getThumbnailSrc(item) {
             <h3 class="font-semibold text-text-primary text-base">
               {{ $t('search.title') }}
             </h3>
-            <button
-              @click="close"
-              class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
-              :aria-label="$t('common.close')"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div class="flex items-center gap-1">
+              <!-- Embedding Explorer button -->
+              <button
+                @click="showEmbeddingExplorer = true"
+                class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
+                :title="$t('embeddingExplorer.title')"
+                :aria-label="$t('embeddingExplorer.title')"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18" />
+                  <circle cx="9" cy="13" r="1.5" fill="currentColor" stroke="none" />
+                  <circle cx="13" cy="9" r="1.5" fill="currentColor" stroke="none" />
+                  <circle cx="17" cy="6" r="1.5" fill="currentColor" stroke="none" />
+                  <circle cx="11" cy="16" r="1.5" fill="currentColor" stroke="none" />
+                  <circle cx="16" cy="11" r="1.5" fill="currentColor" stroke="none" />
+                </svg>
+              </button>
+              <!-- Close button -->
+              <button
+                @click="close"
+                class="p-1.5 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
+                :aria-label="$t('common.close')"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <!-- Search Input -->
@@ -688,6 +711,9 @@ function getThumbnailSrc(item) {
       :current-provider="searchWorker.embeddingProvider.value"
       @select="handleProviderSelect"
     />
+
+    <!-- Embedding 3D Explorer -->
+    <EmbeddingExplorer v-model="showEmbeddingExplorer" />
   </Teleport>
 </template>
 

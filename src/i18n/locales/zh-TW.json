@@ -838,6 +838,29 @@
     "backfilling": "補齊語意索引中 {current}/{total}...",
     "costEstimate": "{tokens} tokens · ~${cost} USD"
   },
+  "embeddingExplorer": {
+    "title": "Embedding 3D 探索器",
+    "dataSource": "資料來源",
+    "sampleSize": "抽樣數量",
+    "fullData": "使用全部資料",
+    "colorBy": "著色",
+    "colorByMode": "依模式",
+    "colorBySingle": "單一顏色",
+    "hoverNone": "僅顯示 ID",
+    "hoverTruncate": "截斷文字",
+    "hoverFull": "完整文字",
+    "start": "開始處理",
+    "processing": "處理中...",
+    "computing": "正在執行 UMAP 降維運算...",
+    "points": "個點",
+    "emptyState": "選擇資料來源並點擊「開始處理」以視覺化 embedding 分佈",
+    "errorHint": "嘗試減少抽樣數量或切換資料來源",
+    "error": {
+      "NO_DATA": "找不到此提供者的快照資料，請先在搜尋中索引一些記錄。",
+      "NO_EMBEDDINGS": "快照中找不到有效的 embedding 向量。",
+      "TOO_FEW": "UMAP 降維至少需要 4 個資料點。"
+    }
+  },
   "historyTransfer": {
     "title": "匯出/匯入",
     "historyTab": "歷史紀錄",
