@@ -832,7 +832,8 @@
       },
       "select": "選擇",
       "current": "使用中",
-      "switchHint": "之後可隨時在搜尋介面切換"
+      "switchHint": "之後可隨時在搜尋介面切換",
+      "noApiKey": "需要先設定 API Key"
     },
     "providerLabel": "引擎：",
     "backfilling": "補齊語意索引中 {current}/{total}...",

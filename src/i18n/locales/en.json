@@ -832,7 +832,8 @@
       },
       "select": "Select",
       "current": "Current",
-      "switchHint": "You can switch anytime from the search interface"
+      "switchHint": "You can switch anytime from the search interface",
+      "noApiKey": "API Key required"
     },
     "providerLabel": "Engine:",
     "backfilling": "Backfilling semantic index {current}/{total}...",

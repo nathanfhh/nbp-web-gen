@@ -54,6 +54,11 @@ const isComposing = ref(false)
 
 // Provider selection modal
 const showProviderModal = ref(false)
+const hasAnyApiKey = ref(false)
+
+function refreshApiKeyStatus() {
+  hasAnyApiKey.value = !!(localStorage.getItem('nanobanana-api-key') || localStorage.getItem('nanobanana-free-tier-api-key'))
+}
 
 // Embedding Explorer modal
 const showEmbeddingExplorer = ref(false)
@@ -344,6 +349,7 @@ async function performSearch() {
 watch(() => props.modelValue, (open) => {
   if (open) {
     pushState()
+    refreshApiKeyStatus()
     initializeSearch()
     // Auto-focus search input after transition
     nextTick(() => {
@@ -566,7 +572,7 @@ function getThumbnailSrc(item) {
               <label v-if="searchWorker.embeddingProvider.value" class="flex items-center gap-1">
                 <span class="text-xs text-text-muted whitespace-nowrap">{{ $t('search.providerLabel') }}</span>
                 <button
-                  @click="showProviderModal = true"
+                  @click="refreshApiKeyStatus(); showProviderModal = true"
                   class="text-xs px-2 py-1 rounded-lg bg-bg-muted text-text-secondary border border-border-muted hover:border-brand-primary hover:text-brand-primary transition-all"
                 >
                   {{ providerDisplayLabel }}
@@ -711,6 +717,7 @@ function getThumbnailSrc(item) {
     <EmbeddingProviderModal
       v-model="showProviderModal"
       :current-provider="searchWorker.embeddingProvider.value"
+      :has-api-key="hasAnyApiKey"
       @select="handleProviderSelect"
     />
 

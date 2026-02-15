@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: Boolean,
     default: false,
@@ -11,6 +11,10 @@ defineProps({
   currentProvider: {
     type: String,
     default: null,
+  },
+  hasApiKey: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -105,13 +109,16 @@ function dismiss() {
 
             <!-- Gemini API Card -->
             <button
-              @click="selectProvider('gemini')"
-              class="group flex flex-col items-center text-center p-4 rounded-xl border-2 transition-all cursor-pointer"
-              :class="
+              @click="props.hasApiKey ? selectProvider('gemini') : undefined"
+              :disabled="!props.hasApiKey && currentProvider !== 'gemini'"
+              class="group flex flex-col items-center text-center p-4 rounded-xl border-2 transition-all"
+              :class="[
                 currentProvider === 'gemini'
-                  ? 'border-brand-primary bg-bg-interactive ring-1 ring-brand-primary/30'
-                  : 'border-border-muted hover:border-brand-primary bg-bg-muted/50 hover:bg-bg-interactive'
-              "
+                  ? 'border-brand-primary bg-bg-interactive ring-1 ring-brand-primary/30 cursor-pointer'
+                  : props.hasApiKey
+                    ? 'border-border-muted hover:border-brand-primary bg-bg-muted/50 hover:bg-bg-interactive cursor-pointer'
+                    : 'border-border-muted bg-bg-muted/30 opacity-60 cursor-not-allowed',
+              ]"
             >
               <span class="text-2xl mb-2">☁️</span>
               <span class="font-medium text-sm text-text-primary mb-1">
@@ -128,6 +135,7 @@ function dismiss() {
                 <p class="text-text-muted">✗ {{ t('search.providerModal.gemini.cons') }}</p>
               </div>
               <span
+                v-if="props.hasApiKey || currentProvider === 'gemini'"
                 class="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
                 :class="
                   currentProvider === 'gemini'
@@ -136,6 +144,12 @@ function dismiss() {
                 "
               >
                 {{ currentProvider === 'gemini' ? t('search.providerModal.current') : t('search.providerModal.select') }}
+              </span>
+              <span
+                v-else
+                class="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium bg-bg-muted text-text-muted"
+              >
+                {{ t('search.providerModal.noApiKey') }}
               </span>
             </button>
           </div>
