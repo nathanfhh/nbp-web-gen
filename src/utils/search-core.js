@@ -67,9 +67,9 @@ export function extractText(record, conversation = null) {
 
     case 'agent': {
       if (conversation && Array.isArray(conversation)) {
-        const userTexts = extractAgentUserMessages(conversation)
-        if (userTexts.length > 0) {
-          return userTexts.map((m) => m.text).join('\n')
+        const allMsgs = extractAgentMessages(conversation)
+        if (allMsgs.length > 0) {
+          return allMsgs.map((m) => m.text).join('\n')
         }
       }
       // Fallback to prompt field (first 200 chars stored in IndexedDB)
@@ -112,6 +112,37 @@ export function extractAgentUserMessages(messages) {
     }
     if (textParts.length > 0) {
       results.push({ text: textParts.join('\n'), messageIndex: i })
+    }
+  }
+  return results
+}
+
+/**
+ * Extract text from ALL messages (user + model) in an agent conversation.
+ * Includes AI responses so users can search for content in model answers.
+ * Skips images, thinking parts, and partial messages.
+ *
+ * @param {Array} messages - Conversation messages array
+ * @returns {Array<{ text: string, messageIndex: number, role: string }>}
+ */
+export function extractAgentMessages(messages) {
+  if (!Array.isArray(messages)) return []
+
+  const results = []
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i]
+    if (!msg || msg._isPartial) continue
+    if (msg.role !== 'user' && msg.role !== 'model') continue
+
+    const parts = msg.parts || []
+    const textParts = []
+    for (const part of parts) {
+      if (part?.type === 'text' && part.text) {
+        textParts.push(part.text)
+      }
+    }
+    if (textParts.length > 0) {
+      results.push({ text: textParts.join('\n'), messageIndex: i, role: msg.role })
     }
   }
   return results

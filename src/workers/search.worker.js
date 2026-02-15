@@ -39,7 +39,7 @@
 
 import { create, search, insertMultiple, removeMultiple } from '@orama/orama'
 
-import { extractText, chunkText, extractAgentUserMessages, SEARCH_DEFAULTS } from '../utils/search-core.js'
+import { extractText, chunkText, extractAgentMessages, SEARCH_DEFAULTS } from '../utils/search-core.js'
 
 // ============================================================================
 // Constants
@@ -750,8 +750,8 @@ async function indexRecord(record, conversation = null) {
 
   let chunks
   if (mode === 'agent' && conversation) {
-    const userMsgs = extractAgentUserMessages(conversation)
-    chunks = userMsgs.map((m, i) => ({ text: m.text, contextText: m.text, index: i }))
+    const allMsgs = extractAgentMessages(conversation)
+    chunks = allMsgs.map((m, i) => ({ text: m.text, contextText: m.text, index: i }))
   } else {
     chunks = chunkText(fullText, chunkOpts)
   }
@@ -936,7 +936,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
   if (strategy === 'fulltext') {
     results = await search(oramaDb, {
       term: query,
-      properties: ['chunkText'],
+      properties: ['chunkText', 'mode'],
       limit: SEARCH_DEFAULTS.searchLimit,
       ...(Object.keys(where).length > 0 ? { where } : {}),
     })
@@ -968,7 +968,7 @@ async function performSearch(query, { mode = '', strategy = 'hybrid' } = {}) {
     // Phase 1: BM25 keyword search (reliable, fast)
     const bm25Results = await search(oramaDb, {
       term: query,
-      properties: ['chunkText'],
+      properties: ['chunkText', 'mode'],
       limit: SEARCH_DEFAULTS.searchLimit,
       ...(Object.keys(where).length > 0 ? { where } : {}),
     })

@@ -3,6 +3,7 @@ import {
   SEARCH_DEFAULTS,
   extractText,
   extractAgentUserMessages,
+  extractAgentMessages,
   chunkText,
   deduplicateByParent,
   highlightSnippet,
@@ -181,14 +182,14 @@ describe('extractText', () => {
   })
 
   // Agent mode
-  it('extracts user messages from agent conversation', () => {
+  it('extracts both user and model messages from agent conversation', () => {
     const record = { mode: 'agent', prompt: 'short prompt' }
     const conversation = [
       { role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
       { role: 'model', parts: [{ type: 'text', text: 'Hi there' }] },
       { role: 'user', parts: [{ type: 'text', text: 'Draw a cat' }] },
     ]
-    expect(extractText(record, conversation)).toBe('Hello\nDraw a cat')
+    expect(extractText(record, conversation)).toBe('Hello\nHi there\nDraw a cat')
   })
 
   it('falls back to prompt when agent has no conversation', () => {
@@ -201,10 +202,10 @@ describe('extractText', () => {
     expect(extractText(record, [])).toBe('fallback')
   })
 
-  it('falls back to prompt when agent conversation has no user messages', () => {
+  it('falls back to prompt when agent conversation has no text messages', () => {
     const record = { mode: 'agent', prompt: 'fallback' }
     const conversation = [
-      { role: 'model', parts: [{ type: 'text', text: 'Hello' }] },
+      { role: 'user', parts: [{ type: 'image', data: 'base64...' }] },
     ]
     expect(extractText(record, conversation)).toBe('fallback')
   })
@@ -296,6 +297,115 @@ describe('extractAgentUserMessages', () => {
     ]
     expect(extractAgentUserMessages(messages)).toEqual([
       { text: 'has parts', messageIndex: 2 },
+    ])
+  })
+})
+
+// ============================================================================
+// extractAgentMessages (user + model)
+// ============================================================================
+
+describe('extractAgentMessages', () => {
+  it('returns empty array for null/undefined', () => {
+    expect(extractAgentMessages(null)).toEqual([])
+    expect(extractAgentMessages(undefined)).toEqual([])
+  })
+
+  it('returns empty array for non-array', () => {
+    expect(extractAgentMessages('not array')).toEqual([])
+  })
+
+  it('returns empty array for empty array', () => {
+    expect(extractAgentMessages([])).toEqual([])
+  })
+
+  it('extracts both user and model text messages', () => {
+    const messages = [
+      { role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
+      { role: 'model', parts: [{ type: 'text', text: 'Hi there!' }] },
+      { role: 'user', parts: [{ type: 'text', text: 'Draw a cat' }] },
+      { role: 'model', parts: [{ type: 'text', text: 'Here is a cat drawing' }] },
+    ]
+    const result = extractAgentMessages(messages)
+    expect(result).toEqual([
+      { text: 'Hello', messageIndex: 0, role: 'user' },
+      { text: 'Hi there!', messageIndex: 1, role: 'model' },
+      { text: 'Draw a cat', messageIndex: 2, role: 'user' },
+      { text: 'Here is a cat drawing', messageIndex: 3, role: 'model' },
+    ])
+  })
+
+  it('includes role field in results', () => {
+    const messages = [
+      { role: 'user', parts: [{ type: 'text', text: 'question' }] },
+      { role: 'model', parts: [{ type: 'text', text: 'answer' }] },
+    ]
+    const result = extractAgentMessages(messages)
+    expect(result[0].role).toBe('user')
+    expect(result[1].role).toBe('model')
+  })
+
+  it('skips partial messages', () => {
+    const messages = [
+      { role: 'user', parts: [{ type: 'text', text: 'complete' }] },
+      { role: 'model', _isPartial: true, parts: [{ type: 'text', text: 'streaming...' }] },
+    ]
+    expect(extractAgentMessages(messages)).toEqual([
+      { text: 'complete', messageIndex: 0, role: 'user' },
+    ])
+  })
+
+  it('skips unknown roles (e.g. system)', () => {
+    const messages = [
+      { role: 'system', parts: [{ type: 'text', text: 'system prompt' }] },
+      { role: 'user', parts: [{ type: 'text', text: 'user msg' }] },
+    ]
+    expect(extractAgentMessages(messages)).toEqual([
+      { text: 'user msg', messageIndex: 1, role: 'user' },
+    ])
+  })
+
+  it('skips image-only messages', () => {
+    const messages = [
+      { role: 'user', parts: [{ type: 'image', data: 'base64...' }] },
+      { role: 'model', parts: [{ type: 'text', text: 'I see an image' }] },
+    ]
+    expect(extractAgentMessages(messages)).toEqual([
+      { text: 'I see an image', messageIndex: 1, role: 'model' },
+    ])
+  })
+
+  it('concatenates multiple text parts in one message', () => {
+    const messages = [
+      {
+        role: 'model',
+        parts: [
+          { type: 'text', text: 'First paragraph.' },
+          { type: 'image', data: 'base64...' },
+          { type: 'text', text: 'Second paragraph.' },
+        ],
+      },
+    ]
+    expect(extractAgentMessages(messages)).toEqual([
+      { text: 'First paragraph.\nSecond paragraph.', messageIndex: 0, role: 'model' },
+    ])
+  })
+
+  it('handles null messages in array', () => {
+    const messages = [null, { role: 'model', parts: [{ type: 'text', text: 'valid' }] }, undefined]
+    expect(extractAgentMessages(messages)).toEqual([
+      { text: 'valid', messageIndex: 1, role: 'model' },
+    ])
+  })
+
+  it('handles messages with no parts', () => {
+    const messages = [
+      { role: 'user' },
+      { role: 'model', parts: [] },
+      { role: 'user', parts: [{ type: 'text', text: 'has parts' }] },
+    ]
+    expect(extractAgentMessages(messages)).toEqual([
+      { text: 'has parts', messageIndex: 2, role: 'user' },
     ])
   })
 })

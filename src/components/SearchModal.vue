@@ -182,7 +182,7 @@ async function runSelfHeal() {
 function stripConversationForIndexing(conversation) {
   if (!Array.isArray(conversation)) return null
   return conversation
-    .filter((msg) => msg && msg.role === 'user' && !msg._isPartial)
+    .filter((msg) => msg && (msg.role === 'user' || msg.role === 'model') && !msg._isPartial)
     .map((msg) => ({
       role: msg.role,
       parts: (msg.parts || [])
