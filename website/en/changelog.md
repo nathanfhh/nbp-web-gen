@@ -2,6 +2,22 @@
 
 This page documents version updates for Mediator.
 
+## v0.28.1
+
+_2026-02-15_
+
+### Fixes
+- **Smart Search**: Fix Agentic Vision records being completely unsearchable (model responses not indexed, mode name BM25 mismatch, snapshot not invalidated on extraction logic change)
+- **Smart Search**: Fix agent records silently skipped during indexing when conversation has no text — now falls back to prompt text
+- **Smart Search**: Fix zero-vector embeddings being cached and persisted permanently, preventing re-indexing on retry
+- **Smart Search**: Add bilingual mode labels for BM25 search (e.g., "agentic vision", "智慧視覺" now match Agent mode records)
+- **Smart Search**: Disable Gemini embedding provider when no API key is configured, preventing silent zero-vector generation
+- **Smart Search**: Fix Plotly chart not re-rendering on modal reopen, localStorage quota exception in private mode, and IME composition triggering search on Enter
+- **Lightbox**: Fix ESC closing both lightbox and search modal simultaneously when opened from search results
+
+### Testing
+- Add extractAgentMessages tests (11 cases, 437 total)
+
 ## v0.28.0
 
 _2026-02-15_
