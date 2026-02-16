@@ -2,6 +2,19 @@
 
 This page documents version updates for Mediator.
 
+## v0.28.2
+
+_2026-02-16_
+
+### Improvements
+- **Embedding Explorer**: Add "By Record" coloring mode, grouping by historyId with a 20-color palette
+- **Embedding Explorer**: Hide sample size input when "Use Full Data" is checked
+
+### Fixes
+- **Embedding Explorer**: Fix Plotly legend showing English mode names in Chinese locale
+- **Embedding Explorer**: Fix "Hover" label not translated (was hardcoded as "Hover:")
+- **Embedding Explorer**: Fix Plotly modebar being clipped on mobile devices
+
 ## v0.28.1
 
 _2026-02-15_
