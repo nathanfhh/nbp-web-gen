@@ -2,6 +2,24 @@
 
 This page documents version updates for Mediator.
 
+## v0.28.3
+
+_2026-02-16_
+
+### New Features
+- **Embedding Explorer**: Add mode filter with styled chip buttons for multi-select filtering of data points by generation mode
+
+### Improvements
+- **Embedding Explorer**: Increase plot area minimum height (300px → 450px)
+- **Embedding Explorer**: Move Plotly modebar to top-left, restore screenshot download button
+- **Embedding Explorer**: Support legend scrolling when entries overflow
+
+### Fixes
+- **Embedding Explorer**: Fix wheel events bleeding through modal to background page
+
+### Refactor
+- **Mode Definitions**: Centralize generation modes list into shared `GENERATION_MODES` constant (Single Source of Truth)
+
 ## v0.28.2
 
 _2026-02-16_
