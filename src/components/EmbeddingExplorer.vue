@@ -32,6 +32,14 @@ const MODE_COLORS = {
 
 const SINGLE_COLOR = '#6366f1'
 
+// Palette for historyId coloring (distinct colors for up to ~20 IDs, then cycles)
+const HISTORY_PALETTE = [
+  '#6366f1', '#ef4444', '#10b981', '#f59e0b', '#ec4899',
+  '#0ea5e9', '#8b5cf6', '#14b8a6', '#f97316', '#06b6d4',
+  '#84cc16', '#e11d48', '#7c3aed', '#059669', '#d946ef',
+  '#0284c7', '#ca8a04', '#dc2626', '#2563eb', '#65a30d',
+]
+
 // ============================================================================
 // Modal lifecycle
 // ============================================================================
@@ -105,34 +113,57 @@ function buildHoverText(doc) {
   return `${id}<br>${wrapText(truncated)}`
 }
 
+function buildGroupedTraces(docs, coordinates, groupFn, colorFn, labelFn) {
+  const groups = {}
+  docs.forEach((doc, i) => {
+    const key = groupFn(doc)
+    if (!groups[key]) groups[key] = { x: [], y: [], z: [], text: [] }
+    groups[key].x.push(coordinates[i][0])
+    groups[key].y.push(coordinates[i][1])
+    groups[key].z.push(coordinates[i][2])
+    groups[key].text.push(buildHoverText(doc))
+  })
+
+  const keys = Object.keys(groups)
+  return keys.map((key, idx) => ({
+    type: 'scatter3d',
+    mode: 'markers',
+    name: labelFn(key, idx),
+    x: groups[key].x,
+    y: groups[key].y,
+    z: groups[key].z,
+    text: groups[key].text,
+    hoverinfo: 'text',
+    marker: {
+      size: 5,
+      color: colorFn(key, idx),
+      opacity: 0.85,
+    },
+  }))
+}
+
 function buildTraces(docs, coordinates) {
   if (settings.colorBy === 'mode') {
-    // Group by mode, one trace per mode
-    const groups = {}
-    docs.forEach((doc, i) => {
-      const mode = doc.mode || 'unknown'
-      if (!groups[mode]) groups[mode] = { x: [], y: [], z: [], text: [] }
-      groups[mode].x.push(coordinates[i][0])
-      groups[mode].y.push(coordinates[i][1])
-      groups[mode].z.push(coordinates[i][2])
-      groups[mode].text.push(buildHoverText(doc))
-    })
+    return buildGroupedTraces(
+      docs, coordinates,
+      (doc) => doc.mode || 'unknown',
+      (mode) => MODE_COLORS[mode] || '#94a3b8',
+      (mode) => t(`modes.${mode}.name`, mode),
+    )
+  }
 
-    return Object.entries(groups).map(([mode, data]) => ({
-      type: 'scatter3d',
-      mode: 'markers',
-      name: mode,
-      x: data.x,
-      y: data.y,
-      z: data.z,
-      text: data.text,
-      hoverinfo: 'text',
-      marker: {
-        size: 5,
-        color: MODE_COLORS[mode] || '#94a3b8',
-        opacity: 0.85,
-      },
-    }))
+  if (settings.colorBy === 'historyId') {
+    // Assign a stable color per unique parentId
+    const uniqueIds = [...new Set(docs.map((d) => d.parentId))]
+    const idColorMap = Object.fromEntries(
+      uniqueIds.map((id, i) => [id, HISTORY_PALETTE[i % HISTORY_PALETTE.length]]),
+    )
+    return buildGroupedTraces(
+      docs, coordinates,
+      (doc) => doc.parentId,
+      (parentId) => idColorMap[parentId],
+      (parentId) => `#${parentId}`,
+    )
   }
 
   // Single color
@@ -188,7 +219,7 @@ async function renderPlot() {
       bgcolor: 'rgba(0,0,0,0)',
       itemsizing: 'constant',
     },
-    showlegend: settings.colorBy === 'mode',
+    showlegend: settings.colorBy !== 'single',
   }
 
   destroyPlot()
@@ -295,8 +326,8 @@ onBeforeUnmount(() => {
                 </label>
               </div>
 
-              <!-- Sample Size -->
-              <div class="flex items-center gap-2">
+              <!-- Sample Size (hidden when full data is checked) -->
+              <div v-if="!settings.useFullData" class="flex items-center gap-2">
                 <label class="text-text-secondary font-medium">{{ t('embeddingExplorer.sampleSize') }}:</label>
                 <input
                   type="number"
@@ -304,7 +335,6 @@ onBeforeUnmount(() => {
                   min="10"
                   max="10000"
                   class="w-20 px-2 py-1 rounded-lg bg-bg-input border border-border-muted text-text-primary text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
-                  :disabled="settings.useFullData"
                 />
               </div>
 
@@ -329,13 +359,14 @@ onBeforeUnmount(() => {
                   class="px-2 py-1 rounded-lg bg-bg-input border border-border-muted text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
                 >
                   <option value="mode">{{ t('embeddingExplorer.colorByMode') }}</option>
+                  <option value="historyId">{{ t('embeddingExplorer.colorByHistoryId') }}</option>
                   <option value="single">{{ t('embeddingExplorer.colorBySingle') }}</option>
                 </select>
               </div>
 
               <!-- Hover Text -->
               <div class="flex items-center gap-2">
-                <label class="text-text-secondary font-medium">Hover:</label>
+                <label class="text-text-secondary font-medium">{{ t('embeddingExplorer.hoverLabel') }}:</label>
                 <select
                   v-model="settings.hoverText"
                   class="px-2 py-1 rounded-lg bg-bg-input border border-border-muted text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
