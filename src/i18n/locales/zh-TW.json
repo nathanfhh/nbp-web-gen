@@ -844,6 +844,8 @@
     "dataSource": "資料來源",
     "sampleSize": "抽樣數量",
     "fullData": "使用全部資料",
+    "filterModes": "模式篩選",
+    "allModes": "全部",
     "colorBy": "著色",
     "colorByMode": "依模式",
     "colorByHistoryId": "依記錄",

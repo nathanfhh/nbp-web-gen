@@ -1,7 +1,12 @@
 /**
- * Mode Tag 樣式定義 - Single Source of Truth
- * 用於 GenerationHistory, HistoryTransfer 等處的模式標籤
+ * Mode 定義 - Single Source of Truth
+ * 用於 GenerationHistory, HistoryTransfer, EmbeddingExplorer 等處
  */
+
+/**
+ * 所有生成模式的有序列表
+ */
+export const GENERATION_MODES = ['generate', 'sticker', 'edit', 'story', 'diagram', 'video', 'slides', 'agent']
 
 /**
  * 模式標籤的 CSS 類別映射

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEmbeddingExplorer } from '@/composables/useEmbeddingExplorer'
+import { GENERATION_MODES } from '@/constants/modeStyles'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -41,6 +42,27 @@ const HISTORY_PALETTE = [
 ]
 
 // ============================================================================
+// Mode filter
+// ============================================================================
+
+function toggleMode(mode) {
+  const idx = settings.filterModes.indexOf(mode)
+  if (idx >= 0) {
+    // Don't allow deselecting all
+    if (settings.filterModes.length > 1) settings.filterModes.splice(idx, 1)
+  } else {
+    settings.filterModes.push(mode)
+  }
+}
+
+function toggleAllModes() {
+  if (settings.filterModes.length === GENERATION_MODES.length) return
+  settings.filterModes.splice(0, settings.filterModes.length, ...GENERATION_MODES)
+}
+
+const isAllModesSelected = computed(() => settings.filterModes.length === GENERATION_MODES.length)
+
+// ============================================================================
 // Modal lifecycle
 // ============================================================================
 
@@ -54,7 +76,6 @@ watch(
     if (!val) {
       destroyPlot()
     } else if (plotData.value) {
-      // Re-render existing data when modal reopens (plot was purged on close)
       await nextTick()
       renderPlot()
     }
@@ -196,8 +217,19 @@ async function renderPlot() {
   if (!plotData.value || !plotContainer.value) return
   const { docs, coordinates } = plotData.value
 
+  // Apply mode filter
+  const filterSet = new Set(settings.filterModes)
+  const filteredDocs = []
+  const filteredCoords = []
+  docs.forEach((doc, i) => {
+    if (filterSet.has(doc.mode)) {
+      filteredDocs.push(doc)
+      filteredCoords.push(coordinates[i])
+    }
+  })
+
   const plt = await loadPlotly()
-  const traces = buildTraces(docs, coordinates)
+  const traces = filteredDocs.length > 0 ? buildTraces(filteredDocs, filteredCoords) : []
 
   const isLight = document.documentElement.getAttribute('data-theme-type') === 'light'
   const gridColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(150,150,150,0.2)'
@@ -218,6 +250,9 @@ async function renderPlot() {
       font: { color: legendColor, size: 12 },
       bgcolor: 'rgba(0,0,0,0)',
       itemsizing: 'constant',
+      y: 0.95,
+      yanchor: 'top',
+      tracegroupgap: 2,
     },
     showlegend: settings.colorBy !== 'single',
   }
@@ -226,7 +261,7 @@ async function renderPlot() {
   plt.newPlot(plotContainer.value, traces, layout, {
     responsive: true,
     displayModeBar: true,
-    modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'],
+    modeBarButtonsToRemove: ['sendDataToCloud'],
     displaylogo: false,
   })
 }
@@ -234,6 +269,14 @@ async function renderPlot() {
 // Watch plotData to render
 watch(plotData, async (val) => {
   if (val) {
+    await nextTick()
+    renderPlot()
+  }
+})
+
+// Re-render on filter change (no UMAP recomputation)
+watch(() => settings.filterModes.length, async () => {
+  if (plotData.value) {
     await nextTick()
     renderPlot()
   }
@@ -274,6 +317,7 @@ onBeforeUnmount(() => {
         role="dialog"
         aria-modal="true"
         :aria-label="t('embeddingExplorer.title')"
+        @wheel.prevent
       >
         <!-- Backdrop (no click-to-close — use ESC or close button) -->
         <div class="absolute inset-0 bg-bg-overlay backdrop-blur-sm" />
@@ -349,7 +393,33 @@ onBeforeUnmount(() => {
               </label>
             </div>
 
-            <!-- Row 2: Color + Hover + Start -->
+            <!-- Row 2: Mode Filter -->
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="text-text-secondary font-medium shrink-0">{{ t('embeddingExplorer.filterModes') }}:</span>
+              <button
+                @click="toggleAllModes"
+                class="mode-chip"
+                :class="isAllModesSelected ? 'mode-chip-active' : 'mode-chip-inactive'"
+              >
+                {{ t('embeddingExplorer.allModes') }}
+              </button>
+              <button
+                v-for="mode in GENERATION_MODES"
+                :key="mode"
+                @click="toggleMode(mode)"
+                class="mode-chip"
+                :class="settings.filterModes.includes(mode) ? 'mode-chip-active' : 'mode-chip-inactive'"
+                :style="settings.filterModes.includes(mode) ? { backgroundColor: MODE_COLORS[mode] + '22', borderColor: MODE_COLORS[mode], color: MODE_COLORS[mode] } : {}"
+              >
+                <span
+                  class="inline-block w-2 h-2 rounded-full shrink-0"
+                  :style="{ backgroundColor: MODE_COLORS[mode] }"
+                />
+                {{ t(`modes.${mode}.name`, mode) }}
+              </button>
+            </div>
+
+            <!-- Row 3: Color + Hover + Start -->
             <div class="flex flex-wrap items-center gap-4 text-sm">
               <!-- Color By -->
               <div class="flex items-center gap-2">
@@ -437,8 +507,8 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Plotly container -->
-            <div ref="plotContainer" class="w-full h-full" />
+            <!-- Plotly container (@wheel.stop prevents parent's @wheel.prevent from blocking zoom) -->
+            <div ref="plotContainer" class="w-full h-full" @wheel.stop />
 
             <!-- Data info badge -->
             <div
@@ -456,17 +526,47 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .plot-area {
-  min-height: 300px;
+  min-height: 450px;
 }
 
-/* Move Plotly modebar from default top-right to bottom-right to avoid legend overlap */
+/* Mode filter chips */
+.mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+.mode-chip-active {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-primary-alpha, rgba(99,102,241,0.13));
+  color: var(--color-brand-primary);
+}
+.mode-chip-inactive {
+  border-color: var(--color-border-muted);
+  background: transparent;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+.mode-chip-inactive:hover {
+  opacity: 0.9;
+  border-color: var(--color-text-muted);
+}
+
+/* Move Plotly modebar to top-left to avoid legend overlap */
 .plot-area :deep(.modebar-container) {
-  top: auto !important;
-  bottom: 4px !important;
+  left: 4px !important;
+  right: auto !important;
 }
 .plot-area :deep(.modebar) {
-  top: auto !important;
-  bottom: 0 !important;
+  left: 0 !important;
+  right: auto !important;
 }
 
 .explorer-modal-enter-active,

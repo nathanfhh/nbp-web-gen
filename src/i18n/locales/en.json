@@ -844,6 +844,8 @@
     "dataSource": "Data Source",
     "sampleSize": "Sample Size",
     "fullData": "Use Full Data",
+    "filterModes": "Filter",
+    "allModes": "All",
     "colorBy": "Color",
     "colorByMode": "By Mode",
     "colorByHistoryId": "By Record",

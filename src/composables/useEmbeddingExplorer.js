@@ -9,6 +9,7 @@
  */
 
 import { ref, reactive } from 'vue'
+import { GENERATION_MODES } from '@/constants/modeStyles'
 
 // ============================================================================
 // Constants
@@ -25,6 +26,7 @@ const LS_KEYS = {
   colorBy: 'sds_color_by',
   hoverText: 'sds_hover_text',
   hoverLength: 'sds_hover_length',
+  filterModes: 'sds_filter_modes',
 }
 
 // ============================================================================
@@ -46,6 +48,17 @@ function loadBool(key, fallback) {
   const v = localStorage.getItem(key)
   if (v === null) return fallback
   return v === 'true'
+}
+
+function loadJsonArray(key, fallback) {
+  const v = localStorage.getItem(key)
+  if (v === null) return fallback
+  try {
+    const parsed = JSON.parse(v)
+    return Array.isArray(parsed) ? parsed : fallback
+  } catch {
+    return fallback
+  }
 }
 
 function save(key, value) {
@@ -120,6 +133,7 @@ export function useEmbeddingExplorer() {
     colorBy: loadString(LS_KEYS.colorBy, 'mode'),
     hoverText: loadString(LS_KEYS.hoverText, 'truncate'),
     hoverLength: loadNumber(LS_KEYS.hoverLength, 50),
+    filterModes: loadJsonArray(LS_KEYS.filterModes, [...GENERATION_MODES]),
   })
 
   // --- State ---
@@ -138,6 +152,7 @@ export function useEmbeddingExplorer() {
     save(LS_KEYS.colorBy, settings.colorBy)
     save(LS_KEYS.hoverText, settings.hoverText)
     save(LS_KEYS.hoverLength, settings.hoverLength)
+    save(LS_KEYS.filterModes, JSON.stringify(settings.filterModes))
   }
 
   // --- Load & process ---
