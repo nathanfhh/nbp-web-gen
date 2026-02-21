@@ -2,6 +2,19 @@
 
 This page documents version updates for Mediator.
 
+## v0.28.4
+
+_2026-02-21_
+
+### New Features
+- **Text Models**: Add Gemini 3.1 Pro model option for slides analysis, content splitting, narration scripts, and character extraction
+
+### Fixes
+- **Agent Mode**: Fix agent chat model incorrectly linked to shared default — ensure it uses Flash model exclusively (codeExecution tool support)
+
+### Refactor
+- **Model Definitions**: Unify Text LLM model list into `TEXT_MODELS` constant (Single Source of Truth), eliminating 4 duplicate definitions and 8+ hardcoded defaults
+
 ## v0.28.3
 
 _2026-02-16_
