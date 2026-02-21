@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.29.1
+
+_2026-02-21_
+
+### New Features
+- **MP4 Export**: Add narration speed control (1x–4x) with pitch-preserved WSOLA time-stretching. Includes slider, number input, and preset buttons (1/1.25/1.5/1.75/2/3x) — setting persists across sessions
+
 ## v0.29.0
 
 _2026-02-21_
