@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.29.2
+
+_2026-02-21_
+
+### Fixes
+- **Transcript Panel**: Fix dual-speaker narration not splitting segments when speaker prefix immediately follows CJK punctuation (e.g. 。) without a space
+
 ## v0.29.1
 
 _2026-02-21_
