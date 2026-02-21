@@ -8,6 +8,7 @@
 export const TEXT_MODELS = [
   { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash' },
   { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
+  { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro' },
 ]
 
 export const DEFAULT_TEXT_MODEL = TEXT_MODELS[0].value
