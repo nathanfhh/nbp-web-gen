@@ -2,6 +2,16 @@
 
 This page documents version updates for Mediator.
 
+## v0.29.0
+
+_2026-02-21_
+
+### New Features
+- **Slide Narration**: Add floating transcript panel in Lightbox with drag-to-reposition and top-right corner resize. Position and size persist across sessions. Dual-speaker mode shows color-coded speaker tags, auto-scrolls to top on page change. Toggle via toolbar button or `T` key
+
+### Fixes
+- **Lightbox**: Fix dragging or resizing transcript panel accidentally triggering lightbox close
+
 ## v0.28.4
 
 _2026-02-21_
