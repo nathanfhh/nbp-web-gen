@@ -67,6 +67,16 @@ const clampSize = (w, h) => ({
   height: Math.max(120, Math.min(window.innerHeight * 0.7, h)),
 })
 
+// Brief guard flag — stays true for 200ms after drag/resize ends
+// to block the synthetic click that browsers fire after mouseup/touchend
+const recentlyInteracted = ref(false)
+let interactionTimer = null
+const markInteractionEnd = () => {
+  recentlyInteracted.value = true
+  clearTimeout(interactionTimer)
+  interactionTimer = setTimeout(() => { recentlyInteracted.value = false }, 200)
+}
+
 const persistSize = () => {
   if (customWidth.value) localStorage.setItem('nbp-transcript-width', String(customWidth.value))
   if (customMaxHeight.value) localStorage.setItem('nbp-transcript-max-height', String(customMaxHeight.value))
@@ -92,6 +102,7 @@ const endResize = () => {
   if (!isResizing.value) return
   isResizing.value = false
   persistSize()
+  markInteractionEnd()
 }
 
 // Mouse resize
@@ -220,6 +231,7 @@ const persistOffset = () => {
 const onMouseUp = () => {
   isDragging.value = false
   persistOffset()
+  markInteractionEnd()
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
 }
@@ -252,14 +264,18 @@ const onDragTouchMove = (e) => {
 const onDragTouchEnd = () => {
   isDragging.value = false
   persistOffset()
+  markInteractionEnd()
 }
 
-// Cleanup global listeners
+defineExpose({ recentlyInteracted })
+
+// Cleanup global listeners + timer
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
   window.removeEventListener('mousemove', onResizeMouseMove)
   window.removeEventListener('mouseup', onResizeMouseUp)
+  clearTimeout(interactionTimer)
 })
 </script>
 

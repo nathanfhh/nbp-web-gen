@@ -307,6 +307,9 @@ const hasPrev = computed(() => currentIndex.value > 0)
 const hasNext = computed(() => currentIndex.value < props.images.length - 1)
 
 const close = () => {
+  // Don't close if transcript panel was just dragged/resized
+  // (synthetic click fires after mouseup/touchend, so isDragging is already false)
+  if (transcriptRef.value?.recentlyInteracted) return
   emit('update:modelValue', false)
   emit('close')
 }
@@ -621,7 +624,8 @@ const showAutoPlayToggle = computed(() => {
   return props.isSlidesMode && totalAudioCount.value > 1
 })
 
-// Transcript panel state
+// Transcript panel ref + state
+const transcriptRef = ref(null)
 const isTranscriptVisible = ref(
   localStorage.getItem('nbp-transcript-visible') === 'true'
 )
@@ -1210,6 +1214,7 @@ const goToSlideToPptx = async () => {
 
         <!-- Transcript Panel (for slides with narration scripts) -->
         <LightboxTranscript
+          ref="transcriptRef"
           :script="currentScript"
           :speakers="narrationSettings.speakers"
           :speakerMode="narrationSettings.speakerMode"
