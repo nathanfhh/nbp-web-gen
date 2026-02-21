@@ -1,13 +1,15 @@
 import { ref } from 'vue'
 import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
-import { DEFAULT_TEXT_MODEL } from '@/constants/modelOptions'
 import { useGeneratorStore } from '@/stores/generator'
+
+// Agent mode requires gemini-3-flash-preview specifically (codeExecution tool support)
+const AGENT_MODEL = 'gemini-3-flash-preview'
 
 /**
  * Composable for Google Gemini Agentic Vision API
  *
- * Uses DEFAULT_TEXT_MODEL (currently gemini-3-flash-preview) with:
+ * Uses gemini-3-flash-preview (hardcoded) with:
  * - tools: [{ codeExecution: {} }] for code execution capability
  * - thinkingConfig: { includeThoughts: true } for reasoning visibility
  *
@@ -193,7 +195,7 @@ export function useAgentApi() {
 
       // Create chat session with Agentic Vision config
       const chat = ai.chats.create({
-        model: DEFAULT_TEXT_MODEL,
+        model: AGENT_MODEL,
         history,
         config: {
           tools: [{ codeExecution: {} }],
@@ -275,7 +277,7 @@ export function useAgentApi() {
         const history = buildChatHistory(conversationForHistory, contextDepth, includeImages)
 
         const chat = ai.chats.create({
-          model: DEFAULT_TEXT_MODEL,
+          model: AGENT_MODEL,
           history,
           config: {
             tools: [{ codeExecution: {} }],
