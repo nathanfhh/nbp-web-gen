@@ -67,8 +67,11 @@ function parseDualMode(text, speakers) {
   let match
   while ((match = prefixRegex.exec(text)) !== null) {
     const pos = match.index
-    // A valid speaker position: at start of text, or preceded by newline/whitespace
-    if (pos === 0 || /[\s\n]/.test(text[pos - 1])) {
+    // A valid speaker position: at start of text, preceded by whitespace,
+    // or preceded by sentence-ending punctuation (CJK and Western).
+    // This prevents false matches mid-word (e.g. "metSpeaker 2") while allowing
+    // splits after "。Speaker 2:" which LLMs often generate without a space.
+    if (pos === 0 || /[\s.。!！?？,，;；)）\]】》」』>]/.test(text[pos - 1])) {
       splitPoints.push({
         speaker: match[1],
         matchStart: pos,

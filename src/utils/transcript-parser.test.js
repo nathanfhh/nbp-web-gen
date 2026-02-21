@@ -219,6 +219,23 @@ describe('parseTranscript', () => {
       ])
     })
 
+    it('splits when speaker follows CJK punctuation without space', () => {
+      const script = 'Speaker 1: 這是容器的組合。Speaker 2: 沒錯，關鍵在於 Pause 容器。Speaker 1: 另外還有靜態 Pod。'
+      const result = parseTranscript(script, speakers, 'dual')
+      expect(result).toHaveLength(3)
+      expect(result[0]).toEqual({ speaker: 'Speaker 1', text: '這是容器的組合。' })
+      expect(result[1]).toEqual({ speaker: 'Speaker 2', text: '沒錯，關鍵在於 Pause 容器。' })
+      expect(result[2]).toEqual({ speaker: 'Speaker 1', text: '另外還有靜態 Pod。' })
+    })
+
+    it('splits when speaker follows Western punctuation without space', () => {
+      const script = 'Speaker 1: End of sentence.Speaker 2: Start of next.'
+      const result = parseTranscript(script, speakers, 'dual')
+      expect(result).toHaveLength(2)
+      expect(result[0]).toEqual({ speaker: 'Speaker 1', text: 'End of sentence.' })
+      expect(result[1]).toEqual({ speaker: 'Speaker 2', text: 'Start of next.' })
+    })
+
     it('does not split on speaker name not preceded by whitespace', () => {
       const script = 'Speaker 1: I metSpeaker 2 yesterday.\nSpeaker 2: Really?'
       const result = parseTranscript(script, speakers, 'dual')

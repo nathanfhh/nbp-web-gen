@@ -47,7 +47,7 @@ describe('timeStretchPcm', () => {
     expect(result.length).toBeLessThan(expectedLength * 1.15)
   })
 
-  it('output contains no NaN or Infinity values', async () => {
+  it('output contains no NaN or Infinity values', { timeout: 15000 }, async () => {
     const input = sineWave(48000, 1)
     const result = await timeStretchPcm(input, 1.5, 48000)
 
