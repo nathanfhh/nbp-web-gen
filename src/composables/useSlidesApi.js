@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
+import { DEFAULT_TEXT_MODEL } from '@/constants/modelOptions'
 import { t } from '@/i18n'
 
 /**
@@ -78,13 +79,13 @@ export function useSlidesApi() {
    * Uses JSON mode for structured output with thinking mode for transparency
    * @param {Array<{id: string, pageNumber: number, content: string}>} pages - Pages with ID and content
    * @param {Object} options - Analysis options
-   * @param {string} options.model - Model to use (default: gemini-3-flash-preview)
+   * @param {string} options.model - Model to use (default: DEFAULT_TEXT_MODEL)
    * @param {string} options.styleGuidance - User's style preferences and constraints
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
    * @returns {Promise<{globalStyle: string, pageStyles: Array<{pageId: string, styleGuide: string}>}>}
    */
   const analyzeSlideStyle = async (pages, options = {}, onThinkingChunk = null) => {
-    const model = options.model || 'gemini-3-flash-preview'
+    const model = options.model || DEFAULT_TEXT_MODEL
     const styleGuidance = options.styleGuidance?.trim() || ''
 
     // Build content with page IDs
@@ -260,14 +261,14 @@ Write all descriptions in English.`
    * Uses JSON mode for structured output with thinking mode for transparency
    * @param {string} rawContent - Raw material to split
    * @param {Object} options
-   * @param {string} options.model - Model to use (gemini-3-flash-preview | gemini-3-pro-preview)
+   * @param {string} options.model - Model to use (from TEXT_MODELS)
    * @param {number} options.targetPages - Target number of pages (1-30)
    * @param {string} options.additionalNotes - Additional instructions
    * @param {Function} onThinkingChunk - Callback for thinking chunks
    * @returns {Promise<{globalDescription: string, pages: Array<{pageNumber: number, content: string}>}>}
    */
   const splitSlidesContent = async (rawContent, options = {}, onThinkingChunk = null) => {
-    const model = options.model || 'gemini-3-flash-preview'
+    const model = options.model || DEFAULT_TEXT_MODEL
     const targetPages = options.targetPages || 10
     const additionalNotes = options.additionalNotes?.trim() || ''
 

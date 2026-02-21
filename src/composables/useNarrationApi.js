@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
+import { DEFAULT_TEXT_MODEL } from '@/constants/modelOptions'
 import { useGeneratorStore } from '@/stores/generator'
 import { convertTtsResponseToAudio } from '@/utils/audioEncoder'
 import { getLanguageDirectives } from '@/constants/voiceOptions'
@@ -209,7 +210,7 @@ ${
     onThinkingChunk = null,
     maxRetries = 2,
   ) => {
-    const model = settings.scriptModel || 'gemini-3-flash-preview'
+    const model = settings.scriptModel || DEFAULT_TEXT_MODEL
     const temperature = store.temperature
 
     const result = await callScriptGeneration(pages, settings, model, temperature, onThinkingChunk)

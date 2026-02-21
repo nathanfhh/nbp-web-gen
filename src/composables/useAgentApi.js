@@ -1,12 +1,13 @@
 import { ref } from 'vue'
 import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
+import { DEFAULT_TEXT_MODEL } from '@/constants/modelOptions'
 import { useGeneratorStore } from '@/stores/generator'
 
 /**
  * Composable for Google Gemini Agentic Vision API
  *
- * Uses gemini-3-flash-preview model with:
+ * Uses DEFAULT_TEXT_MODEL (currently gemini-3-flash-preview) with:
  * - tools: [{ codeExecution: {} }] for code execution capability
  * - thinkingConfig: { includeThoughts: true } for reasoning visibility
  *
@@ -192,7 +193,7 @@ export function useAgentApi() {
 
       // Create chat session with Agentic Vision config
       const chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
+        model: DEFAULT_TEXT_MODEL,
         history,
         config: {
           tools: [{ codeExecution: {} }],
@@ -274,7 +275,7 @@ export function useAgentApi() {
         const history = buildChatHistory(conversationForHistory, contextDepth, includeImages)
 
         const chat = ai.chats.create({
-          model: 'gemini-3-flash-preview',
+          model: DEFAULT_TEXT_MODEL,
           history,
           config: {
             tools: [{ codeExecution: {} }],

@@ -9,6 +9,7 @@ import {
   CONCURRENCY_LIMITS,
   TTS_CONCURRENCY_LIMITS,
 } from '@/constants'
+import { TEXT_MODELS } from '@/constants/modelOptions'
 import SlidesContentSplitter from './SlidesContentSplitter.vue'
 import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 import NarrationSection from './NarrationSection.vue'
@@ -80,10 +81,7 @@ const MAX_REFERENCE_IMAGES = 5
 const globalReferenceInput = ref(null)
 
 // Available models for analysis
-const analysisModels = [
-  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash' },
-  { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
-]
+const analysisModels = TEXT_MODELS
 
 const options = computed(() => store.slidesOptions)
 

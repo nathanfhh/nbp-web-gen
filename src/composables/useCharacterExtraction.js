@@ -3,11 +3,10 @@ import { GoogleGenAI } from '@google/genai'
 import { useApiKeyManager } from './useApiKeyManager'
 import { t } from '@/i18n'
 
-// Models that support free tier (no API key required or free quota)
-export const EXTRACTION_MODELS = [
-  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', description: 'Fast, free tier available' },
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', description: 'Higher quality, free tier' },
-]
+import { DEFAULT_TEXT_MODEL } from '@/constants/modelOptions'
+
+export { TEXT_MODELS as EXTRACTION_MODELS } from '@/constants/modelOptions'
+export { DEFAULT_TEXT_MODEL }
 
 // Extraction prompt focusing on physical appearance, not art style
 const EXTRACTION_PROMPT = `Analyze this character image and extract their physical appearance features.
@@ -70,7 +69,7 @@ export function useCharacterExtraction() {
   const extractCharacter = async ({
     imageData,
     mimeType = 'image/png',
-    model = 'gemini-3-flash-preview',
+    model = DEFAULT_TEXT_MODEL,
   }) => {
     if (!hasApiKeyFor('text')) {
       throw new Error(t('errors.apiKeyNotSet'))

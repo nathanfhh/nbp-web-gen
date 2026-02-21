@@ -3,6 +3,7 @@
  * Single source of truth for initial and reset values
  */
 import { DEFAULT_NARRATION_SETTINGS } from './voiceOptions'
+import { DEFAULT_TEXT_MODEL } from './modelOptions'
 
 /**
  * Maximum number of images that can be uploaded at once
@@ -98,7 +99,7 @@ export const DEFAULT_SLIDES_OPTIONS = {
   audioConcurrency: 2,
 
   // Analysis model selection
-  analysisModel: 'gemini-3-flash-preview',
+  analysisModel: DEFAULT_TEXT_MODEL,
 
   // User input (separated by ---)
   pagesRaw: '',

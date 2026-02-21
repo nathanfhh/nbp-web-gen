@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import { useSlidesApi } from '@/composables/useSlidesApi'
 import { useToast } from '@/composables/useToast'
+import { TEXT_MODELS, DEFAULT_TEXT_MODEL } from '@/constants/modelOptions'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -17,18 +18,15 @@ const isOpen = ref(false)
 const rawContent = ref('')
 const additionalNotes = ref('')
 const targetPages = ref(10)
-const selectedModel = ref('gemini-3-flash-preview')
+const selectedModel = ref(DEFAULT_TEXT_MODEL)
 
 // Processing state
 const isProcessing = ref(false)
 const thinkingProcess = ref([])
 const thinkingPanelRef = ref(null)
 
-// Model options (same as analysisModels in SlidesOptions)
-const models = [
-  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash' },
-  { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
-]
+// Model options (shared with SlidesOptions)
+const models = TEXT_MODELS
 
 // Computed
 const canSubmit = computed(() => {
@@ -42,7 +40,7 @@ const open = () => {
   rawContent.value = ''
   additionalNotes.value = ''
   targetPages.value = 10
-  selectedModel.value = 'gemini-3-flash-preview'
+  selectedModel.value = DEFAULT_TEXT_MODEL
   thinkingProcess.value = []
 }
 

@@ -4,6 +4,7 @@
  *
  * Reference: https://ai.google.dev/gemini-api/docs/text-to-speech
  */
+import { DEFAULT_TEXT_MODEL } from './modelOptions'
 
 export const VOICES = [
   { name: 'Zephyr', characteristic: 'Bright', gender: 'female' },
@@ -80,10 +81,7 @@ export function getLanguageDirectives(code, customLanguages) {
 
 export const NARRATION_STYLES = ['discussion', 'critical', 'debate']
 
-export const SCRIPT_MODELS = [
-  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash' },
-  { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro' },
-]
+export { TEXT_MODELS as SCRIPT_MODELS } from './modelOptions'
 
 export const TTS_MODELS = [
   { value: 'gemini-2.5-flash-preview-tts', label: 'Flash TTS' },
@@ -114,6 +112,6 @@ export const DEFAULT_NARRATION_SETTINGS = {
   language: getDefaultNarrationLanguage(),
   customLanguages: [], // User-added custom languages, stored in localStorage
   customPrompt: '', // User free-form additional guidance
-  scriptModel: 'gemini-3-flash-preview',
+  scriptModel: DEFAULT_TEXT_MODEL,
   ttsModel: 'gemini-2.5-flash-preview-tts',
 }

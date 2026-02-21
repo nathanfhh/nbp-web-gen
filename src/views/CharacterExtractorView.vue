@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useIndexedDB } from '@/composables/useIndexedDB'
 import { useLocalStorage } from '@/composables/useLocalStorage'
 import { useApiKeyManager } from '@/composables/useApiKeyManager'
-import { useCharacterExtraction, EXTRACTION_MODELS } from '@/composables/useCharacterExtraction'
+import { useCharacterExtraction, EXTRACTION_MODELS, DEFAULT_TEXT_MODEL } from '@/composables/useCharacterExtraction'
 import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { useToast } from '@/composables/useToast'
 
@@ -31,7 +31,7 @@ const fileInput = ref(null)
 const isDragging = ref(false)
 
 // Model settings (persisted via useLocalStorage)
-const selectedModel = ref(getQuickSetting('extractionModel', EXTRACTION_MODELS[0].id))
+const selectedModel = ref(getQuickSetting('extractionModel', DEFAULT_TEXT_MODEL))
 
 // Save settings when changed
 watch(selectedModel, (newVal) => {
@@ -369,11 +369,11 @@ const canSave = computed(() => {
               >
                 <option
                   v-for="model in EXTRACTION_MODELS"
-                  :key="model.id"
-                  :value="model.id"
+                  :key="model.value"
+                  :value="model.value"
                   class="bg-bg-elevated"
                 >
-                  {{ model.name }}
+                  {{ model.label }}
                 </option>
               </select>
             </div>

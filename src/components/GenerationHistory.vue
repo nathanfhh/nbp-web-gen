@@ -11,7 +11,7 @@ import { useVideoStorage } from '@/composables/useVideoStorage'
 import { useAudioStorage } from '@/composables/useAudioStorage'
 import { useConversationStorage } from '@/composables/useConversationStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
-import { getModeTagStyle } from '@/constants'
+import { getModeTagStyle, DEFAULT_TEXT_MODEL } from '@/constants'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import VideoLightbox from '@/components/VideoLightbox.vue'
@@ -220,7 +220,7 @@ const loadHistoryItem = async (item) => {
     // Restore slides options
     store.slidesOptions.resolution = item.options.resolution || '1k'
     store.slidesOptions.ratio = item.options.ratio || '16:9'
-    store.slidesOptions.analysisModel = item.options.analysisModel || 'gemini-3-flash-preview'
+    store.slidesOptions.analysisModel = item.options.analysisModel || DEFAULT_TEXT_MODEL
     store.slidesOptions.analyzedStyle = item.options.analyzedStyle || ''
     store.slidesOptions.styleConfirmed = item.options.styleConfirmed || false
     store.slidesOptions.styleGuidance = item.options.styleGuidance || ''
@@ -256,7 +256,7 @@ const loadHistoryItem = async (item) => {
       ]
       store.slidesOptions.narration.style = ns.style || 'discussion'
       store.slidesOptions.narration.language = ns.language || 'en-US'
-      store.slidesOptions.narration.scriptModel = ns.scriptModel || 'gemini-3-flash-preview'
+      store.slidesOptions.narration.scriptModel = ns.scriptModel || DEFAULT_TEXT_MODEL
       store.slidesOptions.narration.ttsModel = ns.ttsModel || 'gemini-2.5-flash-preview-tts'
       store.slidesOptions.narration.customLanguages = ns.customLanguages || []
       store.slidesOptions.narration.customPrompt = ns.customPrompt || ''
