@@ -14,6 +14,7 @@ import { useMp4Encoder } from '@/composables/useMp4Encoder'
 import { pauseAll as pauseAllAudio } from '@/composables/useGlobalAudioManager'
 import StickerCropper from '@/components/StickerCropper.vue'
 import LightboxAudioPlayer from '@/components/LightboxAudioPlayer.vue'
+import LightboxTranscript from '@/components/LightboxTranscript.vue'
 import Mp4QualityModal from '@/components/Mp4QualityModal.vue'
 
 const { t } = useI18n()
@@ -102,6 +103,16 @@ const props = defineProps({
   narrationAudioUrls: {
     type: Array,
     default: () => [],
+  },
+  // Narration scripts (per-page: [{ pageId, script }])
+  narrationScripts: {
+    type: Array,
+    default: () => [],
+  },
+  // Narration settings ({ speakerMode, speakers })
+  narrationSettings: {
+    type: Object,
+    default: () => ({}),
   },
 })
 
@@ -395,6 +406,14 @@ const handleKeydown = (e) => {
         audioPlayerRef.value.togglePlay()
       }
       break
+    case 't':
+    case 'T':
+      // Toggle transcript panel
+      if (showTranscriptButton.value) {
+        e.preventDefault()
+        toggleTranscript()
+      }
+      break
   }
 }
 
@@ -602,6 +621,25 @@ const showAutoPlayToggle = computed(() => {
   return props.isSlidesMode && totalAudioCount.value > 1
 })
 
+// Transcript panel state
+const isTranscriptVisible = ref(
+  localStorage.getItem('nbp-transcript-visible') === 'true'
+)
+
+const currentScript = computed(() => {
+  if (!props.narrationScripts?.length) return ''
+  return props.narrationScripts[currentIndex.value]?.script || ''
+})
+
+const showTranscriptButton = computed(() => {
+  return props.isSlidesMode && props.narrationScripts.length > 0
+})
+
+const toggleTranscript = () => {
+  isTranscriptVisible.value = !isTranscriptVisible.value
+  localStorage.setItem('nbp-transcript-visible', String(isTranscriptVisible.value))
+}
+
 // Handle audio ended event - auto advance to next page if enabled
 const onAudioEnded = () => {
   if (!autoPlay.value) return
@@ -765,6 +803,20 @@ const goToSlideToPptx = async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span class="text-xs font-medium">PPTX</span>
+          </button>
+
+          <!-- Transcript toggle button (for slides with narration scripts) -->
+          <button
+            v-if="showTranscriptButton"
+            @click="toggleTranscript"
+            class="lightbox-btn flex items-center gap-2"
+            :class="{ 'lightbox-btn-active': isTranscriptVisible }"
+            :title="t('lightbox.transcript.toggle')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="hidden sm:inline text-xs font-medium">{{ t('lightbox.transcript.title') }}</span>
           </button>
 
           <!-- Edit Regions button (for OCR editing in slides mode) -->
@@ -1156,6 +1208,14 @@ const goToSlideToPptx = async () => {
           </button>
         </div>
 
+        <!-- Transcript Panel (for slides with narration scripts) -->
+        <LightboxTranscript
+          :script="currentScript"
+          :speakers="narrationSettings.speakers"
+          :speakerMode="narrationSettings.speakerMode"
+          :visible="isTranscriptVisible"
+        />
+
         <!-- Audio Player (for slides with narration) -->
         <LightboxAudioPlayer
           ref="audioPlayerRef"
@@ -1325,6 +1385,11 @@ const goToSlideToPptx = async () => {
 .lightbox-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: scale(1.1);
+}
+
+.lightbox-btn-active {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
 .lightbox-zoom-indicator {

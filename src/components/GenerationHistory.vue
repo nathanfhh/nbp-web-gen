@@ -329,6 +329,12 @@ const openHistoryLightbox = async (item, event) => {
     lightboxInitialIndex.value = 0
     lightboxItemMode.value = item.mode || ''
 
+    // Load narration scripts and settings
+    lightboxNarrationScripts.value = item.narration?.scripts || []
+    lightboxNarrationSettings.value = item.narration?.settings
+      ? { speakerMode: item.narration.settings.speakerMode, speakers: item.narration.settings.speakers }
+      : {}
+
     // Load narration audio URLs if available
     lightboxAudioUrls.value = []
     if (item.narration?.audio?.length > 0) {
@@ -352,6 +358,10 @@ const openHistoryLightbox = async (item, event) => {
   }
 }
 
+// Narration transcript data for lightbox
+const lightboxNarrationScripts = ref([])
+const lightboxNarrationSettings = ref({})
+
 const closeLightbox = () => {
   showLightbox.value = false
   lightboxImages.value = []
@@ -359,6 +369,8 @@ const closeLightbox = () => {
   lightboxHistoryId.value = null
   lightboxItemMode.value = ''
   lightboxAudioUrls.value = []
+  lightboxNarrationScripts.value = []
+  lightboxNarrationSettings.value = {}
 }
 
 // Open video lightbox
@@ -779,6 +791,8 @@ const handleImported = async () => {
       :is-sticker-mode="lightboxItemMode === 'sticker'"
       :is-slides-mode="lightboxItemMode === 'slides'"
       :narration-audio-urls="lightboxAudioUrls"
+      :narration-scripts="lightboxNarrationScripts"
+      :narration-settings="lightboxNarrationSettings"
       @close="closeLightbox"
     />
 

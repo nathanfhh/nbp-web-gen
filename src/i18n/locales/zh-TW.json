@@ -1004,7 +1004,11 @@
     "audioPage": "第 {page} 頁",
     "playbackSpeed": "播放速度",
     "autoPlay": "自動播放",
-    "autoPlayHint": "音訊播完自動跳下一頁"
+    "autoPlayHint": "音訊播完自動跳下一頁",
+    "transcript": {
+      "title": "逐字稿",
+      "toggle": "顯示/隱藏逐字稿 (T)"
+    }
   },
   "stickerCropper": {
     "title": "貼圖裁切工具",

@@ -73,6 +73,10 @@ const clearVideo = () => {
 // Lightbox state
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
+const lightboxNarrationSettings = computed(() => ({
+  speakerMode: store.slidesOptions.narration?.speakerMode,
+  speakers: store.slidesOptions.narration?.speakers,
+}))
 
 const openLightbox = (index) => {
   lightboxIndex.value = index
@@ -588,6 +592,8 @@ const handleAudioPause = (index, event) => {
       :is-sticker-mode="store.currentMode === 'sticker'"
       :is-slides-mode="store.currentMode === 'slides'"
       :narration-audio-urls="store.generatedAudioUrls"
+      :narration-scripts="store.slidesOptions.narrationScripts"
+      :narration-settings="lightboxNarrationSettings"
     />
 
     <!-- MP4 Quality Modal -->

@@ -1004,7 +1004,11 @@
     "audioPage": "Page {page}",
     "playbackSpeed": "Playback Speed",
     "autoPlay": "Auto Play",
-    "autoPlayHint": "Auto advance to next page when audio ends"
+    "autoPlayHint": "Auto advance to next page when audio ends",
+    "transcript": {
+      "title": "Transcript",
+      "toggle": "Show/Hide Transcript (T)"
+    }
   },
   "stickerCropper": {
     "title": "Sticker Cropper Tool",
