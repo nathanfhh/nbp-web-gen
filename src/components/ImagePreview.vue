@@ -280,7 +280,7 @@ const downloadAllAsPdf = async () => {
 }
 
 // Download all images + audio as MP4 with specified bitrate and resolution
-const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight }) => {
+const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight, playbackSpeed }) => {
   if (store.generatedImages.length === 0 || isBatchDownloading.value) return
 
   isBatchDownloading.value = true
@@ -331,6 +331,7 @@ const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight }) => {
       videoBitrate,
       maxWidth,
       maxHeight,
+      playbackSpeed,
     }, `slides-${Date.now()}`)
   } catch (err) {
     console.error('MP4 encoding failed:', err)

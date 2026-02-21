@@ -347,8 +347,9 @@ export function useLightboxDownload(deps) {
    * @param {number} [params.videoBitrate] - Video bitrate in bps
    * @param {number} [params.maxWidth] - Max output width (for resolution selection)
    * @param {number} [params.maxHeight] - Max output height (for resolution selection)
+   * @param {number} [params.playbackSpeed] - Narration speed multiplier (pitch-preserved, default 1)
    */
-  const downloadAllAsMp4 = async ({ images, historyId, audioUrls, videoBitrate, maxWidth, maxHeight }) => {
+  const downloadAllAsMp4 = async ({ images, historyId, audioUrls, videoBitrate, maxWidth, maxHeight, playbackSpeed }) => {
     if (images.length === 0 || isBatchDownloading.value || !mp4Encoder) return
 
     isBatchDownloading.value = true
@@ -399,6 +400,7 @@ export function useLightboxDownload(deps) {
         videoBitrate,
         maxWidth,
         maxHeight,
+        playbackSpeed,
       }, `${prefix}${Date.now()}`)
     } catch (err) {
       console.error('MP4 encoding failed:', err)

@@ -987,7 +987,9 @@
       "mediumDesc": "{bitrate}，平衡品質與大小",
       "high": "高品質",
       "highDesc": "{bitrate}，最佳畫質",
-      "start": "開始編碼"
+      "start": "開始編碼",
+      "speed": "旁白語速",
+      "speedHint": "加速旁白音頻（保持音調），僅影響有旁白的頁面"
     },
     "narrationAudio": "旁白音頻",
     "currentAudio": "下載當前音頻",

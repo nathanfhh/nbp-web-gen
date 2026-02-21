@@ -986,7 +986,9 @@
       "mediumDesc": "{bitrate}, balanced quality and size",
       "high": "High Quality",
       "highDesc": "{bitrate}, best visual quality",
-      "start": "Start Encoding"
+      "start": "Start Encoding",
+      "speed": "Narration Speed",
+      "speedHint": "Speed up narration audio (preserves pitch). Only affects pages with narration."
     },
     "narrationAudio": "Narration Audio",
     "currentAudio": "Current Audio",

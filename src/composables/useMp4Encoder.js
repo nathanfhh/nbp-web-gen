@@ -55,6 +55,7 @@ export function useMp4Encoder() {
    * @param {number} [options.videoBitrate=8000000] - Video bitrate in bps
    * @param {number} [options.maxWidth] - Max output video width
    * @param {number} [options.maxHeight] - Max output video height
+   * @param {number} [options.playbackSpeed=1] - Narration speed multiplier (pitch-preserved)
    * @returns {Promise<ArrayBuffer>} MP4 data
    */
   const encodeMp4 = async (options) => {
@@ -71,10 +72,19 @@ export function useMp4Encoder() {
       try {
         audioCtx = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
 
+        const playbackSpeed = options.playbackSpeed || 1
+        const timeStretchFn = playbackSpeed !== 1
+          ? (await import('@/utils/audioTimeStretch')).timeStretchPcm
+          : null
+
         for (const buf of options.audioBuffers) {
           if (buf) {
             try {
-              audioPcmData.push(await decodeAudioToMonoPcm(audioCtx, buf))
+              let pcm = await decodeAudioToMonoPcm(audioCtx, buf)
+              if (timeStretchFn) {
+                pcm = await timeStretchFn(pcm, playbackSpeed, TARGET_SAMPLE_RATE)
+              }
+              audioPcmData.push(pcm)
             } catch (e) {
               console.warn('Audio decode failed for a page:', e)
               audioPcmData.push(null)

@@ -6,6 +6,12 @@ const { t } = useI18n()
 
 const MP4_QUALITY_KEY = 'nbp-mp4-quality'
 const MP4_RESOLUTION_KEY = 'nbp-mp4-resolution'
+const MP4_SPEED_KEY = 'nbp-mp4-speed'
+
+const SPEED_PRESETS = [1, 1.25, 1.5, 1.75, 2, 3]
+const SPEED_MIN = 1
+const SPEED_MAX = 4
+const SPEED_STEP = 0.05
 
 const RESOLUTION_TIERS = [
   { key: '1080p', maxWidth: 1920, maxHeight: 1080 },
@@ -39,6 +45,7 @@ const emit = defineEmits(['update:modelValue', 'confirm'])
 // Local state
 const selectedQuality = ref(localStorage.getItem(MP4_QUALITY_KEY) || 'medium')
 const selectedResolution = ref(localStorage.getItem(MP4_RESOLUTION_KEY) || '1080p')
+const selectedSpeed = ref(Number(localStorage.getItem(MP4_SPEED_KEY)) || 1)
 
 // Determine which resolution tiers are available based on source image dimensions
 // Uses 90% threshold: source must be at least 90% of the tier's resolution to enable it.
@@ -75,6 +82,7 @@ watch(
   (newVal) => {
     if (newVal) {
       selectedQuality.value = localStorage.getItem(MP4_QUALITY_KEY) || 'medium'
+      selectedSpeed.value = Number(localStorage.getItem(MP4_SPEED_KEY)) || 1
       const storedRes = localStorage.getItem(MP4_RESOLUTION_KEY) || '1080p'
       // Clamp: if stored resolution is no longer available, fall back to highest available
       const isStored = availableResolutions.value.find(r => r.key === storedRes)
@@ -88,6 +96,26 @@ watch(
   },
 )
 
+// Clamp speed to valid range, round to 2 decimals
+const clampSpeed = (val) => {
+  const n = Number(val)
+  if (isNaN(n)) return 1
+  return Math.round(Math.min(SPEED_MAX, Math.max(SPEED_MIN, n)) * 100) / 100
+}
+
+const handleSpeedInput = (e) => {
+  // Allow free typing; clamp on blur
+  selectedSpeed.value = Number(e.target.value) || 1
+}
+
+const handleSpeedBlur = () => {
+  selectedSpeed.value = clampSpeed(selectedSpeed.value)
+}
+
+const handleSpeedSlider = (e) => {
+  selectedSpeed.value = clampSpeed(e.target.value)
+}
+
 const handleResolutionSelect = (tier) => {
   if (tier.enabled) {
     selectedResolution.value = tier.key
@@ -95,13 +123,16 @@ const handleResolutionSelect = (tier) => {
 }
 
 const handleConfirm = () => {
+  selectedSpeed.value = clampSpeed(selectedSpeed.value)
   localStorage.setItem(MP4_QUALITY_KEY, selectedQuality.value)
   localStorage.setItem(MP4_RESOLUTION_KEY, selectedResolution.value)
+  localStorage.setItem(MP4_SPEED_KEY, String(selectedSpeed.value))
   const tier = RESOLUTION_TIERS.find(r => r.key === selectedResolution.value)
   emit('confirm', {
     videoBitrate: selectedBitrate.value,
     maxWidth: tier?.maxWidth || 1920,
     maxHeight: tier?.maxHeight || 1080,
+    playbackSpeed: selectedSpeed.value,
   })
   emit('update:modelValue', false)
 }
@@ -116,7 +147,7 @@ const handleCancel = () => {
     <Transition name="modal">
       <div
         v-if="modelValue"
-        class="fixed inset-0 flex items-center justify-center bg-bg-overlay"
+        class="fixed inset-0 flex items-center justify-center mp4-modal-overlay"
         style="z-index: 10010;"
         @click.self="handleCancel"
       >
@@ -246,6 +277,57 @@ const handleCancel = () => {
                 </div>
               </label>
             </div>
+
+            <!-- Narration Speed -->
+            <div>
+              <div class="text-sm font-medium text-text-primary mb-1">
+                {{ $t('lightbox.mp4Quality.speed') }}
+              </div>
+              <p class="text-xs text-text-muted mb-2">
+                {{ $t('lightbox.mp4Quality.speedHint') }}
+              </p>
+
+              <!-- Slider + Input row -->
+              <div class="flex items-center gap-3 mb-2.5">
+                <input
+                  type="range"
+                  :min="SPEED_MIN"
+                  :max="SPEED_MAX"
+                  :step="SPEED_STEP"
+                  :value="selectedSpeed"
+                  @input="handleSpeedSlider"
+                  class="speed-slider flex-1"
+                />
+                <div class="relative">
+                  <input
+                    type="number"
+                    :min="SPEED_MIN"
+                    :max="SPEED_MAX"
+                    :step="SPEED_STEP"
+                    :value="selectedSpeed"
+                    @input="handleSpeedInput"
+                    @blur="handleSpeedBlur"
+                    class="speed-input"
+                  />
+                  <span class="speed-input-suffix">x</span>
+                </div>
+              </div>
+
+              <!-- Preset buttons -->
+              <div class="flex gap-1.5">
+                <button
+                  v-for="spd in SPEED_PRESETS"
+                  :key="spd"
+                  @click="selectedSpeed = spd"
+                  class="flex-1 py-1.5 px-1 rounded-lg text-xs font-medium transition-all border"
+                  :class="selectedSpeed === spd
+                    ? 'border-mode-generate bg-mode-generate/10 text-text-primary'
+                    : 'border-border-muted text-text-secondary hover:border-border-default cursor-pointer'"
+                >
+                  {{ spd }}x
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Footer -->
@@ -270,6 +352,13 @@ const handleCancel = () => {
 </template>
 
 <style scoped>
+/* Overlay: more opaque + heavy blur so underlying text is unreadable */
+.mp4-modal-overlay {
+  background: var(--color-bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.2s ease;
@@ -289,5 +378,71 @@ const handleCancel = () => {
 .modal-leave-to > div {
   transform: scale(0.95);
   opacity: 0;
+}
+
+/* Speed slider - theme-aware track and thumb */
+.speed-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg-muted);
+  outline: none;
+}
+
+.speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-mode-generate);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.speed-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-mode-generate);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Speed number input */
+.speed-input {
+  width: 4.5rem;
+  padding: 0.375rem 1.25rem 0.375rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-muted);
+  background: var(--color-bg-muted);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.speed-input:focus {
+  border-color: var(--color-mode-generate);
+}
+
+.speed-input::-webkit-inner-spin-button,
+.speed-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.speed-input-suffix {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  pointer-events: none;
 }
 </style>

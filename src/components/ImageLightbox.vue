@@ -586,7 +586,7 @@ const handleMp4Click = async () => {
   showMp4QualityModal.value = true
 }
 
-const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight }) => {
+const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight, playbackSpeed }) => {
   await downloadDownloadAllAsMp4({
     images: props.images,
     historyId: props.historyId,
@@ -594,6 +594,7 @@ const downloadAllAsMp4 = async ({ videoBitrate, maxWidth, maxHeight }) => {
     videoBitrate,
     maxWidth,
     maxHeight,
+    playbackSpeed,
   })
 }
 
