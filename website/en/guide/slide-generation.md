@@ -242,6 +242,7 @@ AI automatically arranges a narrative arc: the first page includes a cohesive in
 
 - **Live Preview**: A mini audio player appears below each image card in the generation results
 - **Lightbox Playback**: Click an image to open Lightbox, with an audio player at the bottom
+- **Transcript Panel**: Click the transcript button in the Lightbox toolbar (or press `T`) to open a floating transcript panel that auto-updates as you navigate pages. In dual-speaker mode, speakers are color-coded. The panel supports drag to reposition and top-right corner drag to resize; position and size are remembered automatically
 - **Download Options**:
   - ZIP download automatically includes audio files (`narration-1.mp3`, `narration-2.mp3`…)
   - Lightbox download menu has a "Narration Audio" section for downloading current page or all audio
