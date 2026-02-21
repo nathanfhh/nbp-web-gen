@@ -108,7 +108,8 @@ The scatter chart button in the top right of the search panel opens the **Embedd
 
 - **Data source selection** — View embedding data from either the Local or Gemini engine
 - **Sampling control** — Set sample size or use full data
-- **Color mode** — Color by generation mode (each mode gets a different color) or single color
+- **Color mode** — Color by generation mode (each mode gets a different color), by record (each historyId distinguished with a 20-color palette), or single color
+- **Mode filter** — Multi-select chip buttons to filter data points by generation mode, focusing on specific modes
 - **Hover text** — Configure what shows on mouse hover (ID only, truncated text, full text)
 - **3D interaction** — Rotate, zoom, and pan to explore vector space distribution
 

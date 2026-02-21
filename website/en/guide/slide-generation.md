@@ -274,12 +274,12 @@ After generation, you can:
 ::: info MP4 Export
 MP4 export requires browser support for the WebCodecs API. Currently supported in Chrome and Edge; not available in Firefox (the button is automatically hidden).
 
-When you click the MP4 button, a quality selection dialog appears:
-- **Low Quality** (4 Mbps): Smaller file size, ideal for quick sharing
-- **Medium Quality** (8 Mbps): Balance between quality and file size (default)
-- **High Quality** (12 Mbps): Best visual quality, ideal for formal presentations
+When you click the MP4 button, a settings dialog appears:
+- **Quality**: Low (4 Mbps), Medium (8 Mbps, default), High (12 Mbps)
+- **Resolution**: 720p / 1080p / 1440p / 4K available depending on source image dimensions
+- **Narration Speed**: 1x–4x adjustment with pitch preservation. Includes a slider, number input, and preset buttons (1 / 1.25 / 1.5 / 1.75 / 2 / 3x)
 
-Your choice is remembered for next time. Pages without narration are filled with 5 seconds of silence; pages with narration last as long as the audio.
+All settings are remembered for next time. Pages without narration are filled with 5 seconds of silence; pages with narration last as long as the (speed-adjusted) audio.
 :::
 
 ::: tip Need Editable PPTX?
