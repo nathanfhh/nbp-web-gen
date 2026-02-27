@@ -229,6 +229,23 @@ const loadHistoryItem = async (item) => {
 
     // Restore pagesRaw (this will trigger parsePages via watch)
     if (item.options.pagesRaw) {
+      // Pre-fill pages with original IDs from pagesContent BEFORE setting pagesRaw.
+      // parsePages() matches by index+content — without this, pages beyond the
+      // current store length get new random IDs that break narration script matching.
+      if (item.options.pagesContent?.length > 0) {
+        store.slidesOptions.pages = item.options.pagesContent.map((p) => ({
+          id: p.id,
+          pageNumber: p.pageNumber,
+          content: p.content,
+          status: 'pending',
+          image: null,
+          pendingImage: null,
+          error: null,
+          referenceImages: [],
+          styleGuide: '',
+        }))
+      }
+
       store.slidesOptions.pagesRaw = item.options.pagesRaw
 
       // Restore per-page styleGuides after pages are parsed
