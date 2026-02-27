@@ -79,6 +79,16 @@ export function useCharacterStorage() {
         throw new Error(`Unsupported image MIME type: ${mimeType}`)
       }
       const opfsPath = `/${dirPath}/image.${ext}`
+
+      // Remove stale variants so resolver always finds the latest format
+      for (const existingExt of CHARACTER_IMAGE_EXTENSIONS) {
+        if (existingExt === ext) continue
+        const stalePath = `/${dirPath}/image.${existingExt}`
+        if (await opfs.fileExists(stalePath)) {
+          await opfs.deleteFile(stalePath)
+        }
+      }
+
       await opfs.writeFile(opfsPath, blob)
 
       return { opfsPath }
