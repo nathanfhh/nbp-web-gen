@@ -101,12 +101,15 @@ export function useGeneration() {
           negativePrompt: negativePrompt || options.negativePrompt || '',
         }
         currentAbortController = new AbortController()
-        const videoResult = await generateVideo(enhancedPrompt, videoOptions, (progress) => {
-          // Convert progress to thinking chunk format
-          onThinkingChunk(progress.message)
-        }, currentAbortController.signal)
-        currentAbortController = null
-        return videoResult
+        try {
+          const videoResult = await generateVideo(enhancedPrompt, videoOptions, (progress) => {
+            // Convert progress to thinking chunk format
+            onThinkingChunk(progress.message)
+          }, currentAbortController.signal)
+          return videoResult
+        } finally {
+          currentAbortController = null
+        }
       }
 
       case 'slides': {

@@ -5,10 +5,13 @@ import { useOPFS } from './useOPFS'
  * Character Storage Composable
  *
  * Handles storing character images in OPFS (Origin Private File System).
- * Images are stored in WebP format for optimal compression.
+ * Images are stored with their original format extension (webp, png, or jpg).
  *
  * Directory structure:
- *   /characters/{characterId}/image.webp
+ *   /characters/{characterId}/image.{ext}
+ *
+ * Supported formats: image/webp, image/png, image/jpeg
+ * Read operations search multiple extensions via resolveCharacterImagePath().
  *
  * Note: Only the full-resolution image is stored in OPFS.
  * Thumbnails remain in IndexedDB for quick carousel display.
@@ -69,9 +72,12 @@ export function useCharacterStorage() {
       }
       const blob = new Blob([bytes], { type: mimeType })
 
-      // Derive file extension from mimeType
+      // Derive file extension from mimeType (restricted to supported types)
       const extMap = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg' }
-      const ext = extMap[mimeType] || mimeType.split('/')[1] || 'webp'
+      const ext = extMap[mimeType]
+      if (!ext) {
+        throw new Error(`Unsupported image MIME type: ${mimeType}`)
+      }
       const opfsPath = `/${dirPath}/image.${ext}`
       await opfs.writeFile(opfsPath, blob)
 
