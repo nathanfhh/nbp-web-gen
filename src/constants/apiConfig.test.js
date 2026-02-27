@@ -4,7 +4,6 @@ import {
   IMAGE_MIN_START_INTERVAL_MS,
   DEFAULT_RETRY_CONFIG,
   DEFAULT_REQUEST_TIMEOUT_MS,
-  DEFAULT_ANALYSIS_TIMEOUT_MS,
   RETRY_LIMITS,
   CONCURRENCY_LIMITS,
   TTS_RPM,
@@ -44,10 +43,6 @@ describe('DEFAULT_RETRY_CONFIG', () => {
 describe('Timeout constants', () => {
   it('request timeout is positive', () => {
     expect(DEFAULT_REQUEST_TIMEOUT_MS).toBeGreaterThan(0)
-  })
-
-  it('analysis timeout is positive', () => {
-    expect(DEFAULT_ANALYSIS_TIMEOUT_MS).toBeGreaterThan(0)
   })
 })
 

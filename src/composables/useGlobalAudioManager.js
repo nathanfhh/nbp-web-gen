@@ -49,14 +49,6 @@ export function pauseAll() {
 }
 
 /**
- * Check if any audio is currently playing
- * @returns {boolean}
- */
-export function isAnyPlaying() {
-  return currentPauseFn !== null
-}
-
-/**
  * Composable wrapper for Vue components
  */
 export function useGlobalAudioManager() {
@@ -64,6 +56,5 @@ export function useGlobalAudioManager() {
     registerPlaying,
     unregisterPlaying,
     pauseAll,
-    isAnyPlaying,
   }
 }

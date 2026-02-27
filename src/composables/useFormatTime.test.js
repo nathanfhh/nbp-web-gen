@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatElapsed, useFormatTime } from './useFormatTime'
+import { formatElapsed } from './useFormatTime'
 
 describe('formatElapsed', () => {
   it('returns "0.0s" for 0', () => {
@@ -34,13 +34,5 @@ describe('formatElapsed', () => {
 
   it('formats large values', () => {
     expect(formatElapsed(600000)).toBe('10m 0s')
-  })
-})
-
-describe('useFormatTime', () => {
-  it('returns an object with formatElapsed', () => {
-    const { formatElapsed: fn } = useFormatTime()
-    expect(typeof fn).toBe('function')
-    expect(fn(5000)).toBe('5.0s')
   })
 })

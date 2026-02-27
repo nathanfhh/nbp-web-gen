@@ -431,12 +431,6 @@ const handleWheel = (e) => {
   zoomHandleWheel(e, props.modelValue)
 }
 
-// Mouse down wrapper - simplified for better UX
-// If event reaches here (passed through SVG background), it's a drag/pan
-const handleMouseDownWrapper = (e) => {
-  handleMouseDown(e)
-}
-
 // Double click wrapper - disabled in edit mode
 const handleDoubleClickWrapper = (e) => {
   if (props.isEditMode) return
@@ -984,7 +978,7 @@ const goToSlideToPptx = async () => {
         <div
           ref="imageContainerRef"
           class="lightbox-content"
-          @mousedown="handleMouseDownWrapper"
+          @mousedown="handleMouseDown"
           @mousemove="handleMouseMove"
           @dblclick="handleDoubleClickWrapper"
           @touchstart="handleTouchStart"

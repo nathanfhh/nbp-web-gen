@@ -148,16 +148,7 @@ export function setTheme(themeName) {
 
   currentThemeName.value = themeName
   localStorage.setItem(STORAGE_KEY, themeName)
-  
-  // 如果支援 View Transitions API 且不是初始載入，這部分邏輯交由 UI 層處理動畫
-  // 這裡只負責純數據更新和基本的 DOM 變更（作為 fallback）
-  if (!document.startViewTransition) {
-      applyThemeToDOM(themes[themeName])
-  } else {
-      // 在 View Transition 環境下，UI 元件會呼叫 setTheme
-      // 我們這裡直接 apply，因為 startViewTransition 會包裹這個狀態變更
-      applyThemeToDOM(themes[themeName])
-  }
+  applyThemeToDOM(themes[themeName])
 }
 
 /**

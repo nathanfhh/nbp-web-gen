@@ -201,23 +201,6 @@ body {
   box-shadow: var(--shadow-card);
 }
 
-/* Neon Glow Effects */
-.glow-purple {
-  box-shadow: var(--glow-purple);
-}
-
-.glow-cyan {
-  box-shadow: var(--glow-cyan);
-}
-
-.glow-emerald {
-  box-shadow: var(--glow-emerald);
-}
-
-.glow-gold {
-  box-shadow: var(--glow-gold);
-}
-
 .glow-text-purple {
   text-shadow: 0 2px 10px color-mix(in srgb, var(--color-brand-primary), transparent 70%);
 }
@@ -490,7 +473,7 @@ body {
 }
 
 .history-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg-hover, color-mix(in srgb, var(--color-bg-interactive), transparent 50%));
   border-color: color-mix(in srgb, var(--color-brand-primary), transparent 70%);
 }
 
@@ -631,7 +614,6 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--color-border-focus);
   border-radius: 4px;
-  opacity: 0.5; /* Note: opacity doesn't work on ::-webkit-scrollbar-thumb directly, but we rely on the color variable having alpha or being suitable */
 }
 
 ::-webkit-scrollbar-thumb:hover {

@@ -48,20 +48,11 @@ export const TOKEN_SCHEMA = {
     'infoHover',
   ],
 
-  // 模式色（對應 6 種生成模式，含 hover 變體）
+  // 模式色（generate 統一品牌色 + video 獨立色，含 hover 變體）
   mode: [
     'generate',
     'generateMuted',
     'generateHover',
-    'sticker',
-    'stickerMuted',
-    'stickerSolid', // toggle on 狀態
-    'edit',
-    'editMuted',
-    'story',
-    'storyMuted',
-    'diagram',
-    'diagramMuted',
     'video',
     'videoMuted',
   ],

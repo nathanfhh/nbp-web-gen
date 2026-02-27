@@ -140,4 +140,3 @@ export const VIDEO_MODE_CONSTRAINTS = {
 
 // Polling configuration
 export const VIDEO_POLLING_INTERVAL_MS = 10000 // 10 seconds
-export const VIDEO_POLLING_MAX_ATTEMPTS = 60 // 10 minutes max

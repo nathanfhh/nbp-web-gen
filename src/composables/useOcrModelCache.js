@@ -13,32 +13,10 @@
 import { ref } from 'vue'
 import * as ocrUtils from '@/utils/ocrUtils'
 
-// Use HuggingFace CDN for model downloads
-// Models are cached in OPFS after first download for fast subsequent loads
-const USE_LOCAL_MODELS = false
-
-// Local model paths (in public folder) - for development fallback
-const LOCAL_MODELS = {
-  detection: {
-    filename: 'PP-OCRv5_server_det_infer.onnx',
-    url: '/PP-OCRv5_server_det_infer.onnx',
-    size: 88_000_000, // ~88MB
-  },
-  recognition: {
-    filename: 'PP-OCRv5_server_rec_infer.onnx',
-    url: '/PP-OCRv5_server_rec_infer.onnx',
-    size: 84_000_000, // ~84MB
-  },
-  dictionary: {
-    filename: 'ppocrv5_dict.txt',
-    url: '/ppocrv5_dict.txt',
-    size: 74_000, // ~74KB
-  },
-}
-
 // HuggingFace CDN URLs for PaddleOCR v5 models
+// Models are cached in OPFS after first download for fast subsequent loads
 const HF_BASE = 'https://huggingface.co/nathanfhh/PaddleOCR-ONNX/resolve/main'
-const REMOTE_MODELS = {
+const MODELS = {
   detection: {
     filename: 'PP-OCRv5_server_det.onnx',
     url: `${HF_BASE}/PP-OCRv5_server_det.onnx`,
@@ -56,9 +34,6 @@ const REMOTE_MODELS = {
   },
 }
 
-// Select which models to use
-const MODELS = USE_LOCAL_MODELS ? LOCAL_MODELS : REMOTE_MODELS
-
 /**
  * OCR Model Cache Composable
  * @returns {Object} Model cache methods and state
@@ -70,15 +45,6 @@ export function useOcrModelCache() {
   const error = ref(null)
 
   /**
-   * Check if URL is local (from public folder)
-   * @param {string} url
-   * @returns {boolean}
-   */
-  const isLocalUrl = (url) => {
-    return url.startsWith('/') && !url.startsWith('//')
-  }
-
-  /**
    * Get a model, downloading if not cached
    * @param {'detection'|'recognition'|'dictionary'} modelType
    * @returns {Promise<ArrayBuffer|string>}
@@ -87,16 +53,7 @@ export function useOcrModelCache() {
     const model = MODELS[modelType]
     if (!model) throw new Error(`Unknown model type: ${modelType}`)
 
-    // For local models, fetch directly without OPFS caching
-    if (isLocalUrl(model.url)) {
-      status.value = `Loading ${model.filename}...`
-      // Direct download without caching for local files
-      const response = await fetch(model.url)
-      if (!response.ok) throw new Error(`Failed to load local model: ${model.filename}`)
-      return model.filename.endsWith('.txt') ? await response.text() : await response.arrayBuffer()
-    }
-
-    // For remote models, check OPFS cache first
+    // Check OPFS cache first
     if (await ocrUtils.modelExists(model.filename)) {
       status.value = `Loading ${model.filename} from cache...`
       return await ocrUtils.readModel(model.filename)

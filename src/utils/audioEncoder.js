@@ -183,20 +183,6 @@ export async function convertTtsResponseToAudio(base64Data, mimeType) {
 }
 
 /**
- * @deprecated Use convertTtsResponseToAudio instead
- * Convert TTS API response (base64 PCM) to MP3 Blob
- *
- * @param {string} base64Data - Base64 encoded PCM data
- * @param {string} mimeType - e.g. "audio/L16;rate=24000"
- * @returns {Promise<Blob>} MP3 blob
- */
-export async function convertTtsResponseToMp3(base64Data, mimeType) {
-  const { sampleRate } = parseMimeType(mimeType)
-  const pcmSamples = base64ToInt16Array(base64Data)
-  return encodePcmToMp3(pcmSamples, sampleRate, 64)
-}
-
-/**
  * Get file extension from audio MIME type
  * @param {string} mimeType - Audio MIME type
  * @returns {string} File extension (webm, mp3, or wav)
