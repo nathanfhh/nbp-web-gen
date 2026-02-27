@@ -1,5 +1,5 @@
 <script setup>
-import { useGeneratorStore } from '@/stores/generator'
+import { computed } from 'vue'
 
 defineProps({
   size: {
@@ -8,7 +8,7 @@ defineProps({
   },
 })
 
-const store = useGeneratorStore()
+const isDarkTheme = computed(() => document.documentElement.getAttribute('data-theme-type') === 'dark')
 
 const sizeClasses = {
   sm: 'w-5 h-5',
@@ -23,7 +23,7 @@ const sizeClasses = {
     target="_blank"
     rel="noopener noreferrer"
     class="inline-flex items-center justify-center p-2 rounded-lg transition-all"
-    :class="store.theme === 'dark'
+    :class="isDarkTheme
       ? 'text-text-muted hover:text-status-error hover:bg-bg-interactive'
       : 'text-text-muted hover:text-status-error hover:bg-bg-subtle'"
   >

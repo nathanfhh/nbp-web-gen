@@ -130,8 +130,9 @@ export function useStickerEdit() {
     visited[startPos] = 1
     let removedCount = 0
 
-    while (queue.length > 0) {
-      const pos = queue.shift()
+    let head = 0
+    while (head < queue.length) {
+      const pos = queue[head++]
       const x = pos % width
       const y = Math.floor(pos / width)
 

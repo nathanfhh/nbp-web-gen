@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onScopeDispose } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLocalStorage } from './useLocalStorage'
 
@@ -99,6 +99,14 @@ export function useApiKeyManager() {
     }
     freeTierExhausted.value = false
   }
+
+  // Clean up timeout on scope dispose to prevent memory leaks
+  onScopeDispose(() => {
+    if (resetTimeoutId) {
+      clearTimeout(resetTimeoutId)
+      resetTimeoutId = null
+    }
+  })
 
   /**
    * 帶有自動 fallback 的 API 調用包裝器

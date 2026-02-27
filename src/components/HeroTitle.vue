@@ -1,8 +1,15 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useGeneratorStore } from '@/stores/generator'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 
-const store = useGeneratorStore()
+const isDarkTheme = computed(() => document.documentElement.getAttribute('data-theme-type') === 'dark')
+
+// Track all timeout IDs for cleanup
+const pendingTimeouts = []
+const trackedTimeout = (fn, delay) => {
+  const id = setTimeout(fn, delay)
+  pendingTimeouts.push(id)
+  return id
+}
 
 // Animation phases:
 // 0 = initial (hidden)
@@ -40,27 +47,27 @@ const runAnimation = () => {
   mLowercased.value = false
 
   requestAnimationFrame(() => {
-    setTimeout(() => {
+    trackedTimeout(() => {
       // Phase 1: Fly in + genie bounce
       animationPhase.value = 1
 
-      setTimeout(() => {
+      trackedTimeout(() => {
         // Phase 2: Collision! 'a' ejects
         animationPhase.value = 2
         showSparks.value = true
 
-        setTimeout(() => {
+        trackedTimeout(() => {
           animationPhase.value = 3 // 'e' ejects
-          setTimeout(() => {
+          trackedTimeout(() => {
             animationPhase.value = 4 // 'r' ejects
-            setTimeout(() => {
+            trackedTimeout(() => {
               animationPhase.value = 5 // 'C' ejects
               showSparks.value = false
-              setTimeout(() => {
+              trackedTimeout(() => {
                 animationPhase.value = 6 // Mediator formed
 
                 // Start flip sequence after a pause
-                setTimeout(() => {
+                trackedTimeout(() => {
                   animationPhase.value = 7
                   startFlipSequence()
                 }, 600)
@@ -81,19 +88,19 @@ const startFlipSequence = () => {
   const flipDuration = 120
 
   flipOrder.forEach((index) => {
-    setTimeout(() => {
+    trackedTimeout(() => {
       flippedLetters.value.add(index)
 
       // When both a(4) and i(3) are flipped, swap them (at 90deg, halfway through flip)
       if (flippedLetters.value.has(3) && flippedLetters.value.has(4) && !aiSwapped.value) {
-        setTimeout(() => {
+        trackedTimeout(() => {
           aiSwapped.value = true
         }, flipDuration / 2)
       }
 
       // When M(0) is flipped, lowercase it at 90deg
       if (index === 0 && !mLowercased.value) {
-        setTimeout(() => {
+        trackedTimeout(() => {
           mLowercased.value = true
         }, flipDuration / 2)
       }
@@ -102,12 +109,12 @@ const startFlipSequence = () => {
   })
 
   // After all flips complete, trigger AI highlight
-  setTimeout(() => {
+  trackedTimeout(() => {
     animationPhase.value = 8
     aiHighlight.value = true
 
     // Return to final state
-    setTimeout(() => {
+    trackedTimeout(() => {
       aiHighlight.value = false
       animationPhase.value = 9
       isAnimating.value = false
@@ -117,6 +124,11 @@ const startFlipSequence = () => {
 
 onMounted(() => {
   runAnimation()
+})
+
+onUnmounted(() => {
+  pendingTimeouts.forEach((id) => clearTimeout(id))
+  pendingTimeouts.length = 0
 })
 
 const phase = computed(() => animationPhase.value)
@@ -144,7 +156,7 @@ defineExpose({ runAnimation })
 <template>
   <h1
     class="text-5xl lg:text-7xl font-bold mb-4 hero-title cursor-pointer select-none"
-    :class="store.theme === 'dark' ? 'glow-text-purple' : ''"
+    :class="isDarkTheme ? 'glow-text-purple' : ''"
     @click="runAnimation"
     :title="$t('hero.replayAnimation')"
   >

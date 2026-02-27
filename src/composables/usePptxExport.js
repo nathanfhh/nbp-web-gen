@@ -396,7 +396,6 @@ export function usePptxExport() {
             const maxFontSize = ocrSettings.maxFontSize ?? OCR_DEFAULTS.maxFontSize
 
             let fontSize
-            const debugLines = [] // Debug info
 
             if (region.lines && region.lines.length > 0) {
               // Get dimensions of all original lines
@@ -421,13 +420,6 @@ export function usePptxExport() {
                     heightPx = line.bounds.height
                     widthPx = line.bounds.width
                   }
-                  debugLines.push({
-                    text: line.text.substring(0, 30) + (line.text.length > 30 ? '...' : ''),
-                    heightPx: Math.round(heightPx),
-                    widthPx: Math.round(widthPx),
-                    aspectRatio: (widthPx / heightPx).toFixed(2),
-                    color: line.textColor || '(none)',
-                  })
                   return { heightPx, widthPx }
                 })
 
@@ -442,29 +434,21 @@ export function usePptxExport() {
                 const aspectRatio = maxWidth / maxHeight
 
                 let fontReferencePx
-                let fontReferenceType
                 if (aspectRatio < 0.5) {
                   // Very tall & narrow → likely vertical text → use width
                   fontReferencePx = maxWidth
-                  fontReferenceType = 'width (vertical text detected)'
                 } else if (aspectRatio > 2) {
                   // Very wide & short → clearly horizontal text → use height
                   fontReferencePx = maxHeight
-                  fontReferenceType = 'height (horizontal text)'
                 } else {
                   // Square-ish or uncertain → use min for safety
                   fontReferencePx = Math.min(maxWidth, maxHeight)
-                  fontReferenceType = `min (aspect ratio ${aspectRatio.toFixed(2)})`
                 }
 
                 // Convert to font size in points
                 // Use imgPos.h (actual image height on slide) for correct scaling
                 fontSize =
                   ((fontReferencePx / slideData.height) * imgPos.h * 72) / lineHeightRatio
-
-                console.log(
-                  `📐 Font reference: ${fontReferenceType}, ${Math.round(fontReferencePx)}px → ${Math.round(fontSize)}pt`
-                )
               } else {
                 // Fallback if no valid lines
                 fontSize = (h * 72) / lineHeightRatio
@@ -485,23 +469,10 @@ export function usePptxExport() {
               }
 
               fontSize = ((fontReferencePx / slideData.height) * imgPos.h * 72) / lineHeightRatio
-              debugLines.push({
-                text: region.text.substring(0, 30) + (region.text.length > 30 ? '...' : ''),
-                heightPx: Math.round(heightPx),
-                widthPx: Math.round(widthPx),
-                aspectRatio: aspectRatio.toFixed(2),
-                color: '(single)',
-              })
             }
 
             // Clamp font size to configurable range
             fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.round(fontSize)))
-
-            // Debug output
-            console.group(`📝 Font Size Calculation (Aspect-Ratio Adaptive)`)
-            console.log(`Final fontSize: ${fontSize}pt`)
-            console.table(debugLines)
-            console.groupEnd()
 
             // Determine text content and colors
             // If region has lines with different colors, use array format for per-line colors

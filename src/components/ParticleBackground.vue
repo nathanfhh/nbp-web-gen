@@ -1,8 +1,5 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useGeneratorStore } from '@/stores/generator'
-
-const store = useGeneratorStore()
 const canvas = ref(null)
 let animationId = null
 let particles = []
@@ -32,7 +29,8 @@ const getParticleColor = () => {
   }
   
   // Handle if variable is missing or rgb() format (simplified fallback)
-  return store.theme === 'dark'
+  const isDark = document.documentElement.getAttribute('data-theme-type') === 'dark'
+  return isDark
     ? { r: 59, g: 130, b: 246 }
     : { r: 13, g: 94, b: 175 }
 }

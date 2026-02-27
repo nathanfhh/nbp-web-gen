@@ -571,7 +571,7 @@ const handleAddToReferences = (referenceData) => {
           @click="tour.resetTourCompletion(); tour.start()"
           class="h-[50px] px-3 rounded-xl transition-all group flex items-center justify-center"
           :class="
-            store.theme === 'dark'
+            isDarkTheme
               ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
               : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
           "
@@ -579,7 +579,7 @@ const handleAddToReferences = (referenceData) => {
         >
           <svg
             class="w-5 h-5 group-hover:scale-110 transition-transform"
-            :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
+            :class="isDarkTheme ? 'text-text-secondary' : 'text-text-muted'"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -598,7 +598,7 @@ const handleAddToReferences = (referenceData) => {
           @click="toggleLocale"
           class="p-3 rounded-xl transition-all group"
           :class="
-            store.theme === 'dark'
+            isDarkTheme
               ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
               : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
           "
@@ -622,7 +622,7 @@ const handleAddToReferences = (referenceData) => {
             @click="isThemeMenuOpen = !isThemeMenuOpen"
             class="p-3 rounded-xl transition-all group flex items-center gap-2"
             :class="
-              store.theme === 'dark'
+              isDarkTheme
                 ? 'bg-bg-muted border border-border-muted hover:bg-bg-interactive'
                 : 'bg-bg-subtle border border-border-subtle hover:bg-bg-subtle'
             "
@@ -647,10 +647,10 @@ const handleAddToReferences = (referenceData) => {
             >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            <span class="text-sm font-medium hidden sm:block" :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'">
+            <span class="text-sm font-medium hidden sm:block" :class="isDarkTheme ? 'text-text-secondary' : 'text-text-muted'">
               {{ $t(`theme.names.${store.theme}`) }}
             </span>
-            <svg class="w-4 h-4 transition-transform duration-200" :class="[store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted', isThemeMenuOpen ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="w-4 h-4 transition-transform duration-200" :class="[isDarkTheme ? 'text-text-secondary' : 'text-text-muted', isThemeMenuOpen ? 'rotate-180' : '']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
@@ -731,7 +731,7 @@ const handleAddToReferences = (referenceData) => {
         <HeroTitle />
         <p
           class="text-lg lg:text-xl flex items-center justify-center gap-2 mb-2"
-          :class="store.theme === 'dark' ? 'text-text-secondary' : 'text-text-muted'"
+          :class="isDarkTheme ? 'text-text-secondary' : 'text-text-muted'"
         >
           <span class="opacity-60">—</span>
           <span>Powered by Nano Banana Pro & Veo</span>
@@ -1125,7 +1125,7 @@ const handleAddToReferences = (referenceData) => {
 
       <!-- Footer -->
       <footer class="mt-8 text-center space-y-3">
-        <p class="text-sm" :class="store.theme === 'dark' ? 'text-text-muted' : 'text-text-muted'">
+        <p class="text-sm text-text-muted">
           {{ $t('footer.title') }}
         </p>
         <div class="flex items-center justify-center gap-1">

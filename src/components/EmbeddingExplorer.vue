@@ -282,6 +282,28 @@ watch(() => settings.filterModes.length, async () => {
   }
 })
 
+// Re-render on display settings change
+watch(() => settings.colorBy, async () => {
+  if (plotData.value) {
+    await nextTick()
+    renderPlot()
+  }
+})
+
+watch(() => settings.hoverText, async () => {
+  if (plotData.value) {
+    await nextTick()
+    renderPlot()
+  }
+})
+
+watch(() => settings.hoverLength, async () => {
+  if (plotData.value) {
+    await nextTick()
+    renderPlot()
+  }
+})
+
 // ============================================================================
 // Actions
 // ============================================================================

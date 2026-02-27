@@ -28,7 +28,9 @@
     "expand": "Expand",
     "collapse": "Collapse",
     "play": "Play",
-    "pause": "Pause"
+    "pause": "Pause",
+    "searchPlaceholder": "Search...",
+    "noResults": "No results"
   },
   "hero": {
     "subtitle": "AI Image & Video Generator",
@@ -168,7 +170,8 @@
       "story": "Describe the story theme, e.g., a seed growing into a tree...",
       "diagram": "Describe the diagram content, e.g., user login flowchart...",
       "video": "Describe the video you want to generate, e.g., a cat running in a meadow...",
-      "slides": "This content will be prepended to each page, e.g., Company annual report, use tech-style colors..."
+      "slides": "This content will be prepended to each page, e.g., Company annual report, use tech-style colors...",
+      "agent": "Describe the task you want to accomplish, e.g., analyze the content of this image..."
     }
   },
   "settings": {

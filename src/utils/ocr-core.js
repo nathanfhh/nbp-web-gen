@@ -1319,8 +1319,9 @@ function findConnectedComponents(mask, width, height) {
       const queue = [[x, y]]
       visited.add(idx)
 
-      while (queue.length > 0) {
-        const [cx, cy] = queue.shift()
+      let head = 0
+      while (head < queue.length) {
+        const [cx, cy] = queue[head++]
         component.push([cx, cy])
 
         // 8-connectivity neighbors (including diagonals)

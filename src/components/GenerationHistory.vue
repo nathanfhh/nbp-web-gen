@@ -136,6 +136,7 @@ const getStatusClass = (status) => {
 }
 
 const truncatePrompt = (prompt, maxLength = 60) => {
+  if (!prompt) return ''
   if (prompt.length <= maxLength) return prompt
   return prompt.slice(0, maxLength) + '...'
 }
