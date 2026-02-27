@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { GoogleGenAI, Modality } from '@google/genai'
+import { GoogleGenAI, Modality, ThinkingLevel } from '@google/genai'
 import { useLocalStorage } from './useLocalStorage'
 import { isQuotaError } from './useApiKeyManager'
 import { buildPrompt } from './promptBuilders'
@@ -174,8 +174,14 @@ export function useApi() {
    * Build SDK generation config
    */
   const buildSdkConfig = (options = {}) => {
+    const model = options.model || DEFAULT_MODEL
+    const is31Flash = model === 'gemini-3.1-flash-image-preview'
+
     const config = {
-      responseModalities: [Modality.IMAGE, Modality.TEXT],
+      // 3.1 Flash outputs images only; older models return both image and text
+      responseModalities: is31Flash
+        ? [Modality.IMAGE]
+        : [Modality.IMAGE, Modality.TEXT],
     }
 
     // Add temperature if specified
@@ -205,10 +211,10 @@ export function useApi() {
       config.imageConfig = imageConfig
     }
 
-    // Enable thinking mode
-    config.thinkingConfig = {
-      includeThoughts: true,
-    }
+    // Thinking config: 3.1 Flash uses thinkingLevel, older models use includeThoughts
+    config.thinkingConfig = is31Flash
+      ? { thinkingLevel: ThinkingLevel.HIGH }
+      : { includeThoughts: true }
 
     // Enable Google Search for real-time data (weather, stocks, etc.)
     config.tools = [{ googleSearch: {} }]
@@ -275,6 +281,11 @@ export function useApi() {
 
       // Get model
       const model = options.model || DEFAULT_MODEL
+
+      // Notify that 3.1 Flash doesn't expose thinking process
+      if (model === 'gemini-3.1-flash-image-preview' && onThinkingChunk) {
+        onThinkingChunk(`[${t('generation.noThinkingProcess')}]\n`)
+      }
 
       // AbortController to cancel in-flight requests on timeout/retry
       // Prevents ghost requests from consuming API quota after timeout

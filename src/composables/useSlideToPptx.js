@@ -10,7 +10,7 @@
  */
 
 import { ref, reactive, computed, onUnmounted, watch } from 'vue'
-import { GoogleGenAI, Modality } from '@google/genai'
+import { GoogleGenAI, Modality, ThinkingLevel } from '@google/genai'
 import { useOcr } from './useOcr'
 import { useInpaintingWorker } from './useInpaintingWorker'
 import { usePptxExport } from './usePptxExport'
@@ -134,8 +134,9 @@ export function useSlideToPptx() {
     // Gemini model for text removal
     // '2.0' = gemini-2.5-flash-image (can use free tier)
     // '3.0' = gemini-3-pro-image-preview (paid only)
+    // '3.1' = gemini-3.1-flash-image-preview (paid only)
     geminiModel: '2.0',
-    // Image quality for 3.0 model output (1k, 2k, 4k)
+    // Image quality for non-2.0 model output (1k, 2k, 4k)
     imageQuality: '2k',
   })
 
@@ -298,11 +299,14 @@ export function useSlideToPptx() {
    */
   const removeTextWithGeminiWithSettings = async (imageDataUrl, ocrResults, effectiveSettings, customPrompt = null, originalWidth = 0, originalHeight = 0) => {
     // Determine model and API key usage based on settings
-    const modelId = effectiveSettings.geminiModel === '2.0'
-      ? 'gemini-2.5-flash-image'
-      : 'gemini-3-pro-image-preview'
+    const MODEL_MAP = {
+      '2.0': 'gemini-2.5-flash-image',
+      '3.0': 'gemini-3-pro-image-preview',
+      '3.1': 'gemini-3.1-flash-image-preview',
+    }
+    const modelId = MODEL_MAP[effectiveSettings.geminiModel] || MODEL_MAP['2.0']
 
-    // For 2.5 model, try free tier first; for 3.0, use paid key directly
+    // For 2.0 model, try free tier first; for 3.0/3.1, use paid key directly
     const usage = effectiveSettings.geminiModel === '2.0' ? 'text' : 'image'
 
     // Image quality mapping for 3.0 model
@@ -339,11 +343,21 @@ Output: A single clean image with all text removed.`
 
     const ai = new GoogleGenAI({ apiKey })
 
-    // Build config - add imageSize only for 3.0 model
+    // Build config - adjust based on model capabilities
+    const is31Flash = effectiveSettings.geminiModel === '3.1'
     const config = {
-      responseModalities: [Modality.IMAGE, Modality.TEXT],
+      responseModalities: is31Flash
+        ? [Modality.IMAGE]
+        : [Modality.IMAGE, Modality.TEXT],
     }
-    if (effectiveSettings.geminiModel === '3.0') {
+
+    // 3.1 Flash uses thinkingLevel instead of includeThoughts
+    if (is31Flash) {
+      config.thinkingConfig = { thinkingLevel: ThinkingLevel.HIGH }
+    }
+
+    // Add imageSize for non-2.0 models (3.0 and 3.1 both support it)
+    if (effectiveSettings.geminiModel !== '2.0') {
       config.imageSize = imageSize
     }
 
@@ -586,8 +600,16 @@ Output: A single clean image with all text removed.`
         state.inpaintMethodUsed = 'opencv'
       } else {
         // Gemini API method with fallback to OpenCV
-        const modelName = effectiveSettings.geminiModel === '2.0' ? 'Nano Banana (2.0)' : 'Nano Banana Pro (3.0)'
+        const MODEL_NAMES = {
+          '2.0': 'Nano Banana',
+          '3.0': 'Nano Banana Pro',
+          '3.1': 'Nano Banana 2',
+        }
+        const modelName = MODEL_NAMES[effectiveSettings.geminiModel] || MODEL_NAMES['2.0']
         addLog(t('slideToPptx.logs.usingGeminiModel', { slide: index + 1, model: modelName }))
+        if (effectiveSettings.geminiModel === '3.1') {
+          addLog(t('slideToPptx.logs.noThinkingProcess'))
+        }
 
         // For Gemini method, extract colors separately first
         const textColors = await inpainting.extractColors(imageData, state.rawRegions)

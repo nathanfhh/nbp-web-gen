@@ -8,6 +8,7 @@ import { useAudioStorage } from '@/composables/useAudioStorage'
 import { useCharacterStorage } from '@/composables/useCharacterStorage'
 import { useConversationStorage } from '@/composables/useConversationStorage'
 import { DEFAULT_TEMPERATURE, DEFAULT_SEED, getDefaultOptions, DEFAULT_VIDEO_PROMPT_OPTIONS } from '@/constants'
+import { DEFAULT_MODEL as DEFAULT_IMAGE_MODEL } from '@/constants/imageOptions'
 import { useThemeName, toggleTheme as themeToggle, setTheme as themeSet } from '@/theme'
 
 export const useGeneratorStore = defineStore('generator', () => {
@@ -52,6 +53,7 @@ export const useGeneratorStore = defineStore('generator', () => {
   // Common settings
   const temperature = ref(DEFAULT_TEMPERATURE)
   const seed = ref(DEFAULT_SEED)
+  const imageModel = ref(DEFAULT_IMAGE_MODEL)
 
   // Mode-specific options (using defaults from constants)
   // Use getDefaultOptions to deep clone arrays and avoid shared references
@@ -141,6 +143,9 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     const savedSeed = getQuickSetting('seed')
     if (savedSeed !== null) seed.value = savedSeed
+
+    const savedImageModel = getQuickSetting('imageModel')
+    if (savedImageModel) imageModel.value = savedImageModel
 
     // Load prompt from localStorage
     const savedPrompt = getQuickSetting('prompt')
@@ -265,6 +270,7 @@ export const useGeneratorStore = defineStore('generator', () => {
       ['currentMode', currentMode],
       ['temperature', temperature],
       ['seed', seed],
+      ['imageModel', imageModel],
       ['prompt', prompt],
     ]
 
@@ -361,6 +367,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     const base = {
       temperature: temperature.value,
       seed: seed.value,
+      model: imageModel.value,
     }
 
     const modeOptions = optionsMap[currentMode.value]
@@ -1298,6 +1305,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     prompt,
     temperature,
     seed,
+    imageModel,
     generateOptions,
     editOptions,
     storyOptions,

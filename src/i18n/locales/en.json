@@ -185,6 +185,11 @@
       "placeholder": "Leave empty for random seed",
       "hint": "Same seed and prompt will produce the same result for reproducibility",
       "generate": "Generate random seed"
+    },
+    "imageModel": {
+      "label": "Image Model",
+      "hint": "Pro for higher quality, Flash for faster speed",
+      "agentFixed": "Agent mode uses this model exclusively and cannot be changed"
     }
   },
   "options": {
@@ -1104,6 +1109,9 @@
   "storyProgress": {
     "generating": "Generating image {current}/{total}"
   },
+  "generation": {
+    "noThinkingProcess": "This model does not provide thinking process"
+  },
   "styles": {
     "photorealistic": "Photorealistic",
     "watercolor": "Watercolor",
@@ -1557,6 +1565,7 @@
     "freeTierAvailable": "Free tier available",
     "gemini20Desc": "Fast and stable, uses free tier first, auto-fallback to paid when exhausted",
     "gemini30Desc": "Higher quality background reconstruction, requires paid API key",
+    "gemini31Desc": "Next-gen model, fast with good quality, requires paid API key (no thinking process)",
     "gemini30NoPaidKey": "Requires a paid API key to use this model",
     "imageQuality": "Output Quality",
     "imageQualityDesc": "Higher quality requires more processing time and API cost",
@@ -1656,6 +1665,7 @@
       "generatingMask": "Slide {slide}: Generating mask...",
       "removingText": "Slide {slide}: Removing text ({method})...",
       "usingGeminiModel": "Slide {slide}: Using {model} for text removal...",
+      "noThinkingProcess": "This model does not provide thinking process",
       "geminiFailed": "Slide {slide}: Gemini failed ({error}), falling back to OpenCV...",
       "opencvFallbackComplete": "Slide {slide}: OpenCV fallback complete",
       "textRemovalComplete": "Slide {slide}: Text removal complete",

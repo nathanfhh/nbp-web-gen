@@ -185,6 +185,11 @@
       "placeholder": "留空使用隨機種子",
       "hint": "相同的 seed 與 prompt 會產生相同的結果，方便重現",
       "generate": "生成隨機種子"
+    },
+    "imageModel": {
+      "label": "圖片模型",
+      "hint": "Pro 品質較高，Flash 速度較快",
+      "agentFixed": "Agent 模式固定使用此模型，無法變更"
     }
   },
   "options": {
@@ -1104,6 +1109,9 @@
   "storyProgress": {
     "generating": "生成第 {current}/{total} 張圖片"
   },
+  "generation": {
+    "noThinkingProcess": "此模型目前未提供思考過程"
+  },
   "styles": {
     "photorealistic": "寫實攝影",
     "watercolor": "水彩畫",
@@ -1557,6 +1565,7 @@
     "freeTierAvailable": "可用免費額度",
     "gemini20Desc": "快速穩定，優先使用免費額度，額度不足時自動切換付費",
     "gemini30Desc": "更高品質的背景重建效果，需使用付費金鑰",
+    "gemini31Desc": "新一代模型，速度快且品質好，需使用付費金鑰（目前未提供思考過程）",
     "gemini30NoPaidKey": "需設定付費金鑰才能使用此模型",
     "imageQuality": "輸出畫質",
     "imageQualityDesc": "較高畫質需要更多處理時間和 API 費用",
@@ -1656,6 +1665,7 @@
       "generatingMask": "第 {slide} 頁：產生遮罩...",
       "removingText": "第 {slide} 頁：移除文字 ({method})...",
       "usingGeminiModel": "第 {slide} 頁：使用 {model} 移除文字...",
+      "noThinkingProcess": "此模型目前未提供思考過程",
       "geminiFailed": "第 {slide} 頁：Gemini 失敗 ({error})，改用 OpenCV...",
       "opencvFallbackComplete": "第 {slide} 頁：OpenCV 備援完成",
       "textRemovalComplete": "第 {slide} 頁：文字移除完成",

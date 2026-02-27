@@ -1889,7 +1889,7 @@ const ratioMismatch = computed(() => {
                   class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                 />
                 <div>
-                  <span class="text-text-primary font-medium">Nano Banana (2.0)</span>
+                  <span class="text-text-primary font-medium">Nano Banana</span>
                   <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-success-muted text-status-success">{{ $t('slideToPptx.freeTierAvailable') }}</span>
                   <p class="text-xs text-text-muted mt-1">{{ $t('slideToPptx.gemini20Desc') }}</p>
                 </div>
@@ -1912,7 +1912,7 @@ const ratioMismatch = computed(() => {
                     class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
                   />
                   <div>
-                    <span class="text-text-primary font-medium">Nano Banana Pro (3.0)</span>
+                    <span class="text-text-primary font-medium">Nano Banana Pro</span>
                     <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
                     <p class="text-xs text-text-muted mt-1">
                       {{ canUseGemini30 ? $t('slideToPptx.gemini30Desc') : $t('slideToPptx.gemini30NoPaidKey') }}
@@ -1934,8 +1934,47 @@ const ratioMismatch = computed(() => {
                 </div>
               </div>
 
-              <!-- Image Quality (only for 3.0 model) -->
-              <div v-if="getSettingValue('geminiModel') === '3.0'" class="mt-4">
+              <!-- Gemini 3.1 option with tooltip for disabled state -->
+              <div class="relative gemini-option-wrapper">
+                <label class="flex items-start gap-3 p-3 rounded-lg border border-border-muted transition-colors"
+                  :class="[
+                    canUseGemini30 ? 'cursor-pointer group hover:border-mode-generate' : 'opacity-50 cursor-not-allowed',
+                    { 'border-mode-generate bg-mode-generate-muted/30': getSettingValue('geminiModel') === '3.1' }
+                  ]">
+                  <input
+                    type="radio"
+                    name="geminiModel"
+                    value="3.1"
+                    :checked="getSettingValue('geminiModel') === '3.1'"
+                    :disabled="!canUseGemini30"
+                    @change="updateSetting('geminiModel', '3.1')"
+                    class="mt-0.5 w-4 h-4 accent-mode-generate border-border-muted focus:ring-mode-generate"
+                  />
+                  <div>
+                    <span class="text-text-primary font-medium">Nano Banana 2</span>
+                    <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-status-warning-muted text-status-warning">{{ $t('slideToPptx.paid') }}</span>
+                    <p class="text-xs text-text-muted mt-1">
+                      {{ canUseGemini30 ? $t('slideToPptx.gemini31Desc') : $t('slideToPptx.gemini30NoPaidKey') }}
+                    </p>
+                  </div>
+                </label>
+                <!-- Tooltip for disabled Gemini 3.1 option -->
+                <div
+                  v-if="!canUseGemini30"
+                  class="gemini-tooltip absolute left-0 right-0 bottom-full mb-2 p-3 rounded-xl glass-strong shadow-lg z-10 opacity-0 invisible transition-all duration-200"
+                >
+                  <p class="text-sm text-text-primary mb-2">{{ $t('slideToPptx.geminiTooltip.noPaidKey') }}</p>
+                  <button
+                    @click="apiKeyModalRef?.open()"
+                    class="w-full py-2 px-3 text-sm font-medium rounded-lg bg-mode-generate text-text-on-brand hover:opacity-90 transition-opacity"
+                  >
+                    {{ $t('slideToPptx.geminiTooltip.setupKey') }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Image Quality (for non-2.0 models) -->
+              <div v-if="getSettingValue('geminiModel') !== '2.0'" class="mt-4">
                 <label class="block text-sm text-text-muted mb-2">{{ $t('slideToPptx.imageQuality') }}</label>
                 <div class="flex gap-2">
                   <button

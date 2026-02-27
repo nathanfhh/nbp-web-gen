@@ -90,7 +90,7 @@ In the "Design Style" section, you can choose from two methods to set your prese
 
 Click "AI Analysis", then you can:
 
-1. **Select analysis model**: Gemini 3 Flash (faster) or Gemini 3 Pro (more accurate)
+1. **Select analysis model**: Gemini 3 Flash (faster) or Gemini 3.1 Pro (more accurate)
 2. **Enter style preferences** (optional): Describe what you want or don't want, e.g.:
    - ✓ Want: Modern minimalist, blue color scheme
    - ✗ Don't want: Gradient backgrounds, excessive decorations

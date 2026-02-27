@@ -593,7 +593,7 @@ const handleAudioPause = (index, event) => {
       :is-sticker-mode="store.currentMode === 'sticker'"
       :is-slides-mode="store.currentMode === 'slides'"
       :narration-audio-urls="store.generatedAudioUrls"
-      :narration-scripts="store.slidesOptions.narrationScripts"
+      :narration-scripts="store.currentMode === 'slides' ? store.slidesOptions.narrationScripts : []"
       :narration-settings="lightboxNarrationSettings"
     />
 

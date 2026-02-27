@@ -4,7 +4,11 @@
  */
 
 // Model Configuration
-export const DEFAULT_MODEL = 'gemini-3-pro-image-preview'
+export const IMAGE_MODELS = [
+  { value: 'gemini-3-pro-image-preview', label: 'Gemini 3 Pro Image' },
+  { value: 'gemini-3.1-flash-image-preview', label: 'Gemini 3.1 Flash Image' },
+]
+export const DEFAULT_MODEL = IMAGE_MODELS[0].value
 
 // Resolution options for UI display
 export const RESOLUTION_OPTIONS = [

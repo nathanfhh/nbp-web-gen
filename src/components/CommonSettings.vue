@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
+import { IMAGE_MODELS } from '@/constants/imageOptions'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
@@ -84,6 +85,37 @@ const temperatureLabel = computed(() => {
       <p class="text-xs text-text-muted">
         {{ $t('settings.seed.hint') }}
       </p>
+    </div>
+
+    <!-- Image Model -->
+    <div class="space-y-3">
+      <label class="text-sm text-text-secondary">{{ $t('settings.imageModel.label') }}</label>
+      <template v-if="store.currentMode === 'agent'">
+        <div class="py-2 px-3 text-sm rounded-lg border border-border-muted text-text-muted font-mono">
+          gemini-3-flash-preview
+        </div>
+        <p class="text-xs text-text-muted">
+          {{ $t('settings.imageModel.agentFixed') }}
+        </p>
+      </template>
+      <template v-else>
+        <div class="flex gap-2">
+          <button
+            v-for="model in IMAGE_MODELS"
+            :key="model.value"
+            @click="store.imageModel = model.value"
+            class="flex-1 py-2 px-3 text-sm rounded-lg border transition-colors"
+            :class="store.imageModel === model.value
+              ? 'border-mode-generate bg-mode-generate-muted/30 text-text-primary'
+              : 'border-border-muted text-text-muted hover:border-mode-generate'"
+          >
+            {{ model.label }}
+          </button>
+        </div>
+        <p class="text-xs text-text-muted">
+          {{ $t('settings.imageModel.hint') }}
+        </p>
+      </template>
     </div>
   </div>
 </template>
