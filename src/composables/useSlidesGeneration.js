@@ -117,7 +117,7 @@ export function useSlidesGeneration() {
    * @returns {Promise<Object>} Generation result with images array
    */
   const generateAllPages = async (onThinkingChunk = null) => {
-    const options = store.slidesOptions
+    const options = { ...store.slidesOptions, model: store.imageModel }
 
     if (!options.styleConfirmed) {
       throw new Error(t('slides.styleNotConfirmed'))
@@ -270,7 +270,7 @@ export function useSlidesGeneration() {
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
    */
   const regeneratePage = async (pageId, onThinkingChunk = null) => {
-    const options = store.slidesOptions
+    const options = { ...store.slidesOptions, model: store.imageModel }
     const pageIndex = options.pages.findIndex((p) => p.id === pageId)
 
     if (pageIndex === -1) return
