@@ -2,6 +2,45 @@
 
 This page documents version updates for Mediator.
 
+## v0.30.1
+
+_2026-02-27_
+
+### Fixes
+- **PDF Conversion**: Fix worker initialization failure leaving Promise permanently unresolved — now properly resets state to allow retry
+- **Storage**: Fix race conditions in image/video/narration storage by sequentially awaiting calls to prevent concurrent IndexedDB write conflicts
+- **Video Generation**: Fix cancel button not actually passing AbortSignal to polling loop — video generation can now be properly aborted
+- **Video Generation**: Fix AbortController not cleaned up on error — use try/finally to ensure reset on all exit paths
+- **Video Generation**: Fix polling abort listener not properly cleaned up, preventing listener accumulation across iterations
+- **Character Storage**: Fix read path hardcoding `.webp` after write switched to dynamic extensions — add multi-extension resolution
+- **Character Storage**: Add strict MIME type validation, rejecting unsupported image formats early
+- **Character Storage**: Auto-remove stale format variants on save, preventing resolver from returning outdated files
+- **Image Preview**: Fix Blob URL memory leak — use watch + revokeObjectURL cleanup pattern
+- **Inpainting Worker**: Fix `Array.fill()` shared reference bug — use `Array.from()` to create independent objects
+- **OCR**: Fix missing WebP/GIF MIME type detection, aligning with worker mode implementation
+- **OCR**: Fix `isDetecting` ref never being set to true
+- **Theme**: Fix multiple components using non-reactive DOM attribute reads for theme detection — use `useTheme()` composable
+- **Animations**: Fix setTimeout cleanup in HeroTitle and CharacterCarousel — clear all pending timeouts on unmount
+- **AgentMessage**: Fix DOMPurify hook re-registration during HMR — add initialization guard
+- **SearchableSelect**: Replace hardcoded English strings with i18n translation keys
+- **History**: Fix `truncatePrompt` TypeError on null input
+- **Embedding Explorer**: Add watchers for colorBy/hoverText/hoverLength settings to update plot reactively
+- **P2P Sync**: Fix `pendingConversation` not cleared during state reset
+- **LINE Stickers**: Fix Object URL memory leak in error paths
+- **LINE Stickers**: Fix incorrect `revokeObjectURL` calls on data URLs
+- **API Key Manager**: Fix reset timer not cleaned up on scope dispose
+
+### Refactor
+- Remove 19 confirmed dead code items (unused exports, unreachable branches, ineffective CSS classes)
+- Extract binary utilities to shared `binaryUtils.js` module (DRY)
+- Fix filename typo `useCloudfareTurn` → `useCloudflareTurn`
+- Remove glow CSS classes with undefined CSS variables from `style.css`
+- Remove production debug logs from PPTX export
+- Simplify `startViewTransition` conditional in theme switching
+
+### Tests
+- Add 20 unit tests for `binaryUtils.js` (chunked string conversion, MIME detection, Array.from pattern)
+
 ## v0.30.0
 
 _2026-02-27_
