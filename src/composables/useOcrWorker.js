@@ -8,6 +8,7 @@
 
 import { ref, onUnmounted, getCurrentInstance } from 'vue'
 import { useOcrModelCache } from './useOcrModelCache'
+import { detectMimeFromBase64 } from '../utils/binaryUtils.js'
 
 /**
  * OCR result for a single text region
@@ -202,12 +203,7 @@ export function useOcrWorker() {
         reader.readAsDataURL(image)
       })
     } else if (typeof image === 'string' && !image.startsWith('data:')) {
-      // Plain base64 - convert to data URL
-      let mimeType = 'image/png'
-      if (image.startsWith('/9j/')) mimeType = 'image/jpeg'
-      else if (image.startsWith('iVBOR')) mimeType = 'image/png'
-      else if (image.startsWith('UklGR')) mimeType = 'image/webp'
-      else if (image.startsWith('R0lGOD')) mimeType = 'image/gif'
+      const mimeType = detectMimeFromBase64(image)
       imageDataUrl = `data:${mimeType};base64,${image}`
     }
 

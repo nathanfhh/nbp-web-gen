@@ -61,6 +61,7 @@ import {
   decodeRecognition,
   createTesseractFallback,
 } from '../utils/ocr-core.js'
+import { detectMimeFromBase64 } from '../utils/binaryUtils.js'
 
 // ============================================================================
 // Model Configuration
@@ -322,11 +323,7 @@ export function useOcrMainThread() {
           reader.readAsDataURL(image)
         })
       } else if (typeof image === 'string' && !image.startsWith('data:')) {
-        let mimeType = 'image/png'
-        if (image.startsWith('/9j/')) mimeType = 'image/jpeg'
-        else if (image.startsWith('iVBOR')) mimeType = 'image/png'
-        else if (image.startsWith('UklGR')) mimeType = 'image/webp'
-        else if (image.startsWith('R0lGOD')) mimeType = 'image/gif'
+        const mimeType = detectMimeFromBase64(image)
         imageDataUrl = `data:${mimeType};base64,${image}`
       }
 
