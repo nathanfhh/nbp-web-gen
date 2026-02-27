@@ -14,16 +14,6 @@ export function generateUUID() {
 }
 
 /**
- * Validate if a string is a valid NBP UUID format
- * @param {string} uuid
- * @returns {boolean}
- */
-export function isValidUUID(uuid) {
-  if (!uuid || typeof uuid !== 'string') return false
-  return /^nbp-[a-z0-9]+-[a-z0-9]+$/.test(uuid)
-}
-
-/**
  * Generate a short unique ID (4 characters)
  * Format: 4 alphanumeric characters (lowercase + digits)
  * Ensures uniqueness within a given collection of existing IDs
@@ -51,14 +41,4 @@ export function generateShortId(existingIds = [], maxAttempts = 100) {
     id += chars[Math.floor(Math.random() * chars.length)]
   }
   return id
-}
-
-/**
- * Validate if a string is a valid short ID format
- * @param {string} id
- * @returns {boolean}
- */
-export function isValidShortId(id) {
-  if (!id || typeof id !== 'string') return false
-  return /^[a-z0-9]{4,6}$/.test(id)
 }

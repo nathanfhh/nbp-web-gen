@@ -217,10 +217,12 @@ STRICT RULES:
   /**
    * Generate a thumbnail from image data
    * @param {string} imageData - Base64 image data
-   * @param {number} maxSize - Maximum dimension for thumbnail
+   * @param {Object} [options={}] - Options object
+   * @param {number} [options.maxSize=150] - Maximum dimension for thumbnail
+   * @param {string} [options.mimeType='image/png'] - MIME type for the source image
    * @returns {Promise<string>} - Base64 thumbnail data
    */
-  const generateThumbnail = async (imageData, maxSize = 150) => {
+  const generateThumbnail = async (imageData, { maxSize = 150, mimeType = 'image/png' } = {}) => {
     return new Promise((resolve, reject) => {
       const img = new Image()
       img.onload = () => {
@@ -251,7 +253,7 @@ STRICT RULES:
         resolve(thumbnail.split(',')[1])
       }
       img.onerror = () => reject(new Error('Failed to load image'))
-      img.src = `data:image/png;base64,${imageData}`
+      img.src = `data:${mimeType};base64,${imageData}`
     })
   }
 

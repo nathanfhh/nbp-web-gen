@@ -92,15 +92,6 @@ export function useSketchHistory({ getFabricCanvas }) {
     store.clearSketchHistory()
   }
 
-  /**
-   * Get current history stats (for debugging)
-   */
-  const getStats = () => ({
-    current: sketchHistoryIndex.value,
-    canUndo: canUndo.value,
-    canRedo: canRedo.value,
-  })
-
   // ============================================================================
   // Return API
   // ============================================================================
@@ -115,6 +106,5 @@ export function useSketchHistory({ getFabricCanvas }) {
     undo,
     redo,
     reset,
-    getStats,
   }
 }

@@ -294,6 +294,21 @@ withTimeout(streamPromise, timeoutMs).catch((err) => {
 
 > **詳細文件**: 完整的儲存架構說明請參閱 [`docs/storage.md`](docs/storage.md)
 
+### Storage Error Handling — Planned Improvement
+
+**⚠️ TODO: 統一 OPFS/IndexedDB 錯誤處理模式（系統性弱點）**
+
+目前 storage 層的錯誤處理散落各處、行為不一致：有的 throw、有的 return null、有的靜默吞掉。
+最大風險是 IndexedDB 和 OPFS 是兩個獨立 store，沒有交易語意——IndexedDB 寫入成功但 OPFS 失敗會產生孤兒 metadata。
+
+**計畫方向：**
+1. **統一的 Storage Operation Wrapper** — 共用的 try/catch + retry + logging + 使用者通知工具
+2. **OPFS-first 寫入順序規範** — 永遠先寫 OPFS（blob），成功後才寫 IndexedDB（metadata）
+3. **啟動時健康檢查** — 掃描 IndexedDB，驗證 OPFS 路徑存在，清理孤兒記錄（參考搜尋系統的 `selfHeal`）
+4. **錯誤分類** — 區分 transient（quota/lock）vs permanent（corruption）錯誤，transient 自動 retry
+
+**影響範圍**: `useIndexedDB.js`, `useOPFS.js`, `useImageStorage.js`, `useVideoStorage.js`, `useAudioStorage.js`, `useConversationStorage.js`, `useGeneration.js`, `useHistoryTransfer.js`
+
 ### Backup Compatibility
 
 **⚠️ IMPORTANT: When introducing new artifact types (e.g., images + audio in slides mode) or adding new generation modes, you MUST plan for backup support in both mechanisms:**

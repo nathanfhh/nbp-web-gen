@@ -257,12 +257,6 @@ function handleHistoryCleared() {
     .catch(() => {})
 }
 
-function handleHistoryImported() {
-  // On import, trigger a full selfHeal cycle
-  // The SearchModal will handle the actual re-indexing when opened
-  // For now, just note that a re-sync is needed
-}
-
 // Eagerly register events at module load so real-time indexing works
 // even if the user hasn't opened the SearchModal yet.
 // Events fired before worker is ready are silently skipped (selfHeal catches up).
@@ -274,7 +268,6 @@ function registerEvents() {
   window.addEventListener('nbp-history-updated', handleHistoryUpdated)
   window.addEventListener('nbp-history-deleted', handleHistoryDeleted)
   window.addEventListener('nbp-history-cleared', handleHistoryCleared)
-  window.addEventListener('nbp-history-imported', handleHistoryImported)
 }
 
 function unregisterEvents() {
@@ -284,7 +277,6 @@ function unregisterEvents() {
   window.removeEventListener('nbp-history-updated', handleHistoryUpdated)
   window.removeEventListener('nbp-history-deleted', handleHistoryDeleted)
   window.removeEventListener('nbp-history-cleared', handleHistoryCleared)
-  window.removeEventListener('nbp-history-imported', handleHistoryImported)
 }
 
 // Register immediately so events are captured from the start

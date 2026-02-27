@@ -6,7 +6,7 @@ const STORAGE_KEY = 'nbp-locale'
 
 // Get browser language preference
 function getBrowserLocale() {
-  const lang = navigator.language || navigator.userLanguage
+  const lang = navigator.language
   // If starts with 'zh', use Traditional Chinese
   if (lang.startsWith('zh')) {
     return 'zh-TW'

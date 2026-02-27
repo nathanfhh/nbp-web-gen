@@ -89,35 +89,6 @@ export function extractText(record, conversation = null) {
 }
 
 /**
- * Extract only user text messages from an agent conversation.
- * Skips model replies, images, thinking, and partial messages.
- *
- * @param {Array} messages - Conversation messages array
- * @returns {Array<{ text: string, messageIndex: number }>}
- */
-export function extractAgentUserMessages(messages) {
-  if (!Array.isArray(messages)) return []
-
-  const results = []
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i]
-    if (!msg || msg.role !== 'user' || msg._isPartial) continue
-
-    const parts = msg.parts || []
-    const textParts = []
-    for (const part of parts) {
-      if (part?.type === 'text' && part.text) {
-        textParts.push(part.text)
-      }
-    }
-    if (textParts.length > 0) {
-      results.push({ text: textParts.join('\n'), messageIndex: i })
-    }
-  }
-  return results
-}
-
-/**
  * Extract text from ALL messages (user + model) in an agent conversation.
  * Includes AI responses so users can search for content in model answers.
  * Skips images, thinking parts, and partial messages.

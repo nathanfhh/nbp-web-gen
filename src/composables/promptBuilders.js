@@ -151,8 +151,10 @@ const buildStickerPrompt = (basePrompt, options) => {
 
 /**
  * Build prompt for edit mode
+ * @param {string} basePrompt - User's base prompt text
+ * @param {Object} _options - Mode-specific options (reserved for future use)
  */
-const buildEditPrompt = (basePrompt) => {
+const buildEditPrompt = (basePrompt, _options) => {
   return `Edit this image: ${basePrompt}`
 }
 

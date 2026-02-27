@@ -19,7 +19,13 @@ export function useLightboxDownload(deps) {
   const { imageStorage, pdfGenerator, mp4Encoder, toast, t } = deps
 
   // Download state
-  const downloadFormat = ref(localStorage.getItem(DOWNLOAD_PREF_KEY) || 'original')
+  let savedFormat = 'original'
+  try {
+    savedFormat = localStorage.getItem(DOWNLOAD_PREF_KEY) || 'original'
+  } catch {
+    // localStorage may be unavailable (e.g., private browsing)
+  }
+  const downloadFormat = ref(savedFormat)
   const showDownloadMenu = ref(false)
   const isDownloading = ref(false)
   const isBatchDownloading = ref(false)
@@ -87,7 +93,11 @@ export function useLightboxDownload(deps) {
    */
   const downloadWithFormat = async (format, downloadFn) => {
     downloadFormat.value = format
-    localStorage.setItem(DOWNLOAD_PREF_KEY, format)
+    try {
+      localStorage.setItem(DOWNLOAD_PREF_KEY, format)
+    } catch {
+      // localStorage may be unavailable
+    }
     showDownloadMenu.value = false
     await downloadFn()
   }

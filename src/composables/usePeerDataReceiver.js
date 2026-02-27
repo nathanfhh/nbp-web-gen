@@ -240,6 +240,9 @@ export function usePeerDataReceiver(deps) {
               addDebug(`Still waiting: ${pendingImages.value.length}/${expectedImages}`)
             }
           }
+          if (pendingImages.value.length < expectedImages) {
+            console.warn(`[PeerDataReceiver] Image receive timeout: got ${pendingImages.value.length}/${expectedImages} images after 10s`)
+          }
         }
 
         // Wait for video if expected
@@ -254,6 +257,9 @@ export function usePeerDataReceiver(deps) {
             if (i % 50 === 0) {
               addDebug('Still waiting for video...')
             }
+          }
+          if (!pendingVideo.value) {
+            console.warn('[PeerDataReceiver] Video receive timeout: no video data received after 30s')
           }
         }
 
@@ -271,6 +277,9 @@ export function usePeerDataReceiver(deps) {
               addDebug(`Still waiting for audio: ${pendingAudioFiles.value.length}/${expectedAudio}`)
             }
           }
+          if (pendingAudioFiles.value.length < expectedAudio) {
+            console.warn(`[PeerDataReceiver] Audio receive timeout: got ${pendingAudioFiles.value.length}/${expectedAudio} audio files after 30s`)
+          }
         }
 
         // Wait for conversation if expected (agent mode)
@@ -282,6 +291,9 @@ export function usePeerDataReceiver(deps) {
               addDebug('Conversation received')
               break
             }
+          }
+          if (!pendingConversation.value) {
+            console.warn('[PeerDataReceiver] Conversation receive timeout: no conversation data received after 10s')
           }
         }
 
@@ -764,6 +776,7 @@ export function usePeerDataReceiver(deps) {
     pendingImages.value = []
     pendingVideo.value = null
     pendingAudioFiles.value = []
+    pendingConversation.value = null
     pendingChunks.value = new Map()
     receiverCounts.value = { imported: 0, skipped: 0, failed: 0 }
   }

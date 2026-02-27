@@ -17,12 +17,3 @@ export function formatElapsed(ms) {
   const remainingSeconds = seconds % 60
   return `${minutes}m ${remainingSeconds.toFixed(0)}s`
 }
-
-/**
- * Composable for time formatting utilities
- */
-export function useFormatTime() {
-  return {
-    formatElapsed,
-  }
-}

@@ -34,7 +34,7 @@ import {
 } from '../utils/ocrUtils.js'
 
 // Configure ONNX Runtime WASM paths (must be set before any session creation)
-ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.2/dist/'
+ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.1/dist/'
 
 // ============================================================================
 // Singleton State
@@ -87,7 +87,7 @@ async function getModel(modelType, modelConfig, statusMessage) {
     model.filename,
     model.size,
     (percent, sizeMB) => {
-      reportProgress('model', percent, `下載中 ${sizeMB}MB... ${percent}%`)
+      reportProgress('model', percent, `Downloading model (${sizeMB} MB, ${percent}%)`)
     }
   )
   await writeModel(model.filename, data)
@@ -106,21 +106,21 @@ async function loadAllModels() {
   const modelsToDownload = [!detCached, !recCached].filter(Boolean).length
 
   if (allCached) {
-    reportProgress('model', 0, 'ocr:loadingModelsFromCache')
+    reportProgress('model', 0, 'Loading models from cache...')
   } else if (modelsToDownload > 0) {
-    reportProgress('model', 0, `ocr:downloadingModels:${modelsToDownload}`)
+    reportProgress('model', 0, `Downloading ${modelsToDownload} model(s)...`)
   }
 
-  const detStatus = detCached ? 'ocr:loadingDetModel' : 'ocr:downloadingDetModel:1:2'
+  const detStatus = detCached ? 'Loading detection model...' : 'Downloading detection model (1/2)...'
   const { data: detection } = await getModel('detection', modelConfig, detStatus)
-  reportProgress('model', 33, 'ocr:loadingDetModel')
+  reportProgress('model', 33, 'Loading detection model...')
 
-  const recStatus = recCached ? 'ocr:loadingRecModel' : `ocr:downloadingRecModel:${detCached ? '1' : '2'}:2`
+  const recStatus = recCached ? 'Loading recognition model...' : `Downloading recognition model (${detCached ? '1' : '2'}/2)...`
   const { data: recognition } = await getModel('recognition', modelConfig, recStatus)
-  reportProgress('model', 66, 'ocr:loadingRecModel')
+  reportProgress('model', 66, 'Loading recognition model...')
 
-  const { data: dictText } = await getModel('dictionary', modelConfig, 'ocr:loadingDict')
-  reportProgress('model', 90, 'ocr:loadingDict')
+  const { data: dictText } = await getModel('dictionary', modelConfig, 'Loading dictionary...')
+  reportProgress('model', 90, 'Loading dictionary...')
 
   return { detection, recognition, dictionary: dictText }
 }
@@ -138,17 +138,17 @@ async function initialize() {
   try {
     const models = await loadAllModels()
 
-    reportProgress('model', 92, '初始化偵測引擎...')
+    reportProgress('model', 92, 'Initializing detection engine...')
     const sessionOptions = {
       executionProviders: ['wasm'],
       graphOptimizationLevel: 'all',
     }
 
     detSession = await ort.InferenceSession.create(models.detection, sessionOptions)
-    reportProgress('model', 96, '初始化辨識引擎...')
+    reportProgress('model', 96, 'Initializing recognition engine...')
 
     recSession = await ort.InferenceSession.create(models.recognition, sessionOptions)
-    reportProgress('model', 99, '解析字典...')
+    reportProgress('model', 99, 'Parsing dictionary...')
 
     // Parse dictionary
     dictionary = models.dictionary.split(/\r?\n/)
@@ -158,7 +158,7 @@ async function initialize() {
     dictionary.unshift('blank')
 
     isInitialized = true
-    reportProgress('model', 100, 'OCR 引擎就緒')
+    reportProgress('model', 100, 'OCR engine ready')
     self.postMessage({ type: 'ready' })
   } catch (error) {
     self.postMessage({ type: 'error', message: error.message })

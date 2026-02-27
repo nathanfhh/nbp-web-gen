@@ -16,7 +16,7 @@ const AGENT_MODEL = 'gemini-3-flash-preview'
  * Output types: text, thought, executableCode, codeExecutionResult, inlineData
  */
 export function useAgentApi() {
-  const { getApiKey, callWithFallback } = useApiKeyManager()
+  const { callWithFallback } = useApiKeyManager()
   const store = useGeneratorStore()
 
   const isStreaming = ref(false)
@@ -171,90 +171,8 @@ export function useAgentApi() {
   }
 
   /**
-   * Send a message and stream the response
-   * @param {string} text - User text input
-   * @param {Array} images - Array of { data: base64, mimeType } objects
-   * @param {Object} callbacks - { onPart, onComplete, onError }
-   */
-  const sendMessageStream = async (text, images = [], callbacks = {}) => {
-    const { onPart, onComplete, onError } = callbacks
-
-    isStreaming.value = true
-
-    try {
-      const apiKey = getApiKey('text') // Use text usage for potential free tier fallback
-      if (!apiKey) {
-        throw new Error('API key not set')
-      }
-
-      const ai = new GoogleGenAI({ apiKey })
-      const contextDepth = store.agentOptions.contextDepth || 5
-
-      // Build history from existing conversation
-      const history = buildChatHistory(store.agentConversation, contextDepth)
-
-      // Create chat session with Agentic Vision config
-      const chat = ai.chats.create({
-        model: AGENT_MODEL,
-        history,
-        config: {
-          tools: [{ codeExecution: {} }],
-          thinkingConfig: { includeThoughts: true },
-          temperature: store.temperature,
-        },
-      })
-
-      currentChatSession.value = chat
-
-      // Build message parts
-      const messageParts = buildMessageParts(text, images)
-
-      // Accumulated parts for the complete message
-      const accumulatedParts = []
-
-      // Stream the response
-      const response = await chat.sendMessageStream({ message: messageParts })
-
-      for await (const chunk of response) {
-        // Process each candidate
-        if (chunk.candidates && chunk.candidates.length > 0) {
-          for (const candidate of chunk.candidates) {
-            if (candidate.content && candidate.content.parts) {
-              for (const part of candidate.content.parts) {
-                const parsedPart = parsePart(part)
-                accumulatedParts.push(parsedPart)
-
-                // Callback for real-time updates
-                if (onPart) {
-                  onPart(parsedPart, accumulatedParts)
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Call completion callback
-      if (onComplete) {
-        onComplete(accumulatedParts)
-      }
-
-      return accumulatedParts
-    } catch (error) {
-      console.error('[Agent API] Error:', error)
-      if (onError) {
-        onError(error)
-      }
-      throw error
-    } finally {
-      isStreaming.value = false
-      currentChatSession.value = null
-    }
-  }
-
-  /**
    * Send a message with automatic retry/fallback
-   * Wraps sendMessageStream with API key fallback handling
+   * Uses callWithFallback to handle API key fallback and retry behavior
    * @param {string} text - User text input
    * @param {Array} images - Array of { data: base64, mimeType } objects
    * @param {Object} callbacks - { onPart, onComplete, onError, conversation }
@@ -361,7 +279,6 @@ export function useAgentApi() {
     isStreaming,
 
     // Methods
-    sendMessageStream,
     sendMessageWithFallback,
   }
 }

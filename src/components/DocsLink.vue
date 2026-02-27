@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { useGeneratorStore } from '@/stores/generator'
 import { useI18n } from 'vue-i18n'
+import { useTheme } from '@/theme'
 
 const props = defineProps({
   size: {
@@ -14,8 +14,9 @@ const props = defineProps({
   },
 })
 
-const store = useGeneratorStore()
 const { locale } = useI18n()
+const currentTheme = useTheme()
+const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
 
 const sizeClasses = {
   sm: 'w-5 h-5',
@@ -39,7 +40,7 @@ const docsUrl = computed(() => {
     target="_blank"
     rel="noopener noreferrer"
     class="inline-flex items-center justify-center p-2 rounded-lg transition-all"
-    :class="store.theme === 'dark'
+    :class="isDarkTheme
       ? 'text-text-muted hover:text-mode-generate hover:bg-bg-interactive'
       : 'text-text-muted hover:text-mode-generate hover:bg-bg-subtle'"
     :title="$t('common.docs')"

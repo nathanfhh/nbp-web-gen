@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   SEARCH_DEFAULTS,
   extractText,
-  extractAgentUserMessages,
   extractAgentMessages,
   chunkText,
   deduplicateByParent,
@@ -212,92 +211,6 @@ describe('extractText', () => {
 
   it('handles unknown mode by returning prompt', () => {
     expect(extractText({ mode: 'unknown_mode', prompt: 'test' })).toBe('test')
-  })
-})
-
-// ============================================================================
-// extractAgentUserMessages
-// ============================================================================
-
-describe('extractAgentUserMessages', () => {
-  it('returns empty array for null/undefined', () => {
-    expect(extractAgentUserMessages(null)).toEqual([])
-    expect(extractAgentUserMessages(undefined)).toEqual([])
-  })
-
-  it('returns empty array for non-array', () => {
-    expect(extractAgentUserMessages('not array')).toEqual([])
-  })
-
-  it('returns empty array for empty array', () => {
-    expect(extractAgentUserMessages([])).toEqual([])
-  })
-
-  it('extracts only user text messages', () => {
-    const messages = [
-      { role: 'user', parts: [{ type: 'text', text: 'Hello' }] },
-      { role: 'model', parts: [{ type: 'text', text: 'Hi' }] },
-      { role: 'user', parts: [{ type: 'text', text: 'Draw a cat' }] },
-    ]
-    const result = extractAgentUserMessages(messages)
-    expect(result).toEqual([
-      { text: 'Hello', messageIndex: 0 },
-      { text: 'Draw a cat', messageIndex: 2 },
-    ])
-  })
-
-  it('skips partial messages', () => {
-    const messages = [
-      { role: 'user', _isPartial: true, parts: [{ type: 'text', text: 'partial' }] },
-      { role: 'user', parts: [{ type: 'text', text: 'complete' }] },
-    ]
-    expect(extractAgentUserMessages(messages)).toEqual([
-      { text: 'complete', messageIndex: 1 },
-    ])
-  })
-
-  it('skips image-only user messages', () => {
-    const messages = [
-      { role: 'user', parts: [{ type: 'image', data: 'base64...' }] },
-      { role: 'user', parts: [{ type: 'text', text: 'with text' }] },
-    ]
-    expect(extractAgentUserMessages(messages)).toEqual([
-      { text: 'with text', messageIndex: 1 },
-    ])
-  })
-
-  it('concatenates multiple text parts in one message', () => {
-    const messages = [
-      {
-        role: 'user',
-        parts: [
-          { type: 'text', text: 'Part 1' },
-          { type: 'image', data: 'base64...' },
-          { type: 'text', text: 'Part 2' },
-        ],
-      },
-    ]
-    expect(extractAgentUserMessages(messages)).toEqual([
-      { text: 'Part 1\nPart 2', messageIndex: 0 },
-    ])
-  })
-
-  it('handles null messages in array', () => {
-    const messages = [null, { role: 'user', parts: [{ type: 'text', text: 'valid' }] }, undefined]
-    expect(extractAgentUserMessages(messages)).toEqual([
-      { text: 'valid', messageIndex: 1 },
-    ])
-  })
-
-  it('handles messages with no parts', () => {
-    const messages = [
-      { role: 'user' },
-      { role: 'user', parts: [] },
-      { role: 'user', parts: [{ type: 'text', text: 'has parts' }] },
-    ]
-    expect(extractAgentUserMessages(messages)).toEqual([
-      { text: 'has parts', messageIndex: 2 },
-    ])
   })
 })
 

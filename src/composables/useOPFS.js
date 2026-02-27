@@ -207,38 +207,6 @@ export function useOPFS() {
   }
 
   /**
-   * List files in a directory
-   * @param {string} path - Directory path
-   * @returns {Promise<Array<{name: string, kind: string}>>}
-   */
-  const listFiles = async (path) => {
-    try {
-      const dirHandle = await getDirectory(path)
-      if (!dirHandle) return []
-
-      const entries = []
-      for await (const [name, handle] of dirHandle.entries()) {
-        entries.push({ name, kind: handle.kind })
-      }
-      return entries
-    } catch (err) {
-      error.value = err
-      console.error('OPFS listFiles error:', err)
-      return []
-    }
-  }
-
-  /**
-   * Get the size of a file
-   * @param {string} path - Full file path
-   * @returns {Promise<number>} Size in bytes, or 0 if not found
-   */
-  const getFileSize = async (path) => {
-    const file = await readFile(path)
-    return file ? file.size : 0
-  }
-
-  /**
    * Calculate total storage usage for a directory (recursive)
    * @param {string} path - Directory path (default: 'images')
    * @returns {Promise<number>} Total size in bytes
@@ -322,8 +290,6 @@ export function useOPFS() {
     readFile,
     deleteFile,
     deleteDirectory,
-    listFiles,
-    getFileSize,
     getStorageUsage,
     fileExists,
     getFileURL,

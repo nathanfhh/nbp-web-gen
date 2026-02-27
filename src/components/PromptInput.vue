@@ -12,7 +12,9 @@ const placeholders = computed(() => ({
   edit: t('prompt.placeholders.edit'),
   story: t('prompt.placeholders.story'),
   diagram: t('prompt.placeholders.diagram'),
+  video: t('prompt.placeholders.video'),
   slides: t('prompt.placeholders.slides'),
+  agent: t('prompt.placeholders.agent'),
 }))
 
 // Dynamic label based on mode

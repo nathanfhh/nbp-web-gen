@@ -274,7 +274,7 @@ export function useVideoApi() {
   /**
    * Main video generation function using SDK
    */
-  const generateVideo = async (prompt, options = {}, onProgress = null) => {
+  const generateVideo = async (prompt, options = {}, onProgress = null, abortSignal = null) => {
     const apiKey = getApiKey()
     if (!apiKey) {
       throw new Error(t('errors.apiKeyNotSet'))
@@ -303,6 +303,11 @@ export function useVideoApi() {
         })
       }
 
+      // Check abort before starting
+      if (abortSignal?.aborted) {
+        throw new DOMException('Video generation aborted', 'AbortError')
+      }
+
       // Step 1: Start video generation
       let operation = await ai.models.generateVideos(payload)
 
@@ -320,6 +325,11 @@ export function useVideoApi() {
       }
 
       while (!operation.done) {
+        // Check abort signal at start of each iteration
+        if (abortSignal?.aborted) {
+          throw new DOMException('Video generation aborted', 'AbortError')
+        }
+
         attempts++
         pollingProgress.value = Math.min((attempts / maxAttempts) * 100, 95)
 
@@ -335,7 +345,30 @@ export function useVideoApi() {
           })
         }
 
-        await new Promise((resolve) => setTimeout(resolve, VIDEO_POLLING_INTERVAL_MS))
+        await new Promise((resolve, reject) => {
+          if (!abortSignal) {
+            setTimeout(resolve, VIDEO_POLLING_INTERVAL_MS)
+            return
+          }
+
+          if (abortSignal.aborted) {
+            reject(new DOMException('Video generation aborted', 'AbortError'))
+            return
+          }
+
+          let timer = null
+          const onAbort = () => {
+            if (timer !== null) clearTimeout(timer)
+            reject(new DOMException('Video generation aborted', 'AbortError'))
+          }
+
+          timer = setTimeout(() => {
+            abortSignal.removeEventListener('abort', onAbort)
+            resolve()
+          }, VIDEO_POLLING_INTERVAL_MS)
+
+          abortSignal.addEventListener('abort', onAbort, { once: true })
+        })
         operation = await ai.operations.getVideosOperation({ operation })
       }
 

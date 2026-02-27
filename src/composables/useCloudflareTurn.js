@@ -199,7 +199,7 @@ export async function buildIceServers() {
 /**
  * Composable wrapper for Vue components
  */
-export function useCloudfareTurn() {
+export function useCloudflareTurn() {
   return {
     isTurnEnabled,
     setTurnEnabled,

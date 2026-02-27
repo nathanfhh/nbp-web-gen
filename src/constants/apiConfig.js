@@ -71,12 +71,6 @@ export const DEFAULT_RETRY_CONFIG = {
  */
 export const DEFAULT_REQUEST_TIMEOUT_MS = 90_000
 
-/**
- * Timeout for style analysis requests (milliseconds)
- * Text-only operations are faster, so shorter timeout is appropriate
- */
-export const DEFAULT_ANALYSIS_TIMEOUT_MS = 60_000
-
 // =============================================================================
 // Validation Ranges (for UI and runtime validation)
 // =============================================================================

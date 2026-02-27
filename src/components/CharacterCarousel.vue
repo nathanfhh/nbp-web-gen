@@ -65,6 +65,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('characters-updated', loadCharacters)
+  for (const tid of animationTimeoutIds) {
+    clearTimeout(tid)
+  }
+  animationTimeoutIds.length = 0
 })
 
 // Current character
@@ -81,18 +85,31 @@ const isSelected = computed(() => {
 const hasPrev = computed(() => characters.value.length > 1)
 const hasNext = computed(() => characters.value.length > 1)
 
+// Track timeout IDs for cleanup
+const animationTimeoutIds = []
+
+const trackedTimeout = (fn, delay) => {
+  const tid = setTimeout(() => {
+    const idx = animationTimeoutIds.indexOf(tid)
+    if (idx !== -1) animationTimeoutIds.splice(idx, 1)
+    fn()
+  }, delay)
+  animationTimeoutIds.push(tid)
+  return tid
+}
+
 const goToPrev = () => {
   if (isAnimating.value || !hasPrev.value) return
   isAnimating.value = true
   currentIndex.value = (currentIndex.value - 1 + characters.value.length) % characters.value.length
-  setTimeout(() => { isAnimating.value = false }, 500)
+  trackedTimeout(() => { isAnimating.value = false }, 500)
 }
 
 const goToNext = () => {
   if (isAnimating.value || !hasNext.value) return
   isAnimating.value = true
   currentIndex.value = (currentIndex.value + 1) % characters.value.length
-  setTimeout(() => { isAnimating.value = false }, 500)
+  trackedTimeout(() => { isAnimating.value = false }, 500)
 }
 
 // Select/deselect character

@@ -85,13 +85,18 @@ export function useOcr() {
     // Lightweight detection: only check navigator.gpu existence (synchronous)
     // Do NOT call requestAdapter() here - it allocates GPU resources and causes
     // memory leaks when pages are rapidly refreshed
-    isMobileDevice.value = isMobile()
-    canUseWebGPU.value = !!navigator.gpu
+    isDetecting.value = true
+    try {
+      isMobileDevice.value = isMobile()
+      canUseWebGPU.value = !!navigator.gpu
 
-    if (navigator.gpu) {
-      console.log('[useOcr] WebGPU API available')
-    } else {
-      console.log('[useOcr] WebGPU not supported by browser')
+      if (navigator.gpu) {
+        console.log('[useOcr] WebGPU API available')
+      } else {
+        console.log('[useOcr] WebGPU not supported by browser')
+      }
+    } finally {
+      isDetecting.value = false
     }
   }
 

@@ -197,9 +197,9 @@ export function useLineStickerProcessor() {
   const removeImage = (id) => {
     const index = images.value.findIndex((img) => img.id === id)
     if (index !== -1) {
-      // Revoke object URL if exists
+      // Revoke object URL if exists (only blob: URLs need revoking, not data: URLs)
       const img = images.value[index]
-      if (img.processedBlob) {
+      if (img.processedBlob && img.preview?.startsWith('blob:')) {
         URL.revokeObjectURL(img.preview)
       }
       images.value.splice(index, 1)
@@ -208,19 +208,19 @@ export function useLineStickerProcessor() {
 
   // Clear all images
   const clearAll = () => {
-    // Revoke all object URLs
+    // Revoke all object URLs (only blob: URLs need revoking, not data: URLs)
     images.value.forEach((img) => {
-      if (img.processedBlob) {
+      if (img.processedBlob && img.preview?.startsWith('blob:')) {
         URL.revokeObjectURL(img.preview)
       }
     })
     images.value = []
 
-    // Also clear cover images
-    if (mainImage.value?.processedPreview) {
+    // Also clear cover images (processedPreview is from canvas.toDataURL, not blob:)
+    if (mainImage.value?.processedPreview?.startsWith('blob:')) {
       URL.revokeObjectURL(mainImage.value.processedPreview)
     }
-    if (tabImage.value?.processedPreview) {
+    if (tabImage.value?.processedPreview?.startsWith('blob:')) {
       URL.revokeObjectURL(tabImage.value.processedPreview)
     }
     mainImage.value = null
@@ -233,7 +233,10 @@ export function useLineStickerProcessor() {
     const img = new Image()
     await new Promise((resolve, reject) => {
       img.onload = resolve
-      img.onerror = reject
+      img.onerror = (err) => {
+        URL.revokeObjectURL(img.src)
+        reject(err)
+      }
       img.src = URL.createObjectURL(sourceBlob)
     })
 
@@ -281,8 +284,8 @@ export function useLineStickerProcessor() {
     // Process to target dimensions
     const { blob, preview } = await processCoverImage(sourceBlob, specs.width, specs.height)
 
-    // Revoke old preview URL if exists
-    if (targetRef.value?.processedPreview) {
+    // Revoke old preview URL if exists (only blob: URLs need revoking)
+    if (targetRef.value?.processedPreview?.startsWith('blob:')) {
       URL.revokeObjectURL(targetRef.value.processedPreview)
     }
 
@@ -308,8 +311,8 @@ export function useLineStickerProcessor() {
     // Process to target dimensions
     const { blob, preview } = await processCoverImage(file, specs.width, specs.height)
 
-    // Revoke old preview URL if exists
-    if (targetRef.value?.processedPreview) {
+    // Revoke old preview URL if exists (only blob: URLs need revoking)
+    if (targetRef.value?.processedPreview?.startsWith('blob:')) {
       URL.revokeObjectURL(targetRef.value.processedPreview)
     }
 
@@ -325,7 +328,7 @@ export function useLineStickerProcessor() {
   // Remove cover image
   const removeCoverImage = (type) => {
     const targetRef = type === 'main' ? mainImage : tabImage
-    if (targetRef.value?.processedPreview) {
+    if (targetRef.value?.processedPreview?.startsWith('blob:')) {
       URL.revokeObjectURL(targetRef.value.processedPreview)
     }
     targetRef.value = null
@@ -378,7 +381,10 @@ export function useLineStickerProcessor() {
     const img = new Image()
     await new Promise((resolve, reject) => {
       img.onload = resolve
-      img.onerror = reject
+      img.onerror = (err) => {
+        URL.revokeObjectURL(img.src)
+        reject(err)
+      }
       img.src = URL.createObjectURL(file)
     })
 

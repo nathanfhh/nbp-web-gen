@@ -218,29 +218,6 @@ export const generateThumbnailFromBlob = async (blob, options = {}) => {
 }
 
 /**
- * Compress multiple images to WebP
- * @param {Array<Object>} images - Array of { data: base64, mimeType: string }
- * @param {Object} options - Compression options
- * @returns {Promise<Array<{blob: Blob, originalSize: number, compressedSize: number, width: number, height: number, thumbnail: string}>>}
- */
-export const compressImages = async (images, options = {}) => {
-  const results = []
-
-  for (const image of images) {
-    const compressed = await compressToWebP(image, options)
-    const thumbnail = await generateThumbnail(image, options)
-
-    results.push({
-      ...compressed,
-      thumbnail,
-      originalFormat: image.mimeType,
-    })
-  }
-
-  return results
-}
-
-/**
  * Calculate compression ratio as percentage saved
  * @param {number} originalSize - Original size in bytes
  * @param {number} compressedSize - Compressed size in bytes
@@ -280,7 +257,6 @@ export function useImageCompression() {
     compressToWebP,
     generateThumbnail,
     generateThumbnailFromBlob,
-    compressImages,
     calculateCompressionRatio,
     formatFileSize,
   }

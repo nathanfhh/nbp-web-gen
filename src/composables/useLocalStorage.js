@@ -1,5 +1,3 @@
-import { ref, watch } from 'vue'
-
 const API_KEY_STORAGE_KEY = 'nanobanana-api-key'
 const FREE_TIER_API_KEY_STORAGE_KEY = 'nanobanana-free-tier-api-key'
 const SETTINGS_STORAGE_KEY = 'nanobanana-settings'
@@ -87,22 +85,6 @@ export function useLocalStorage() {
     return settings[key] ?? defaultValue
   }
 
-  // Reactive ref with localStorage persistence
-  const createPersistedRef = (key, defaultValue) => {
-    const storedValue = getQuickSetting(key, defaultValue)
-    const refValue = ref(storedValue)
-
-    watch(
-      refValue,
-      (newValue) => {
-        updateQuickSetting(key, newValue)
-      },
-      { deep: true }
-    )
-
-    return refValue
-  }
-
   return {
     // Primary API Key (paid)
     getApiKey,
@@ -117,6 +99,5 @@ export function useLocalStorage() {
     setQuickSettings,
     updateQuickSetting,
     getQuickSetting,
-    createPersistedRef,
   }
 }

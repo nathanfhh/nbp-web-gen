@@ -8,6 +8,7 @@ import { useOPFS } from './useOPFS'
 import { generateUUID } from './useUUID'
 import { generateThumbnailFromBlob } from './useImageCompression'
 import { getAudioExtension } from '@/utils/audioEncoder'
+import { uint8ArrayToBinaryString } from '@/utils/binaryUtils'
 
 const EXPORT_VERSION = 4 // Bumped for agent mode conversation support
 
@@ -84,11 +85,7 @@ export function useHistoryTransfer() {
           if (videoBlob) {
             const arrayBuffer = await videoBlob.arrayBuffer()
             const bytes = new Uint8Array(arrayBuffer)
-            let binary = ''
-            for (let j = 0; j < bytes.length; j++) {
-              binary += String.fromCharCode(bytes[j])
-            }
-            const videoBase64 = btoa(binary)
+            const videoBase64 = btoa(uint8ArrayToBinaryString(bytes))
 
             exportRecord.video = {
               width: record.video.width,
@@ -115,15 +112,11 @@ export function useHistoryTransfer() {
               if (blob) {
                 const arrayBuffer = await blob.arrayBuffer()
                 const bytes = new Uint8Array(arrayBuffer)
-                let binary = ''
-                for (let j = 0; j < bytes.length; j++) {
-                  binary += String.fromCharCode(bytes[j])
-                }
                 exportRecord.narration.audio.push({
                   pageIndex: audioMeta.pageIndex,
                   mimeType: audioMeta.mimeType,
                   size: audioMeta.size,
-                  data: btoa(binary),
+                  data: btoa(uint8ArrayToBinaryString(bytes)),
                 })
               }
             }

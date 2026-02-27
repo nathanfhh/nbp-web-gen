@@ -5,10 +5,13 @@ import { useOPFS } from './useOPFS'
  * Character Storage Composable
  *
  * Handles storing character images in OPFS (Origin Private File System).
- * Images are stored in WebP format for optimal compression.
+ * Images are stored with their original format extension (webp, png, or jpg).
  *
  * Directory structure:
- *   /characters/{characterId}/image.webp
+ *   /characters/{characterId}/image.{ext}
+ *
+ * Supported formats: image/webp, image/png, image/jpeg
+ * Read operations search multiple extensions via resolveCharacterImagePath().
  *
  * Note: Only the full-resolution image is stored in OPFS.
  * Thumbnails remain in IndexedDB for quick carousel display.
@@ -20,6 +23,23 @@ export function useCharacterStorage() {
 
   // Cache for loaded image URLs (to avoid reloading)
   const urlCache = new Map()
+
+  // Supported image extensions (ordered by priority)
+  const CHARACTER_IMAGE_EXTENSIONS = ['webp', 'png', 'jpg', 'jpeg']
+
+  /**
+   * Resolve the actual image path for a character (tries multiple extensions)
+   * @param {number} characterId
+   * @returns {Promise<string|null>}
+   */
+  const resolveCharacterImagePath = async (characterId) => {
+    const basePath = `/characters/${characterId}/image`
+    for (const ext of CHARACTER_IMAGE_EXTENSIONS) {
+      const candidate = `${basePath}.${ext}`
+      if (await opfs.fileExists(candidate)) return candidate
+    }
+    return null
+  }
 
   /**
    * Save character image to OPFS
@@ -52,8 +72,23 @@ export function useCharacterStorage() {
       }
       const blob = new Blob([bytes], { type: mimeType })
 
-      // Save to OPFS
-      const opfsPath = `/${dirPath}/image.webp`
+      // Derive file extension from mimeType (restricted to supported types)
+      const extMap = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg' }
+      const ext = extMap[mimeType]
+      if (!ext) {
+        throw new Error(`Unsupported image MIME type: ${mimeType}`)
+      }
+      const opfsPath = `/${dirPath}/image.${ext}`
+
+      // Remove stale variants so resolver always finds the latest format
+      for (const existingExt of CHARACTER_IMAGE_EXTENSIONS) {
+        if (existingExt === ext) continue
+        const stalePath = `/${dirPath}/image.${existingExt}`
+        if (await opfs.fileExists(stalePath)) {
+          await opfs.deleteFile(stalePath)
+        }
+      }
+
       await opfs.writeFile(opfsPath, blob)
 
       return { opfsPath }
@@ -73,7 +108,8 @@ export function useCharacterStorage() {
    */
   const loadCharacterImageData = async (characterId) => {
     try {
-      const opfsPath = `/characters/${characterId}/image.webp`
+      const opfsPath = await resolveCharacterImagePath(characterId)
+      if (!opfsPath) return null
       const blob = await opfs.readFile(opfsPath)
 
       if (!blob) return null
@@ -127,7 +163,8 @@ export function useCharacterStorage() {
       return urlCache.get(cacheKey)
     }
 
-    const opfsPath = `/characters/${characterId}/image.webp`
+    const opfsPath = await resolveCharacterImagePath(characterId)
+    if (!opfsPath) return null
     const url = await opfs.getFileURL(opfsPath)
 
     if (url) {
@@ -169,8 +206,7 @@ export function useCharacterStorage() {
    * @returns {Promise<boolean>}
    */
   const hasCharacterImage = async (characterId) => {
-    const opfsPath = `/characters/${characterId}/image.webp`
-    return opfs.fileExists(opfsPath)
+    return (await resolveCharacterImagePath(characterId)) !== null
   }
 
   /**

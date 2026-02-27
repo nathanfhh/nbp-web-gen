@@ -10,11 +10,6 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // Whether this image is from Fabric (has fabricJson)
-  isFabricSource: {
-    type: Boolean,
-    default: false,
-  },
 })
 
 const emit = defineEmits(['edit', 'download', 'delete', 'close'])

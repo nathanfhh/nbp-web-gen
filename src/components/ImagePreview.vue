@@ -26,12 +26,29 @@ const videoLightboxOpen = ref(false)
 const currentVideoUrl = ref(null)
 const isVideoDownloading = ref(false)
 
-// Computed: video preview URL
-const videoPreviewUrl = computed(() => {
-  if (store.generatedVideo?.blob) {
-    return URL.createObjectURL(store.generatedVideo.blob)
+// Video preview URL with proper cleanup to prevent blob URL memory leaks
+const videoPreviewUrl = ref(null)
+
+watch(
+  () => store.generatedVideo?.blob,
+  (newBlob) => {
+    // Revoke old URL to free memory
+    if (videoPreviewUrl.value) {
+      URL.revokeObjectURL(videoPreviewUrl.value)
+      videoPreviewUrl.value = null
+    }
+    // Create new URL if blob exists
+    if (newBlob) {
+      videoPreviewUrl.value = URL.createObjectURL(newBlob)
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  if (videoPreviewUrl.value) {
+    URL.revokeObjectURL(videoPreviewUrl.value)
   }
-  return null
 })
 
 // Open video in lightbox

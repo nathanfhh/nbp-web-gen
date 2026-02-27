@@ -23,6 +23,9 @@ export function useGeneration() {
   const { generateVideo } = useVideoApi()
   const { generateAllPages, generateAllAudio, saveAudioToStorage } = useSlidesGeneration()
 
+  // AbortController for cancellable operations (e.g., video polling)
+  let currentAbortController = null
+
   /**
    * Callback for streaming thinking chunks
    */
@@ -97,11 +100,16 @@ export function useGeneration() {
           ...options,
           negativePrompt: negativePrompt || options.negativePrompt || '',
         }
-        const videoResult = await generateVideo(enhancedPrompt, videoOptions, (progress) => {
-          // Convert progress to thinking chunk format
-          onThinkingChunk(progress.message)
-        })
-        return videoResult
+        currentAbortController = new AbortController()
+        try {
+          const videoResult = await generateVideo(enhancedPrompt, videoOptions, (progress) => {
+            // Convert progress to thinking chunk format
+            onThinkingChunk(progress.message)
+          }, currentAbortController.signal)
+          return videoResult
+        } finally {
+          currentAbortController = null
+        }
       }
 
       case 'slides': {
@@ -382,11 +390,11 @@ export function useGeneration() {
             .join(''),
       })
 
-      // Background save to storage (don't block UI)
+      // Save to storage (awaited to prevent concurrent IndexedDB race conditions)
       if (isVideoMode && result?.video) {
-        saveVideoToStorage(historyId, result.video)
+        await saveVideoToStorage(historyId, result.video)
       } else if (result?.images && result.images.length > 0) {
-        saveImagesToStorage(historyId, result.images)
+        await saveImagesToStorage(historyId, result.images)
       }
 
       // Save narration data (slides mode)
@@ -406,7 +414,7 @@ export function useGeneration() {
 
         // Save narration metadata even if no audio (preserves scripts and settings)
         if (hasAudio || hasScripts) {
-          saveNarrationToStorage(historyId, result?.audioResults || [], options)
+          await saveNarrationToStorage(historyId, result?.audioResults || [], options)
         }
       }
 
@@ -424,17 +432,21 @@ export function useGeneration() {
       store.setGenerationError(errorMessage)
 
       // Save failed attempt to history
-      await store.addToHistory({
-        prompt: store.prompt,
-        mode: store.currentMode,
-        options: { ...options },
-        status: 'failed',
-        error: err.message,
-        thinkingText: store.thinkingProcess
-          .filter((c) => c.type === 'text')
-          .map((c) => c.content)
-          .join(''),
-      })
+      try {
+        await store.addToHistory({
+          prompt: store.prompt,
+          mode: store.currentMode,
+          options: { ...options },
+          status: 'failed',
+          error: err.message,
+          thinkingText: store.thinkingProcess
+            .filter((c) => c.type === 'text')
+            .map((c) => c.content)
+            .join(''),
+        })
+      } catch (historyErr) {
+        console.error('Failed to save error to history:', historyErr)
+      }
 
       // Call onComplete callback with error
       if (callbacks.onComplete) {
@@ -448,8 +460,19 @@ export function useGeneration() {
     }
   }
 
+  /**
+   * Cancel ongoing generation (currently supports video mode)
+   */
+  const cancelGeneration = () => {
+    if (currentAbortController) {
+      currentAbortController.abort()
+      currentAbortController = null
+    }
+  }
+
   return {
     handleGenerate,
     validateGeneration,
+    cancelGeneration,
   }
 }
