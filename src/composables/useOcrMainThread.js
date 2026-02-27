@@ -325,6 +325,8 @@ export function useOcrMainThread() {
         let mimeType = 'image/png'
         if (image.startsWith('/9j/')) mimeType = 'image/jpeg'
         else if (image.startsWith('iVBOR')) mimeType = 'image/png'
+        else if (image.startsWith('UklGR')) mimeType = 'image/webp'
+        else if (image.startsWith('R0lGOD')) mimeType = 'image/gif'
         imageDataUrl = `data:${mimeType};base64,${image}`
       }
 

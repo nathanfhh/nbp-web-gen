@@ -382,11 +382,11 @@ export function useGeneration() {
             .join(''),
       })
 
-      // Background save to storage (don't block UI)
+      // Save to storage (awaited to prevent concurrent IndexedDB race conditions)
       if (isVideoMode && result?.video) {
-        saveVideoToStorage(historyId, result.video)
+        await saveVideoToStorage(historyId, result.video)
       } else if (result?.images && result.images.length > 0) {
-        saveImagesToStorage(historyId, result.images)
+        await saveImagesToStorage(historyId, result.images)
       }
 
       // Save narration data (slides mode)
@@ -406,7 +406,7 @@ export function useGeneration() {
 
         // Save narration metadata even if no audio (preserves scripts and settings)
         if (hasAudio || hasScripts) {
-          saveNarrationToStorage(historyId, result?.audioResults || [], options)
+          await saveNarrationToStorage(historyId, result?.audioResults || [], options)
         }
       }
 
@@ -424,17 +424,21 @@ export function useGeneration() {
       store.setGenerationError(errorMessage)
 
       // Save failed attempt to history
-      await store.addToHistory({
-        prompt: store.prompt,
-        mode: store.currentMode,
-        options: { ...options },
-        status: 'failed',
-        error: err.message,
-        thinkingText: store.thinkingProcess
-          .filter((c) => c.type === 'text')
-          .map((c) => c.content)
-          .join(''),
-      })
+      try {
+        await store.addToHistory({
+          prompt: store.prompt,
+          mode: store.currentMode,
+          options: { ...options },
+          status: 'failed',
+          error: err.message,
+          thinkingText: store.thinkingProcess
+            .filter((c) => c.type === 'text')
+            .map((c) => c.content)
+            .join(''),
+        })
+      } catch (historyErr) {
+        console.error('Failed to save error to history:', historyErr)
+      }
 
       // Call onComplete callback with error
       if (callbacks.onComplete) {

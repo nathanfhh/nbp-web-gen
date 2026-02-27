@@ -84,9 +84,10 @@ export function useHistoryTransfer() {
           if (videoBlob) {
             const arrayBuffer = await videoBlob.arrayBuffer()
             const bytes = new Uint8Array(arrayBuffer)
+            const chunkSize = 8192
             let binary = ''
-            for (let j = 0; j < bytes.length; j++) {
-              binary += String.fromCharCode(bytes[j])
+            for (let j = 0; j < bytes.length; j += chunkSize) {
+              binary += String.fromCharCode.apply(null, bytes.subarray(j, j + chunkSize))
             }
             const videoBase64 = btoa(binary)
 
@@ -115,9 +116,10 @@ export function useHistoryTransfer() {
               if (blob) {
                 const arrayBuffer = await blob.arrayBuffer()
                 const bytes = new Uint8Array(arrayBuffer)
+                const chunkSize = 8192
                 let binary = ''
-                for (let j = 0; j < bytes.length; j++) {
-                  binary += String.fromCharCode(bytes[j])
+                for (let j = 0; j < bytes.length; j += chunkSize) {
+                  binary += String.fromCharCode.apply(null, bytes.subarray(j, j + chunkSize))
                 }
                 exportRecord.narration.audio.push({
                   pageIndex: audioMeta.pageIndex,

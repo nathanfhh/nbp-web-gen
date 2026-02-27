@@ -253,7 +253,7 @@ function extractTextColor(imageData, bounds, edgeWidth = 2) {
  */
 function kMeans(pixels, k, maxIterations = 10) {
   if (pixels.length === 0) {
-    return Array(k).fill({ center: [128, 128, 128], count: 0 })
+    return Array.from({ length: k }, () => ({ center: [128, 128, 128], count: 0 }))
   }
 
   // Initialize centers using k-means++ style (first random, then furthest)

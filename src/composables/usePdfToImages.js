@@ -120,7 +120,7 @@ export function usePdfToImages() {
     if (isReady.value) return
     if (initPromise) return initPromise
 
-    initPromise = new Promise((resolve) => {
+    initPromise = new Promise((resolve, reject) => {
       initResolve = resolve
 
       // Create worker
@@ -132,6 +132,8 @@ export function usePdfToImages() {
       worker.onerror = (e) => {
         error.value = e.message
         isLoading.value = false
+        reject(new Error(e.message || 'Worker initialization failed'))
+        initResolve = null
       }
 
       isLoading.value = true
