@@ -23,6 +23,9 @@ export function useGeneration() {
   const { generateVideo } = useVideoApi()
   const { generateAllPages, generateAllAudio, saveAudioToStorage } = useSlidesGeneration()
 
+  // AbortController for cancellable operations (e.g., video polling)
+  let currentAbortController = null
+
   /**
    * Callback for streaming thinking chunks
    */
@@ -97,10 +100,12 @@ export function useGeneration() {
           ...options,
           negativePrompt: negativePrompt || options.negativePrompt || '',
         }
+        currentAbortController = new AbortController()
         const videoResult = await generateVideo(enhancedPrompt, videoOptions, (progress) => {
           // Convert progress to thinking chunk format
           onThinkingChunk(progress.message)
-        })
+        }, currentAbortController.signal)
+        currentAbortController = null
         return videoResult
       }
 
@@ -452,8 +457,19 @@ export function useGeneration() {
     }
   }
 
+  /**
+   * Cancel ongoing generation (currently supports video mode)
+   */
+  const cancelGeneration = () => {
+    if (currentAbortController) {
+      currentAbortController.abort()
+      currentAbortController = null
+    }
+  }
+
   return {
     handleGenerate,
     validateGeneration,
+    cancelGeneration,
   }
 }

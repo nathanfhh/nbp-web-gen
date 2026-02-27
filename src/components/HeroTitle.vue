@@ -1,12 +1,18 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useTheme } from '@/theme'
 
-const isDarkTheme = computed(() => document.documentElement.getAttribute('data-theme-type') === 'dark')
+const currentTheme = useTheme()
+const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
 
 // Track all timeout IDs for cleanup
 const pendingTimeouts = []
 const trackedTimeout = (fn, delay) => {
-  const id = setTimeout(fn, delay)
+  const id = setTimeout(() => {
+    const idx = pendingTimeouts.indexOf(id)
+    if (idx !== -1) pendingTimeouts.splice(idx, 1)
+    fn()
+  }, delay)
   pendingTimeouts.push(id)
   return id
 }
@@ -127,7 +133,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  pendingTimeouts.forEach((id) => clearTimeout(id))
+  for (const id of pendingTimeouts) {
+    clearTimeout(id)
+  }
   pendingTimeouts.length = 0
 })
 

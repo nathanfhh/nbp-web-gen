@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTheme } from '@/theme'
 
 const props = defineProps({
   size: {
@@ -14,7 +15,8 @@ const props = defineProps({
 })
 
 const { locale } = useI18n()
-const isDarkTheme = computed(() => document.documentElement.getAttribute('data-theme-type') === 'dark')
+const currentTheme = useTheme()
+const isDarkTheme = computed(() => currentTheme.value?.type === 'dark')
 
 const sizeClasses = {
   sm: 'w-5 h-5',

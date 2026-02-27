@@ -1,36 +1,29 @@
-<script setup>
-import { ref, computed } from 'vue'
+<script>
+// Module-scope initialization (runs once on import, not per component instance)
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-// One-time initialization guard for marked and DOMPurify configuration
-let initialized = false
-if (!initialized) {
-  // Configure marked for safe rendering
-  marked.setOptions({
-    breaks: true, // Convert \n to <br>
-    gfm: true, // GitHub Flavored Markdown
-  })
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+})
 
-  // Configure DOMPurify hook to prevent reverse-tabnabbing
-  // Add rel="noopener noreferrer" to all links with target="_blank"
-  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-    if (node.tagName === 'A') {
-      // Force external links to open in new tab safely
-      if (node.getAttribute('target') === '_blank') {
-        node.setAttribute('rel', 'noopener noreferrer')
-      }
-      // Also handle links that don't have target but are external
-      const href = node.getAttribute('href')
-      if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
-        node.setAttribute('target', '_blank')
-        node.setAttribute('rel', 'noopener noreferrer')
-      }
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node.tagName === 'A') {
+    if (node.getAttribute('target') === '_blank') {
+      node.setAttribute('rel', 'noopener noreferrer')
     }
-  })
+    const href = node.getAttribute('href')
+    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+      node.setAttribute('target', '_blank')
+      node.setAttribute('rel', 'noopener noreferrer')
+    }
+  }
+})
+</script>
 
-  initialized = true
-}
+<script setup>
+import { ref, computed } from 'vue'
 
 /**
  * Render markdown content safely

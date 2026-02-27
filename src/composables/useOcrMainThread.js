@@ -196,24 +196,24 @@ export function useOcrMainThread() {
         console.log(`[useOcrMainThread] Using ${ocrSettings.modelSize} model`)
 
         // Load models in parallel
-        reportProgress(5, 'ocr:loadingModelsFromCache')
-        if (onProgress) onProgress(5, 'ocr:loadingModelsFromCache')
+        reportProgress(5, 'Loading models from cache...')
+        if (onProgress) onProgress(5, 'Loading models from cache...')
 
         const [detModelResult, recModelResult, dictResult] = await Promise.all([
           getModel('detection', modelConfig, (p) => {
             const prog = 5 + p * 30
-            reportProgress(prog, 'ocr:loadingDetModel')
-            if (onProgress) onProgress(prog, 'ocr:loadingDetModel')
+            reportProgress(prog, 'Loading detection model...')
+            if (onProgress) onProgress(prog, 'Loading detection model...')
           }),
           getModel('recognition', modelConfig, (p) => {
             const prog = 35 + p * 30
-            reportProgress(prog, 'ocr:loadingRecModel')
-            if (onProgress) onProgress(prog, 'ocr:loadingRecModel')
+            reportProgress(prog, 'Loading recognition model...')
+            if (onProgress) onProgress(prog, 'Loading recognition model...')
           }),
           getModel('dictionary', modelConfig, (p) => {
             const prog = 65 + p * 5
-            reportProgress(prog, 'ocr:loadingDict')
-            if (onProgress) onProgress(prog, 'ocr:loadingDict')
+            reportProgress(prog, 'Loading dictionary...')
+            if (onProgress) onProgress(prog, 'Loading dictionary...')
           }),
         ])
 
@@ -226,8 +226,8 @@ export function useOcrMainThread() {
         if (dictionary[dictionary.length - 1] === '') dictionary.pop()
         dictionary.unshift('blank')
 
-        reportProgress(75, 'ocr:initDetEngine')
-        if (onProgress) onProgress(75, 'ocr:initDetEngine')
+        reportProgress(75, 'Initializing detection engine...')
+        if (onProgress) onProgress(75, 'Initializing detection engine...')
 
         // Try execution providers (WebGPU first, fallback to WASM)
         // Using onnxruntime-web/webgpu bundle which has full WebGPU support
@@ -244,8 +244,8 @@ export function useOcrMainThread() {
             }
 
             detSession = await ortModule.InferenceSession.create(detModelResult.data, sessionOptions)
-            reportProgress(85, 'ocr:initRecEngine')
-            if (onProgress) onProgress(85, 'ocr:initRecEngine')
+            reportProgress(85, 'Initializing recognition engine...')
+            if (onProgress) onProgress(85, 'Initializing recognition engine...')
 
             recSession = await ortModule.InferenceSession.create(recModelResult.data, sessionOptions)
             selectedProvider = provider
@@ -275,8 +275,8 @@ export function useOcrMainThread() {
         executionProvider.value = selectedProvider
         isInitialized = true
         isReady.value = true
-        reportProgress(100, 'ocr:engineReady')
-        if (onProgress) onProgress(100, 'ocr:engineReady')
+        reportProgress(100, 'OCR engine ready')
+        if (onProgress) onProgress(100, 'OCR engine ready')
       } catch (err) {
         error.value = err.message
         throw err

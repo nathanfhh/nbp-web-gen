@@ -346,13 +346,28 @@ export function useVideoApi() {
         }
 
         await new Promise((resolve, reject) => {
-          const timer = setTimeout(resolve, VIDEO_POLLING_INTERVAL_MS)
-          if (abortSignal) {
-            abortSignal.addEventListener('abort', () => {
-              clearTimeout(timer)
-              reject(new DOMException('Video generation aborted', 'AbortError'))
-            }, { once: true })
+          if (!abortSignal) {
+            setTimeout(resolve, VIDEO_POLLING_INTERVAL_MS)
+            return
           }
+
+          if (abortSignal.aborted) {
+            reject(new DOMException('Video generation aborted', 'AbortError'))
+            return
+          }
+
+          let timer = null
+          const onAbort = () => {
+            if (timer !== null) clearTimeout(timer)
+            reject(new DOMException('Video generation aborted', 'AbortError'))
+          }
+
+          timer = setTimeout(() => {
+            abortSignal.removeEventListener('abort', onAbort)
+            resolve()
+          }, VIDEO_POLLING_INTERVAL_MS)
+
+          abortSignal.addEventListener('abort', onAbort, { once: true })
         })
         operation = await ai.operations.getVideosOperation({ operation })
       }

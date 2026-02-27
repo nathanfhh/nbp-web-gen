@@ -172,7 +172,7 @@ export function useAgentApi() {
 
   /**
    * Send a message with automatic retry/fallback
-   * Wraps sendMessageStream with API key fallback handling
+   * Uses callWithFallback to handle API key fallback and retry behavior
    * @param {string} text - User text input
    * @param {Array} images - Array of { data: base64, mimeType } objects
    * @param {Object} callbacks - { onPart, onComplete, onError, conversation }

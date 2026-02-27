@@ -21,6 +21,23 @@ export function useCharacterStorage() {
   // Cache for loaded image URLs (to avoid reloading)
   const urlCache = new Map()
 
+  // Supported image extensions (ordered by priority)
+  const CHARACTER_IMAGE_EXTENSIONS = ['webp', 'png', 'jpg', 'jpeg']
+
+  /**
+   * Resolve the actual image path for a character (tries multiple extensions)
+   * @param {number} characterId
+   * @returns {Promise<string|null>}
+   */
+  const resolveCharacterImagePath = async (characterId) => {
+    const basePath = `/characters/${characterId}/image`
+    for (const ext of CHARACTER_IMAGE_EXTENSIONS) {
+      const candidate = `${basePath}.${ext}`
+      if (await opfs.fileExists(candidate)) return candidate
+    }
+    return null
+  }
+
   /**
    * Save character image to OPFS
    * @param {number} characterId - Character ID
@@ -75,7 +92,8 @@ export function useCharacterStorage() {
    */
   const loadCharacterImageData = async (characterId) => {
     try {
-      const opfsPath = `/characters/${characterId}/image.webp`
+      const opfsPath = await resolveCharacterImagePath(characterId)
+      if (!opfsPath) return null
       const blob = await opfs.readFile(opfsPath)
 
       if (!blob) return null
@@ -129,7 +147,8 @@ export function useCharacterStorage() {
       return urlCache.get(cacheKey)
     }
 
-    const opfsPath = `/characters/${characterId}/image.webp`
+    const opfsPath = await resolveCharacterImagePath(characterId)
+    if (!opfsPath) return null
     const url = await opfs.getFileURL(opfsPath)
 
     if (url) {
@@ -171,8 +190,7 @@ export function useCharacterStorage() {
    * @returns {Promise<boolean>}
    */
   const hasCharacterImage = async (characterId) => {
-    const opfsPath = `/characters/${characterId}/image.webp`
-    return opfs.fileExists(opfsPath)
+    return (await resolveCharacterImagePath(characterId)) !== null
   }
 
   /**
