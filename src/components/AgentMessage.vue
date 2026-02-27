@@ -1,25 +1,30 @@
 <script>
-// Module-scope initialization (runs once on import, not per component instance)
+// Module-scope initialization (guarded against HMR re-evaluation)
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-})
+let initialized = false
+if (!initialized) {
+  initialized = true
 
-DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  if (node.tagName === 'A') {
-    if (node.getAttribute('target') === '_blank') {
-      node.setAttribute('rel', 'noopener noreferrer')
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+  })
+
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A') {
+      if (node.getAttribute('target') === '_blank') {
+        node.setAttribute('rel', 'noopener noreferrer')
+      }
+      const href = node.getAttribute('href')
+      if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+        node.setAttribute('target', '_blank')
+        node.setAttribute('rel', 'noopener noreferrer')
+      }
     }
-    const href = node.getAttribute('href')
-    if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
-      node.setAttribute('target', '_blank')
-      node.setAttribute('rel', 'noopener noreferrer')
-    }
-  }
-})
+  })
+}
 </script>
 
 <script setup>
