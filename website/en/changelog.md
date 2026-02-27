@@ -2,6 +2,21 @@
 
 This page documents version updates for Mediator.
 
+## v0.30.0
+
+_2026-02-27_
+
+### New Features
+- **Image Model Selector**: Add global image model selector in settings — choose between Gemini 3 Pro Image (higher quality) and Gemini 3.1 Flash Image (faster speed), persists across sessions
+- **Slide to PPTX**: Add third text removal model "Nano Banana 2" (`gemini-3.1-flash-image-preview`), fast with good quality, requires paid API key
+- **Text Models**: Remove discontinued Gemini 3 Pro text model, keeping Gemini 3 Flash and Gemini 3.1 Pro
+
+### Fixes
+- **Lightbox**: Fix slide narration transcript incorrectly appearing in non-slides mode image previews
+
+### Dependencies
+- `@google/genai` 1.41.0 → 1.43.0
+
 ## v0.29.2
 
 _2026-02-21_

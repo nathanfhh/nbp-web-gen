@@ -34,7 +34,7 @@ Designed for environments where data privacy is non-negotiable (hospitals, enter
 <a name="english"></a>
 ## 🎬 About The Project
 
-**Mediator** (Media + Creator) is a modern web interface designed to unlock the full potential of Google's Gemini image generation models (namely `gemini-3-pro-image-preview`) and **Veo 3.1 video generation API**.
+**Mediator** (Media + Creator) is a modern web interface designed to unlock the full potential of Google's Gemini image generation models (`gemini-3-pro-image-preview`, `gemini-3.1-flash-image-preview`) and **Veo 3.1 video generation API**.
 
 While starting as a web adaptation of existing CLI tools, this project has evolved into a feature-rich PWA with unique capabilities like **Automated Sticker Segmentation**, **Visual Storytelling**, **Technical Diagramming**, and **AI Video Generation**.
 
@@ -93,7 +93,7 @@ This project is a testament to the power of AI-assisted development:
     *   **Advanced Region Editor:** Manually add, delete, resize, or batch-select OCR regions. Features undo/redo support, separator line tool for splitting merged regions, and rectangle selection for bulk deletion.
     *   **Text Removal:** Remove text from slide backgrounds using OpenCV.js (free) or Gemini API (higher quality, requires API key).
     *   **Dynamic Text Colors:** Automatically extracts and applies original text colors from slides to PPTX output.
-    *   **Smart API Key Validation:** Gemini options are automatically disabled when no API key is configured; 3.0 model requires paid key.
+    *   **Smart API Key Validation:** Gemini options are automatically disabled when no API key is configured; Pro and Nano Banana 2 models require paid key.
     *   **Editable Output:** Generates PPTX files with text boxes overlaid on clean background images.
     *   **PDF Support:** Upload PDFs directly - automatically converted to images page by page.
     *   **Per-Page Settings:** Customize OCR and inpainting settings for individual slides.
@@ -194,7 +194,7 @@ npm run build
 
 ## 🎬 關於本專案
 
-**Mediator**（Media + Creator = Mediator）是一個專為 Google Gemini 圖像生成模型（即 `gemini-3-pro-image-preview`）與 **Veo 3.1 影片生成 API** 打造的現代化網頁介面。
+**Mediator**（Media + Creator = Mediator）是一個專為 Google Gemini 圖像生成模型（`gemini-3-pro-image-preview`、`gemini-3.1-flash-image-preview`）與 **Veo 3.1 影片生成 API** 打造的現代化網頁介面。
 
 本專案最初是為了將強大的 CLI 工具網頁化，隨後發展成為一個功能豐富的 PWA，並加入了許多獨家功能，如**自動化貼圖分割**、**視覺故事生成**、**技術圖表繪製**以及 **AI 影片生成**。
 
@@ -253,7 +253,7 @@ npm run build
     *   **進階區域編輯器：** 手動新增、刪除、調整或批次選取 OCR 區域。支援復原/重做、分隔線工具（拆分誤合併區域）、矩形選取批次刪除。
     *   **文字移除：** 使用 OpenCV.js（免費）或 Gemini API（品質較高，需設定 API 金鑰）從簡報背景中移除文字。
     *   **動態文字顏色：** 自動提取並套用原始簡報中的文字顏色至 PPTX 輸出。
-    *   **智慧金鑰驗證：** 未設定 API 金鑰時自動禁用 Gemini 選項；3.0 模型需使用付費金鑰。
+    *   **智慧金鑰驗證：** 未設定 API 金鑰時自動禁用 Gemini 選項；Pro 與 Nano Banana 2 模型需使用付費金鑰。
     *   **可編輯輸出：** 生成的 PPTX 包含文字框疊加在乾淨的背景圖片上。
     *   **PDF 支援：** 可直接上傳 PDF，自動逐頁轉換為圖片。
     *   **逐頁設定：** 可為個別頁面自訂 OCR 與文字移除設定。
