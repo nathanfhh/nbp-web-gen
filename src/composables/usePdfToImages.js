@@ -132,8 +132,12 @@ export function usePdfToImages() {
       worker.onerror = (e) => {
         error.value = e.message
         isLoading.value = false
-        reject(new Error(e.message || 'Worker initialization failed'))
+        // Clean up failed worker so retry can recreate it
+        worker.terminate()
+        worker = null
+        initPromise = null
         initResolve = null
+        reject(new Error(e.message || 'Worker initialization failed'))
       }
 
       isLoading.value = true
