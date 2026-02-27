@@ -27,7 +27,7 @@ import {
 // ============================================================================ 
 
 // ONNX Runtime version (must match package.json)
-const ONNX_VERSION = '1.23.2'
+const ONNX_VERSION = '1.24.1'
 const ONNX_CDN_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_VERSION}/dist/`
 
 // Lazy-loaded ONNX Runtime module
@@ -225,8 +225,8 @@ export function useOcrMainThread() {
         if (dictionary[dictionary.length - 1] === '') dictionary.pop()
         dictionary.unshift('blank')
 
-        reportProgress(75, '初始化偵測引擎...')
-        if (onProgress) onProgress(75, '初始化偵測引擎...')
+        reportProgress(75, 'ocr:initDetEngine')
+        if (onProgress) onProgress(75, 'ocr:initDetEngine')
 
         // Try execution providers (WebGPU first, fallback to WASM)
         // Using onnxruntime-web/webgpu bundle which has full WebGPU support
@@ -243,8 +243,8 @@ export function useOcrMainThread() {
             }
 
             detSession = await ortModule.InferenceSession.create(detModelResult.data, sessionOptions)
-            reportProgress(85, '初始化辨識引擎...')
-            if (onProgress) onProgress(85, '初始化辨識引擎...')
+            reportProgress(85, 'ocr:initRecEngine')
+            if (onProgress) onProgress(85, 'ocr:initRecEngine')
 
             recSession = await ortModule.InferenceSession.create(recModelResult.data, sessionOptions)
             selectedProvider = provider
@@ -274,8 +274,8 @@ export function useOcrMainThread() {
         executionProvider.value = selectedProvider
         isInitialized = true
         isReady.value = true
-        reportProgress(100, 'OCR 引擎就緒')
-        if (onProgress) onProgress(100, 'OCR 引擎就緒')
+        reportProgress(100, 'ocr:engineReady')
+        if (onProgress) onProgress(100, 'ocr:engineReady')
       } catch (err) {
         error.value = err.message
         throw err

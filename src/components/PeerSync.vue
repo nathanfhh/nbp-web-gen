@@ -2,14 +2,14 @@
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePeerSync } from '@/composables/usePeerSync'
-import { useCloudfareTurn } from '@/composables/useCloudfareTurn'
+import { useCloudflareTurn } from '@/composables/useCloudflareTurn'
 import { useToast } from '@/composables/useToast'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const { t } = useI18n()
 const toast = useToast()
 const sync = usePeerSync()
-const turn = useCloudfareTurn()
+const turn = useCloudflareTurn()
 
 // Confirm modal for close during transfer
 const confirmModal = ref(null)
@@ -233,7 +233,7 @@ const errorMessage = computed(() => {
               <button
                 v-if="mode !== null && sync.status.value !== 'transferring'"
                 @click="goBack"
-                class="p-2 -ml-2 rounded-lg hover:bg-bg-interactive text-text-muted text-text-muted hover:text-text-primary transition-all"
+                class="p-2 -ml-2 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -250,7 +250,7 @@ const errorMessage = computed(() => {
             </div>
             <button
               @click="close"
-              class="p-2 rounded-lg hover:bg-bg-interactive text-text-muted text-text-muted hover:text-text-primary transition-all"
+              class="p-2 rounded-lg hover:bg-bg-interactive text-text-muted hover:text-text-primary transition-all"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -293,7 +293,7 @@ const errorMessage = computed(() => {
                 </div>
                 <div class="text-left">
                   <div :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-text-muted' : 'text-text-primary'" class="font-medium">{{ $t('peerSync.sendMode.title') }}</div>
-                  <div class="text-xs" :class="(props.syncType === 'history' && props.selectedIds.length === 0) || (props.syncType === 'characters' && props.selectedCharacterIds.length === 0) ? 'text-text-muted' : 'text-text-muted'">
+                  <div class="text-xs text-text-muted">
                     <template v-if="props.syncType === 'history'">
                       {{ props.selectedIds.length === 0 ? $t('peerSync.sendMode.noSelection') : $t('peerSync.sendMode.historyDesc', { count: props.selectedIds.length }) }}
                     </template>

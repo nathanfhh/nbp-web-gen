@@ -1,5 +1,8 @@
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: {
@@ -247,7 +250,7 @@ onBeforeUnmount(() => {
             ref="searchInputRef"
             v-model="searchQuery"
             class="searchable-select__search"
-            :placeholder="placeholder || 'Search...'"
+            :placeholder="placeholder || t('common.searchPlaceholder')"
             @keydown="onKeydown"
           />
         </div>
@@ -341,7 +344,7 @@ onBeforeUnmount(() => {
           </template>
 
           <!-- No results -->
-          <div v-else class="searchable-select__empty">No results</div>
+          <div v-else class="searchable-select__empty">{{ t('common.noResults') }}</div>
         </div>
       </div>
     </Transition>

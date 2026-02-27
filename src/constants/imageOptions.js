@@ -43,12 +43,5 @@ export const RATIO_OPTIONS_STANDARD = [
   { value: '16:9', label: '16:9' },
 ]
 
-// Aspect ratio mapping for Gemini API
-export const RATIO_API_MAP = {
-  '1:1': '1:1',
-  '3:4': '3:4',
-  '4:3': '4:3',
-  '9:16': '9:16',
-  '16:9': '16:9',
-  '21:9': '21:9',
-}
+// Valid aspect ratios for Gemini API
+export const VALID_RATIOS = new Set(['1:1', '3:4', '4:3', '9:16', '16:9', '21:9'])

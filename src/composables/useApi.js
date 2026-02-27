@@ -13,7 +13,7 @@ import {
 } from './requestScheduler'
 import {
   DEFAULT_MODEL,
-  RATIO_API_MAP,
+  VALID_RATIOS,
   RESOLUTION_API_MAP,
   IMAGE_MIN_START_INTERVAL_MS,
   DEFAULT_RETRY_CONFIG,
@@ -198,8 +198,8 @@ export function useApi() {
     const imageConfig = {}
 
     // Add aspect ratio
-    if (options.ratio && RATIO_API_MAP[options.ratio]) {
-      imageConfig.aspectRatio = RATIO_API_MAP[options.ratio]
+    if (options.ratio && VALID_RATIOS.has(options.ratio)) {
+      imageConfig.aspectRatio = options.ratio
     }
 
     // Add resolution/image size (camelCase for SDK)

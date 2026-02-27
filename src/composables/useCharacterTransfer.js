@@ -41,7 +41,7 @@ export function useCharacterTransfer() {
       }
       progress.value = { current: 0, total: characters.length, phase: 'exporting' }
 
-      const exportCharacters = []
+      const characterExports = []
 
       for (let i = 0; i < characters.length; i++) {
         const char = characters[i]
@@ -50,7 +50,7 @@ export function useCharacterTransfer() {
         // Load imageData from OPFS with fallback to legacy IndexedDB data
         const imageData = await loadCharacterImageWithFallback(char.id, char.imageData)
 
-        exportCharacters.push({
+        characterExports.push({
           uuid: char.uuid || generateUUID(),
           name: char.name,
           description: char.description,
@@ -69,7 +69,7 @@ export function useCharacterTransfer() {
         type: 'characters',
         exportedAt: Date.now(),
         appVersion: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown',
-        characters: exportCharacters,
+        characters: characterExports,
       }
 
       // Download JSON file
@@ -83,7 +83,7 @@ export function useCharacterTransfer() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
-      return { success: true, count: exportCharacters.length }
+      return { success: true, count: characterExports.length }
     } catch (err) {
       console.error('Export characters failed:', err)
       return { success: false, count: 0, error: err.message }

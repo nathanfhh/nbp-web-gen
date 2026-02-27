@@ -52,8 +52,10 @@ export function useCharacterStorage() {
       }
       const blob = new Blob([bytes], { type: mimeType })
 
-      // Save to OPFS
-      const opfsPath = `/${dirPath}/image.webp`
+      // Derive file extension from mimeType
+      const extMap = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg' }
+      const ext = extMap[mimeType] || mimeType.split('/')[1] || 'webp'
+      const opfsPath = `/${dirPath}/image.${ext}`
       await opfs.writeFile(opfsPath, blob)
 
       return { opfsPath }
