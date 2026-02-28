@@ -201,6 +201,10 @@ export const useGeneratorStore = defineStore('generator', () => {
         delete page.generatedContent
         delete page.generatedPageStyleGuide
         delete page.generatedGlobalStyle
+        // Normalize status: pages without images can't be 'done'
+        if (!page.image && page.status === 'done') {
+          page.status = 'pending'
+        }
       })
     }
 

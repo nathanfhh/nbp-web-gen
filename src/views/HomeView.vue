@@ -196,11 +196,13 @@ const slidesDirtyInfo = computed(() => {
   pages.forEach((p) => {
     if (p.contentDirty || p.styleDirty) {
       imagePages.push(p.pageNumber)
-    } else if (p.narrationDirty) {
+    }
+    if (p.narrationDirty) {
       audioOnlyPages.push(p.pageNumber)
     }
   })
-  return { count: imagePages.length + audioOnlyPages.length, imagePages, audioOnlyPages }
+  const uniqueDirtyCount = new Set([...imagePages, ...audioOnlyPages]).size
+  return { count: uniqueDirtyCount, imagePages, audioOnlyPages }
 })
 const slidesDirtyPageCount = computed(() => slidesDirtyInfo.value.count)
 
@@ -578,6 +580,7 @@ const handleGenerate = async () => {
 
 // Handle regeneration of only dirty (modified) pages
 const handleGenerateDirtyPages = async () => {
+  if (isSlidesNotReady.value) return
   showAllPanels()
   scrollToThinking()
   await generateDirtyPages()
@@ -585,6 +588,7 @@ const handleGenerateDirtyPages = async () => {
 
 // Handle "regenerate all" when dirty pages exist (resets all pages first)
 const handleRegenerateAll = async () => {
+  if (isSlidesNotReady.value) return
   resetAllPages()
   await handleGenerate()
 }
@@ -1127,7 +1131,7 @@ const handleAddToReferences = (referenceData) => {
                 <!-- Generate only dirty pages (primary) -->
                 <button
                   @click="handleGenerateDirtyPages"
-                  :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey"
+                  :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey || isSlidesNotReady"
                   data-tour="generate-button"
                   class="btn-premium w-full py-4 text-lg font-semibold flex items-center justify-center gap-3"
                 >
@@ -1143,7 +1147,7 @@ const handleAddToReferences = (referenceData) => {
                 <!-- Regenerate all (secondary) -->
                 <button
                   @click="handleRegenerateAll"
-                  :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey"
+                  :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey || isSlidesNotReady"
                   class="w-full py-3 text-sm font-medium rounded-xl border border-border-muted text-text-secondary hover:bg-bg-interactive transition-colors flex items-center justify-center gap-2"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

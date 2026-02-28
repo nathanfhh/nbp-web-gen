@@ -72,143 +72,34 @@ _2026-02-27_
 ### Dependencies
 - `@google/genai` 1.41.0 → 1.43.0
 
-## v0.29.2
-
-_2026-02-21_
-
-### Fixes
-- **Transcript Panel**: Fix dual-speaker narration not splitting segments when speaker prefix immediately follows CJK punctuation (e.g. 。) without a space
-
-## v0.29.1
-
-_2026-02-21_
-
-### New Features
-- **MP4 Export**: Add narration speed control (1x–4x) with pitch-preserved WSOLA time-stretching. Includes slider, number input, and preset buttons (1/1.25/1.5/1.75/2/3x) — setting persists across sessions
-
-## v0.29.0
-
-_2026-02-21_
-
-### New Features
-- **Slide Narration**: Add floating transcript panel in Lightbox with drag-to-reposition and top-right corner resize. Position and size persist across sessions. Dual-speaker mode shows color-coded speaker tags, auto-scrolls to top on page change. Toggle via toolbar button or `T` key
-
-### Fixes
-- **Lightbox**: Fix dragging or resizing transcript panel accidentally triggering lightbox close
-
-## v0.28.4
-
-_2026-02-21_
-
-### New Features
-- **Text Models**: Add Gemini 3.1 Pro model option for slides analysis, content splitting, narration scripts, and character extraction
-
-### Fixes
-- **Agent Mode**: Fix agent chat model incorrectly linked to shared default — ensure it uses Flash model exclusively (codeExecution tool support)
-
-### Refactor
-- **Model Definitions**: Unify Text LLM model list into `TEXT_MODELS` constant (Single Source of Truth), eliminating 4 duplicate definitions and 8+ hardcoded defaults
-
-## v0.28.3
-
-_2026-02-16_
-
-### New Features
-- **Embedding Explorer**: Add mode filter with styled chip buttons for multi-select filtering of data points by generation mode
-
-### Improvements
-- **Embedding Explorer**: Increase plot area minimum height (300px → 450px)
-- **Embedding Explorer**: Move Plotly modebar to top-left, restore screenshot download button
-- **Embedding Explorer**: Support legend scrolling when entries overflow
-
-### Fixes
-- **Embedding Explorer**: Fix wheel events bleeding through modal to background page
-
-### Refactor
-- **Mode Definitions**: Centralize generation modes list into shared `GENERATION_MODES` constant (Single Source of Truth)
-
-## v0.28.2
-
-_2026-02-16_
-
-### Improvements
-- **Embedding Explorer**: Add "By Record" coloring mode, grouping by historyId with a 20-color palette
-- **Embedding Explorer**: Hide sample size input when "Use Full Data" is checked
-
-### Fixes
-- **Embedding Explorer**: Fix Plotly legend showing English mode names in Chinese locale
-- **Embedding Explorer**: Fix "Hover" label not translated (was hardcoded as "Hover:")
-- **Embedding Explorer**: Fix Plotly modebar being clipped on mobile devices
-
-## v0.28.1
-
-_2026-02-15_
-
-### Fixes
-- **Smart Search**: Fix Agentic Vision records being completely unsearchable (model responses not indexed, mode name BM25 mismatch, snapshot not invalidated on extraction logic change)
-- **Smart Search**: Fix agent records silently skipped during indexing when conversation has no text — now falls back to prompt text
-- **Smart Search**: Fix zero-vector embeddings being cached and persisted permanently, preventing re-indexing on retry
-- **Smart Search**: Add bilingual mode labels for BM25 search (e.g., "agentic vision", "智慧視覺" now match Agent mode records)
-- **Smart Search**: Disable Gemini embedding provider when no API key is configured, preventing silent zero-vector generation
-- **Smart Search**: Fix Plotly chart not re-rendering on modal reopen, localStorage quota exception in private mode, and IME composition triggering search on Enter
-- **Lightbox**: Fix ESC closing both lightbox and search modal simultaneously when opened from search results
-
-### Testing
-- Add extractAgentMessages tests (11 cases, 437 total)
-
-## v0.28.0
-
-_2026-02-15_
-
-### New Features
-- **Smart Search**: Add dual embedding engines — Gemini Embedding API (768-dim, cloud, higher quality) and local Transformers.js multilingual-e5-small (384-dim, free/offline), switchable anytime
-- **Smart Search**: Add Embedding 3D Explorer with UMAP dimensionality reduction and Plotly.js interactive 3D scatter plot visualization
-- **API Key**: Add privacy warning for Free Tier API keys — Google may use free tier data for model training
-
-### Improvements
-- **Smart Search**: Reduce chunk size (500→200) and overlap (100→50) for finer-grained retrieval
-- **Smart Search**: Add multi-chunk aggregated scoring for better search relevance
-- **Smart Search**: Embedding 3D Explorer uses lazy loading (Plotly.js ~4.8MB loaded only when opened)
-
-### Fixes
-- **Smart Search**: Fix zero-vector documents being inserted into snapshots, degrading search quality
-- **Smart Search**: Fix snapshot deduplication logic and per-provider independent storage
-- **Smart Search**: Fix Plotly modebar position obscuring chart and modal height clipping
-
-### Documentation
-- Update search docs with dual engine details, privacy warning, and 3D Explorer guide
-- Update API Key management docs with Free Tier privacy notice
-- Update README to reflect dual engines and 3D Explorer features
-
-## v0.27.0
-
-_2026-02-14_
-
-### New Features
-- **Smart Search**: Add RAG hybrid search system for history, combining BM25 keyword matching with semantic vector search (multilingual-e5-small)
-- **Smart Search**: Support three search strategies (hybrid/semantic/fulltext), mode filtering, and multiple sort options
-- **Smart Search**: Auto-save search preferences to localStorage, restored on next open
-- **Smart Search**: Real-time index sync — automatically updates when records are added, deleted, or imported
-
-### Fixes
-- **Smart Search**: Fix null embeddings on snapshot restore causing search failures
-- **Smart Search**: Fix search events not registered eagerly, preventing real-time indexing on generation complete
-- **i18n**: Add missing common.close translation key
-- **Slide Conversion**: Fix TypeError from null entries in mergeTextRegions
-
-### Documentation
-- Add Smart Search user guide (zh-TW & English)
-- Add search system technical architecture doc
-
-### Testing
-- Add search-core pure function tests (50+ test cases)
-
-### Maintenance
-- Upgrade project dependencies
-
 ---
 
 ## Earlier Versions
+
+### v0.29.x - Lightbox Transcript Panel & Narration Speed Control
+
+_2026-02-21_
+
+- **v0.29.2** _(02-21)_: Fix dual-speaker narration splitting after CJK punctuation
+- **v0.29.1** _(02-21)_: MP4 export narration speed control (1x–4x) with pitch-preserved WSOLA
+- **v0.29.0** _(02-21)_: Lightbox floating transcript panel (drag, resize, T key toggle), fix accidental lightbox close on drag
+
+### v0.28.x - Smart Search Enhancements, Embedding 3D Explorer & Model Unification
+
+_2026-02-15 ~ 2026-02-21_
+
+- **v0.28.4** _(02-21)_: Gemini 3.1 Pro model option, Agent mode model fix, TEXT_MODELS constant unification
+- **v0.28.3** _(02-16)_: Embedding Explorer mode filter, GENERATION_MODES constant unification
+- **v0.28.2** _(02-16)_: Embedding Explorer "By Record" coloring mode, Plotly modebar fixes
+- **v0.28.1** _(02-15)_: Smart Search Agent record indexing fixes, bilingual mode label search
+- **v0.28.0** _(02-15)_: Dual embedding engines (Gemini API + Transformers.js), Embedding 3D Explorer, Free Tier privacy warning
+
+### v0.27.0 - RAG Hybrid Search System
+
+_2026-02-14_
+
+- History RAG hybrid search (BM25 + semantic vectors), three search strategies, mode filtering, real-time index sync
+- search-core pure function tests (50+ test cases)
 
 ### v0.26.x - Smart Search, Slide Narration & Agentic Vision
 

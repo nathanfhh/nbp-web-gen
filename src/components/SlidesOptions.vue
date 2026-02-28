@@ -15,7 +15,7 @@ import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 import NarrationSection from './NarrationSection.vue'
 import SlidesRegenerateModal from './SlidesRegenerateModal.vue'
 import SlidesPageCard from './SlidesPageCard.vue'
-import ImageLightbox from './ImageLightbox.vue'
+import ImageLightbox from '@/components/ImageLightbox.vue'
 import ConfirmModal from './ConfirmModal.vue'
 import AudioComparisonSection from './AudioComparisonSection.vue'
 

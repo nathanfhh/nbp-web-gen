@@ -335,12 +335,18 @@ const handleReferenceUpload = (event) => {
 
     <!-- Thumbnail Preview (if generated) -->
     <div v-if="page.image?.data" class="mt-3">
-      <img
-        :src="`data:${page.image.mimeType || 'image/png'};base64,${page.image.data}`"
-        class="w-full max-w-[200px] rounded-lg border border-border-muted cursor-pointer hover:opacity-80 transition-opacity"
-        :alt="$t('slides.slidePreview', { n: page.pageNumber })"
+      <button
+        type="button"
+        class="block rounded-lg focus:outline-none focus:ring-2 focus:ring-mode-generate"
+        :aria-label="$t('slides.slidePreview', { n: page.pageNumber })"
         @click="emit('view-image')"
-      />
+      >
+        <img
+          :src="`data:${page.image.mimeType || 'image/png'};base64,${page.image.data}`"
+          class="w-full max-w-[200px] rounded-lg border border-border-muted cursor-pointer hover:opacity-80 transition-opacity"
+          :alt="$t('slides.slidePreview', { n: page.pageNumber })"
+        />
+      </button>
     </div>
 
     <!-- Page-specific Reference Images -->

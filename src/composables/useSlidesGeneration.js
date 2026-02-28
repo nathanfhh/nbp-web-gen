@@ -668,6 +668,7 @@ export function useSlidesGeneration() {
         pageId: s.pageId,
         styleDirective: s.styleDirective,
         script: s.script,
+        generatedScript: s.generatedScript ?? s.script,
       }))
       const currentSettings = {
         speakerMode: options.narration?.speakerMode,
@@ -1128,6 +1129,8 @@ export function useSlidesGeneration() {
    * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
    */
   const generateDirtyPages = async (onThinkingChunk = null) => {
+    if (store.isGenerating || isGenerating.value) return
+
     const pages = store.slidesOptions.pages
     const dirtyPages = pages.filter(
       (p) => p.contentDirty || p.styleDirty || p.narrationDirty,
