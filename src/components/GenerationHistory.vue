@@ -243,6 +243,9 @@ const loadHistoryItem = async (item) => {
           error: null,
           referenceImages: [],
           styleGuide: '',
+          contentDirty: false,
+          styleDirty: false,
+          narrationDirty: false,
         }))
       }
 
@@ -283,11 +286,92 @@ const loadHistoryItem = async (item) => {
     }
 
     // Restore narration scripts and global style directive
+    // Scripts are restored immediately; after parsePages runs (via nextTick),
+    // remap pageId values to match the actual parsed page IDs by index.
+    // This handles: old records without pagesContent, content whitespace differences,
+    // or any other case where parsed page IDs differ from saved script pageIds.
     if (item.narration?.scripts?.length > 0) {
-      store.slidesOptions.narrationScripts = item.narration.scripts
+      store.slidesOptions.narrationScripts = item.narration.scripts.map((s) => ({
+        ...s,
+        generatedScript: s.generatedScript ?? s.script,
+      }))
+
+      nextTick(() => {
+        const pages = store.slidesOptions.pages
+        const scripts = store.slidesOptions.narrationScripts
+        if (!scripts?.length || !pages?.length) return
+
+        // Check if any script pageId doesn't match current pages
+        const pageIds = new Set(pages.map((p) => p.id))
+        const needsRemap = scripts.some((s) => !pageIds.has(s.pageId))
+
+        if (needsRemap) {
+          store.slidesOptions.narrationScripts = scripts.slice(0, pages.length).map((script, i) => ({
+            ...script,
+            pageId: pages[i]?.id || script.pageId,
+          }))
+        }
+      })
     }
     if (item.narration?.globalStyleDirective) {
       store.slidesOptions.narrationGlobalStyle = item.narration.globalStyleDirective
+    }
+
+    // Restore images and audio from OPFS to fully resume generation state.
+    // This allows dirty page tracking to work (pages with images get status: 'done').
+    if (item.images?.length > 0 || item.narration?.audio?.length > 0) {
+      await nextTick() // Ensure parsePages + all sync callbacks have completed
+
+      const pages = store.slidesOptions.pages
+
+      // Load images from OPFS and assign to page objects
+      if (item.images?.length > 0) {
+        for (const img of item.images) {
+          const page = pages.find((p) => p.pageNumber === img.pageNumber)
+          if (!page) continue
+          try {
+            const base64 = await imageStorage.getImageBase64(img.opfsPath)
+            if (base64) {
+              page.image = { data: base64, mimeType: img.compressedFormat || 'image/webp' }
+              page.status = 'done'
+              page.generatedContent = page.content
+              page.generatedPageStyleGuide = page.styleGuide || ''
+              page.generatedGlobalStyle = store.slidesOptions.analyzedStyle || ''
+            }
+          } catch {
+            // Image file missing from OPFS — page stays pending
+          }
+        }
+
+        // Ensure all dirty flags are clean after restore
+        // (history load should always start with a pristine state)
+        pages.forEach((page) => {
+          page.contentDirty = false
+          page.styleDirty = false
+          page.narrationDirty = false
+        })
+      }
+
+      // Load audio URLs from OPFS
+      if (item.narration?.audio?.length > 0) {
+        const audioUrls = []
+        for (const audioMeta of item.narration.audio) {
+          try {
+            const url = await audioStorage.loadAudio(audioMeta.opfsPath)
+            if (url) {
+              audioUrls[audioMeta.pageIndex] = url
+            }
+          } catch {
+            // Audio file missing — skip
+          }
+        }
+        if (audioUrls.length > 0) {
+          store.setGeneratedAudioUrls(audioUrls)
+        }
+      }
+
+      // Set history ID so subsequent regeneration updates the same record
+      store.setCurrentHistoryId(item.id)
     }
   } else if (item.mode === 'agent') {
     // Load agent conversation from OPFS and continue
