@@ -50,6 +50,10 @@ Click the thumbnail to open Lightbox preview:
 - Video mode: Play the video
 - Slides mode: If narration audio exists, an audio player appears at the bottom; the download menu offers audio download and MP4 video export
 
+### Loading Slides Records
+
+When loading slides from history, the system automatically restores all page images and narration audio from OPFS. After restore, you can edit pages inline and selectively regenerate only the modified pages.
+
 ### Delete
 
 Click the delete button to delete a single record.
