@@ -51,9 +51,7 @@ We aim to bring these powerful CLI capabilities to a broader audience through a 
 
 ### 🛠️ Built With AI
 
-This project is a testament to the power of AI-assisted development:
-*   **80%** of the codebase was authored/structured using **Claude Code**.
-*   **20%** was developed and refined using **Gemini CLI**.
+This project is a testament to the power of AI-assisted development, built with **Claude Code**, **Gemini CLI**, and **Copilot CLI**.
 
 ---
 
@@ -211,9 +209,7 @@ npm run build
 
 ### 🛠️ AI 協作開發
 
-本專案是 AI 輔助開發的實踐成果：
-*   **80%** 的程式碼由 **Claude Code** 撰寫與建構。
-*   **20%** 透過 **Gemini CLI** 進行開發與優化。
+本專案是 AI 輔助開發的實踐成果，使用 **Claude Code**、**Gemini CLI** 與 **Copilot CLI** 協作開發。
 
 ---
 
