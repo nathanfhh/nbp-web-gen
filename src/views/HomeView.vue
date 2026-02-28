@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useGeneratorStore } from '@/stores/generator'
 import { useGeneration } from '@/composables/useGeneration'
+import { useSlidesGeneration } from '@/composables/useSlidesGeneration'
 import { useToast } from '@/composables/useToast'
 import { useTour } from '@/composables/useTour'
 import { saveLocale } from '@/i18n'
@@ -43,6 +44,7 @@ const PromptConfirmModal = defineAsyncComponent(() => import('@/components/Promp
 
 const store = useGeneratorStore()
 const { handleGenerate: executeGenerate } = useGeneration()
+const { generateDirtyPages, resetAllPages } = useSlidesGeneration()
 const { t, locale } = useI18n()
 const toast = useToast()
 const tour = useTour()
@@ -176,13 +178,43 @@ const isSlidesNotReady = computed(() => {
 // Check if any single page is being regenerated (to disable main Generate button)
 const isAnyPageGenerating = computed(() => {
   if (store.currentMode !== 'slides') return false
-  return store.slidesOptions.pages.some((p) => p.status === 'generating')
+  return store.slidesOptions.pages.some((p) => p.status === 'generating' || p.status === 'comparing')
 })
 
 // Check if slides style is being analyzed
 const isSlidesAnalyzing = computed(() => {
   if (store.currentMode !== 'slides') return false
   return store.slidesOptions.isAnalyzing
+})
+
+// Dirty pages breakdown (pages needing image regen vs audio-only regen)
+const slidesDirtyInfo = computed(() => {
+  if (store.currentMode !== 'slides') return { count: 0, imagePages: [], audioOnlyPages: [] }
+  const pages = store.slidesOptions.pages
+  const imagePages = [] // pages needing image regeneration (content or style changed)
+  const audioOnlyPages = [] // pages needing only audio regeneration
+  pages.forEach((p) => {
+    if (p.contentDirty || p.styleDirty) {
+      imagePages.push(p.pageNumber)
+    } else if (p.narrationDirty) {
+      audioOnlyPages.push(p.pageNumber)
+    }
+  })
+  return { count: imagePages.length + audioOnlyPages.length, imagePages, audioOnlyPages }
+})
+const slidesDirtyPageCount = computed(() => slidesDirtyInfo.value.count)
+
+// Build descriptive label for dirty pages button, e.g., "僅生成異動頁面（簡報 2 頁、錄音 1 頁）"
+const slidesDirtyButtonLabel = computed(() => {
+  const { imagePages, audioOnlyPages } = slidesDirtyInfo.value
+  const parts = []
+  if (imagePages.length > 0) {
+    parts.push(t('slides.dirtyImagePages', { count: imagePages.length, pages: imagePages.join(', ') }))
+  }
+  if (audioOnlyPages.length > 0) {
+    parts.push(t('slides.dirtyAudioPages', { count: audioOnlyPages.length, pages: audioOnlyPages.join(', ') }))
+  }
+  return t('slides.generateDirtyPagesDetail', { detail: parts.join(t('slides.dirtyPagesSeparator')) })
 })
 
 // ============================================================================
@@ -542,6 +574,19 @@ const handleGenerate = async () => {
       scrollToThinking()
     },
   })
+}
+
+// Handle regeneration of only dirty (modified) pages
+const handleGenerateDirtyPages = async () => {
+  showAllPanels()
+  scrollToThinking()
+  await generateDirtyPages()
+}
+
+// Handle "regenerate all" when dirty pages exist (resets all pages first)
+const handleRegenerateAll = async () => {
+  resetAllPages()
+  await handleGenerate()
 }
 
 // Handle character set as start frame (frames-to-video mode)
@@ -1074,7 +1119,42 @@ const handleAddToReferences = (referenceData) => {
 
             <!-- Generate Button -->
             <div class="mt-8">
+              <!-- Split buttons: when slides mode has dirty pages -->
+              <div
+                v-if="store.currentMode === 'slides' && slidesDirtyPageCount > 0"
+                class="flex flex-col gap-2"
+              >
+                <!-- Generate only dirty pages (primary) -->
+                <button
+                  @click="handleGenerateDirtyPages"
+                  :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey"
+                  data-tour="generate-button"
+                  class="btn-premium w-full py-4 text-lg font-semibold flex items-center justify-center gap-3"
+                >
+                  <svg v-if="isAnyPageGenerating" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  <span>{{ slidesDirtyButtonLabel }}</span>
+                </button>
+                <!-- Regenerate all (secondary) -->
+                <button
+                  @click="handleRegenerateAll"
+                  :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey"
+                  class="w-full py-3 text-sm font-medium rounded-xl border border-border-muted text-text-secondary hover:bg-bg-interactive transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>{{ $t('slides.generateAll') }}</span>
+                </button>
+              </div>
+              <!-- Normal single button -->
               <button
+                v-else
                 @click="handleGenerate"
                 :disabled="store.isGenerating || isAnyPageGenerating || isSlidesAnalyzing || !store.hasApiKey || isSlidesNotReady"
                 data-tour="generate-button"

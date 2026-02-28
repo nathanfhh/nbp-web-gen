@@ -194,6 +194,13 @@ export const useGeneratorStore = defineStore('generator', () => {
         }
         page.pendingAudio = null
         page.error = null
+        // Clear dirty flags — images are stripped from localStorage, so dirty state is meaningless
+        page.contentDirty = false
+        page.styleDirty = false
+        page.narrationDirty = false
+        delete page.generatedContent
+        delete page.generatedPageStyleGuide
+        delete page.generatedGlobalStyle
       })
     }
 

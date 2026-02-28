@@ -4,6 +4,10 @@ import { ref, computed } from 'vue'
 // Local state for content expansion
 const isContentExpanded = ref(false)
 
+// Local state for inline content editing
+const isEditingContent = ref(false)
+const editingContentText = ref('')
+
 const props = defineProps({
   page: {
     type: Object,
@@ -64,9 +68,16 @@ const emit = defineEmits([
   'toggle-script',
   'update-style-guide',
   'update-script',
+  'update-content',
+  'view-image',
   'remove-reference',
   'add-reference',
 ])
+
+// Whether this page has any dirty flag
+const isDirty = computed(() => {
+  return props.page.contentDirty || props.page.styleDirty || props.page.narrationDirty
+})
 
 // Status badge classes
 const statusClass = computed(() => {
@@ -93,6 +104,24 @@ const canAddReference = computed(() => {
   return currentCount < props.maxReferenceImages
 })
 
+// Start inline content editing
+const startEditContent = () => {
+  editingContentText.value = props.page.content
+  isEditingContent.value = true
+}
+
+// Save inline content editing
+const saveEditContent = () => {
+  emit('update-content', editingContentText.value)
+  isEditingContent.value = false
+}
+
+// Cancel inline content editing
+const cancelEditContent = () => {
+  isEditingContent.value = false
+  editingContentText.value = ''
+}
+
 // Handle file upload for page reference
 const handleReferenceUpload = (event) => {
   const file = event.target.files?.[0]
@@ -104,8 +133,12 @@ const handleReferenceUpload = (event) => {
 
 <template>
   <div
-    class="p-3 rounded-xl bg-bg-muted border border-border-muted transition-all"
-    :class="{ 'border-mode-generate bg-mode-generate-muted/30': page.status === 'generating' }"
+    class="p-3 rounded-xl bg-bg-muted border transition-all"
+    :class="{
+      'border-mode-generate bg-mode-generate-muted/30': page.status === 'generating',
+      'border-status-warning': isDirty && page.status !== 'generating',
+      'border-border-muted': !isDirty && page.status !== 'generating',
+    }"
   >
     <!-- Page Header -->
     <div class="flex items-center justify-between mb-2">
@@ -114,6 +147,13 @@ const handleReferenceUpload = (event) => {
         <!-- Status Badge -->
         <span :class="statusClass" class="text-xs px-2 py-0.5 rounded-md">
           {{ $t(`slides.status.${page.status}`) }}
+        </span>
+        <!-- Dirty badge -->
+        <span
+          v-if="isDirty"
+          class="text-xs px-2 py-0.5 rounded-md bg-status-warning-muted text-status-warning"
+        >
+          {{ $t('slides.modified') }}
         </span>
       </div>
 
@@ -143,6 +183,18 @@ const handleReferenceUpload = (event) => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
+        <!-- Edit Content -->
+        <button
+          v-if="!isEditingContent"
+          @click="startEditContent"
+          class="p-1.5 rounded-lg hover:bg-bg-interactive transition-colors"
+          :title="$t('slides.editContent')"
+          :disabled="isGenerating || isComparing"
+        >
+          <svg class="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
         <!-- Regenerate -->
         <button
           v-if="page.status === 'done' || page.status === 'error'"
@@ -169,8 +221,31 @@ const handleReferenceUpload = (event) => {
       </div>
     </div>
 
+    <!-- Page Content: Edit Mode -->
+    <div v-if="isEditingContent" class="mt-1">
+      <textarea
+        v-model="editingContentText"
+        class="input-premium min-h-[80px] text-sm w-full"
+        rows="4"
+      />
+      <div class="flex items-center gap-2 mt-2">
+        <button
+          @click="saveEditContent"
+          class="px-3 py-1 text-xs font-medium rounded-lg bg-mode-generate text-text-on-brand hover:opacity-90 transition-opacity"
+        >
+          {{ $t('slides.editContentSave') }}
+        </button>
+        <button
+          @click="cancelEditContent"
+          class="px-3 py-1 text-xs font-medium rounded-lg bg-bg-interactive text-text-secondary hover:bg-bg-interactive/80 transition-opacity"
+        >
+          {{ $t('slides.editContentCancel') }}
+        </button>
+      </div>
+    </div>
+
     <!-- Page Content Preview (expandable) -->
-    <div class="relative">
+    <div v-else class="relative">
       <p
         class="text-sm text-text-secondary whitespace-pre-line"
         :class="{ 'line-clamp-2': !isContentExpanded && needsExpansion }"
@@ -262,8 +337,9 @@ const handleReferenceUpload = (event) => {
     <div v-if="page.image?.data" class="mt-3">
       <img
         :src="`data:${page.image.mimeType || 'image/png'};base64,${page.image.data}`"
-        class="w-full max-w-[200px] rounded-lg border border-border-muted"
-        alt="Slide preview"
+        class="w-full max-w-[200px] rounded-lg border border-border-muted cursor-pointer hover:opacity-80 transition-opacity"
+        :alt="$t('slides.slidePreview', { n: page.pageNumber })"
+        @click="emit('view-image')"
       />
     </div>
 

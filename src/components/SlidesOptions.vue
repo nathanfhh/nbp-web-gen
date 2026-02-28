@@ -15,6 +15,7 @@ import ColorPreviewTextarea from './ColorPreviewTextarea.vue'
 import NarrationSection from './NarrationSection.vue'
 import SlidesRegenerateModal from './SlidesRegenerateModal.vue'
 import SlidesPageCard from './SlidesPageCard.vue'
+import ImageLightbox from './ImageLightbox.vue'
 import ConfirmModal from './ConfirmModal.vue'
 import AudioComparisonSection from './AudioComparisonSection.vue'
 
@@ -33,6 +34,7 @@ const {
   cancelAudioRegeneration,
   reorderPages,
   parsePages,
+  updatePageContent,
   deletePage,
 } = useSlidesGeneration()
 
@@ -69,7 +71,24 @@ const updatePageScript = (pageId, newScript) => {
   const scripts = store.slidesOptions.narrationScripts || []
   const idx = scripts.findIndex((s) => s.pageId === pageId)
   if (idx !== -1) {
-    store.slidesOptions.narrationScripts[idx].script = newScript
+    const entry = store.slidesOptions.narrationScripts[idx]
+    entry.script = newScript
+    // Mark narration dirty if page has already been generated with audio
+    const page = store.slidesOptions.pages.find((p) => p.id === pageId)
+    if (page && page.status === 'done') {
+      page.narrationDirty =
+        entry.generatedScript !== undefined ? newScript !== entry.generatedScript : true
+    }
+  }
+}
+
+const updateStyleGuide = (pageIndex, newStyle) => {
+  store.slidesOptions.pages[pageIndex].styleGuide = newStyle
+  // Mark style dirty if page has already been generated
+  const page = store.slidesOptions.pages[pageIndex]
+  if (page && page.image && page.status === 'done') {
+    page.styleDirty =
+      page.generatedPageStyleGuide !== undefined ? newStyle !== page.generatedPageStyleGuide : true
   }
 }
 
@@ -140,6 +159,9 @@ const ratios = [
 watch(
   () => options.value.pagesRaw,
   (newVal) => {
+    // Skip parsePages if pages already match pagesRaw (e.g. card edit synced back)
+    const currentJoined = store.slidesOptions.pages.map((p) => p.content).join('\n---\n')
+    if (newVal === currentJoined) return
     parsePages(newVal)
   },
   { immediate: true },
@@ -151,6 +173,19 @@ watch(isPageLimitExceeded, (exceeded) => {
     toast.error(t('slides.tooManyPages', { max: MAX_PAGES }))
   }
 })
+
+// Watch for global style changes — mark all generated pages as style-dirty
+watch(
+  () => store.slidesOptions.analyzedStyle,
+  (newVal) => {
+    store.slidesOptions.pages.forEach((page) => {
+      if (page.image && page.status === 'done') {
+        page.styleDirty =
+          page.generatedGlobalStyle !== undefined ? newVal !== page.generatedGlobalStyle : true
+      }
+    })
+  },
+)
 
 // Analyze style button handler
 const handleAnalyzeStyle = async () => {
@@ -391,6 +426,51 @@ const handleGlobalReferenceUpload = (event) => {
 // Remove global reference image
 const removeGlobalReference = (index) => {
   store.slidesOptions.globalReferenceImages.splice(index, 1)
+}
+
+// Local lightbox for page card images (independent of ImagePreview/store.generatedImages)
+const pageLightboxOpen = ref(false)
+const pageLightboxIndex = ref(0)
+
+// Only pages with images are shown in lightbox; track original page indices for audio/script alignment
+const pageLightboxPages = computed(() => {
+  return store.slidesOptions.pages
+    .map((p, idx) => ({ page: p, originalIndex: idx }))
+    .filter(({ page }) => page.image?.data)
+})
+
+const pageLightboxImages = computed(() => {
+  return pageLightboxPages.value.map(({ page }) => ({
+    data: page.image.data,
+    mimeType: page.image.mimeType || 'image/png',
+    pageNumber: page.pageNumber,
+  }))
+})
+
+// Remap audio URLs to match filtered lightbox order (avoid index misalignment)
+const pageLightboxAudioUrls = computed(() => {
+  const allUrls = store.generatedAudioUrls || []
+  return pageLightboxPages.value.map(({ originalIndex }) => allUrls[originalIndex] || null)
+})
+
+// Remap narration scripts to match filtered lightbox order
+const pageLightboxScripts = computed(() => {
+  const scripts = store.slidesOptions.narrationScripts || []
+  return pageLightboxPages.value.map(({ page }) => {
+    return scripts.find((s) => s.pageId === page.id) || null
+  })
+})
+
+const pageLightboxNarrationSettings = computed(() => {
+  return store.slidesOptions.narration || {}
+})
+
+const openPageInLightbox = (pageNumber) => {
+  const imageIndex = pageLightboxImages.value.findIndex((img) => img.pageNumber === pageNumber)
+  if (imageIndex !== -1) {
+    pageLightboxIndex.value = imageIndex
+    pageLightboxOpen.value = true
+  }
 }
 
 // Handle page-specific reference image upload (from SlidesPageCard emit)
@@ -879,8 +959,10 @@ const resetSlidesOptions = async () => {
           @delete="handleDeletePage(page.id)"
           @toggle-style="togglePageStyle(page.id)"
           @toggle-script="togglePageScript(page.id)"
-          @update-style-guide="store.slidesOptions.pages[index].styleGuide = $event"
+          @update-style-guide="updateStyleGuide(index, $event)"
           @update-script="updatePageScript(page.id, $event)"
+          @update-content="updatePageContent(page.id, $event)"
+          @view-image="openPageInLightbox(page.pageNumber)"
           @remove-reference="removePageReference(index, $event)"
           @add-reference="handlePageReferenceUpload($event, index)"
         />
@@ -989,6 +1071,18 @@ const resetSlidesOptions = async () => {
 
     <!-- Confirm Modal -->
     <ConfirmModal ref="confirmModal" />
+
+    <!-- Page Image Lightbox (local, reads from page data, not store.generatedImages) -->
+    <ImageLightbox
+      v-model="pageLightboxOpen"
+      :images="pageLightboxImages"
+      :initial-index="pageLightboxIndex"
+      :history-id="store.currentHistoryId"
+      :is-slides-mode="true"
+      :narration-audio-urls="pageLightboxAudioUrls"
+      :narration-scripts="pageLightboxScripts"
+      :narration-settings="pageLightboxNarrationSettings"
+    />
   </div>
 </template>
 
