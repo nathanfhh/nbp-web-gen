@@ -2,6 +2,22 @@
 
 This page documents version updates for Mediator.
 
+## v0.31.0
+
+_2026-02-28_
+
+### New Features
+- **Slide Page Editing**: Add inline editing on page cards — edit a single page's content directly without scrolling back to the full textarea. Changes automatically sync back to the textarea (bidirectional binding)
+- **Change Detection**: Each page now tracks content, style, and narration changes via snapshot comparison (not boolean flags), so reverting a change won't falsely mark the page as modified
+- **Selective Regeneration**: New "Generate Modified Pages" button shows a detailed breakdown (e.g., "slides p.2, 5, audio p.3"), no need to regenerate everything
+- **Page Image Lightbox**: Click page card thumbnails to open a full lightbox viewer, with narration audio playback and transcript panel support
+- **Enhanced History Restore**: Loading slides from history now fully restores OPFS images and narration audio, enabling subsequent selective regeneration
+
+### Fixes
+- **Model Selection**: Fix regeneratePageWithAudio not using user-selected image model, falling back to default model instead
+- **History Restore**: Fix narration script page IDs not matching actual pages after restore
+- **History Restore**: Fix stale dirty flags persisting through localStorage restore
+
 ## v0.30.1
 
 _2026-02-27_

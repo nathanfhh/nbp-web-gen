@@ -82,6 +82,43 @@ Slides mode uses a **sequential generation** strategy:
 
 This ensures visual style consistency throughout the presentation.
 
+## Page Editing & Selective Regeneration
+
+After generation, if you only need to adjust a few pages, there's no need to regenerate everything.
+
+### Inline Editing on Page Cards
+
+Each page card has an edit button (✏️). Click it to directly modify that page's content. Changes automatically sync back to the "Presentation Content" textarea above.
+
+Likewise, if you edit content in the textarea above, the corresponding page card below will also update.
+
+### Change Detection
+
+The system automatically tracks three types of changes per page:
+
+| Change Type | Trigger |
+|-------------|---------|
+| Content | Modified page text content |
+| Style | Modified page style guide or global style |
+| Narration | Modified narration script |
+
+Modified pages display a yellow border and a "Modified" badge. If you revert content back to what it was when generated, the modification marker automatically disappears.
+
+### Selective Regeneration
+
+When pages are marked as modified, the generate button area splits into two buttons:
+
+1. **Generate Modified Pages** (primary): Only regenerate modified pages, showing a detailed breakdown (e.g., "slides p.2, 5, audio p.3")
+2. **Regenerate All** (secondary): Regenerate all pages from scratch
+
+::: tip Save API Quota
+If you only modified 1 page's text, "Generate Modified Pages" will only use 1 API call instead of 15.
+:::
+
+### Viewing Page Images
+
+Click a page card's thumbnail to open the lightbox for a full-size view, with narration audio playback and transcript panel support.
+
 ## Design Style
 
 In the "Design Style" section, you can choose from two methods to set your presentation's visual style:
