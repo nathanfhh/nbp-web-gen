@@ -194,6 +194,17 @@ export const useGeneratorStore = defineStore('generator', () => {
         }
         page.pendingAudio = null
         page.error = null
+        // Clear dirty flags — images are stripped from localStorage, so dirty state is meaningless
+        page.contentDirty = false
+        page.styleDirty = false
+        page.narrationDirty = false
+        delete page.generatedContent
+        delete page.generatedPageStyleGuide
+        delete page.generatedGlobalStyle
+        // Normalize status: pages without images can't be 'done'
+        if (!page.image && page.status === 'done') {
+          page.status = 'pending'
+        }
       })
     }
 
@@ -252,13 +263,24 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     // Sanitize pages array - keep structure but remove image/audio data
     if (sanitized.pages && Array.isArray(sanitized.pages)) {
-      sanitized.pages = sanitized.pages.map((page) => ({
-        ...page,
-        image: null,
-        referenceImages: [],
-        pendingImage: null,
-        pendingAudio: null,
-      }))
+      sanitized.pages = sanitized.pages.map((page) => {
+        const clean = {
+          ...page,
+          image: null,
+          referenceImages: [],
+          pendingImage: null,
+          pendingAudio: null,
+        }
+        // Strip snapshot/dirty fields — not needed in localStorage
+        delete clean.generatedContent
+        delete clean.generatedPageStyleGuide
+        delete clean.generatedGlobalStyle
+        delete clean.generatedScript
+        delete clean.contentDirty
+        delete clean.styleDirty
+        delete clean.narrationDirty
+        return clean
+      })
     }
 
     return sanitized

@@ -51,9 +51,7 @@ We aim to bring these powerful CLI capabilities to a broader audience through a 
 
 ### 🛠️ Built With AI
 
-This project is a testament to the power of AI-assisted development:
-*   **80%** of the codebase was authored/structured using **Claude Code**.
-*   **20%** was developed and refined using **Gemini CLI**.
+This project is a testament to the power of AI-assisted development, built with **Claude Code**, **Gemini CLI**, and **Copilot CLI**.
 
 ---
 
@@ -77,6 +75,7 @@ This project is a testament to the power of AI-assisted development:
     *   **AI Style Analysis:** Gemini analyzes your content and suggests cohesive design styles.
     *   **AI Content Splitter:** Automatically split raw content (articles, notes) into structured slide pages.
     *   **Per-Page Customization:** Add page-specific style guides and reference images.
+    *   **Inline Page Editing:** Edit individual slide content directly on page cards with bidirectional sync to the main textarea. Snapshot-based change detection enables selective regeneration of only modified pages.
     *   **Progress Tracking:** Real-time progress bar with ETA during generation.
     *   **AI Narration (TTS):** Generate voice narration scripts with Gemini and convert to audio using Google TTS. Supports single/dual speaker modes with configurable voices and speaking styles.
     *   **MP4 Export:** Export slides with synchronized narration audio as MP4 video. Supports resolution selection (1080p/1440p/2160p) with dynamic bitrate scaling.
@@ -211,9 +210,7 @@ npm run build
 
 ### 🛠️ AI 協作開發
 
-本專案是 AI 輔助開發的實踐成果：
-*   **80%** 的程式碼由 **Claude Code** 撰寫與建構。
-*   **20%** 透過 **Gemini CLI** 進行開發與優化。
+本專案是 AI 輔助開發的實踐成果，使用 **Claude Code**、**Gemini CLI** 與 **Copilot CLI** 協作開發。
 
 ---
 
@@ -237,6 +234,7 @@ npm run build
     *   **AI 風格分析：** Gemini 分析您的內容並建議統一的設計風格。
     *   **AI 內容拆分：** 自動將原始素材（文章、筆記）拆分為結構化的簡報頁面。
     *   **頁面客製化：** 可為每頁加入專屬的風格指引與參考圖片。
+    *   **頁面內聯編輯：** 在頁面卡片中直接編輯單頁內容，與上方文字區域雙向同步。基於快照的異動偵測支援僅重新生成修改過的頁面。
     *   **進度追蹤：** 生成時顯示即時進度條與預估剩餘時間。
     *   **AI 語音旁白 (TTS)：** 使用 Gemini 生成語音旁白逐字稿，並透過 Google TTS 轉換為音訊。支援單人/雙人講者模式，可自訂語音與說話風格。
     *   **MP4 匯出：** 將簡報與同步的語音旁白匯出為 MP4 影片，支援解析度選擇（1080p/1440p/2160p）與動態位元率調整。

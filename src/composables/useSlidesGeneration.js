@@ -140,6 +140,10 @@ export function useSlidesGeneration() {
         page.status = 'pending'
         page.pendingImage = null
       }
+      // Clear dirty flags since we're regenerating everything
+      page.contentDirty = false
+      page.styleDirty = false
+      page.narrationDirty = false
     })
 
     // Initialize progress timing
@@ -206,6 +210,11 @@ export function useSlidesGeneration() {
             if (result?.images?.length > 0) {
               page.image = { data: result.images[0].data, mimeType: result.images[0].mimeType }
               page.status = 'done'
+              page.generatedContent = page.content
+              page.generatedPageStyleGuide = page.styleGuide || ''
+              page.generatedGlobalStyle = store.slidesOptions.analyzedStyle || ''
+              page.contentDirty = false
+              page.styleDirty = false
               results.push({ pageNumber: page.pageNumber, success: true, image: result.images[0] })
             } else {
               page.status = 'error'
@@ -378,7 +387,7 @@ export function useSlidesGeneration() {
    * @returns {Promise<boolean>} True if successfully entered comparing mode
    */
   const regeneratePageWithAudio = async (pageId, onThinkingChunk = null) => {
-    const options = store.slidesOptions
+    const options = { ...store.slidesOptions, model: store.imageModel }
     const pageIndex = options.pages.findIndex((p) => p.id === pageId)
 
     if (pageIndex === -1) return false
@@ -519,8 +528,22 @@ export function useSlidesGeneration() {
     }
     store.slidesOptions.pages[pageIndex].pendingAudio = null
 
-    // 3. Update status
+    // 3. Update status, clear dirty flags, snapshot generated content
     store.slidesOptions.pages[pageIndex].status = 'done'
+    store.slidesOptions.pages[pageIndex].contentDirty = false
+    store.slidesOptions.pages[pageIndex].styleDirty = false
+    store.slidesOptions.pages[pageIndex].narrationDirty = false
+    store.slidesOptions.pages[pageIndex].generatedContent = store.slidesOptions.pages[pageIndex].content
+    store.slidesOptions.pages[pageIndex].generatedPageStyleGuide = store.slidesOptions.pages[pageIndex].styleGuide || ''
+    store.slidesOptions.pages[pageIndex].generatedGlobalStyle = store.slidesOptions.analyzedStyle || ''
+
+    // Update generatedScript snapshot if audio was accepted
+    if (useNewAudio) {
+      const scriptEntry = store.slidesOptions.narrationScripts?.find((s) => s.pageId === pageId)
+      if (scriptEntry) {
+        scriptEntry.generatedScript = scriptEntry.script
+      }
+    }
 
     // 4. Update generatedImages in store if image was changed
     if (newImage) {
@@ -645,6 +668,7 @@ export function useSlidesGeneration() {
         pageId: s.pageId,
         styleDirective: s.styleDirective,
         script: s.script,
+        generatedScript: s.generatedScript ?? s.script,
       }))
       const currentSettings = {
         speakerMode: options.narration?.speakerMode,
@@ -702,6 +726,13 @@ export function useSlidesGeneration() {
     }
     store.slidesOptions.pages[pageIndex].pendingAudio = null
     store.slidesOptions.pages[pageIndex].status = 'done'
+    store.slidesOptions.pages[pageIndex].narrationDirty = false
+
+    // Update generatedScript snapshot for the confirmed narration
+    const scriptEntry = store.slidesOptions.narrationScripts?.find((s) => s.pageId === pageId)
+    if (scriptEntry) {
+      scriptEntry.generatedScript = scriptEntry.script
+    }
 
     const historyId = store.currentHistoryId
     if (historyId) {
@@ -822,17 +853,36 @@ export function useSlidesGeneration() {
         usedIds.push(newId) // Track newly generated ID for subsequent pages
       }
 
-      // New or modified page
+      // If existing page has a generated image, preserve it and mark as dirty
+      // (allows user to compare old vs new after regeneration)
+      if (existingPage?.image && existingPage.status === 'done') {
+        const isDirty =
+          existingPage.generatedContent !== undefined
+            ? trimmedContent !== existingPage.generatedContent
+            : true
+        return {
+          ...existingPage,
+          id: newId,
+          pageNumber: index + 1,
+          content: trimmedContent,
+          contentDirty: isDirty,
+        }
+      }
+
+      // New page or page without generated image
       return {
         id: newId,
         pageNumber: index + 1,
         content: trimmedContent,
         status: 'pending',
         image: null,
-        pendingImage: null, // For regeneration comparison
+        pendingImage: null,
         error: null,
         referenceImages: existingPage?.referenceImages || [],
-        styleGuide: existingPage?.styleGuide || '', // Per-page style guide
+        styleGuide: existingPage?.styleGuide || '',
+        contentDirty: false,
+        styleDirty: false,
+        narrationDirty: false,
       }
     })
 
@@ -868,6 +918,12 @@ export function useSlidesGeneration() {
       page.image = null
       page.pendingImage = null
       page.error = null
+      page.contentDirty = false
+      page.styleDirty = false
+      page.narrationDirty = false
+      delete page.generatedContent
+      delete page.generatedPageStyleGuide
+      delete page.generatedGlobalStyle
     })
     store.slidesOptions.currentPageIndex = -1
   }
@@ -911,7 +967,10 @@ export function useSlidesGeneration() {
       )
 
       store.slidesOptions.narrationGlobalStyle = result.globalStyleDirective || ''
-      store.slidesOptions.narrationScripts = result.pageScripts || []
+      store.slidesOptions.narrationScripts = (result.pageScripts || []).map((s) => ({
+        ...s,
+        generatedScript: s.script,
+      }))
       store.slidesOptions.narrationStatus = 'idle'
 
       toast.success(t('slides.narration.scriptComplete'))
@@ -1035,12 +1094,79 @@ export function useSlidesGeneration() {
     return audioMetadata
   }
 
+  /**
+   * Update a single page's content from card inline edit
+   * Preserves image and sets contentDirty flag (if page has been generated)
+   * Also syncs back to pagesRaw (bidirectional sync)
+   * @param {string} pageId - UUID of the page
+   * @param {string} newContent - New content text
+   */
+  const updatePageContent = (pageId, newContent) => {
+    const pageIndex = store.slidesOptions.pages.findIndex((p) => p.id === pageId)
+    if (pageIndex === -1) return
+
+    const page = store.slidesOptions.pages[pageIndex]
+    const trimmedContent = newContent.trim()
+    if (page.content === trimmedContent) return
+
+    page.content = trimmedContent
+
+    // Mark dirty only if page already has a generated image
+    // Compare against the generated snapshot to detect actual changes
+    if (page.image && page.status === 'done') {
+      page.contentDirty =
+        page.generatedContent !== undefined ? trimmedContent !== page.generatedContent : true
+    }
+
+    // Sync back to pagesRaw (bidirectional)
+    // The pagesRaw watcher uses comparison to skip parsePages when content matches
+    store.slidesOptions.pagesRaw = store.slidesOptions.pages.map((p) => p.content).join('\n---\n')
+  }
+
+  /**
+   * Generate only dirty pages (pages with content/style/narration changes)
+   * Uses existing regeneratePage/regeneratePageWithAudio for comparison flow
+   * @param {Function} onThinkingChunk - Callback for streaming thinking chunks
+   */
+  const generateDirtyPages = async (onThinkingChunk = null) => {
+    if (store.isGenerating || isGenerating.value) return
+
+    const pages = store.slidesOptions.pages
+    const dirtyPages = pages.filter(
+      (p) => p.contentDirty || p.styleDirty || p.narrationDirty,
+    )
+
+    if (dirtyPages.length === 0) return
+
+    isGenerating.value = true
+    store.setGenerating(true)
+
+    try {
+      for (const page of dirtyPages) {
+        const needsImage = page.contentDirty || page.styleDirty
+        const needsAudio = page.narrationDirty
+
+        if (needsImage && needsAudio) {
+          await regeneratePageWithAudio(page.id, onThinkingChunk)
+        } else if (needsImage) {
+          await regeneratePage(page.id, onThinkingChunk)
+        } else if (needsAudio) {
+          await regeneratePageAudio(page.id, onThinkingChunk)
+        }
+      }
+    } finally {
+      isGenerating.value = false
+      store.setGenerating(false)
+    }
+  }
+
   return {
     isGenerating,
     analysisThinking,
     narrationThinking,
     analyzeStyle,
     generateAllPages,
+    generateDirtyPages,
     regeneratePage,
     regeneratePageAudio,
     regeneratePageWithAudio,
@@ -1050,6 +1176,7 @@ export function useSlidesGeneration() {
     cancelAudioRegeneration,
     reorderPages,
     parsePages,
+    updatePageContent,
     deletePage,
     resetAllPages,
     // Narration
