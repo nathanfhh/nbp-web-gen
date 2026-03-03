@@ -2,6 +2,17 @@
 
 This page documents version updates for Mediator.
 
+## v0.31.1
+
+_2026-03-03_
+
+### New Features
+- **Mobile Debugging**: Add Eruda mobile console via `?debug` query param, lazy-loaded to avoid impacting normal performance
+
+### Fixes
+- **OCR**: Fix WebGPU OCR failure (`Buffer used in submit while destroyed` error) caused by a buffer management regression in ONNX Runtime 1.24.1 asyncify WASM — downgrade WebGPU WASM CDN to 1.23.2
+- **Slides**: Fix snapshot/dirty fields not being stripped from localStorage sanitizer on restore
+
 ## v0.31.0
 
 _2026-02-28_

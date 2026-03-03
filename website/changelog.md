@@ -2,6 +2,17 @@
 
 此頁面記錄 Mediator 的版本更新內容。
 
+## v0.31.1
+
+_2026-03-03_
+
+### 新功能
+- **行動裝置除錯**: 新增 Eruda 行動裝置控制台，網址加上 `?debug` 即可啟用，採用延遲載入不影響正常效能
+
+### 修復
+- **OCR**: 修正 WebGPU 模式下 OCR 失敗的問題（`Buffer used in submit while destroyed` 錯誤），原因是 ONNX Runtime 1.24.1 的 asyncify WASM 有 buffer 管理迴歸，將 WebGPU WASM CDN 降級至 1.23.2
+- **簡報**: 修正 localStorage 還原時殘留的 snapshot/dirty 欄位未被清除的問題
+
 ## v0.31.0
 
 _2026-02-28_
