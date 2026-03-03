@@ -558,78 +558,86 @@ export function useSlidesGeneration() {
       store.setGeneratedImages(generatedImages)
     }
 
-    // 5. Update OPFS and IndexedDB if we have a history record
+    // 5. Persist to OPFS and IndexedDB (parallel), then show toast as save confirmation
     const historyId = store.currentHistoryId
     if (historyId) {
       try {
-        // Update images if changed
-        if (newImage) {
-          const updatedImages = store.slidesOptions.pages
-            .filter((p) => p.image)
-            .map((p) => ({
-              data: p.image.data,
-              mimeType: p.image.mimeType,
-              pageNumber: p.pageNumber,
-            }))
-
-          if (updatedImages.length > 0) {
-            const metadata = await imageStorage.saveGeneratedImages(historyId, updatedImages)
-            await updateHistoryImages(historyId, metadata)
-            store.setGeneratedImagesMetadata(metadata)
-          }
-        }
-
-        // Update audio if changed
-        if (audioResult) {
-          await savePageAudioToStorage(historyId, pageIndex, audioResult, true)
-        }
-
-        // Update status based on current success count
+        // Compute status synchronously (needed by task C)
         const totalPages = store.slidesOptions.pages.length
         const successCount = store.slidesOptions.pages.filter((p) => p.image).length
-        let newStatus = 'failed'
-        if (successCount === totalPages) {
-          newStatus = 'success'
-        } else if (successCount > 0) {
-          newStatus = 'partial'
-        }
-        await updateHistoryStatus(historyId, newStatus)
+        const newStatus = successCount === totalPages ? 'success' : successCount > 0 ? 'partial' : 'failed'
 
-        // Update pagesContent in history to ensure search index reflects text changes
-        try {
-          const record = await getRecord(historyId)
-          if (record && record.options) {
-            const pagesContent = store.slidesOptions.pages.map((p) => ({
-              id: p.id,
-              pageNumber: p.pageNumber,
-              content: p.content,
-            }))
-            
-            // Shallow merge options to preserve other fields
-            const updatedOptions = {
-              ...record.options,
-              pagesContent,
-              // Also update pagesRaw if it exists, to keep it in sync
-              pagesRaw: store.slidesOptions.pagesRaw || record.options.pagesRaw
+        // Run 4 independent storage tasks in parallel
+        await Promise.all([
+          // A: Save images (OPFS → IndexedDB, sequential internally)
+          newImage
+            ? (async () => {
+                const updatedImages = store.slidesOptions.pages
+                  .filter((p) => p.image)
+                  .map((p) => ({
+                    data: p.image.data,
+                    mimeType: p.image.mimeType,
+                    pageNumber: p.pageNumber,
+                  }))
+                if (updatedImages.length > 0) {
+                  const metadata = await imageStorage.saveGeneratedImages(historyId, updatedImages)
+                  await updateHistoryImages(historyId, metadata)
+                  store.setGeneratedImagesMetadata(metadata)
+                }
+              })()
+            : Promise.resolve(),
+
+          // B: Save audio (OPFS)
+          audioResult
+            ? savePageAudioToStorage(historyId, pageIndex, audioResult, true)
+            : Promise.resolve(),
+
+          // C: Update status (IndexedDB)
+          updateHistoryStatus(historyId, newStatus),
+
+          // D: Update pagesContent for search index (IndexedDB read + write)
+          (async () => {
+            try {
+              const record = await getRecord(historyId)
+              if (record && record.options) {
+                const pagesContent = store.slidesOptions.pages.map((p) => ({
+                  id: p.id,
+                  pageNumber: p.pageNumber,
+                  content: p.content,
+                }))
+                const updatedOptions = {
+                  ...record.options,
+                  pagesContent,
+                  pagesRaw: store.slidesOptions.pagesRaw || record.options.pagesRaw,
+                }
+                await updateHistory(historyId, { options: updatedOptions })
+              }
+            } catch (err) {
+              console.error('Failed to update history content:', err)
             }
+          })(),
+        ])
 
-            await updateHistory(historyId, { options: updatedOptions })
-          }
-        } catch (err) {
-          console.error('Failed to update history content:', err)
-        }
-
+        // Refresh history sidebar after all writes complete
         await store.loadHistory()
-      } catch (err) {
-        console.error('Failed to update in storage:', err)
-      }
-    }
 
-    // Show appropriate toast based on what was updated
-    if (newImage) {
-      toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
-    } else if (audioResult) {
-      toast.success(t('slides.regenerateModal.audioSuccess', { page: page.pageNumber }))
+        // Toast only after storage confirmed — safe to close the window
+        if (newImage) {
+          toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
+        } else if (audioResult) {
+          toast.success(t('slides.regenerateModal.audioSuccess', { page: page.pageNumber }))
+        }
+      } catch (err) {
+        console.error('Failed to persist confirmation to storage:', err)
+        toast.error(t('slides.regenerateSaveFailed', { page: page.pageNumber }))
+      }
+    } else {
+      // No history record to persist — show toast immediately
+      if (newImage) {
+        toast.success(t('slides.regenerateSuccess', { page: page.pageNumber }))
+      } else if (audioResult) {
+        toast.success(t('slides.regenerateModal.audioSuccess', { page: page.pageNumber }))
+      }
     }
   }
 

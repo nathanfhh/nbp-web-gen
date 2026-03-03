@@ -334,6 +334,7 @@
     "moveDown": "下移",
     "regenerate": "重新生成",
     "regenerateSuccess": "第 {page} 頁已更新為新圖片",
+    "regenerateSaveFailed": "第 {page} 頁儲存失敗，請重試",
     "regenerateFailed": "重新生成失敗",
     "regenerateCancelled": "已取消，保留原始圖片",
     "regenerateAudioCancelled": "已取消，保留原始語音",

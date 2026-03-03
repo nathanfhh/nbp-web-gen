@@ -334,6 +334,7 @@
     "moveDown": "Move Down",
     "regenerate": "Regenerate",
     "regenerateSuccess": "Page {page} updated with new image",
+    "regenerateSaveFailed": "Page {page} failed to save, please retry",
     "regenerateFailed": "Regeneration failed",
     "regenerateCancelled": "Cancelled, keeping original image",
     "regenerateAudioCancelled": "Cancelled, keeping original audio",
