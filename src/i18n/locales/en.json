@@ -952,6 +952,7 @@
     "narrationAudioFailed": "Narration audio generation failed, but slides completed",
     "downloadSuccess": "Download started",
     "downloadFailed": "Download failed, please try again",
+    "slidesSaved": "Slides saved to history",
     "slidesSuccess": "Successfully generated {count} slides",
     "slidesPartialSuccess": "Slides partially generated: {success} succeeded, {failed} failed",
     "slidesAllFailed": "Slides generation failed, all {count} pages failed",

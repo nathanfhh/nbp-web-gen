@@ -159,17 +159,15 @@ export function useGeneration() {
   /**
    * Save images to storage (background operation)
    */
-  const saveImagesToStorage = async (historyId, images) => {
+  const saveImagesToStorage = async (historyId, images, { skipReload = false } = {}) => {
     try {
       const metadata = await imageStorage.saveGeneratedImages(historyId, images)
-      // Update IndexedDB with image metadata
       await updateHistoryImages(historyId, metadata)
-      // Update store metadata for current view
       store.setGeneratedImagesMetadata(metadata)
-      // Update storage usage
-      await store.updateStorageUsage()
-      // Reload history to get updated record with images
-      await store.loadHistory()
+      if (!skipReload) {
+        await store.updateStorageUsage()
+        await store.loadHistory()
+      }
     } catch (err) {
       console.error('Failed to save images to OPFS:', err)
       toast.warning(t('toast.imageSaveFailed'))
@@ -197,12 +195,10 @@ export function useGeneration() {
   /**
    * Save narration data (audio + scripts) to storage (background operation)
    */
-  const saveNarrationToStorage = async (historyId, audioResults, options) => {
+  const saveNarrationToStorage = async (historyId, audioResults, options, { skipReload = false } = {}) => {
     try {
-      // Save audio files to OPFS
       const audioMetadata = await saveAudioToStorage(historyId, audioResults)
 
-      // Build narration record for IndexedDB
       const narration = {
         globalStyleDirective: options.narrationGlobalStyle || '',
         scripts: (options.narrationScripts || []).map((s) => ({
@@ -224,8 +220,10 @@ export function useGeneration() {
       }
 
       await updateHistoryNarration(historyId, narration)
-      await store.updateStorageUsage()
-      await store.loadHistory()
+      if (!skipReload) {
+        await store.updateStorageUsage()
+        await store.loadHistory()
+      }
     } catch (err) {
       console.error('Failed to save narration to storage:', err)
     }
@@ -390,32 +388,40 @@ export function useGeneration() {
             .join(''),
       })
 
-      // Save to storage (awaited to prevent concurrent IndexedDB race conditions)
-      if (isVideoMode && result?.video) {
-        await saveVideoToStorage(historyId, result.video)
-      } else if (result?.images && result.images.length > 0) {
-        await saveImagesToStorage(historyId, result.images)
+      // Set audio URLs immediately (from in-memory blobs) before slow storage operations
+      if (store.currentMode === 'slides' && result?.audioResults?.length > 0) {
+        const audioUrls = []
+        for (const ar of result.audioResults) {
+          audioUrls[ar.pageIndex] = URL.createObjectURL(ar.blob)
+        }
+        store.setGeneratedAudioUrls(audioUrls)
       }
 
-      // Save narration data (slides mode)
-      // Save if: has audio results OR has scripts (even without audio)
-      if (store.currentMode === 'slides') {
+      // Save to storage
+      if (isVideoMode && result?.video) {
+        await saveVideoToStorage(historyId, result.video)
+      } else if (store.currentMode === 'slides') {
+        // Slides mode: parallelize image + narration storage, deduplicate reload
+        const storageOps = []
+
+        if (result?.images?.length > 0) {
+          storageOps.push(saveImagesToStorage(historyId, result.images, { skipReload: true }))
+        }
+
         const hasAudio = result?.audioResults?.length > 0
         const hasScripts = options.narrationScripts?.length > 0
-
-        if (hasAudio) {
-          // Build live preview audio URLs (sparse array indexed by pageIndex)
-          const audioUrls = []
-          for (const ar of result.audioResults) {
-            audioUrls[ar.pageIndex] = URL.createObjectURL(ar.blob)
-          }
-          store.setGeneratedAudioUrls(audioUrls)
-        }
-
-        // Save narration metadata even if no audio (preserves scripts and settings)
         if (hasAudio || hasScripts) {
-          await saveNarrationToStorage(historyId, result?.audioResults || [], options)
+          storageOps.push(saveNarrationToStorage(historyId, result?.audioResults || [], options, { skipReload: true }))
         }
+
+        if (storageOps.length > 0) {
+          await Promise.all(storageOps)
+          await store.updateStorageUsage()
+          await store.loadHistory()
+        }
+        toast.success(t('toast.slidesSaved'))
+      } else if (result?.images?.length > 0) {
+        await saveImagesToStorage(historyId, result.images)
       }
 
       // Set current history ID for ImagePreview to use
