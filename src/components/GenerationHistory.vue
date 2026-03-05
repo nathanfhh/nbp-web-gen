@@ -96,14 +96,14 @@ const formatFullTime = (timestamp) => {
 }
 
 /**
- * Calculate total size of a history item (images + video)
+ * Calculate total size of a history item (images + video + audio + conversation)
  * @param {Object} item - History item
  * @returns {string} Formatted size string (KB or MB)
  */
 const getItemSize = (item) => {
   let totalBytes = 0
 
-  // Sum image sizes (compressedSize)
+  // Sum image sizes (compressedSize) - generate, sticker, edit, story, diagram, slides
   if (item.images?.length > 0) {
     totalBytes += item.images.reduce((sum, img) => sum + (img.compressedSize || 0), 0)
   }
@@ -111,6 +111,19 @@ const getItemSize = (item) => {
   // Add video size
   if (item.video?.size) {
     totalBytes += item.video.size
+  }
+
+  // Add narration audio sizes (slides mode)
+  if (item.narration?.audio?.length > 0) {
+    totalBytes += item.narration.audio.reduce((sum, audio) => sum + (audio.size || 0), 0)
+  }
+
+  // Add agent mode sizes (conversation JSON + images stored in OPFS)
+  if (item.conversationSize) {
+    totalBytes += item.conversationSize
+  }
+  if (item.imagesSize) {
+    totalBytes += item.imagesSize
   }
 
   if (totalBytes === 0) return null
@@ -682,7 +695,7 @@ const handleImported = async () => {
         v-for="item in filteredHistory"
         :key="item.id"
         @click="loadHistoryItem(item)"
-        class="history-item group"
+        class="history-item group relative"
       >
         <div class="flex items-start gap-3">
           <!-- Video Thumbnail -->
@@ -839,15 +852,15 @@ const handleImported = async () => {
               </span>
             </div>
           </div>
-          <button
-            @click="deleteItem(item.id, $event)"
-            class="opacity-50 md:opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-status-error-muted text-text-muted hover:text-status-error transition-all flex-shrink-0"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
         </div>
+        <button
+          @click="deleteItem(item.id, $event)"
+          class="absolute top-3 right-3 opacity-50 md:opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-status-error-muted text-text-muted hover:text-status-error transition-all"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
       </div>
     </div>
 
