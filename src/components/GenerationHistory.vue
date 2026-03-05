@@ -12,6 +12,7 @@ import { useAudioStorage } from '@/composables/useAudioStorage'
 import { useConversationStorage } from '@/composables/useConversationStorage'
 import { formatFileSize } from '@/composables/useImageCompression'
 import { getModeTagStyle, DEFAULT_TEXT_MODEL } from '@/constants'
+import { getHistoryModelName } from '@/utils/model-display-name'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageLightbox from '@/components/ImageLightbox.vue'
 import VideoLightbox from '@/components/VideoLightbox.vue'
@@ -74,8 +75,9 @@ const modeLabels = computed(() => ({
   agent: t('modes.agent.name'),
 }))
 
-// Track the current lightbox item's mode
+// Track the current lightbox item's mode and options (for info panel)
 const lightboxItemMode = ref('')
+const lightboxHistoryOptions = ref({})
 
 // Tooltip state for mobile tap support
 const activeTooltipId = ref(null)
@@ -433,6 +435,7 @@ const openHistoryLightbox = async (item, event) => {
     lightboxHistoryId.value = item.id
     lightboxInitialIndex.value = 0
     lightboxItemMode.value = item.mode || ''
+    lightboxHistoryOptions.value = item.options || {}
 
     // Load narration scripts and settings
     lightboxNarrationScripts.value = item.narration?.scripts || []
@@ -473,6 +476,7 @@ const closeLightbox = () => {
   lightboxMetadata.value = []
   lightboxHistoryId.value = null
   lightboxItemMode.value = ''
+  lightboxHistoryOptions.value = {}
   lightboxAudioUrls.value = []
   lightboxNarrationScripts.value = []
   lightboxNarrationSettings.value = {}
@@ -570,6 +574,7 @@ const openAgentLightbox = async (item, event) => {
     lightboxHistoryId.value = item.id
     lightboxInitialIndex.value = 0
     lightboxItemMode.value = 'agent'
+    lightboxHistoryOptions.value = item.options || {}
     lightboxAudioUrls.value = []
 
     showLightbox.value = true
@@ -823,6 +828,12 @@ const handleImported = async () => {
               >
                 {{ $t(`history.status.${item.status}`) }}
               </span>
+              <span
+                v-if="getHistoryModelName(item.mode, item.options)"
+                class="text-xs px-1.5 py-0.5 rounded bg-bg-muted text-text-secondary"
+              >
+                {{ getHistoryModelName(item.mode, item.options) }}
+              </span>
               <span v-if="getItemSize(item)" class="text-xs text-text-muted font-mono">
                 {{ getItemSize(item) }}
               </span>
@@ -898,6 +909,8 @@ const handleImported = async () => {
       :narration-audio-urls="lightboxAudioUrls"
       :narration-scripts="lightboxNarrationScripts"
       :narration-settings="lightboxNarrationSettings"
+      :history-mode="lightboxItemMode"
+      :history-options="lightboxHistoryOptions"
       @close="closeLightbox"
     />
 

@@ -1032,6 +1032,20 @@
       "title": "逐字稿",
       "toggle": "顯示/隱藏逐字稿 (T)",
       "autoScroll": "自動捲動（跟隨播放進度）"
+    },
+    "info": {
+      "title": "生成資訊",
+      "toggle": "顯示/隱藏生成資訊 (I)",
+      "model": "模型",
+      "resolution": "解析度",
+      "ratio": "比例",
+      "temperature": "溫度",
+      "seed": "種子",
+      "styles": "風格",
+      "duration": "時長",
+      "analysisModel": "分析模型",
+      "pages": "頁數",
+      "steps": "步數"
     }
   },
   "stickerCropper": {

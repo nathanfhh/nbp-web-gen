@@ -1032,6 +1032,20 @@
       "title": "Transcript",
       "toggle": "Show/Hide Transcript (T)",
       "autoScroll": "Auto-scroll (follow playback)"
+    },
+    "info": {
+      "title": "Generation Info",
+      "toggle": "Show/Hide Generation Info (I)",
+      "model": "Model",
+      "resolution": "Resolution",
+      "ratio": "Aspect Ratio",
+      "temperature": "Temperature",
+      "seed": "Seed",
+      "styles": "Styles",
+      "duration": "Duration",
+      "analysisModel": "Analysis Model",
+      "pages": "Pages",
+      "steps": "Steps"
     }
   },
   "stickerCropper": {

@@ -1082,6 +1082,8 @@ const resetSlidesOptions = async () => {
       :narration-audio-urls="pageLightboxAudioUrls"
       :narration-scripts="pageLightboxScripts"
       :narration-settings="pageLightboxNarrationSettings"
+      history-mode="slides"
+      :history-options="store.getCurrentOptions"
     />
   </div>
 </template>

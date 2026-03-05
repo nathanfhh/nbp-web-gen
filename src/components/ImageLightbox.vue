@@ -15,6 +15,7 @@ import { pauseAll as pauseAllAudio } from '@/composables/useGlobalAudioManager'
 import StickerCropper from '@/components/StickerCropper.vue'
 import LightboxAudioPlayer from '@/components/LightboxAudioPlayer.vue'
 import LightboxTranscript from '@/components/LightboxTranscript.vue'
+import LightboxInfoPanel from '@/components/LightboxInfoPanel.vue'
 import Mp4QualityModal from '@/components/Mp4QualityModal.vue'
 
 const { t } = useI18n()
@@ -113,6 +114,16 @@ const props = defineProps({
   narrationSettings: {
     type: Object,
     default: () => ({}),
+  },
+  // History item options (for info panel display)
+  historyOptions: {
+    type: Object,
+    default: () => ({}),
+  },
+  // History item mode (for info panel display)
+  historyMode: {
+    type: String,
+    default: '',
   },
 })
 
@@ -307,9 +318,10 @@ const hasPrev = computed(() => currentIndex.value > 0)
 const hasNext = computed(() => currentIndex.value < props.images.length - 1)
 
 const close = () => {
-  // Don't close if transcript panel was just dragged/resized
+  // Don't close if a panel was just dragged/resized
   // (synthetic click fires after mouseup/touchend, so isDragging is already false)
   if (transcriptRef.value?.recentlyInteracted) return
+  if (infoPanelRef.value?.recentlyInteracted) return
   emit('update:modelValue', false)
   emit('close')
 }
@@ -415,6 +427,14 @@ const handleKeydown = (e) => {
       if (showTranscriptButton.value) {
         e.preventDefault()
         toggleTranscript()
+      }
+      break
+    case 'i':
+    case 'I':
+      // Toggle info panel
+      if (showInfoButton.value) {
+        e.preventDefault()
+        toggleInfoPanel()
       }
       break
   }
@@ -619,6 +639,21 @@ const showAutoPlayToggle = computed(() => {
   return props.isSlidesMode && totalAudioCount.value > 1
 })
 
+// Info panel ref + state
+const infoPanelRef = ref(null)
+const isInfoPanelVisible = ref(
+  localStorage.getItem('nbp-info-panel-visible') === 'true'
+)
+
+const showInfoButton = computed(() => {
+  return props.historyMode && Object.keys(props.historyOptions).length > 0
+})
+
+const toggleInfoPanel = () => {
+  isInfoPanelVisible.value = !isInfoPanelVisible.value
+  localStorage.setItem('nbp-info-panel-visible', String(isInfoPanelVisible.value))
+}
+
 // Transcript panel ref + state
 const transcriptRef = ref(null)
 const isTranscriptVisible = ref(
@@ -810,6 +845,20 @@ const goToSlideToPptx = async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span class="text-xs font-medium">PPTX</span>
+          </button>
+
+          <!-- Info panel toggle button -->
+          <button
+            v-if="showInfoButton"
+            @click="toggleInfoPanel"
+            class="lightbox-btn flex items-center gap-2"
+            :class="{ 'lightbox-btn-active': isInfoPanelVisible }"
+            :title="t('lightbox.info.toggle')"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="hidden sm:inline text-xs font-medium">{{ t('lightbox.info.title') }}</span>
           </button>
 
           <!-- Transcript toggle button (for slides with narration scripts) -->
@@ -1214,6 +1263,14 @@ const goToSlideToPptx = async () => {
             {{ $t('lightbox.audioPage', { page: idx + 1 }) }}
           </button>
         </div>
+
+        <!-- Info Panel (generation metadata) -->
+        <LightboxInfoPanel
+          ref="infoPanelRef"
+          :visible="isInfoPanelVisible"
+          :mode="historyMode"
+          :options="historyOptions"
+        />
 
         <!-- Transcript Panel (for slides with narration scripts) -->
         <LightboxTranscript

@@ -612,6 +612,8 @@ const handleAudioPause = (index, event) => {
       :narration-audio-urls="store.generatedAudioUrls"
       :narration-scripts="store.currentMode === 'slides' ? store.slidesOptions.narrationScripts : []"
       :narration-settings="lightboxNarrationSettings"
+      :history-mode="store.currentMode"
+      :history-options="store.getCurrentOptions"
     />
 
     <!-- MP4 Quality Modal -->
