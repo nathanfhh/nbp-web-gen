@@ -25,7 +25,7 @@ const props = defineProps({
 const emit = defineEmits(['ended', 'update:autoPlay'])
 
 // Playback speed options (sorted for menu display)
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2]
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 const STORAGE_KEY = 'nbp-audio-playback-rate'
 const IDLE_TIMEOUT = 3000 // Hide after 3 seconds of inactivity
 
@@ -283,7 +283,7 @@ const play = () => {
   }
 }
 
-defineExpose({ play, togglePlay })
+defineExpose({ play, togglePlay, currentTime, duration })
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', onProgressMouseMove)

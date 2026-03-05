@@ -634,6 +634,14 @@ const showTranscriptButton = computed(() => {
   return props.isSlidesMode && props.narrationScripts.length > 0
 })
 
+// Audio progress (0~1) for transcript auto-scroll
+const audioProgress = computed(() => {
+  const t = audioPlayerRef.value?.currentTime
+  const d = audioPlayerRef.value?.duration
+  if (!d || d <= 0) return 0
+  return Math.min(t / d, 1)
+})
+
 const toggleTranscript = () => {
   isTranscriptVisible.value = !isTranscriptVisible.value
   localStorage.setItem('nbp-transcript-visible', String(isTranscriptVisible.value))
@@ -1214,6 +1222,7 @@ const goToSlideToPptx = async () => {
           :speakers="narrationSettings.speakers"
           :speakerMode="narrationSettings.speakerMode"
           :visible="isTranscriptVisible"
+          :progress="audioProgress"
         />
 
         <!-- Audio Player (for slides with narration) -->

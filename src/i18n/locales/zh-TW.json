@@ -1030,7 +1030,8 @@
     "autoPlayHint": "音訊播完自動跳下一頁",
     "transcript": {
       "title": "逐字稿",
-      "toggle": "顯示/隱藏逐字稿 (T)"
+      "toggle": "顯示/隱藏逐字稿 (T)",
+      "autoScroll": "自動捲動（跟隨播放進度）"
     }
   },
   "stickerCropper": {

@@ -1030,7 +1030,8 @@
     "autoPlayHint": "Auto advance to next page when audio ends",
     "transcript": {
       "title": "Transcript",
-      "toggle": "Show/Hide Transcript (T)"
+      "toggle": "Show/Hide Transcript (T)",
+      "autoScroll": "Auto-scroll (follow playback)"
     }
   },
   "stickerCropper": {

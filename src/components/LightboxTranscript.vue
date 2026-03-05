@@ -22,6 +22,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  progress: {
+    type: Number,
+    default: 0,
+  },
 })
 
 const contentRef = ref(null)
@@ -42,6 +46,75 @@ const getSpeakerColor = (speakerName) => {
   const idx = props.speakers.findIndex((s) => s.name === speakerName)
   return speakerColors[idx] || speakerColors[0]
 }
+
+// --- Auto-scroll ---
+const AUTO_SCROLL_KEY = 'nbp-transcript-auto-scroll'
+const AUTO_SCROLL_INTERVAL = 3000 // Scroll every 3 seconds
+const MANUAL_SCROLL_PAUSE = 5000 // Pause auto-scroll for 5s after manual scroll
+
+const isAutoScroll = ref(localStorage.getItem(AUTO_SCROLL_KEY) !== 'false')
+let autoScrollTimer = null
+let manualScrollTimer = null
+let isAutoScrolling = false // Flag to distinguish auto-scroll from manual scroll
+
+const toggleAutoScroll = () => {
+  isAutoScroll.value = !isAutoScroll.value
+  localStorage.setItem(AUTO_SCROLL_KEY, String(isAutoScroll.value))
+  if (isAutoScroll.value) {
+    startAutoScroll()
+  } else {
+    stopAutoScroll()
+  }
+}
+
+const doAutoScroll = () => {
+  if (!contentRef.value || !props.progress || props.progress <= 0) return
+  const el = contentRef.value
+  const maxScroll = el.scrollHeight - el.clientHeight
+  if (maxScroll <= 0) return
+  // Add forward bias (~25% of visible height) so the "now playing" text
+  // sits in the upper portion and upcoming text is visible below
+  const bias = el.clientHeight * 0.25
+  const target = Math.min(Math.round(props.progress * maxScroll + bias), maxScroll)
+  isAutoScrolling = true
+  el.scrollTo({ top: target, behavior: 'smooth' })
+  // Reset flag after scroll animation (~400ms)
+  setTimeout(() => { isAutoScrolling = false }, 400)
+}
+
+const startAutoScroll = () => {
+  stopAutoScroll()
+  if (!isAutoScroll.value) return
+  autoScrollTimer = setInterval(doAutoScroll, AUTO_SCROLL_INTERVAL)
+}
+
+const stopAutoScroll = () => {
+  if (autoScrollTimer) {
+    clearInterval(autoScrollTimer)
+    autoScrollTimer = null
+  }
+}
+
+// Detect manual scroll → pause auto-scroll temporarily
+const onContentScroll = () => {
+  if (isAutoScrolling) return // Ignore scrolls triggered by auto-scroll
+  if (!isAutoScroll.value) return
+  // Pause auto-scroll
+  stopAutoScroll()
+  clearTimeout(manualScrollTimer)
+  manualScrollTimer = setTimeout(() => {
+    startAutoScroll()
+  }, MANUAL_SCROLL_PAUSE)
+}
+
+// Start/stop auto-scroll based on visibility
+watch(() => props.visible, (v) => {
+  if (v && isAutoScroll.value) {
+    startAutoScroll()
+  } else {
+    stopAutoScroll()
+  }
+})
 
 // Scroll to top when script changes (page navigation)
 watch(() => props.script, () => {
@@ -167,7 +240,12 @@ const checkBoundsAndReset = async () => {
   }
 }
 // Component remounts on each lightbox open (inside v-if), so onMounted covers that case
-onMounted(() => checkBoundsAndReset())
+onMounted(() => {
+  checkBoundsAndReset()
+  if (props.visible && isAutoScroll.value) {
+    startAutoScroll()
+  }
+})
 // Also check when transcript is toggled visible within an open lightbox
 watch(() => props.visible, (v) => { if (v) checkBoundsAndReset() })
 
@@ -269,13 +347,15 @@ const onDragTouchEnd = () => {
 
 defineExpose({ recentlyInteracted })
 
-// Cleanup global listeners + timer
+// Cleanup global listeners + timers
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
   window.removeEventListener('mousemove', onResizeMouseMove)
   window.removeEventListener('mouseup', onResizeMouseUp)
   clearTimeout(interactionTimer)
+  stopAutoScroll()
+  clearTimeout(manualScrollTimer)
 })
 </script>
 
@@ -306,6 +386,19 @@ onUnmounted(() => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <span class="flex-1">{{ t('lightbox.transcript.title') }}</span>
+        <!-- Auto-scroll toggle -->
+        <button
+          class="transcript-auto-scroll-btn"
+          :class="{ 'active': isAutoScroll }"
+          :title="t('lightbox.transcript.autoScroll')"
+          @click.stop="toggleAutoScroll"
+          @mousedown.stop
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14" />
+            <path d="M5 12l7 7 7-7" />
+          </svg>
+        </button>
       </div>
 
       <!-- Scrollable content (touchstart.stop prevents lightbox swipe) -->
@@ -314,6 +407,7 @@ onUnmounted(() => {
         class="transcript-content"
         @touchstart.stop
         @touchmove.stop
+        @scroll="onContentScroll"
       >
         <template v-if="speakerMode === 'dual'">
           <div
@@ -407,6 +501,34 @@ onUnmounted(() => {
   height: 2px;
   border-radius: 1px;
   background: rgba(255, 255, 255, 0.35);
+}
+
+/* Auto-scroll toggle button (margin-right clears the resize handle) */
+.transcript-auto-scroll-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-right: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.transcript-auto-scroll-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.transcript-auto-scroll-btn.active {
+  color: white;
+  background: var(--color-mode-generate);
+  border-color: var(--color-mode-generate);
 }
 
 .transcript-content {
