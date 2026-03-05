@@ -158,6 +158,9 @@ const loadHistoryItem = async (item) => {
   store.setMode(item.mode)
   store.temperature = item.options?.temperature ?? 1.0
   store.seed = item.options?.seed ?? ''
+  if (item.options?.model && item.mode !== 'video' && item.mode !== 'agent') {
+    store.imageModel = item.options.model
+  }
 
   if (item.mode === 'generate' && item.options) {
     store.generateOptions.resolution = item.options.resolution || '1k'
