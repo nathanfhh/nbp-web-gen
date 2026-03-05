@@ -2,6 +2,17 @@
 
 This page documents version updates for Mediator.
 
+## v0.31.5
+
+_2026-03-05_
+
+### New Features
+- **Lightbox**: Add generation info panel (ℹ️ button or I key) showing model, resolution, ratio, temperature, and other generation parameters, with drag and resize support
+- **History**: Display model name tag in history list between status badge and file size
+
+### Refactor
+- **Lightbox**: Extract drag/resize logic into `useDraggablePanel` composable, shared by transcript and info panels
+
 ## v0.31.4
 
 _2026-03-05_
