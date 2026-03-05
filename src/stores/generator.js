@@ -22,6 +22,7 @@ export const useGeneratorStore = defineStore('generator', () => {
     getAllCharacters,
     updateCharacter,
     updateHistory,
+    getHistoryById,
   } = useIndexedDB()
   const { getApiKey, setApiKey, updateQuickSetting, getQuickSetting } = useLocalStorage()
   const imageStorage = useImageStorage()
@@ -240,6 +241,42 @@ export const useGeneratorStore = defineStore('generator', () => {
 
     // Setup watchers for auto-save
     setupWatchers()
+
+    // Backfill agent record sizes (non-blocking background task)
+    backfillAgentSizes()
+  }
+
+  /**
+   * Backfill conversationSize/imagesSize for legacy agent records that lack them.
+   * Runs once at startup, non-blocking.
+   */
+  const backfillAgentSizes = async () => {
+    try {
+      const agentRecords = history.value.filter(
+        (item) => item.mode === 'agent' && !item.conversationSize,
+      )
+      if (agentRecords.length === 0) return
+
+      const { useOPFS } = await import('@/composables/useOPFS')
+      const opfs = useOPFS()
+      await opfs.initOPFS()
+
+      for (const record of agentRecords) {
+        const sizeUpdate = {}
+        const convSize = await opfs.getStorageUsage(`conversations/${record.id}`)
+        if (convSize > 0) sizeUpdate.conversationSize = convSize
+        const imgSize = await opfs.getStorageUsage(`images/${record.id}`)
+        if (imgSize > 0) sizeUpdate.imagesSize = imgSize
+        if (Object.keys(sizeUpdate).length > 0) {
+          await updateHistory(record.id, sizeUpdate)
+        }
+      }
+
+      // Reload history to reflect backfilled sizes
+      await loadHistory()
+    } catch (err) {
+      console.warn('[backfillAgentSizes] Non-fatal:', err)
+    }
   }
 
   // ============================================================================
@@ -1189,9 +1226,10 @@ export const useGeneratorStore = defineStore('generator', () => {
       }
 
       // Save conversation to OPFS (always overwrite with latest)
-      await conversationStorage.saveConversation(historyId, conversationSnapshot)
+      const convResult = await conversationStorage.saveConversation(historyId, conversationSnapshot)
 
       // Save only NEW images to OPFS (with correct indices)
+      let totalImagesSize = 0
       if (newImages.length > 0) {
         const { base64ToBlob } = await import('@/composables/useImageCompression')
         const { useOPFS } = await import('@/composables/useOPFS')
@@ -1207,11 +1245,23 @@ export const useGeneratorStore = defineStore('generator', () => {
           const blob = await base64ToBlob(img.data, img.mimeType)
           const opfsPath = `/${dirPath}/${img.index}.webp`
           await opfs.writeFile(opfsPath, blob)
+          totalImagesSize += blob.size
         }
 
         // Update image count after successful save
         savedAgentImageCount.value = totalImageCount
         console.log(`[saveAgentConversation] Saved ${newImages.length} new images (total: ${totalImageCount})`)
+      }
+
+      // Persist conversation + images size to history record for per-item display
+      const sizeUpdate = {}
+      if (convResult?.size) sizeUpdate.conversationSize = convResult.size
+      if (totalImagesSize > 0) {
+        const prevSize = isFirstSave ? 0 : ((await getHistoryById(historyId))?.imagesSize || 0)
+        sizeUpdate.imagesSize = prevSize + totalImagesSize
+      }
+      if (Object.keys(sizeUpdate).length > 0) {
+        await updateHistory(historyId, sizeUpdate)
       }
 
       // Update storage usage
