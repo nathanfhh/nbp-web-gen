@@ -235,9 +235,21 @@ export function useGeneration() {
    * @param {Function} callbacks.onStart - Called before generation starts
    * @param {Function} callbacks.onComplete - Called after generation completes
    */
+  // Cooldown period (ms) after generation completes to prevent iPadOS WebKit
+  // re-triggering due to delayed/queued touch events
+  const GENERATION_COOLDOWN_MS = 3000
+  let lastGenerationEndTime = 0
+
   const handleGenerate = async (callbacks = {}) => {
     // Guard against concurrent calls (e.g. double-click before Vue disables the button)
     if (store.isGenerating) return { success: false, error: 'Already generating' }
+
+    // Guard against rapid re-trigger after generation completes
+    // (iPadOS Chrome/WebKit can fire delayed click events after scroll animations)
+    if (Date.now() - lastGenerationEndTime < GENERATION_COOLDOWN_MS) {
+      console.warn('[useGeneration] Blocked re-trigger within cooldown period')
+      return { success: false, error: 'Cooldown period' }
+    }
 
     // Validate
     const validationError = validateGeneration()
@@ -246,14 +258,15 @@ export function useGeneration() {
       return { success: false, error: validationError }
     }
 
+    // Lock generation state BEFORE onStart callback to prevent race conditions
+    // (onStart may trigger scrollToThinking which can cause delayed click events on iPadOS)
+    store.setGenerating(true)
+    store.setStreaming(true)
+
     // Call onStart callback (for UI updates like scrolling)
     if (callbacks.onStart) {
       callbacks.onStart()
     }
-
-    // Setup generation state
-    store.setGenerating(true)
-    store.setStreaming(true)
     store.clearGenerationError()
     store.clearGeneratedImages()
     store.clearGeneratedVideo()
@@ -463,6 +476,7 @@ export function useGeneration() {
     } finally {
       store.setGenerating(false)
       store.setStreaming(false)
+      lastGenerationEndTime = Date.now()
     }
   }
 
