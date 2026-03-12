@@ -195,8 +195,8 @@ orama-snapshot store:
 兩個 provider 的 snapshot 互不影響，切換後不需重新 embed。
 
 **冷啟動流程**：
-1. 執行 v3→v4 migration（一次性，遷移 local embeddings，丟棄 gemini embeddings）
-2. 從 IndexedDB 載入 active provider 的 snapshot
+1. 從 IndexedDB 載入 active provider 的 snapshot
+2. 僅恢復 `version === 5` 且 `configVersion` 相符的 snapshot；否則丟棄並全量重建
 3. 建立 Orama DB + bulk insert（立即可搜尋）
 4. 下載/初始化嵌入模型
 5. 執行 selfHeal 檢查遺漏

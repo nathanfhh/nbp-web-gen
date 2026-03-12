@@ -411,6 +411,11 @@ function formatTime(timestamp) {
 }
 
 function getThumbnailSrc(item) {
+  // For image-match results, prefer the matched image's thumbnail
+  if (item.matchedChunkType === 'image' && item.matchedImageIndex >= 0) {
+    const matchedImg = item.images?.[item.matchedImageIndex]
+    if (matchedImg?.thumbnail) return `data:image/webp;base64,${matchedImg.thumbnail}`
+  }
   if (item.video?.thumbnail) return item.video.thumbnail
   if (item.images?.[0]?.thumbnail) return `data:image/webp;base64,${item.images[0].thumbnail}`
   if (item.mode === 'agent' && item.thumbnail) return `data:image/webp;base64,${item.thumbnail}`

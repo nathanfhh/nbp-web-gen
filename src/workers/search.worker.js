@@ -1,3 +1,4 @@
+/* global FileReaderSync */
 /**
  * RAG Search Web Worker
  * Long-lived worker for hybrid search: BM25 (Orama) + semantic (per-provider independent snapshots)
@@ -658,6 +659,12 @@ async function callGeminiSingleEmbed(text, taskType) {
  */
 async function loadImageAsBase64(opfsPath) {
   try {
+    // Path allowlist: only allow /images/ prefix with expected extensions
+    if (!/^\/images\/[^/]+\/[^/]+\.(webp|png|jpe?g)$/i.test(opfsPath)) {
+      console.warn(`[search.worker] Rejected non-image OPFS path: ${opfsPath}`)
+      return null
+    }
+
     const root = await navigator.storage.getDirectory()
     const parts = opfsPath.split('/').filter(Boolean)
     let dir = root
@@ -667,22 +674,28 @@ async function loadImageAsBase64(opfsPath) {
     const fileName = parts[parts.length - 1]
     const fileHandle = await dir.getFileHandle(fileName)
     const file = await fileHandle.getFile()
+    const mime = file.type || 'image/webp'
 
-    // Convert to PNG via OffscreenCanvas (embedding API doesn't support WebP)
-    const bitmap = await createImageBitmap(await file.arrayBuffer().then((buf) => new Blob([buf], { type: file.type || 'image/webp' })))
+    // PNG/JPEG can be sent directly — no conversion needed
+    if (mime === 'image/png' || mime === 'image/jpeg') {
+      const reader = new FileReaderSync()
+      const dataUrl = reader.readAsDataURL(file)
+      const base64 = dataUrl.split(',', 2)[1] || ''
+      return { base64, mimeType: mime }
+    }
+
+    // WebP and other formats: convert to PNG via OffscreenCanvas
+    const bitmap = await createImageBitmap(await file.arrayBuffer().then((buf) => new Blob([buf], { type: mime })))
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
     const ctx = canvas.getContext('2d')
     ctx.drawImage(bitmap, 0, 0)
     bitmap.close()
 
     const pngBlob = await canvas.convertToBlob({ type: 'image/png' })
-    const buffer = await pngBlob.arrayBuffer()
-    const bytes = new Uint8Array(buffer)
-    let binary = ''
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return { base64: btoa(binary), mimeType: 'image/png' }
+    const reader = new FileReaderSync()
+    const dataUrl = reader.readAsDataURL(pngBlob)
+    const base64 = dataUrl.split(',', 2)[1] || ''
+    return { base64, mimeType: 'image/png' }
   } catch (err) {
     console.warn(`[search.worker] loadImageAsBase64 failed for ${opfsPath}:`, err.message)
     return null

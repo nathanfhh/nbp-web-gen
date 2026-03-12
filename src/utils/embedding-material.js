@@ -50,10 +50,11 @@ function buildSlides(record) {
   if (!Array.isArray(images) || images.length === 0) return []
 
   return images
-    .filter((img) => img?.opfsPath)
-    .map((img, i) => {
-      const pageContent = record.options?.pagesContent?.[i]?.content || ''
-      const narrationScript = record.narration?.scripts?.[i]?.script || ''
+    .map((img, originalIndex) => ({ img, originalIndex }))
+    .filter(({ img }) => img?.opfsPath)
+    .map(({ img, originalIndex }) => {
+      const pageContent = record.options?.pagesContent?.[originalIndex]?.content || ''
+      const narrationScript = record.narration?.scripts?.[originalIndex]?.script || ''
       const combined = `${pageContent} ${narrationScript}`
       const text = stripAndTruncate(combined, 1024) || record.prompt || ''
       return { text, imagePath: img.opfsPath }

@@ -151,6 +151,39 @@ describe('buildSlides', () => {
     expect(result[0].text).toBe('fallback prompt')
   })
 
+  it('preserves page index alignment when middle image is missing opfsPath', () => {
+    const record = {
+      prompt: 'fallback',
+      images: [
+        { opfsPath: '/images/1/0.webp' },
+        { thumbnail: 'no-opfs' }, // missing opfsPath — should be skipped
+        { opfsPath: '/images/1/2.webp' },
+      ],
+      options: {
+        pagesContent: [
+          { content: 'Page 0' },
+          { content: 'Page 1 (skipped image)' },
+          { content: 'Page 2' },
+        ],
+      },
+      narration: {
+        scripts: [
+          { script: 'Narration 0' },
+          { script: 'Narration 1' },
+          { script: 'Narration 2' },
+        ],
+      },
+    }
+    const result = buildSlides(record)
+    expect(result).toHaveLength(2)
+    // First result should pair with page 0 (original index 0)
+    expect(result[0].text).toBe('Page 0 Narration 0')
+    expect(result[0].imagePath).toBe('/images/1/0.webp')
+    // Second result should pair with page 2 (original index 2), NOT page 1
+    expect(result[1].text).toBe('Page 2 Narration 2')
+    expect(result[1].imagePath).toBe('/images/1/2.webp')
+  })
+
   it('truncates combined text to 1024 chars', () => {
     const longContent = 'x'.repeat(800)
     const longNarration = 'y'.repeat(800)
