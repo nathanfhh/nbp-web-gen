@@ -471,13 +471,14 @@ First-time user guidance system:
 
 ### RAG Search System
 
-Browser-side hybrid search (BM25 + semantic) over generation history using Orama + multilingual-e5-small.
+Browser-side hybrid search (BM25 + semantic + multimodal) over generation history using Orama + Gemini Embedding 2.
 
 **Architecture:**
 ```text
 SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.worker.js (長駐 Worker)
                                                                ├── Orama DB (hybrid search)
-                                                               └── Transformers.js (embeddings)
+                                                               ├── Gemini Embedding 2 (multimodal: text+image)
+                                                               └── Transformers.js (local fallback, text-only)
 ```
 
 **核心原則**：搜尋系統是*只讀附加層*，不修改現有 IndexedDB schema、不改 export v4 格式、不影響 WebRTC 傳輸。
@@ -488,7 +489,9 @@ SearchModal.vue  ──→  useSearchWorker.js (Singleton)  ──→  search.wo
 |------|------|
 | `utils/search-core.js` | 純函式：extractText, chunkText, deduplicateByParent, highlightSnippet |
 | `utils/search-core.test.js` | 測試（~50+ tests） |
-| `workers/search.worker.js` | 長駐 Worker：Orama + Transformers.js pipeline |
+| `utils/embedding-material.js` | 多模態 embedding 素材準備：per-mode 圖片 + 文字策略 |
+| `utils/embedding-material.test.js` | 測試（~25 tests） |
+| `workers/search.worker.js` | 長駐 Worker：Orama + @google/genai SDK + Transformers.js |
 | `composables/useSearchWorker.js` | Singleton composable：Worker 生命週期管理 |
 | `components/SearchModal.vue` | 搜尋 UI Modal |
 

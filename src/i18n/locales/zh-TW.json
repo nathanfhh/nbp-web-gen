@@ -857,7 +857,8 @@
     },
     "providerLabel": "引擎：",
     "backfilling": "補齊語意索引中 {current}/{total}...",
-    "costEstimate": "{tokens} tokens · ~${cost} USD"
+    "costEstimate": "{tokens} tokens · ~${cost} USD",
+    "imageMatch": "圖片匹配"
   },
   "embeddingExplorer": {
     "title": "Embedding 3D 探索器",

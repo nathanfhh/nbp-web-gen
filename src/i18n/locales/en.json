@@ -857,7 +857,8 @@
     },
     "providerLabel": "Engine:",
     "backfilling": "Backfilling semantic index {current}/{total}...",
-    "costEstimate": "{tokens} tokens · ~${cost} USD"
+    "costEstimate": "{tokens} tokens · ~${cost} USD",
+    "imageMatch": "Image match"
   },
   "embeddingExplorer": {
     "title": "Embedding 3D Explorer",
