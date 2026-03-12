@@ -2,6 +2,18 @@
 
 This page documents version updates for Mediator.
 
+## v0.32.0
+
+_2026-03-12_
+
+### New Features
+- **Search**: Upgrade to Gemini Embedding 2 multimodal model, enabling text-to-image and image-to-image search
+- **Search**: Add image match badge to search results, distinguishing text and image hits
+
+### Improvements
+- **Search**: Increase Gemini embedding chunk size from 400 to 800 chars for better semantic coherence
+- **Search**: Migrate Gemini API calls to @google/genai SDK for consistency with other modules
+
 ## v0.31.6
 
 _2026-03-05_
