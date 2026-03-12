@@ -52,7 +52,6 @@ const DB_NAME = 'nanobanana-search'
 const DB_STORE = 'orama-snapshot'
 const DB_VERSION = 3 // v3: full doc snapshot (v2 was embedding-only cache, v1 was unused)
 const EMBEDDING_BATCH_API_LIMIT = 100 // Max texts per batchEmbedContents request
-const BATCH_SIZE = 50 // Documents per indexing batch
 const MAX_CACHE_ENTRIES = 5000 // In-memory document embedding cache cap (not persisted)
 
 const PROVIDER_CONFIG = {
@@ -372,14 +371,14 @@ async function migrateV3SnapshotIfExists() {
       configVersion: getProviderConfigVersion('local'),
       docs: localDocs,
     })
-    console.log(`[search.worker] Migrated ${localDocs.length}/${docs.length} docs to snapshot-local (v3→v4)`)
+    console.log(`[search.worker] Migrated ${localDocs.length}/${docs.length} docs to snapshot-local (v3→v5)`)
   }
 
   // Gemini embeddings discarded — chunk size changed from 200→400
   console.log('[search.worker] Gemini embeddings discarded (chunk params changed cs200→cs400)')
 
   await deleteSnapshotKey('docs')
-  console.log('[search.worker] v3→v4 migration complete, old snapshot deleted')
+  console.log('[search.worker] v3→v5 migration complete, old snapshot deleted')
 }
 
 // ============================================================================
@@ -685,7 +684,7 @@ async function loadImageAsBase64(opfsPath) {
     }
 
     // WebP and other formats: convert to PNG via OffscreenCanvas
-    const bitmap = await createImageBitmap(await file.arrayBuffer().then((buf) => new Blob([buf], { type: mime })))
+    const bitmap = await createImageBitmap(file)
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
     const ctx = canvas.getContext('2d')
     ctx.drawImage(bitmap, 0, 0)
@@ -1644,20 +1643,17 @@ self.addEventListener('message', async (event) => {
           message: `Indexing 0/${records.length}`,
         })
 
-        for (let i = 0; i < records.length; i += BATCH_SIZE) {
-          const batch = records.slice(i, i + BATCH_SIZE)
-
-          for (const item of batch) {
-            try {
-              const count = await indexRecord(item.record, item.conversation || null)
-              totalChunks += count
-            } catch (indexErr) {
-              console.error(`[search.worker] indexRecord FAILED for id=${item.record?.id} mode=${item.record?.mode}:`, indexErr)
-            }
+        for (let i = 0; i < records.length; i++) {
+          const item = records[i]
+          try {
+            const count = await indexRecord(item.record, item.conversation || null)
+            totalChunks += count
+          } catch (indexErr) {
+            console.error(`[search.worker] indexRecord FAILED for id=${item.record?.id} mode=${item.record?.mode}:`, indexErr)
           }
 
-          // Report progress
-          const processed = Math.min(i + BATCH_SIZE, records.length)
+          // Report progress per-record (not per-batch) for responsive UI
+          const processed = i + 1
           self.postMessage({
             type: 'progress',
             requestId,
