@@ -97,7 +97,7 @@ This project is a testament to the power of AI-assisted development, built with 
     *   **PDF Support:** Upload PDFs directly - automatically converted to images page by page.
     *   **Per-Page Settings:** Customize OCR and inpainting settings for individual slides.
 *   **Smart History:** Local storage using IndexedDB and OPFS (Origin Private File System) for your generation history.
-*   **Smart Search (RAG):** Browser-side hybrid search over generation history with dual embedding engines — Gemini Embedding API (768-dim, cloud) and local Transformers.js multilingual-e5-small (384-dim, free/offline). Supports keyword, semantic, and hybrid search strategies with mode filtering.
+*   **Smart Search (RAG):** Browser-side hybrid search over generation history with dual embedding engines — Gemini Embedding 2 (768-dim, multimodal text+image, cloud) and local Transformers.js multilingual-e5-small (384-dim, free/offline). Supports keyword, semantic, and hybrid search strategies with mode filtering. Gemini provider enables text-to-image and image-to-image search.
 *   **Embedding 3D Explorer:** Interactive 3D scatter plot visualization of embedding vectors using UMAP dimensionality reduction and Plotly.js. Explore semantic clusters across generation modes.
 *   **History Export/Import:** Export your generation history to a JSON file (with embedded images and narration audio) and import on another browser.
 *   **WebRTC Cross-Device Sync:** Real-time sync between devices via WebRTC. Supports Cloudflare TURN relay for NAT traversal. Sync history records (including narration audio) and saved characters.
@@ -256,7 +256,7 @@ npm run build
     *   **PDF 支援：** 可直接上傳 PDF，自動逐頁轉換為圖片。
     *   **逐頁設定：** 可為個別頁面自訂 OCR 與文字移除設定。
 *   **智慧歷史紀錄：** 使用 IndexedDB 與 OPFS (Origin Private File System) 將您的生成紀錄完整保存在本地端。
-*   **智慧搜尋 (RAG)：** 瀏覽器端混合搜尋，支援雙 Embedding 引擎 — Gemini Embedding API（768 維，雲端）與本地 Transformers.js multilingual-e5-small（384 維，免費/離線）。支援關鍵字、語意及混合搜尋策略，可依生成模式篩選。
+*   **智慧搜尋 (RAG)：** 瀏覽器端混合搜尋，支援雙 Embedding 引擎 — Gemini Embedding 2（768 維，多模態文字+圖片，雲端）與本地 Transformers.js multilingual-e5-small（384 維，免費/離線）。支援關鍵字、語意及混合搜尋策略，可依生成模式篩選。Gemini 引擎支援以文搜圖和以圖搜圖。
 *   **Embedding 3D 探索器：** 使用 UMAP 降維與 Plotly.js 將 embedding 向量以互動式 3D 散佈圖視覺化，探索不同生成模式的語意群集分佈。
 *   **歷史記錄匯出/匯入：** 將生成歷史匯出為 JSON 檔案（含嵌入圖片與語音旁白音訊），可於其他瀏覽器匯入。
 *   **WebRTC 跨裝置同步：** 透過 WebRTC 實現裝置間即時同步，支援 Cloudflare TURN 中繼伺服器穿越 NAT。可同步歷史紀錄（含語音旁白音訊）與已儲存的角色。
