@@ -45,8 +45,8 @@ describe('buildDefault', () => {
     }
     const result = buildDefault(record)
     expect(result).toHaveLength(2)
-    expect(result[0]).toEqual({ text: 'a cat', imagePath: '/images/1/0.webp' })
-    expect(result[1]).toEqual({ text: 'a cat', imagePath: '/images/1/1.webp' })
+    expect(result[0]).toEqual({ text: 'a cat', imagePath: '/images/1/0.webp', originalIndex: 0 })
+    expect(result[1]).toEqual({ text: 'a cat', imagePath: '/images/1/1.webp', originalIndex: 1 })
   })
 
   it('skips images without opfsPath', () => {
@@ -92,7 +92,7 @@ describe('buildSticker', () => {
     }
     const result = buildSticker(record)
     expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({ text: 'cute cat sticker', imagePath: '/images/1/0.webp' })
+    expect(result[0]).toEqual({ text: 'cute cat sticker', imagePath: '/images/1/0.webp', originalIndex: 0 })
   })
 
   it('returns empty if first image has no opfsPath', () => {
@@ -179,9 +179,11 @@ describe('buildSlides', () => {
     // First result should pair with page 0 (original index 0)
     expect(result[0].text).toBe('Page 0 Narration 0')
     expect(result[0].imagePath).toBe('/images/1/0.webp')
+    expect(result[0].originalIndex).toBe(0)
     // Second result should pair with page 2 (original index 2), NOT page 1
     expect(result[1].text).toBe('Page 2 Narration 2')
     expect(result[1].imagePath).toBe('/images/1/2.webp')
+    expect(result[1].originalIndex).toBe(2)
   })
 
   it('truncates combined text to 1024 chars', () => {
@@ -224,7 +226,7 @@ describe('prepareEmbeddingMaterial', () => {
     }
     const result = prepareEmbeddingMaterial(record)
     expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({ text: 'test', imagePath: '/images/1/0.webp' })
+    expect(result[0]).toEqual({ text: 'test', imagePath: '/images/1/0.webp', originalIndex: 0 })
   })
 
   it('delegates to sticker builder', () => {

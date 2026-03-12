@@ -18,15 +18,16 @@ function stripAndTruncate(text, maxLength) {
  * Default builder: prompt + each image as a separate embedding material item.
  * Used by generate, edit, story, diagram, agent modes.
  * @param {Object} record - History record (stripped for indexing, with images opfsPath retained)
- * @returns {Array<{ text: string, imagePath: string }>}
+ * @returns {Array<{ text: string, imagePath: string, originalIndex: number }>}
  */
 function buildDefault(record) {
   const images = record.images
   if (!Array.isArray(images) || images.length === 0) return []
   const text = record.prompt || ''
   return images
-    .filter((img) => img?.opfsPath)
-    .map((img) => ({ text, imagePath: img.opfsPath }))
+    .map((img, i) => ({ img, i }))
+    .filter(({ img }) => img?.opfsPath)
+    .map(({ img, i }) => ({ text, imagePath: img.opfsPath, originalIndex: i }))
 }
 
 /**
@@ -38,7 +39,7 @@ function buildSticker(record) {
   if (!Array.isArray(images) || images.length === 0) return []
   const firstImage = images[0]
   if (!firstImage?.opfsPath) return []
-  return [{ text: record.prompt || '', imagePath: firstImage.opfsPath }]
+  return [{ text: record.prompt || '', imagePath: firstImage.opfsPath, originalIndex: 0 }]
 }
 
 /**
@@ -57,7 +58,7 @@ function buildSlides(record) {
       const narrationScript = record.narration?.scripts?.[originalIndex]?.script || ''
       const combined = `${pageContent} ${narrationScript}`
       const text = stripAndTruncate(combined, 1024) || record.prompt || ''
-      return { text, imagePath: img.opfsPath }
+      return { text, imagePath: img.opfsPath, originalIndex }
     })
 }
 
@@ -78,7 +79,7 @@ const builders = {
  * Returns an array of { text, imagePath } items, each producing one image embedding chunk.
  *
  * @param {Object} record - History record (should include images with opfsPath)
- * @returns {Array<{ text: string, imagePath: string }>}
+ * @returns {Array<{ text: string, imagePath: string, originalIndex: number }>}
  */
 export function prepareEmbeddingMaterial(record) {
   if (!record) return []

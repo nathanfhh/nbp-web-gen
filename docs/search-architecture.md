@@ -180,7 +180,7 @@ highlightSnippet()  — HTML escape + <mark> 標記
 | Snapshot Version | 5 |
 
 **Per-Provider 儲存結構**：
-```
+```text
 orama-snapshot store:
   key: 'snapshot-gemini' → { version: 5, configVersion: 'cs800_co200_cw1200_ev3', docs: [...] }
   key: 'snapshot-local'  → { version: 5, configVersion: 'cs200_co50_cw400_ev3', docs: [...] }
@@ -195,11 +195,12 @@ orama-snapshot store:
 兩個 provider 的 snapshot 互不影響，切換後不需重新 embed。
 
 **冷啟動流程**：
-1. 從 IndexedDB 載入 active provider 的 snapshot
-2. 僅恢復 `version === 5` 且 `configVersion` 相符的 snapshot；否則丟棄並全量重建
-3. 建立 Orama DB + bulk insert（立即可搜尋）
-4. 下載/初始化嵌入模型
-5. 執行 selfHeal 檢查遺漏
+1. 執行 `migrateV3SnapshotIfExists()`（一次性 legacy 遷移，多數情況為 no-op）
+2. 從 IndexedDB 載入 active provider 的 snapshot
+3. 僅恢復 `version === 5` 且 `configVersion` 相符的 snapshot；否則丟棄並全量重建
+4. 建立 Orama DB + bulk insert（立即可搜尋）
+5. 下載/初始化嵌入模型
+6. 執行 selfHeal 檢查遺漏
 
 **暖啟動**：快照已載入 → 模型已在記憶體 → sub-100ms 回應
 

@@ -997,8 +997,8 @@ async function indexRecord(record, conversation = null) {
     if (imageMaterial.length > 0) {
       const imageDocs = []
       for (let imgIdx = 0; imgIdx < imageMaterial.length; imgIdx++) {
-        const { text: imgText, imagePath } = imageMaterial[imgIdx]
-        const imgCacheKey = `${activeProvider}:${parentId}:img-${imgIdx}`
+        const { text: imgText, imagePath, originalIndex } = imageMaterial[imgIdx]
+        const imgCacheKey = `${activeProvider}:${parentId}:img:${imagePath || imgIdx}`
         const cachedEmb = embeddingCache.get(imgCacheKey)
 
         let imgEmbedding
@@ -1025,9 +1025,9 @@ async function indexRecord(record, conversation = null) {
         const doc = {
           parentId,
           chunkIndex: imgChunkIndex,
-          chunkText: imgText || `[image ${imgIdx}]`,
+          chunkText: imgText || `[image ${originalIndex}]`,
           chunkType: 'image',
-          imageIndex: imgIdx,
+          imageIndex: originalIndex,
           mode,
           modeLabel,
           timestamp,
@@ -1037,7 +1037,7 @@ async function indexRecord(record, conversation = null) {
 
         // Store context for image chunks (the paired text)
         const ctxKey = `${parentId}:${imgChunkIndex}`
-        contextTextMap.set(ctxKey, imgText || `[image ${imgIdx}]`)
+        contextTextMap.set(ctxKey, imgText || `[image ${originalIndex}]`)
       }
 
       if (imageDocs.length > 0) {
