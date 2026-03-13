@@ -822,7 +822,7 @@
       "initializing": "Initializing search...",
       "ready": "Search ready"
     },
-    "indexing": "Indexing {current}/{total}...",
+    "indexing": "Embedding {current}/{total}...",
     "indexed": "{count} records indexed",
     "error": "Search system error",
     "filterAll": "All",

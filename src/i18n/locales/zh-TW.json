@@ -822,7 +822,7 @@
       "initializing": "初始化搜尋系統中...",
       "ready": "搜尋系統已就緒"
     },
-    "indexing": "索引中 {current}/{total}...",
+    "indexing": "嵌入中 {current}/{total}...",
     "indexed": "已索引 {count} 筆記錄",
     "error": "搜尋系統錯誤",
     "filterAll": "全部",
