@@ -839,7 +839,12 @@ async function loadLocalModel() {
  */
 async function embedLocal(texts, taskType) {
   if (!localPipeline) {
-    if (!localModelPromise) localModelPromise = loadLocalModel()
+    if (!localModelPromise) {
+      localModelPromise = loadLocalModel().catch((err) => {
+        localModelPromise = null // Allow retry on next call
+        throw err
+      })
+    }
     await localModelPromise
   }
 
@@ -941,9 +946,10 @@ function prepareRecord(record, conversation = null) {
   }
 
   // Count API calls needed (for progress reporting)
-  const textApiCalls = provider === 'gemini'
-    ? Math.ceil(uncachedIndices.length / EMBEDDING_BATCH_API_LIMIT)
-    : uncachedIndices.length > 0 ? 1 : 0
+   
+  const textApiCalls = !provider ? 0
+    : provider === 'gemini' ? Math.ceil(uncachedIndices.length / EMBEDDING_BATCH_API_LIMIT)
+      : uncachedIndices.length > 0 ? 1 : 0
   const apiCallCount = textApiCalls + uncachedImageIndices.length
 
   return {
@@ -1017,9 +1023,9 @@ async function executeRecord(prepared, pool, onProgress) {
         }
       }
     } else {
-      // Local provider: single call for all texts
+      // Local provider: single call for all texts, throttled through pool
       try {
-        const newEmbeddings = await embedLocal(uncachedTexts, 'RETRIEVAL_DOCUMENT')
+        const newEmbeddings = await pool.run(() => embedLocal(uncachedTexts, 'RETRIEVAL_DOCUMENT'))
         for (let j = 0; j < uncachedIndices.length; j++) {
           const i = uncachedIndices[j]
           const embedding = newEmbeddings[j] || new Array(dims).fill(0)
@@ -1777,6 +1783,8 @@ self.addEventListener('message', async (event) => {
         }
 
         self.postMessage({ type: 'indexed', requestId, count: totalChunks, parentCount: indexedParentIds.size })
+        // Reset progress state so stale values don't persist across runs
+        self.postMessage({ type: 'progress', requestId, value: 0, total: 0, message: '' })
         break
       }
 
