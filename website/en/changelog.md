@@ -2,6 +2,13 @@
 
 This page documents version updates for Mediator.
 
+## v0.32.2
+
+_2026-03-18_
+
+### Fixes
+- **PDF to Images**: Switch to PDF.js legacy build to fix conversion failure on older Chrome versions lacking ES2025 API support
+
 ## v0.32.1
 
 _2026-03-13_
