@@ -3,12 +3,16 @@
  * Converts PDF pages to PNG images using PDF.js and OffscreenCanvas
  */
 
-import * as pdfjsLib from 'pdfjs-dist'
+// Use legacy build which includes polyfills for newer APIs like
+// Map.prototype.getOrInsertComputed (ES2025) — required for browsers
+// that don't yet support it (e.g. older Chrome on Ubuntu).
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 // Use jsdelivr CDN for PDF.js worker (mirrors npm packages)
-// IMPORTANT: Version must match the installed pdfjs-dist package version
+// IMPORTANT: Version must match the installed pdfjs-dist package version.
+// Legacy worker includes the same polyfills as the legacy client build.
 pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.5.207/build/pdf.worker.min.mjs'
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.5.207/legacy/build/pdf.worker.min.mjs'
 
 let isReady = false
 
@@ -18,6 +22,18 @@ let isReady = false
  * Since Workers don't have access to DOM, we provide a mock implementation.
  */
 const mockDocument = (() => {
+  // Mock FontFaceSet — never rely on self.fonts which may not work
+  // properly in Worker contexts across all platforms (e.g. some Chrome
+  // builds lack full FontFaceSet support in Workers).
+  const mockFonts = {
+    add: () => {},
+    delete: () => {},
+    clear: () => {},
+    has: () => false,
+    forEach: () => {},
+    [Symbol.iterator]: function* () {},
+  }
+
   const createElement = (tagName) => {
     // Canvas needs special handling - use OffscreenCanvas
     if (tagName === 'canvas') {
@@ -28,7 +44,7 @@ const mockDocument = (() => {
 
     // Generic mock element for other tags
     const children = []
-    return {
+    const el = {
       tagName: tagName.toUpperCase(),
       style: {},
       children,
@@ -55,14 +71,27 @@ const mockDocument = (() => {
         contains: () => false,
         toggle: () => {},
       },
+      // Mock stylesheet for <style> elements — PDF.js FontLoader calls
+      // styleElement.sheet.insertRule() to load @font-face rules
+      sheet: {
+        cssRules: [],
+        insertRule: () => 0,
+        deleteRule: () => {},
+      },
     }
+    return el
   }
 
+  const headEl = createElement('head')
+  const htmlEl = createElement('html')
+  // FontLoader calls: documentElement.getElementsByTagName("head")[0]
+  htmlEl.getElementsByTagName = (tag) => (tag === 'head' ? [headEl] : [])
+
   return {
-    fonts: self.fonts,
-    documentElement: createElement('html'),
+    fonts: mockFonts,
+    documentElement: htmlEl,
     body: createElement('body'),
-    head: createElement('head'),
+    head: headEl,
     createElement,
     createElementNS: (ns, name) => createElement(name),
     createTextNode: (text) => ({ nodeType: 3, textContent: text }),
@@ -73,6 +102,8 @@ const mockDocument = (() => {
     getElementById: () => null,
     addEventListener: () => {},
     removeEventListener: () => {},
+    URL: 'about:blank',
+    baseURI: 'about:blank',
   }
 })()
 
