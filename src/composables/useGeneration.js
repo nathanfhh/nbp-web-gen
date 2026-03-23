@@ -347,6 +347,7 @@ export function useGeneration() {
         }))
 
         historyOptions = {
+          model: options.model,
           resolution: options.resolution,
           ratio: options.ratio,
           analysisModel: options.analysisModel,
