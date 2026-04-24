@@ -192,7 +192,8 @@
     "imageModel": {
       "label": "圖片模型",
       "hint": "Pro 品質較高，Flash 速度較快",
-      "agentFixed": "Agent 模式固定使用此模型，無法變更"
+      "agentFixed": "Agent 模式固定使用此模型，無法變更",
+      "missingKey": "需要 {provider} API 金鑰"
     }
   },
   "options": {

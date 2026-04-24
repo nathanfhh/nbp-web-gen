@@ -2,10 +2,28 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import { IMAGE_MODELS } from '@/constants/imageOptions'
+import { groupByProvider } from '@/constants/modelCatalog'
+import { useApiKeyManager } from '@/composables/useApiKeyManager'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
+const { hasApiKeyFor } = useApiKeyManager()
+
+const imageModelGroups = computed(() => {
+  return groupByProvider('image').map(({ group, items }) => {
+    const providerKey = items[0]?.provider
+    const hasKey = hasApiKeyFor({ provider: providerKey, usage: 'image' })
+    return {
+      label: group,
+      options: items.map((m) => ({
+        value: m.id,
+        label: m.label,
+        description: hasKey ? undefined : t('settings.imageModel.missingKey', { provider: group }),
+      })),
+    }
+  })
+})
 
 const temperatureLabel = computed(() => {
   const temperatureValue = store.temperature
@@ -99,19 +117,11 @@ const temperatureLabel = computed(() => {
         </p>
       </template>
       <template v-else>
-        <div class="flex gap-2">
-          <button
-            v-for="model in IMAGE_MODELS"
-            :key="model.value"
-            @click="store.imageModel = model.value"
-            class="flex-1 py-2 px-3 text-sm rounded-lg border transition-colors"
-            :class="store.imageModel === model.value
-              ? 'border-mode-generate bg-mode-generate-muted/30 text-text-primary'
-              : 'border-border-muted text-text-muted hover:border-mode-generate'"
-          >
-            {{ model.label }}
-          </button>
-        </div>
+        <SearchableSelect
+          :model-value="store.imageModel"
+          @update:model-value="store.imageModel = $event"
+          :groups="imageModelGroups"
+        />
         <p class="text-xs text-text-muted">
           {{ $t('settings.imageModel.hint') }}
         </p>

@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock useLocalStorage before importing useApi
-vi.mock('./useLocalStorage', () => ({
-  useLocalStorage: () => ({
-    getApiKey: vi.fn(() => 'test-api-key'),
-  }),
-}))
+// Mock useApiKeyManager to avoid pulling in vue-i18n at test time.
+// classifyError is a pure function that doesn't touch the key manager,
+// but useApi() instantiates it during setup.
+vi.mock('./useApiKeyManager', async () => {
+  const actual = await vi.importActual('./useApiKeyManager')
+  return {
+    ...actual,
+    useApiKeyManager: () => ({
+      getApiKey: vi.fn(() => 'test-api-key'),
+    }),
+  }
+})
 
 import { useApi } from './useApi'
 import {

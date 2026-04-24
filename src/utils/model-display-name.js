@@ -5,12 +5,16 @@
 import { IMAGE_MODELS, DEFAULT_MODEL } from '@/constants/imageOptions'
 import { TEXT_MODELS } from '@/constants/modelOptions'
 import { VEO_MODEL_OPTIONS } from '@/constants/videoPricing'
+import { IMAGE_MODEL_CATALOG, TEXT_MODEL_CATALOG } from '@/constants/modelCatalog'
 
 // Full label map: codeName → full label (for info panel)
 const modelMap = new Map()
 for (const m of IMAGE_MODELS) modelMap.set(m.value, m.label)
 for (const m of TEXT_MODELS) modelMap.set(m.value, m.label)
 for (const m of VEO_MODEL_OPTIONS) modelMap.set(m.value, m.label)
+// OpenAI entries live only in the catalog, not in the legacy IMAGE_MODELS/TEXT_MODELS arrays.
+for (const m of IMAGE_MODEL_CATALOG) modelMap.set(m.id, m.label)
+for (const m of TEXT_MODEL_CATALOG) modelMap.set(m.id, m.label)
 
 // Short label map: codeName → compact tag label (for history list)
 const shortMap = new Map([
@@ -18,6 +22,10 @@ const shortMap = new Map([
   ['gemini-3.1-flash-image-preview', '3.1 Flash'],
   ['gemini-3-flash-preview', '3 Flash'],
   ['gemini-3.1-pro-preview', '3.1 Pro'],
+  ['gpt-image-2', 'GPT Image 2'],
+  ['gpt-image-1-mini', 'GPT Image 1m'],
+  ['gpt-5.4', 'GPT-5.4'],
+  ['gpt-5.4-mini', 'GPT-5.4m'],
   ['fast', 'Fast'],
   ['standard', 'High Quality'],
 ])

@@ -3,8 +3,18 @@ import { getModelDisplayName, getModelShortName, getHistoryModelName } from './m
 
 describe('getModelDisplayName', () => {
   it('returns full label for known image model', () => {
-    expect(getModelDisplayName('gemini-3-pro-image-preview')).toBe('Gemini 3 Pro Image')
-    expect(getModelDisplayName('gemini-3.1-flash-image-preview')).toBe('Gemini 3.1 Flash Image')
+    expect(getModelDisplayName('gemini-3-pro-image-preview')).toBe('Nano Banana Pro')
+    expect(getModelDisplayName('gemini-3.1-flash-image-preview')).toBe('Nano Banana 2')
+  })
+
+  it('returns full label for OpenAI image models from catalog', () => {
+    expect(getModelDisplayName('gpt-image-2')).toBe('GPT Image 2')
+    expect(getModelDisplayName('gpt-image-1-mini')).toBe('GPT Image 1 mini')
+  })
+
+  it('returns full label for OpenAI text models from catalog', () => {
+    expect(getModelDisplayName('gpt-5.4')).toBe('GPT-5.4')
+    expect(getModelDisplayName('gpt-5.4-mini')).toBe('GPT-5.4 mini')
   })
 
   it('returns full label for known text model', () => {
@@ -23,6 +33,7 @@ describe('getModelShortName', () => {
   it('returns short label for image models', () => {
     expect(getModelShortName('gemini-3-pro-image-preview')).toBe('3 Pro')
     expect(getModelShortName('gemini-3.1-flash-image-preview')).toBe('3.1 Flash')
+    expect(getModelShortName('gpt-image-2')).toBe('GPT Image 2')
   })
 
   it('returns short label for text models', () => {

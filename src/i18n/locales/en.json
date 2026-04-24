@@ -192,7 +192,8 @@
     "imageModel": {
       "label": "Image Model",
       "hint": "Pro for higher quality, Flash for faster speed",
-      "agentFixed": "Agent mode uses this model exclusively and cannot be changed"
+      "agentFixed": "Agent mode uses this model exclusively and cannot be changed",
+      "missingKey": "Requires {provider} API key"
     }
   },
   "options": {

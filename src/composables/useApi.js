@@ -1,8 +1,9 @@
 import { ref, computed } from 'vue'
 import { GoogleGenAI, Modality, ThinkingLevel } from '@google/genai'
-import { useLocalStorage } from './useLocalStorage'
-import { isQuotaError } from './useApiKeyManager'
+import { isQuotaError, useApiKeyManager } from './useApiKeyManager'
 import { buildPrompt } from './promptBuilders'
+import { resolveProvider } from '@/services/providers'
+import { generateImageOpenAI } from '@/services/providers/openaiImage'
 import {
   clampInt,
   createMinIntervalLimiter,
@@ -41,7 +42,7 @@ export function useApi() {
   const loadingCount = ref(0)
   const isLoading = computed(() => loadingCount.value > 0)
   const error = ref(null)
-  const { getApiKey } = useLocalStorage()
+  const { getApiKey } = useApiKeyManager()
 
   const withLoading = async (fn) => {
     loadingCount.value += 1
@@ -234,7 +235,9 @@ export function useApi() {
     request = {},
   ) => {
     return await withLoading(async () => {
-      const apiKey = getApiKey()
+      const model = options.model || DEFAULT_MODEL
+      const provider = resolveProvider('image', model) || 'gemini'
+      const apiKey = getApiKey({ provider, usage: 'image' })
       if (!apiKey) {
         throw new Error(t('errors.apiKeyNotSet'))
       }
@@ -275,15 +278,14 @@ export function useApi() {
       // Build the enhanced prompt once (reused across retries)
       const enhancedPrompt = buildPrompt(prompt, options, mode)
 
-      // Build content parts and config once (reused across retries)
-      const parts = buildContentParts(enhancedPrompt, referenceImages)
-      const config = buildSdkConfig(options)
+      // Gemini-only: pre-build content parts and config (reused across retries)
+      const parts = provider === 'gemini' ? buildContentParts(enhancedPrompt, referenceImages) : null
+      const config = provider === 'gemini' ? buildSdkConfig(options) : null
 
-      // Get model
-      const model = options.model || DEFAULT_MODEL
-
-      // Notify that 3.1 Flash doesn't expose thinking process
-      if (model === 'gemini-3.1-flash-image-preview' && onThinkingChunk) {
+      // Notify models that don't stream reasoning traces: the thinking panel
+      // stays open but displays a "no thinking" indicator until completion.
+      const noThinking = provider === 'openai' || model === 'gemini-3.1-flash-image-preview'
+      if (noThinking && onThinkingChunk) {
         onThinkingChunk(`[${t('generation.noThinkingProcess')}]\n`)
       }
 
@@ -315,7 +317,20 @@ export function useApi() {
           // Wrap the entire streaming operation with timeout
           // On timeout, the AbortController cancels the underlying fetch request
           const streamOperation = async () => {
-            // Initialize SDK client (fresh per attempt)
+            // OpenAI branch: delegate to adapter with the same abort signal
+            if (provider === 'openai') {
+              return await generateImageOpenAI({
+                apiKey,
+                model,
+                prompt: enhancedPrompt,
+                referenceImages,
+                options,
+                signal: attemptAbortController.signal,
+                onPartialImage: guardedThinkingChunk,
+              })
+            }
+
+            // Gemini branch: SDK streaming call
             const ai = new GoogleGenAI({ apiKey })
 
             // Make streaming API request using SDK with abort signal
