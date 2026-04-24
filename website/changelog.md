@@ -2,6 +2,39 @@
 
 此頁面記錄 Mediator 的版本更新內容。
 
+## v0.33.0
+
+_2026-04-24_
+
+### 新功能
+- **Provider 切換**: 所有主要 AI 能力（生圖、文字 LLM、Embedding、TTS）新增 OpenAI 作為可切換選項，與 Gemini 並列於同一下拉選單
+- **生圖 (OpenAI)**: 支援 `gpt-image-2` / `gpt-image-1-mini`，aspect ratio 自動映射至符合 gpt-image-2 約束的尺寸（16 倍數、最大 3840px、總像素 655,360～8,294,400），partial_images SSE 串流同步顯示進度預覽
+- **文字 LLM (OpenAI)**: 支援 `gpt-5.4` / `gpt-5.4-mini`，使用 Structured Outputs (json_schema strict 模式)，`reasoning_effort: high` 提升推理品質；角色萃取、簡報風格分析、內容切分、旁白腳本生成皆可切換
+- **Embedding (OpenAI)**: 支援 `text-embedding-3-small` / `text-embedding-3-large`，含 Matryoshka 截斷變體（768d / 1536d），可依儲存與成本需求彈性選擇。切換 provider 時彈出確認對話框並自動重建索引
+- **TTS (OpenAI)**: 支援 `gpt-4o-mini-tts-2025-12-15` / `tts-1` / `tts-1-hd`；雙說話人模式以 AudioContext 客戶端拼接，保留與 Gemini 相同的操作體驗
+- **API Key 管理**: 設定頁新增 OpenAI API Key 欄位（單一金鑰，無 Free Tier 概念），獨立於 Gemini 雙金鑰架構
+- **圖片模型選單**: `CommonSettings` 改為 SearchableSelect 分組下拉，依 provider 分類；缺金鑰的選項顯示提示
+
+### 改進
+- **模型標籤**: Gemini 圖片模型顯示名稱改為 `Nano Banana Pro` / `Nano Banana 2`（對齊產品品牌）
+- **思考面板**: 不支援 reasoning 串流的模型（OpenAI、Gemini 3.1 Flash Image）會先顯示「此模型不支援思考過程」提示，避免面板留白
+
+### 重構
+- 新增 `src/constants/modelCatalog.js` 作為跨能力模型目錄的單一事實源；`IMAGE_MODELS` / `TEXT_MODELS` / `TTS_MODELS` 均改由 catalog 衍生
+- 新增 `src/services/providers/` 目錄，內含 `openaiClient`、`openaiImage`、`openaiText`、`openaiTts` 四個 adapter，worker-safe 設計支援主執行緒與 Worker 共用
+- `useApiKeyManager.getApiKey` 支援新物件形式 `{ provider, usage }`，保留舊字串形式向後相容
+- `useApi.generateImageStream` 依 model ID 經 catalog 反推 provider 後 dispatch；既有 retry / abort / timeout / rate-limit 機制完整保留
+
+### 相容性
+- 舊備份 / WebRTC 傳輸：無 schema 變更。`options.model` 字串仍然是唯一 provider 來源，新增 `getRecordProvider()` helper 負責統一反推
+- 索引：切換 embedding provider 時會彈出確認對話框，確認後自動觸發 selfHeal 重建（向量空間不同，無法共用）
+
+### 已知限制
+- OpenAI 路徑無 Free Tier fallback（OpenAI 沒有對等概念，單一金鑰覆蓋所有 OpenAI 能力）
+- Video 模式（Veo 3.1）與 Agent 模式（Gemini 3 + codeExecution）仍為 Gemini 專屬
+- OpenAI TTS 無原生 multi-speaker：雙說話人採分段呼叫 + 客戶端拼接，輸出 WAV
+- OpenAI text-embedding 僅支援文字，多模態圖片 embedding 仍限 Gemini 路徑
+
 ## v0.32.2
 
 _2026-03-18_

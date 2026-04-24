@@ -589,24 +589,48 @@ Blob → download
 | `composables/useLightboxDownload.js` | 下載流程整合 |
 | `components/Mp4QualityModal.vue` | 品質選擇 UI |
 
+### Multi-Provider Architecture (Gemini + OpenAI)
+
+生圖、文字 LLM、Embedding、TTS 四項能力皆支援 OpenAI 與 Gemini 雙 provider。Video (Veo 3.1) 與 Agent (codeExecution tool) 仍為 Gemini 專屬。
+
+**單一事實源**: `src/constants/modelCatalog.js` 維護 `IMAGE_MODEL_CATALOG` / `TEXT_MODEL_CATALOG` / `EMBEDDING_MODEL_CATALOG` / `TTS_MODEL_CATALOG`。`IMAGE_MODELS`、`TEXT_MODELS`、`TTS_MODELS` 皆從 catalog 衍生，新增 provider 或 model 只需改 catalog 一處。
+
+**Adapter 目錄**: `src/services/providers/`
+| 檔案 | 職責 |
+|------|------|
+| `openaiClient.js` | 共用 fetch wrapper、SSE parse、錯誤分類（worker-safe） |
+| `openaiImage.js` | `/images/generations` + `/images/edits`、aspect→size 映射、partial_images 串流 |
+| `openaiText.js` | `/chat/completions`、strict json_schema、reasoning_effort、SSE |
+| `openaiTts.js` | `/audio/speech`、`parseSpeakerSegments`、多說話人 AudioContext 拼接 |
+| `index.js` | `resolveProvider(capability, modelId)` registry |
+
+**Dispatch 模式**: 每個 callsite 透過 `resolveProvider('image', model)` 判斷 provider，再走對應路徑。Gemini 保留 `callWithFallback` 雙金鑰 fallback；OpenAI 以單一 key 直接呼叫。
+
+**思考串流限制**: OpenAI 無 reasoning 串流。對應 UI 在 stream 開始時發出一次「此模型不支援思考過程」marker（`onThinkingChunk('[...]')`），思考面板改顯示 loading 動畫。
+
+**Embedding 切換**: 不同模型的向量空間無法共用（即使維度相同）。`EmbeddingProviderModal` 切換時彈 confirm 對話框，確認後由 worker 自動執行 `switchProvider()` → selfHeal 重建索引。Matryoshka 變體（small@768 / large@768 / large@1536）以 `dimensions` 參數傳遞給 OpenAI。**`text-embedding-ada-002` 不支援 `dimensions`，故不納入 catalog。**
+
+**TTS 多說話人**: OpenAI 無原生 multi-speaker。`generateMultiSpeakerOpenAI` 用 `parseSpeakerSegments` 切段 → 分次呼叫 `/audio/speech` → AudioContext 解碼並拼接 → 輸出 WAV Blob。
+
+**備份相容**: 無 schema 變更。`options.model` 字串即可反推 provider，`getRecordProvider(record)` (in `utils/model-display-name.js`) 為統一入口。舊備份（pre-OpenAI）所有記錄解析為 `'gemini'`。
+
 ### API Key 分流機制
 
-本專案使用雙 API Key 架構來優化 API 使用成本：
+本專案使用 Gemini 雙 Key + OpenAI 單 Key 架構：
 
 **儲存位置：**
 | Key Type | localStorage Key | 用途 |
 |----------|------------------|------|
-| 付費金鑰 (Primary) | `nanobanana-api-key` | 圖片/影片生成（強制使用） |
-| Free Tier 金鑰 (Secondary) | `nanobanana-free-tier-api-key` | 文字處理（優先使用） |
+| Gemini 付費 (Primary) | `nanobanana-api-key` | Gemini 圖片/影片生成（強制使用） |
+| Gemini Free Tier (Secondary) | `nanobanana-free-tier-api-key` | Gemini 文字處理（優先使用） |
+| OpenAI | `nanobanana-openai-api-key` | 所有 OpenAI provider 路徑（圖片/文字/embedding/TTS 共用） |
 
 **使用情境分類：**
 | 功能 | Usage Type | 優先金鑰 | Fallback |
 |------|------------|----------|----------|
-| 圖片生成 | `image` | 付費 | ❌ 無 |
-| 影片生成 | `image` | 付費 | ❌ 無 |
-| 角色萃取 | `text` | Free Tier | ✅ 付費 |
-| 簡報風格分析 | `text` | Free Tier | ✅ 付費 |
-| 其他文字處理 | `text` | Free Tier | ✅ 付費 |
+| Gemini 圖片/影片生成 | `image` | 付費 | ❌ 無 |
+| Gemini 角色萃取 / 文字處理 | `text` | Free Tier | ✅ 付費 |
+| OpenAI 任何能力 | N/A | OpenAI 單一金鑰 | ❌ 無 |
 
 **使用方式：**
 ```javascript
@@ -614,24 +638,30 @@ import { useApiKeyManager } from '@/composables/useApiKeyManager'
 
 const { getApiKey, callWithFallback, hasApiKeyFor } = useApiKeyManager()
 
-// 圖片生成：強制付費金鑰
+// Gemini 圖片：強制付費金鑰（舊字串形式）
 const imageKey = getApiKey('image')
 
-// 文字處理：自動 fallback (Free Tier → 付費)
+// Gemini 文字：自動 fallback (Free Tier → 付費)
 const result = await callWithFallback(async (apiKey) => {
   const ai = new GoogleGenAI({ apiKey })
   return await ai.models.generateContent(...)
 }, 'text')
 
+// 明確指定 provider（新物件形式，建議用於 provider dispatch）
+const openaiKey = getApiKey({ provider: 'openai' })
+const geminiImageKey = getApiKey({ provider: 'gemini', usage: 'image' })
+
 // 檢查是否有可用金鑰
-if (hasApiKeyFor('text')) { ... }
+if (hasApiKeyFor({ provider: 'openai' })) { ... }
+if (hasApiKeyFor('text')) { ... } // 等同 { provider: 'gemini', usage: 'text' }
 ```
 
 **注意事項：**
-- 圖片/影片生成必須使用 `usage='image'`
-- 文字處理使用 `usage='text'` 或 `callWithFallback`
+- Gemini 圖片/影片生成必須使用 `usage='image'`
+- Gemini 文字處理使用 `usage='text'` 或 `callWithFallback`
 - Free Tier 免費額度用罄時（429 錯誤）會自動切換到付費金鑰
 - 免費額度狀態會在 1 小時後自動重置
+- OpenAI 無 Free Tier 概念；`callWithFallback` 僅用於 Gemini 路徑
 
 ### Constants
 - `constants/defaults.js` - Default options per mode (`getDefaultOptions()`)
