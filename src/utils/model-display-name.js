@@ -5,7 +5,13 @@
 import { IMAGE_MODELS, DEFAULT_MODEL } from '@/constants/imageOptions'
 import { TEXT_MODELS } from '@/constants/modelOptions'
 import { VEO_MODEL_OPTIONS } from '@/constants/videoPricing'
-import { IMAGE_MODEL_CATALOG, TEXT_MODEL_CATALOG } from '@/constants/modelCatalog'
+import {
+  IMAGE_MODEL_CATALOG,
+  TEXT_MODEL_CATALOG,
+  TTS_MODEL_CATALOG,
+  EMBEDDING_MODEL_CATALOG,
+  getProviderForModel,
+} from '@/constants/modelCatalog'
 
 // Full label map: codeName → full label (for info panel)
 const modelMap = new Map()
@@ -32,6 +38,35 @@ const shortMap = new Map([
 
 // Image generation modes that default to DEFAULT_MODEL when no model specified
 const IMAGE_MODES = new Set(['generate', 'sticker', 'edit', 'story', 'diagram', 'slides'])
+
+/**
+ * Resolve the provider for a history record without requiring a separate
+ * persisted field. Older records (pre-OpenAI) and JSON backups only carry
+ * `options.model`; this helper infers the provider by scanning every catalog.
+ *
+ * @param {Object|null|undefined} record
+ * @returns {'gemini'|'openai'|'local'|null}
+ */
+export function getRecordProvider(record) {
+  if (!record) return null
+  const modelId = record?.options?.model
+  if (!modelId) {
+    // Image modes implicitly default to the Gemini default image model.
+    if (IMAGE_MODES.has(record.mode)) return 'gemini'
+    if (record.mode === 'agent') return 'gemini'
+    return null
+  }
+  for (const capability of ['image', 'text', 'tts', 'embedding']) {
+    const provider = getProviderForModel(capability, modelId)
+    if (provider) return provider
+  }
+  return null
+}
+
+// Ensure OpenAI TTS and embedding models resolve too, in case they ever appear
+// in a history entry (e.g., future features that persist per-record TTS/embed).
+for (const m of TTS_MODEL_CATALOG) modelMap.set(m.id, m.label)
+for (const m of EMBEDDING_MODEL_CATALOG) modelMap.set(m.id, m.label)
 
 /**
  * Get full display name for a model code name.

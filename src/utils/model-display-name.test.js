@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { getModelDisplayName, getModelShortName, getHistoryModelName } from './model-display-name'
+import {
+  getModelDisplayName,
+  getModelShortName,
+  getHistoryModelName,
+  getRecordProvider,
+} from './model-display-name'
 
 describe('getModelDisplayName', () => {
   it('returns full label for known image model', () => {
@@ -92,5 +97,49 @@ describe('getHistoryModelName', () => {
   it('returns image model for slides mode', () => {
     expect(getHistoryModelName('slides', { model: 'gemini-3-pro-image-preview' }))
       .toBe('3 Pro')
+  })
+})
+
+describe('getRecordProvider', () => {
+  it('returns null for missing record', () => {
+    expect(getRecordProvider(null)).toBeNull()
+    expect(getRecordProvider(undefined)).toBeNull()
+  })
+
+  it('resolves Gemini image models', () => {
+    expect(getRecordProvider({
+      mode: 'generate',
+      options: { model: 'gemini-3-pro-image-preview' },
+    })).toBe('gemini')
+  })
+
+  it('resolves OpenAI image models', () => {
+    expect(getRecordProvider({
+      mode: 'generate',
+      options: { model: 'gpt-image-2' },
+    })).toBe('openai')
+  })
+
+  it('resolves OpenAI text models', () => {
+    expect(getRecordProvider({
+      mode: 'slides',
+      options: { model: 'gpt-5.4-mini' },
+    })).toBe('openai')
+  })
+
+  it('falls back to gemini for image modes without model (legacy records)', () => {
+    expect(getRecordProvider({ mode: 'generate', options: {} })).toBe('gemini')
+    expect(getRecordProvider({ mode: 'sticker' })).toBe('gemini')
+  })
+
+  it('returns gemini for agent mode records', () => {
+    expect(getRecordProvider({ mode: 'agent' })).toBe('gemini')
+  })
+
+  it('returns null for unknown model ids', () => {
+    expect(getRecordProvider({
+      mode: 'video',
+      options: { model: 'something-unknown' },
+    })).toBeNull()
   })
 })
