@@ -3,11 +3,19 @@
  * Used by: slides analysis, content splitter, narration scripts, character extraction, agent chat
  *
  * NOT for: TTS models (voiceOptions.js), video models (videoPricing.js), image models (imageOptions.js)
+ *
+ * Derived from modelCatalog.TEXT_MODEL_CATALOG so adding a provider in one place
+ * propagates to every text-model selector in the UI.
  */
 
-export const TEXT_MODELS = [
-  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash' },
-  { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro' },
-]
+import { TEXT_MODEL_CATALOG } from './modelCatalog'
 
-export const DEFAULT_TEXT_MODEL = TEXT_MODELS[0].value
+export const TEXT_MODELS = TEXT_MODEL_CATALOG.map((m) => ({
+  value: m.id,
+  label: m.label,
+  provider: m.provider,
+  group: m.group,
+}))
+
+export const DEFAULT_TEXT_MODEL = TEXT_MODEL_CATALOG.find((m) => m.isDefault)?.id
+  || TEXT_MODEL_CATALOG[0].id

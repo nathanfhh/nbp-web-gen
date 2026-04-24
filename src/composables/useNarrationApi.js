@@ -7,6 +7,8 @@ import { getLanguageDirectives } from '@/constants/voiceOptions'
 import { t } from '@/i18n'
 import { createMinIntervalLimiter } from './requestScheduler'
 import { TTS_MIN_START_INTERVAL_MS } from '@/constants'
+import { resolveProvider } from '@/services/providers'
+import { generateTextOpenAI } from '@/services/providers/openaiText'
 
 // Module-level singleton for TTS rate limiting
 // TTS API limit is 10 RPM, so minimum 6 seconds between request starts
@@ -68,7 +70,7 @@ const STYLE_DESCRIPTIONS = {
  * Composable for narration script generation and TTS audio
  */
 export function useNarrationApi() {
-  const { callWithFallback } = useApiKeyManager()
+  const { callWithFallback, getOpenAIApiKey } = useApiKeyManager()
   const store = useGeneratorStore()
 
   /**
@@ -160,9 +162,26 @@ ${
    * @returns {Promise<Object>} Parsed JSON response
    */
   const callScriptGeneration = async (pages, settings, model, temperature, onThinkingChunk) => {
+    const prompt = buildNarrationPrompt(pages, settings)
+    const provider = resolveProvider('text', model) || 'gemini'
+
+    if (provider === 'openai') {
+      const textResponse = await generateTextOpenAI({
+        apiKey: getOpenAIApiKey(),
+        model,
+        prompt,
+        responseSchema: NARRATION_SCRIPT_SCHEMA,
+        temperature,
+        reasoningEffort: 'high',
+        stream: true,
+        onThinkingChunk,
+        noThinkingMessage: `[${t('generation.noThinkingProcess')}]\n`,
+      })
+      return JSON.parse(textResponse.trim())
+    }
+
     return callWithFallback(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey })
-      const prompt = buildNarrationPrompt(pages, settings)
 
       const response = await ai.models.generateContentStream({
         model,

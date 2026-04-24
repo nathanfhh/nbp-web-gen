@@ -4,6 +4,8 @@ import { useApiKeyManager } from './useApiKeyManager'
 import { t } from '@/i18n'
 
 import { DEFAULT_TEXT_MODEL } from '@/constants/modelOptions'
+import { resolveProvider } from '@/services/providers'
+import { generateTextOpenAI } from '@/services/providers/openaiText'
 
 export { TEXT_MODELS as EXTRACTION_MODELS } from '@/constants/modelOptions'
 export { DEFAULT_TEXT_MODEL }
@@ -55,7 +57,7 @@ const EXTRACTION_SCHEMA = {
 export function useCharacterExtraction() {
   const isExtracting = ref(false)
   const extractionError = ref(null)
-  const { callWithFallback, hasApiKeyFor } = useApiKeyManager()
+  const { callWithFallback, hasApiKeyFor, getOpenAIApiKey } = useApiKeyManager()
 
   /**
    * Extract character features from an image
@@ -71,7 +73,9 @@ export function useCharacterExtraction() {
     mimeType = 'image/png',
     model = DEFAULT_TEXT_MODEL,
   }) => {
-    if (!hasApiKeyFor('text')) {
+    const provider = resolveProvider('text', model) || 'gemini'
+
+    if (!hasApiKeyFor({ provider, usage: 'text' })) {
       throw new Error(t('errors.apiKeyNotSet'))
     }
 
@@ -83,52 +87,62 @@ export function useCharacterExtraction() {
     extractionError.value = null
 
     try {
-      // Use callWithFallback for automatic Free Tier → Paid fallback
-      const response = await callWithFallback(async (apiKey) => {
-        const ai = new GoogleGenAI({ apiKey })
-
-        return await ai.models.generateContent({
-          model,
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: EXTRACTION_PROMPT },
-                {
-                  inlineData: {
-                    mimeType,
-                    data: imageData,
-                  },
-                },
-              ],
-            },
-          ],
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: EXTRACTION_SCHEMA,
-            temperature: 0.2, // Low temperature for consistent extraction
-            thinkingConfig: {
-              thinkingLevel: 'HIGH',
-            },
-          },
-        })
-      }, 'text')
-
-      // Extract JSON from response
-      if (!response.candidates || response.candidates.length === 0) {
-        throw new Error(t('errors.noImageInResponse'))
-      }
-
-      const candidate = response.candidates[0]
-      if (!candidate.content || !candidate.content.parts) {
-        throw new Error(t('errors.invalidResponseFormat'))
-      }
-
-      // Find the text part containing JSON
       let jsonText = ''
-      for (const part of candidate.content.parts) {
-        if (part.text) {
-          jsonText += part.text
+
+      if (provider === 'openai') {
+        jsonText = await generateTextOpenAI({
+          apiKey: getOpenAIApiKey(),
+          model,
+          prompt: EXTRACTION_PROMPT,
+          images: [{ data: imageData, mimeType }],
+          responseSchema: EXTRACTION_SCHEMA,
+          temperature: 0.2,
+          reasoningEffort: 'high',
+          stream: false,
+        })
+      } else {
+        // Use callWithFallback for automatic Free Tier → Paid fallback
+        const response = await callWithFallback(async (apiKey) => {
+          const ai = new GoogleGenAI({ apiKey })
+
+          return await ai.models.generateContent({
+            model,
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: EXTRACTION_PROMPT },
+                  {
+                    inlineData: {
+                      mimeType,
+                      data: imageData,
+                    },
+                  },
+                ],
+              },
+            ],
+            config: {
+              responseMimeType: 'application/json',
+              responseSchema: EXTRACTION_SCHEMA,
+              temperature: 0.2, // Low temperature for consistent extraction
+              thinkingConfig: {
+                thinkingLevel: 'HIGH',
+              },
+            },
+          })
+        }, 'text')
+
+        if (!response.candidates || response.candidates.length === 0) {
+          throw new Error(t('errors.noImageInResponse'))
+        }
+
+        const candidate = response.candidates[0]
+        if (!candidate.content || !candidate.content.parts) {
+          throw new Error(t('errors.invalidResponseFormat'))
+        }
+
+        for (const part of candidate.content.parts) {
+          if (part.text) jsonText += part.text
         }
       }
 
@@ -136,10 +150,8 @@ export function useCharacterExtraction() {
         throw new Error(t('errors.invalidResponseFormat'))
       }
 
-      // Parse the JSON response
       const extractedData = JSON.parse(jsonText)
 
-      // Validate and normalize the extracted data
       return normalizeExtractedData(extractedData)
     } catch (err) {
       extractionError.value = err.message
