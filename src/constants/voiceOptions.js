@@ -5,6 +5,7 @@
  * Reference: https://ai.google.dev/gemini-api/docs/text-to-speech
  */
 import { DEFAULT_TEXT_MODEL } from './modelOptions'
+import { TTS_MODEL_CATALOG } from './modelCatalog'
 
 export const VOICES = [
   { name: 'Zephyr', characteristic: 'Bright', gender: 'female' },
@@ -83,9 +84,25 @@ export const NARRATION_STYLES = ['discussion', 'critical', 'debate']
 
 export { TEXT_MODELS as SCRIPT_MODELS } from './modelOptions'
 
-export const TTS_MODELS = [
-  { value: 'gemini-2.5-flash-preview-tts', label: 'Flash TTS' },
-  { value: 'gemini-2.5-pro-preview-tts', label: 'Pro TTS' },
+// Derived from TTS_MODEL_CATALOG so any provider added to the catalog
+// shows up in every TTS selector in the UI.
+export const TTS_MODELS = TTS_MODEL_CATALOG.map((m) => ({
+  value: m.id,
+  label: m.label,
+  provider: m.provider,
+  group: m.group,
+}))
+
+// OpenAI TTS voices — different set from Gemini's 30 character voices.
+export const OPENAI_VOICES = [
+  { name: 'alloy', characteristic: 'Neutral' },
+  { name: 'echo', characteristic: 'Expressive' },
+  { name: 'fable', characteristic: 'Narrative' },
+  { name: 'nova', characteristic: 'Bright' },
+  { name: 'onyx', characteristic: 'Deep' },
+  { name: 'shimmer', characteristic: 'Warm' },
+  { name: 'marin', characteristic: 'Natural' },
+  { name: 'cedar', characteristic: 'Grounded' },
 ]
 
 /**

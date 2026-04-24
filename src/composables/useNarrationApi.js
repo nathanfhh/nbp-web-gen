@@ -9,6 +9,10 @@ import { createMinIntervalLimiter } from './requestScheduler'
 import { TTS_MIN_START_INTERVAL_MS } from '@/constants'
 import { resolveProvider } from '@/services/providers'
 import { generateTextOpenAI } from '@/services/providers/openaiText'
+import {
+  generateSpeechOpenAI,
+  generateMultiSpeakerOpenAI,
+} from '@/services/providers/openaiTts'
 
 // Module-level singleton for TTS rate limiting
 // TTS API limit is 10 RPM, so minimum 6 seconds between request starts
@@ -324,6 +328,35 @@ ${
             },
           }
 
+    const provider = resolveProvider('tts', ttsModel) || 'gemini'
+
+    if (provider === 'openai') {
+      // OpenAI has no native multi-speaker endpoint; stitch client-side when needed.
+      const instructions = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective]
+        .filter(Boolean)
+        .join('\n\n')
+
+      if (settings.speakerMode === 'dual') {
+        return await generateMultiSpeakerOpenAI({
+          apiKey: getOpenAIApiKey(),
+          model: ttsModel,
+          script,
+          speakers: settings.speakers.map((s) => ({ name: s.name, voice: s.voiceName })),
+          instructions,
+        })
+      }
+
+      return await generateSpeechOpenAI({
+        apiKey: getOpenAIApiKey(),
+        model: ttsModel,
+        input: script,
+        voice: settings.speakers[0].voiceName,
+        instructions,
+        format: 'mp3',
+      })
+    }
+
+    // Gemini path
     const result = await callWithFallback(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey })
 
