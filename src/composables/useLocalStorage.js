@@ -1,5 +1,6 @@
 const API_KEY_STORAGE_KEY = 'nanobanana-api-key'
 const FREE_TIER_API_KEY_STORAGE_KEY = 'nanobanana-free-tier-api-key'
+const OPENAI_API_KEY_STORAGE_KEY = 'nanobanana-openai-api-key'
 const SETTINGS_STORAGE_KEY = 'nanobanana-settings'
 
 export function useLocalStorage() {
@@ -55,6 +56,32 @@ export function useLocalStorage() {
     return !!getFreeTierApiKey()
   }
 
+  // OpenAI API Key management (single key — no free tier concept)
+  const getOpenAIApiKey = () => {
+    try {
+      return localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY) || ''
+    } catch {
+      return ''
+    }
+  }
+
+  const setOpenAIApiKey = (key) => {
+    try {
+      if (key) {
+        localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, key)
+      } else {
+        localStorage.removeItem(OPENAI_API_KEY_STORAGE_KEY)
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const hasOpenAIApiKey = () => {
+    return !!getOpenAIApiKey()
+  }
+
   // Quick settings (for UI state that doesn't need IndexedDB)
   const getQuickSettings = () => {
     try {
@@ -94,6 +121,10 @@ export function useLocalStorage() {
     getFreeTierApiKey,
     setFreeTierApiKey,
     hasFreeTierApiKey,
+    // OpenAI API Key
+    getOpenAIApiKey,
+    setOpenAIApiKey,
+    hasOpenAIApiKey,
     // Quick settings
     getQuickSettings,
     setQuickSettings,
