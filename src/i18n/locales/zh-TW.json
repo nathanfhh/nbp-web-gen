@@ -851,10 +851,17 @@
         "pros": "效果較佳、跨語言能力強",
         "cons": "使用 API 金鑰計費（~$0.15 / 百萬 tokens）"
       },
+      "openai": {
+        "descriptionSmall": "text-embedding-3-small (1536 維) — 速度快、成本低",
+        "descriptionLarge": "text-embedding-3-large (3072 維) — 效果最佳、成本較高",
+        "descriptionTruncated": "以 Matryoshka 截斷至 {dims} 維，節省儲存與搜尋成本"
+      },
       "select": "選擇",
       "current": "使用中",
       "switchHint": "之後可隨時在搜尋介面切換",
-      "noApiKey": "需要先設定 API Key"
+      "noApiKey": "需要先設定 API Key",
+      "rebuildHint": "切換 provider 會重新嵌入所有已索引的記錄",
+      "rebuildConfirm": "切換 embedding provider 會重新嵌入所有已索引的歷史記錄。確定要繼續嗎？"
     },
     "providerLabel": "引擎：",
     "backfilling": "補齊語意索引中 {current}/{total}...",

@@ -334,13 +334,14 @@ export function useSearchWorker() {
         // Read API keys from localStorage (worker can't access it directly)
         const apiKey = localStorage.getItem('nanobanana-api-key') || ''
         const freeApiKey = localStorage.getItem('nanobanana-free-tier-api-key') || ''
+        const openaiApiKey = localStorage.getItem('nanobanana-openai-api-key') || ''
 
         // Read embedding provider preference from localStorage
         const provider = localStorage.getItem('nbp-search-embedding-provider') || null
         embeddingProvider.value = provider
 
         // Send init command with API keys and provider
-        worker.postMessage({ type: 'init', apiKey, freeApiKey, provider })
+        worker.postMessage({ type: 'init', apiKey, freeApiKey, openaiApiKey, provider })
       } catch (err) {
         error.value = err.message
         isModelLoading.value = false
@@ -436,7 +437,8 @@ export function useSearchWorker() {
     if (!worker) return
     const apiKey = localStorage.getItem('nanobanana-api-key') || ''
     const freeApiKey = localStorage.getItem('nanobanana-free-tier-api-key') || ''
-    worker.postMessage({ type: 'updateApiKeys', apiKey, freeApiKey })
+    const openaiApiKey = localStorage.getItem('nanobanana-openai-api-key') || ''
+    worker.postMessage({ type: 'updateApiKeys', apiKey, freeApiKey, openaiApiKey })
   }
 
   /**
