@@ -1,8 +1,16 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import { VOICES, DEFAULT_LANGUAGES, NARRATION_STYLES, SCRIPT_MODELS, TTS_MODELS } from '@/constants/voiceOptions'
+import {
+  VOICES,
+  OPENAI_VOICES,
+  DEFAULT_LANGUAGES,
+  NARRATION_STYLES,
+  SCRIPT_MODELS,
+  TTS_MODELS,
+} from '@/constants/voiceOptions'
+import { getProviderForModel } from '@/constants/modelCatalog'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import VoicePreviewButton from '@/components/VoicePreviewButton.vue'
 
@@ -58,31 +66,62 @@ const addCustomLanguage = () => {
   showAddLanguage.value = false
 }
 
-// Voice helpers
+// TTS provider — determines which voice list applies. OpenAI and Gemini use
+// disjoint voice sets; sending a Gemini voice to OpenAI (or vice-versa) gets
+// the request rejected with an unknown-voice 400.
+const ttsProvider = computed(() => getProviderForModel('tts', props.modelValue.ttsModel) || 'gemini')
+
 const voicesByGender = computed(() => {
   const female = VOICES.filter((v) => v.gender === 'female')
   const male = VOICES.filter((v) => v.gender === 'male')
   return { female, male }
 })
 
-const voiceGroups = computed(() => [
-  {
-    label: 'Female',
-    options: voicesByGender.value.female.map((v) => ({
-      value: v.name,
-      label: v.name,
-      description: v.characteristic,
-    })),
-  },
-  {
-    label: 'Male',
-    options: voicesByGender.value.male.map((v) => ({
-      value: v.name,
-      label: v.name,
-      description: v.characteristic,
-    })),
-  },
-])
+const voiceGroups = computed(() => {
+  if (ttsProvider.value === 'openai') {
+    return [
+      {
+        label: 'OpenAI',
+        options: OPENAI_VOICES.map((v) => ({
+          value: v.name,
+          label: v.name,
+          description: v.characteristic,
+        })),
+      },
+    ]
+  }
+  return [
+    {
+      label: 'Female',
+      options: voicesByGender.value.female.map((v) => ({
+        value: v.name,
+        label: v.name,
+        description: v.characteristic,
+      })),
+    },
+    {
+      label: 'Male',
+      options: voicesByGender.value.male.map((v) => ({
+        value: v.name,
+        label: v.name,
+        description: v.characteristic,
+      })),
+    },
+  ]
+})
+
+// Reset speaker voices to the new provider's default whenever the TTS model
+// switches between providers. This prevents the config from being stuck on a
+// Gemini voice while sending requests to OpenAI (or vice-versa).
+watch(ttsProvider, (provider, previous) => {
+  if (!previous || provider === previous) return
+  const allowed = new Set(voiceGroups.value.flatMap((g) => g.options.map((o) => o.value)))
+  const fallback = provider === 'openai' ? 'alloy' : 'Zephyr'
+  const speakers = props.modelValue.speakers.map((s) =>
+    allowed.has(s.voiceName) ? s : { ...s, voiceName: fallback },
+  )
+  emit('update:modelValue', { ...props.modelValue, speakers })
+})
 
 const isDuplicateVoice = computed(() => {
   if (props.modelValue.speakerMode !== 'dual') return false
