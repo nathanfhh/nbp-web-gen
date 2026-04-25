@@ -187,7 +187,8 @@
       "conservative": "Conservative",
       "balanced": "Balanced",
       "creative": "Creative",
-      "wild": "Wild"
+      "wild": "Wild",
+      "openaiIgnored": "⚠️ OpenAI image models ignore temperature; gpt-5.4 reasoning models only accept the default (auto-omitted)"
     },
     "seed": {
       "label": "Seed (Random Seed)",
@@ -204,6 +205,7 @@
   },
   "options": {
     "resolution": "Resolution",
+    "openaiSizeHint": "OpenAI output size: {size}",
     "outputResolution": "Output Resolution",
     "quality": "Quality",
     "aspectRatio": "Aspect Ratio",
@@ -1156,7 +1158,8 @@
     "generating": "Generating image {current}/{total}"
   },
   "generation": {
-    "noThinkingProcess": "This model does not provide thinking process"
+    "noThinkingProcess": "This model does not provide thinking process",
+    "retrying": "Retry {attempt}/{max} (reason: {reason}, waiting {seconds}s)"
   },
   "styles": {
     "photorealistic": "Photorealistic",

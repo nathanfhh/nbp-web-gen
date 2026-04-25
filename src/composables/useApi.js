@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { GoogleGenAI, Modality, ThinkingLevel } from '@google/genai'
 import { isQuotaError, useApiKeyManager } from './useApiKeyManager'
+import { useToast } from './useToast'
 import { buildPrompt } from './promptBuilders'
 import { resolveProvider } from '@/services/providers'
 import { generateImageOpenAI } from '@/services/providers/openaiImage'
@@ -43,6 +44,7 @@ export function useApi() {
   const isLoading = computed(() => loadingCount.value > 0)
   const error = ref(null)
   const { getApiKey } = useApiKeyManager()
+  const toast = useToast()
 
   const withLoading = async (fn) => {
     loadingCount.value += 1
@@ -272,8 +274,12 @@ export function useApi() {
 
       const jobId = request?.jobId || null
 
-      // Per-request timeout (can be overridden, 0 = no timeout)
-      const timeoutMs = clampInt(request?.timeoutMs, 0, 300_000, DEFAULT_REQUEST_TIMEOUT_MS)
+      // Per-request timeout (can be overridden, 0 = no timeout).
+      // OpenAI image edits at 2K/4K high quality routinely exceed the Gemini
+      // default (90s); give them a longer budget before triggering abort+retry,
+      // otherwise we get into a retry loop where every attempt also times out.
+      const providerDefaultTimeoutMs = provider === 'openai' ? 300_000 : DEFAULT_REQUEST_TIMEOUT_MS
+      const timeoutMs = clampInt(request?.timeoutMs, 0, 600_000, providerDefaultTimeoutMs)
 
       // Build the enhanced prompt once (reused across retries)
       const enhancedPrompt = buildPrompt(prompt, options, mode)
@@ -492,6 +498,23 @@ export function useApi() {
             guardedThinkingChunk(
               `\n[Retry ${attempt}/${maxAttempts - 1} due to ${errorClass.reason}, waiting ${Math.ceil(delayMs / 1000)}s]\n`,
             )
+          }
+
+          // Surface retries in a toast too; the thinking panel is easy to miss,
+          // especially on long-running OpenAI image edits where the panel has
+          // no reasoning content to draw attention to.
+          try {
+            toast.warning(
+              t('generation.retrying', {
+                attempt,
+                max: maxAttempts - 1,
+                reason: errorClass.reason,
+                seconds: Math.ceil(delayMs / 1000),
+              }),
+              Math.min(delayMs + 1500, 8000),
+            )
+          } catch {
+            // i18n missing key in some rendering contexts — swallow
           }
           await sleep(delayMs)
         }

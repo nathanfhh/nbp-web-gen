@@ -187,7 +187,8 @@
       "conservative": "保守",
       "balanced": "平衡",
       "creative": "創意",
-      "wild": "狂野"
+      "wild": "狂野",
+      "openaiIgnored": "⚠️ OpenAI 圖片模型不使用此參數；gpt-5.4 推理模型亦僅接受預設值（已自動略過）"
     },
     "seed": {
       "label": "Seed（隨機種子）",
@@ -204,6 +205,7 @@
   },
   "options": {
     "resolution": "解析度",
+    "openaiSizeHint": "OpenAI 輸出尺寸：{size}",
     "outputResolution": "輸出解析度",
     "quality": "畫質",
     "aspectRatio": "寬高比",
@@ -1156,7 +1158,8 @@
     "generating": "生成第 {current}/{total} 張圖片"
   },
   "generation": {
-    "noThinkingProcess": "此模型目前未提供思考過程"
+    "noThinkingProcess": "此模型目前未提供思考過程",
+    "retrying": "第 {attempt}/{max} 次重試（原因：{reason}，{seconds} 秒後繼續）"
   },
   "styles": {
     "photorealistic": "寫實攝影",
