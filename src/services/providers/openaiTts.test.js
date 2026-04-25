@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { parseSpeakerSegments, modelSupportsTtsInstructions } from './openaiTts'
+import {
+  parseSpeakerSegments,
+  modelSupportsTtsInstructions,
+  generateMultiSpeakerOpenAI,
+} from './openaiTts'
 
 describe('openaiTts / parseSpeakerSegments', () => {
   it('returns a single anonymous segment when no speakers are given', () => {
@@ -65,6 +69,32 @@ Bob: `
       { speaker: 'Alice', text: 'one' },
       { speaker: 'Bob', text: 'two' },
     ])
+  })
+})
+
+describe('generateMultiSpeakerOpenAI input validation', () => {
+  const baseArgs = {
+    apiKey: 'sk-test',
+    model: 'gpt-4o-mini-tts-2025-12-15',
+    script: 'Alice: hi\nBob: hello',
+  }
+
+  it('rejects empty speakers array with a clear error', async () => {
+    await expect(
+      generateMultiSpeakerOpenAI({ ...baseArgs, speakers: [] }),
+    ).rejects.toThrow(/at least one speaker/i)
+  })
+
+  it('rejects non-array speakers', async () => {
+    await expect(
+      generateMultiSpeakerOpenAI({ ...baseArgs, speakers: null }),
+    ).rejects.toThrow(/at least one speaker/i)
+  })
+
+  it('rejects speakers missing name or voice', async () => {
+    await expect(
+      generateMultiSpeakerOpenAI({ ...baseArgs, speakers: [{ name: '', voice: '' }] }),
+    ).rejects.toThrow(/name \+ voice/i)
   })
 })
 

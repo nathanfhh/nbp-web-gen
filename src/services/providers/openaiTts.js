@@ -184,6 +184,13 @@ export async function generateMultiSpeakerOpenAI({
   signal,
   audioContext,
 }) {
+  if (!Array.isArray(speakers) || speakers.length === 0) {
+    throw new Error('generateMultiSpeakerOpenAI requires at least one speaker')
+  }
+  if (!speakers.some((s) => s && s.name && s.voice)) {
+    throw new Error('generateMultiSpeakerOpenAI requires every speaker to have name + voice')
+  }
+
   const names = speakers.map((s) => s.name)
   const voiceByName = new Map(speakers.map((s) => [s.name, s.voice]))
   const segments = parseSpeakerSegments(script, names)
@@ -192,9 +199,21 @@ export async function generateMultiSpeakerOpenAI({
     throw new Error('No speaker segments parsed from script')
   }
 
+  // Capability check before constructing the AudioContext — some embedded /
+  // background contexts (e.g. service workers, headless test envs) lack it,
+  // and the raw TypeError from `new undefined()` is hard to diagnose.
+  const AudioCtxCtor = audioContext
+    ? null
+    : globalThis.AudioContext || globalThis.webkitAudioContext
+  if (!audioContext && !AudioCtxCtor) {
+    throw new Error(
+      'AudioContext is unavailable in this environment; multi-speaker OpenAI TTS '
+        + 'requires the Web Audio API or a caller-provided AudioContext.',
+    )
+  }
+
   const ownCtx = !audioContext
-   
-  const ctx = audioContext || new (globalThis.AudioContext || globalThis.webkitAudioContext)()
+  const ctx = audioContext || new AudioCtxCtor()
 
   try {
     const buffers = []

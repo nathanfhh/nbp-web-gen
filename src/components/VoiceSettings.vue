@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
 import {
   VOICES,
-  OPENAI_VOICES,
+  getOpenAIVoicesForModel,
   DEFAULT_LANGUAGES,
   NARRATION_STYLES,
   SCRIPT_MODELS,
@@ -79,10 +79,14 @@ const voicesByGender = computed(() => {
 
 const voiceGroups = computed(() => {
   if (ttsProvider.value === 'openai') {
+    // OpenAI voice support varies by model (tts-1/-hd accept 9 voices,
+    // gpt-4o-mini-tts accepts 13). Filter so users cannot pick a voice the
+    // selected ttsModel will reject at runtime.
+    const filtered = getOpenAIVoicesForModel(props.modelValue.ttsModel)
     return [
       {
         label: 'OpenAI',
-        options: OPENAI_VOICES.map((v) => ({
+        options: filtered.map((v) => ({
           value: v.name,
           label: v.name,
           description: v.characteristic,
@@ -110,18 +114,26 @@ const voiceGroups = computed(() => {
   ]
 })
 
-// Reset speaker voices to the new provider's default whenever the TTS model
-// switches between providers. This prevents the config from being stuck on a
-// Gemini voice while sending requests to OpenAI (or vice-versa).
-watch(ttsProvider, (provider, previous) => {
-  if (!previous || provider === previous) return
-  const allowed = new Set(voiceGroups.value.flatMap((g) => g.options.map((o) => o.value)))
-  const fallback = provider === 'openai' ? 'alloy' : 'Zephyr'
-  const speakers = props.modelValue.speakers.map((s) =>
-    allowed.has(s.voiceName) ? s : { ...s, voiceName: fallback },
-  )
-  emit('update:modelValue', { ...props.modelValue, speakers })
-})
+// Normalize speaker voices whenever the allowed set changes — including the
+// initial render. Without `immediate: true`, persisted bad state (e.g. saved
+// `voiceName: 'Zephyr'` paired with `ttsModel: 'tts-1'`) would survive the
+// first mount because the watcher only fired on transitions; the request
+// would then be rejected by /audio/speech with an unknown-voice 400.
+watch(
+  voiceGroups,
+  () => {
+    const allowed = new Set(voiceGroups.value.flatMap((g) => g.options.map((o) => o.value)))
+    const fallback = ttsProvider.value === 'openai' ? 'alloy' : 'Zephyr'
+    const next = props.modelValue.speakers.map((s) =>
+      allowed.has(s.voiceName) ? s : { ...s, voiceName: fallback },
+    )
+    const changed = next.some((s, i) => s.voiceName !== props.modelValue.speakers[i].voiceName)
+    if (changed) {
+      emit('update:modelValue', { ...props.modelValue, speakers: next })
+    }
+  },
+  { immediate: true },
+)
 
 const isDuplicateVoice = computed(() => {
   if (props.modelValue.speakerMode !== 'dual') return false

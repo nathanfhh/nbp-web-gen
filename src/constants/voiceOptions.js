@@ -93,17 +93,38 @@ export const TTS_MODELS = TTS_MODEL_CATALOG.map((m) => ({
   group: m.group,
 }))
 
-// OpenAI TTS voices — different set from Gemini's 30 character voices.
+// OpenAI TTS voices. Per OpenAI's /audio/speech docs, model support diverges:
+//   - tts-1 / tts-1-hd:        9 voices (the legacy set)
+//   - gpt-4o-mini-tts:         13 voices (legacy set + ballad / verse / marin / cedar)
+// `models` lists the OpenAI TTS model id PREFIXES that accept the voice. The
+// caller filters by selected ttsModel before showing options.
 export const OPENAI_VOICES = [
-  { name: 'alloy', characteristic: 'Neutral' },
-  { name: 'echo', characteristic: 'Expressive' },
-  { name: 'fable', characteristic: 'Narrative' },
-  { name: 'nova', characteristic: 'Bright' },
-  { name: 'onyx', characteristic: 'Deep' },
-  { name: 'shimmer', characteristic: 'Warm' },
-  { name: 'marin', characteristic: 'Natural' },
-  { name: 'cedar', characteristic: 'Grounded' },
+  { name: 'alloy', characteristic: 'Neutral', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'ash', characteristic: 'Crisp', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'coral', characteristic: 'Soft', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'echo', characteristic: 'Expressive', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'fable', characteristic: 'Narrative', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'nova', characteristic: 'Bright', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'onyx', characteristic: 'Deep', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'sage', characteristic: 'Measured', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'shimmer', characteristic: 'Warm', models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'] },
+  { name: 'ballad', characteristic: 'Melodic', models: ['gpt-4o-mini-tts'] },
+  { name: 'verse', characteristic: 'Lyrical', models: ['gpt-4o-mini-tts'] },
+  { name: 'marin', characteristic: 'Natural', models: ['gpt-4o-mini-tts'] },
+  { name: 'cedar', characteristic: 'Grounded', models: ['gpt-4o-mini-tts'] },
 ]
+
+/**
+ * Return the subset of OpenAI voices supported by the given OpenAI TTS model.
+ * Matches by prefix so versioned models (e.g. `gpt-4o-mini-tts-2025-12-15`)
+ * resolve to the `gpt-4o-mini-tts` family.
+ */
+export function getOpenAIVoicesForModel(modelId) {
+  if (!modelId) return OPENAI_VOICES
+  return OPENAI_VOICES.filter((v) =>
+    v.models.some((prefix) => modelId === prefix || modelId.startsWith(`${prefix}-`)),
+  )
+}
 
 /**
  * Get default narration language based on current i18n locale
