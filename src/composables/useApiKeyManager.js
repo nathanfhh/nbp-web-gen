@@ -41,7 +41,7 @@ export function useApiKeyManager() {
   let resetTimeoutId = null
 
   // 追蹤當前正在使用的 key 類型（用於 UI 顯示）
-  const lastUsedKeyType = ref(null) // 'paid' | 'freeTier' | null
+  const lastUsedKeyType = ref(null) // 'paid' | 'freeTier' | 'openai' | null
 
   /**
    * 取得 API Key。支援舊式字串 usage 與新式物件參數。

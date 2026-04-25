@@ -69,18 +69,20 @@ export const TEXT_MODEL_CATALOG = [
     label: 'Gemini 3.1 Pro',
     supportsThinking: true,
   },
-  {
-    id: 'gpt-5.4-mini',
-    provider: 'openai',
-    group: 'OpenAI',
-    label: 'GPT-5.4 mini',
-    supportsThinking: false,
-  },
+  // Higher-tier model first within the OpenAI group, matching the image and
+  // TTS catalogs (full model before -mini variant).
   {
     id: 'gpt-5.4',
     provider: 'openai',
     group: 'OpenAI',
     label: 'GPT-5.4',
+    supportsThinking: false,
+  },
+  {
+    id: 'gpt-5.4-mini',
+    provider: 'openai',
+    group: 'OpenAI',
+    label: 'GPT-5.4 mini',
     supportsThinking: false,
   },
 ]
@@ -206,7 +208,9 @@ const CATALOGS = {
 }
 
 export function getCatalog(capability) {
-  return CATALOGS[capability] || null
+  // Returns [] (not null) for unknown capabilities so callers can iterate
+  // unconditionally — matches groupByProvider / filterCatalog behaviour.
+  return CATALOGS[capability] || []
 }
 
 export function findModel(capability, id) {

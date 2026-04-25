@@ -143,18 +143,38 @@ const selectOption = (value) => {
   close()
 }
 
-// Keyboard navigation
+// Step the highlight by `delta` positions, skipping disabled entries while
+// preserving wrap-around. Returns the original index if every option is
+// disabled, avoiding an infinite loop in degenerate states.
+const advanceHighlight = (delta) => {
+  const len = filteredFlat.value.length
+  if (!len) return
+  const start = highlightIndex.value
+  let next = ((start + delta) % len + len) % len
+  for (let steps = 0; steps < len; steps++) {
+    if (!filteredFlat.value[next]?.disabled) {
+      highlightIndex.value = next
+      return
+    }
+    next = ((next + delta) % len + len) % len
+  }
+  // Every option is disabled — leave the highlight where it was.
+  highlightIndex.value = start
+}
+
+// Keyboard navigation. Arrow keys skip disabled entries so users don't get
+// stuck on a dead option (matches native <select> + ARIA listbox behaviour).
 const onKeydown = (e) => {
   const len = filteredFlat.value.length
   if (!len) return
 
   if (e.key === 'ArrowDown') {
     e.preventDefault()
-    highlightIndex.value = (highlightIndex.value + 1) % len
+    advanceHighlight(1)
     scrollToHighlighted()
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
-    highlightIndex.value = (highlightIndex.value - 1 + len) % len
+    advanceHighlight(-1)
     scrollToHighlighted()
   } else if (e.key === 'Enter') {
     e.preventDefault()
@@ -283,7 +303,7 @@ onBeforeUnmount(() => {
                 :data-highlighted="idx === highlightIndex"
                 :data-selected="opt.value === modelValue"
                 @click="selectOption(opt.value)"
-                @mouseenter="highlightIndex = idx"
+                @mouseenter="opt.disabled ? null : (highlightIndex = idx)"
               >
                 <span class="searchable-select__option-text">
                   <span>{{ opt.label }}</span>
@@ -329,7 +349,7 @@ onBeforeUnmount(() => {
                   :data-highlighted="filteredFlat.indexOf(opt) === highlightIndex"
                   :data-selected="opt.value === modelValue"
                   @click="selectOption(opt.value)"
-                  @mouseenter="highlightIndex = filteredFlat.indexOf(opt)"
+                  @mouseenter="opt.disabled ? null : (highlightIndex = filteredFlat.indexOf(opt))"
                 >
                   <span class="searchable-select__option-text">
                     <span>{{ opt.label }}</span>

@@ -72,8 +72,8 @@ describe('modelCatalog', () => {
       expect(getCatalog('tts')).toBe(TTS_MODEL_CATALOG)
     })
 
-    it('returns null for unknown capability', () => {
-      expect(getCatalog('bogus')).toBeNull()
+    it('returns [] for unknown capability (matches groupByProvider/filterCatalog)', () => {
+      expect(getCatalog('bogus')).toEqual([])
     })
   })
 

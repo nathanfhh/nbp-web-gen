@@ -310,8 +310,6 @@ ${
     // Build TTS prompt with style directives and language-specific accent
     const langDirectives = getLanguageDirectives(settings.language, settings.customLanguages)
 
-    const ttsPrompt = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective, script].filter(Boolean).join('\n\n')
-
     // Determine voice config based on speaker mode
     const speechConfig =
       settings.speakerMode === 'dual'
@@ -371,7 +369,14 @@ ${
       })
     }
 
-    // Gemini path
+    // Gemini path — combine directives + script into the prompt that
+    // Gemini TTS interprets as voice direction. Only built here since the
+    // OpenAI branch above passes directives as the separate `instructions`
+    // field and would otherwise discard this string.
+    const ttsPrompt = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective, script]
+      .filter(Boolean)
+      .join('\n\n')
+
     const result = await callWithFallback(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey })
 
