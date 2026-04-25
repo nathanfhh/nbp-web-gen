@@ -424,7 +424,10 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   z-index: 50;
-  background: var(--input-bg);
+  /* Opaque base + translucent overlay so the panel stays legible even when it
+     floats over the main page (backdrop-filter alone is not enough there). */
+  background-color: var(--bg-base);
+  background-image: linear-gradient(var(--bg-card), var(--bg-card));
   backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
