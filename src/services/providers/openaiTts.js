@@ -57,9 +57,12 @@ export async function generateSpeechOpenAI({
  * is expected to use "SpeakerName:" prefixes on lines, matching the Gemini
  * narration prompt contract.
  *
- * @param {string} script
+ * `speaker` is `null` only when the caller passes an empty / all-falsy
+ * `speakerNames` list — typical narration callers always supply names.
+ *
+ * @param {string|null|undefined} script
  * @param {string[]} speakerNames - names as they appear in the script
- * @returns {Array<{ speaker: string, text: string }>}
+ * @returns {Array<{ speaker: string | null, text: string }>}
  */
 export function parseSpeakerSegments(script, speakerNames = []) {
   if (!script) return []
@@ -98,6 +101,16 @@ export function parseSpeakerSegments(script, speakerNames = []) {
 function concatAudioBuffers(audioContext, buffers) {
   const numChannels = Math.max(1, ...buffers.map((b) => b.numberOfChannels))
   const sampleRate = buffers[0].sampleRate
+  // Stitching simply slots each buffer's PCM into the output without resampling.
+  // If any segment ever decodes at a different rate (model change, future API
+  // tweak, browser-decoder quirk), the stitched WAV would play at the wrong
+  // pitch with no warning. Surface the mismatch instead.
+  const distinctRates = new Set(buffers.map((b) => b.sampleRate))
+  if (distinctRates.size > 1) {
+    throw new Error(
+      `Cannot concatenate audio buffers with different sample rates (got ${[...distinctRates].join(', ')})`,
+    )
+  }
   const totalLength = buffers.reduce((sum, b) => sum + b.length, 0)
   const out = audioContext.createBuffer(numChannels, totalLength, sampleRate)
 

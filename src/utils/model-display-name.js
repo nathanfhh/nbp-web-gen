@@ -2,8 +2,7 @@
  * Model display name utilities
  * Maps internal model code names to human-readable labels
  */
-import { IMAGE_MODELS, DEFAULT_MODEL } from '@/constants/imageOptions'
-import { TEXT_MODELS } from '@/constants/modelOptions'
+import { DEFAULT_MODEL } from '@/constants/imageOptions'
 import { VEO_MODEL_OPTIONS } from '@/constants/videoPricing'
 import {
   IMAGE_MODEL_CATALOG,
@@ -13,14 +12,17 @@ import {
   getProviderForModel,
 } from '@/constants/modelCatalog'
 
-// Full label map: codeName → full label (for info panel)
+// Full label map: codeName → full label (for info panel).
+// IMAGE_MODELS / TEXT_MODELS now derive from the catalog, so iterating those
+// would re-add the same entries; pull straight from the catalogs instead.
+// TTS / embedding catalogs are included so future per-record TTS / embedding
+// model fields render correctly.
 const modelMap = new Map()
-for (const m of IMAGE_MODELS) modelMap.set(m.value, m.label)
-for (const m of TEXT_MODELS) modelMap.set(m.value, m.label)
-for (const m of VEO_MODEL_OPTIONS) modelMap.set(m.value, m.label)
-// OpenAI entries live only in the catalog, not in the legacy IMAGE_MODELS/TEXT_MODELS arrays.
 for (const m of IMAGE_MODEL_CATALOG) modelMap.set(m.id, m.label)
 for (const m of TEXT_MODEL_CATALOG) modelMap.set(m.id, m.label)
+for (const m of TTS_MODEL_CATALOG) modelMap.set(m.id, m.label)
+for (const m of EMBEDDING_MODEL_CATALOG) modelMap.set(m.id, m.label)
+for (const m of VEO_MODEL_OPTIONS) modelMap.set(m.value, m.label)
 
 // Short label map: codeName → compact tag label (for history list)
 const shortMap = new Map([
@@ -62,11 +64,6 @@ export function getRecordProvider(record) {
   }
   return null
 }
-
-// Ensure OpenAI TTS and embedding models resolve too, in case they ever appear
-// in a history entry (e.g., future features that persist per-record TTS/embed).
-for (const m of TTS_MODEL_CATALOG) modelMap.set(m.id, m.label)
-for (const m of EMBEDDING_MODEL_CATALOG) modelMap.set(m.id, m.label)
 
 /**
  * Get full display name for a model code name.

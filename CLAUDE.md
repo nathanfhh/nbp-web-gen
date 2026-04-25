@@ -596,6 +596,7 @@ Blob → download
 **單一事實源**: `src/constants/modelCatalog.js` 維護 `IMAGE_MODEL_CATALOG` / `TEXT_MODEL_CATALOG` / `EMBEDDING_MODEL_CATALOG` / `TTS_MODEL_CATALOG`。`IMAGE_MODELS`、`TEXT_MODELS`、`TTS_MODELS` 皆從 catalog 衍生，新增 provider 或 model 只需改 catalog 一處。
 
 **Adapter 目錄**: `src/services/providers/`
+
 | 檔案 | 職責 |
 |------|------|
 | `openaiClient.js` | 共用 fetch wrapper、SSE parse、錯誤分類（worker-safe） |
@@ -619,6 +620,7 @@ Blob → download
 本專案使用 Gemini 雙 Key + OpenAI 單 Key 架構：
 
 **儲存位置：**
+
 | Key Type | localStorage Key | 用途 |
 |----------|------------------|------|
 | Gemini 付費 (Primary) | `nanobanana-api-key` | Gemini 圖片/影片生成（強制使用） |
@@ -626,6 +628,7 @@ Blob → download
 | OpenAI | `nanobanana-openai-api-key` | 所有 OpenAI provider 路徑（圖片/文字/embedding/TTS 共用） |
 
 **使用情境分類：**
+
 | 功能 | Usage Type | 優先金鑰 | Fallback |
 |------|------------|----------|----------|
 | Gemini 圖片/影片生成 | `image` | 付費 | ❌ 無 |
