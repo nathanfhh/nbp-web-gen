@@ -170,8 +170,12 @@ ${
     const provider = resolveProvider('text', model) || 'gemini'
 
     if (provider === 'openai') {
+      const apiKey = getOpenAIApiKey()
+      if (!apiKey) {
+        throw new Error(t('errors.apiKeyNotSet'))
+      }
       const textResponse = await generateTextOpenAI({
-        apiKey: getOpenAIApiKey(),
+        apiKey,
         model,
         prompt,
         responseSchema: NARRATION_SCRIPT_SCHEMA,
@@ -181,7 +185,14 @@ ${
         onThinkingChunk,
         noThinkingMessage: `[${t('generation.noThinkingProcess')}]\n`,
       })
-      return JSON.parse(textResponse.trim())
+      // gpt-5.4 strict json_schema should never produce malformed JSON, but a
+      // partial stream cutoff or future API change could; surface a clean
+      // localized error instead of a raw SyntaxError.
+      try {
+        return JSON.parse(textResponse.trim())
+      } catch {
+        throw new Error('Invalid narration script response structure')
+      }
     }
 
     return callWithFallback(async (apiKey) => {
@@ -331,6 +342,10 @@ ${
     const provider = resolveProvider('tts', ttsModel) || 'gemini'
 
     if (provider === 'openai') {
+      const apiKey = getOpenAIApiKey()
+      if (!apiKey) {
+        throw new Error(t('errors.apiKeyNotSet'))
+      }
       // OpenAI has no native multi-speaker endpoint; stitch client-side when needed.
       const instructions = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective]
         .filter(Boolean)
@@ -338,7 +353,7 @@ ${
 
       if (settings.speakerMode === 'dual') {
         return await generateMultiSpeakerOpenAI({
-          apiKey: getOpenAIApiKey(),
+          apiKey,
           model: ttsModel,
           script,
           speakers: settings.speakers.map((s) => ({ name: s.name, voice: s.voiceName })),
@@ -347,7 +362,7 @@ ${
       }
 
       return await generateSpeechOpenAI({
-        apiKey: getOpenAIApiKey(),
+        apiKey,
         model: ttsModel,
         input: script,
         voice: settings.speakers[0].voiceName,

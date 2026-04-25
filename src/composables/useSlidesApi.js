@@ -90,8 +90,12 @@ export function useSlidesApi() {
     const provider = resolveProvider('text', model) || 'gemini'
 
     if (provider === 'openai') {
+      const apiKey = getOpenAIApiKey()
+      if (!apiKey) {
+        throw new Error(t('errors.apiKeyNotSet'))
+      }
       return await generateTextOpenAI({
-        apiKey: getOpenAIApiKey(),
+        apiKey,
         model,
         prompt,
         responseSchema,
