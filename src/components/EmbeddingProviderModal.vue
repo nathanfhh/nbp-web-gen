@@ -4,7 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { useApiKeyManager } from '@/composables/useApiKeyManager'
 
 const { t } = useI18n()
-const { hasOpenAIApiKey } = useApiKeyManager()
+const { hasApiKeyFor } = useApiKeyManager()
+// Reactive flag — re-evaluated whenever the OpenAI key changes (the underlying
+// getter taps apiKeyVersion in useLocalStorage), so providerOptions stays in
+// sync without remounting the modal.
+const openaiKeyAvailable = computed(() => hasApiKeyFor({ provider: 'openai' }))
 
 const props = defineProps({
   modelValue: {
@@ -56,56 +60,56 @@ const providerOptions = computed(() => [
     id: 'openai-small',
     group: 'openai',
     icon: '🧭',
-    title: 'OpenAI 3 small',
+    title: t('search.providerModal.openai.titleSmall'),
     badge: '1536d',
     dims: 1536,
     description: t('search.providerModal.openai.descriptionSmall'),
     requiresKey: true,
-    available: hasOpenAIApiKey(),
+    available: openaiKeyAvailable.value,
   },
   {
     id: 'openai-small-768',
     group: 'openai',
     icon: '🧭',
-    title: 'OpenAI 3 small',
+    title: t('search.providerModal.openai.titleSmall'),
     badge: '768d',
     dims: 768,
     description: t('search.providerModal.openai.descriptionTruncated', { dims: 768 }),
     requiresKey: true,
-    available: hasOpenAIApiKey(),
+    available: openaiKeyAvailable.value,
   },
   {
     id: 'openai-large',
     group: 'openai',
     icon: '🧭',
-    title: 'OpenAI 3 large',
+    title: t('search.providerModal.openai.titleLarge'),
     badge: '3072d',
     dims: 3072,
     description: t('search.providerModal.openai.descriptionLarge'),
     requiresKey: true,
-    available: hasOpenAIApiKey(),
+    available: openaiKeyAvailable.value,
   },
   {
     id: 'openai-large-1536',
     group: 'openai',
     icon: '🧭',
-    title: 'OpenAI 3 large',
+    title: t('search.providerModal.openai.titleLarge'),
     badge: '1536d',
     dims: 1536,
     description: t('search.providerModal.openai.descriptionTruncated', { dims: 1536 }),
     requiresKey: true,
-    available: hasOpenAIApiKey(),
+    available: openaiKeyAvailable.value,
   },
   {
     id: 'openai-large-768',
     group: 'openai',
     icon: '🧭',
-    title: 'OpenAI 3 large',
+    title: t('search.providerModal.openai.titleLarge'),
     badge: '768d',
     dims: 768,
     description: t('search.providerModal.openai.descriptionTruncated', { dims: 768 }),
     requiresKey: true,
-    available: hasOpenAIApiKey(),
+    available: openaiKeyAvailable.value,
   },
 ])
 

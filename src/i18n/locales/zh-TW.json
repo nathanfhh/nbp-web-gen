@@ -188,7 +188,7 @@
       "balanced": "平衡",
       "creative": "創意",
       "wild": "狂野",
-      "openaiIgnored": "⚠️ OpenAI 圖片模型不使用此參數；gpt-5.4 推理模型亦僅接受預設值（已自動略過）"
+      "openaiIgnored": "⚠️ OpenAI 圖片模型不接受此參數，已自動略過"
     },
     "seed": {
       "label": "Seed（隨機種子）",
@@ -860,6 +860,8 @@
         "cons": "使用 API 金鑰計費（~$0.15 / 百萬 tokens）"
       },
       "openai": {
+        "titleSmall": "OpenAI Embedding 3 small",
+        "titleLarge": "OpenAI Embedding 3 large",
         "descriptionSmall": "text-embedding-3-small (1536 維) — 速度快、成本低",
         "descriptionLarge": "text-embedding-3-large (3072 維) — 效果最佳、成本較高",
         "descriptionTruncated": "以 Matryoshka 截斷至 {dims} 維，節省儲存與搜尋成本"

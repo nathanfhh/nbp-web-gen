@@ -188,7 +188,7 @@
       "balanced": "Balanced",
       "creative": "Creative",
       "wild": "Wild",
-      "openaiIgnored": "⚠️ OpenAI image models ignore temperature; gpt-5.4 reasoning models only accept the default (auto-omitted)"
+      "openaiIgnored": "⚠️ OpenAI image models ignore temperature (auto-omitted)"
     },
     "seed": {
       "label": "Seed (Random Seed)",
@@ -860,6 +860,8 @@
         "cons": "Uses API key billing (~$0.15 / 1M tokens)"
       },
       "openai": {
+        "titleSmall": "OpenAI Embedding 3 small",
+        "titleLarge": "OpenAI Embedding 3 large",
         "descriptionSmall": "text-embedding-3-small (1536d) — fast and cheap",
         "descriptionLarge": "text-embedding-3-large (3072d) — best quality, higher cost",
         "descriptionTruncated": "Matryoshka-truncated to {dims} dims for smaller storage and faster search"
