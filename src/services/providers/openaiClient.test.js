@@ -33,6 +33,11 @@ describe('openaiClient', () => {
       expect(classifyOpenAIError({ code: 'invalid_api_key' })).toBe('PERMANENT')
     })
 
+    it('classifies missing-key (code: no_key) as PERMANENT', () => {
+      // openaiFetch raises this when no apiKey is configured — never retriable.
+      expect(classifyOpenAIError({ code: 'no_key', status: 0 })).toBe('PERMANENT')
+    })
+
     it('classifies content policy / moderation as PERMANENT', () => {
       expect(classifyOpenAIError({ code: 'content_policy_violation' })).toBe('PERMANENT')
       expect(classifyOpenAIError({ code: 'moderation_blocked' })).toBe('PERMANENT')
@@ -142,8 +147,10 @@ describe('openaiClient', () => {
 
     it('throws when response has no body', async () => {
       await expect(async () => {
-        const it = parseOpenAISSE({ body: null })
-        await it.next()
+        // Renamed from `it` to avoid shadowing Vitest's global `it` inside
+        // the test body — the outer `it()` still wraps the assertion.
+        const iter = parseOpenAISSE({ body: null })
+        await iter.next()
       }).rejects.toThrow('No response body')
     })
   })

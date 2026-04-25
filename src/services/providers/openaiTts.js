@@ -162,7 +162,6 @@ function audioBufferToWavBlob(buffer) {
   writeString(36, 'data')
   view.setUint32(40, dataSize, true)
 
-  const interleave = numChannels > 1
   const channelData = []
   for (let ch = 0; ch < numChannels; ch++) {
     channelData.push(buffer.getChannelData(ch))
@@ -171,7 +170,7 @@ function audioBufferToWavBlob(buffer) {
   let offset = 44
   for (let i = 0; i < buffer.length; i++) {
     for (let ch = 0; ch < numChannels; ch++) {
-      const sample = Math.max(-1, Math.min(1, channelData[interleave ? ch : 0][i]))
+      const sample = Math.max(-1, Math.min(1, channelData[ch][i]))
       view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true)
       offset += 2
     }
@@ -202,7 +201,11 @@ export async function generateMultiSpeakerOpenAI({
   if (!Array.isArray(speakers) || speakers.length === 0) {
     throw new Error('generateMultiSpeakerOpenAI requires at least one speaker')
   }
-  if (!speakers.some((s) => s && s.name && s.voice)) {
+  // Downstream code reads `s.name` and `s.voice` from every speaker
+  // (voiceByName Map and the per-segment fallback `speakers[0].voice`), so
+  // the guard must check `every`, not `some` — otherwise an entry missing
+  // its voice could survive validation and only fail later as undefined.
+  if (!speakers.every((s) => s && s.name && s.voice)) {
     throw new Error('generateMultiSpeakerOpenAI requires every speaker to have name + voice')
   }
 

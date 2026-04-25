@@ -136,9 +136,18 @@ describe('getRecordProvider', () => {
     expect(getRecordProvider({ mode: 'agent' })).toBe('gemini')
   })
 
-  it('returns null for unknown model ids', () => {
+  it('treats video records as Gemini regardless of model id', () => {
+    // Video uses Veo model ids ('fast' / 'standard') that aren't in any
+    // capability catalog; the previous catalog-loop fallback returned null
+    // for them, but video is Gemini-only by design.
+    expect(getRecordProvider({ mode: 'video', options: { model: 'fast' } })).toBe('gemini')
+    expect(getRecordProvider({ mode: 'video', options: { model: 'standard' } })).toBe('gemini')
+    expect(getRecordProvider({ mode: 'video' })).toBe('gemini')
+  })
+
+  it('returns null for an unrecognized mode + unknown model id', () => {
     expect(getRecordProvider({
-      mode: 'video',
+      mode: 'something-unknown',
       options: { model: 'something-unknown' },
     })).toBeNull()
   })

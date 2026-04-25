@@ -96,6 +96,19 @@ describe('generateMultiSpeakerOpenAI input validation', () => {
       generateMultiSpeakerOpenAI({ ...baseArgs, speakers: [{ name: '', voice: '' }] }),
     ).rejects.toThrow(/name \+ voice/i)
   })
+
+  it('rejects when ANY speaker is missing name or voice (regression: was .some)', async () => {
+    // .some would pass this since the first entry is complete; .every must reject.
+    await expect(
+      generateMultiSpeakerOpenAI({
+        ...baseArgs,
+        speakers: [
+          { name: 'A', voice: 'alloy' },
+          { name: 'B', voice: '' },
+        ],
+      }),
+    ).rejects.toThrow(/name \+ voice/i)
+  })
 })
 
 describe('modelSupportsTtsInstructions', () => {

@@ -51,11 +51,16 @@ const IMAGE_MODES = new Set(['generate', 'sticker', 'edit', 'story', 'diagram', 
  */
 export function getRecordProvider(record) {
   if (!record) return null
+  // Video and Agent are Gemini-only by design. Their option.model values
+  // ('fast' / 'standard' for Veo, none for agent) aren't registered in any
+  // capability catalog, so the catalog-loop fallback below would return null
+  // for an obviously-Gemini record. Resolve them up front.
+  if (record.mode === 'video' || record.mode === 'agent') return 'gemini'
+
   const modelId = record?.options?.model
   if (!modelId) {
     // Image modes implicitly default to the Gemini default image model.
     if (IMAGE_MODES.has(record.mode)) return 'gemini'
-    if (record.mode === 'agent') return 'gemini'
     return null
   }
   for (const capability of ['image', 'text', 'tts', 'embedding']) {

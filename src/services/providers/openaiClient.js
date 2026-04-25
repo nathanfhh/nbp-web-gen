@@ -57,7 +57,7 @@ export async function openaiFetch(path, opts = {}) {
     reqHeaders['Content-Type'] = reqHeaders['Content-Type'] || 'application/json'
   }
 
-  const response = await fetch(`${DEFAULT_BASE_URL}${path}`, {
+  const response = await fetch(`${getOpenAIBaseUrl()}${path}`, {
     method,
     headers: reqHeaders,
     body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
@@ -148,6 +148,9 @@ export function classifyOpenAIError(error) {
   if (type === 'invalid_request_error' || type === 'authentication_error') return 'PERMANENT'
   if (code === 'invalid_api_key') return 'PERMANENT'
   if (code === 'content_policy_violation' || code === 'moderation_blocked') return 'PERMANENT'
+  // openaiFetch throws OpenAIAPIError with code 'no_key' when no API key is
+  // configured; that's a config error, never resolved by retrying.
+  if (code === 'no_key') return 'PERMANENT'
 
   if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) return 'RETRIABLE'
   if (error.name === 'TypeError' || error.name === 'NetworkError') return 'RETRIABLE'
