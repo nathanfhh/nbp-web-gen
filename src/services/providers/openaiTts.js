@@ -1,10 +1,12 @@
 /**
  * OpenAI Text-to-Speech adapter.
  *
- * - generateSpeechOpenAI: single-voice /audio/speech call; returns a Blob.
+ * - generateSpeechOpenAI: single-voice /audio/speech call; returns
+ *   `{ blob: Blob, mimeType: string }`.
  * - parseSpeakerSegments: pure, splits a script into per-speaker spans.
  * - generateMultiSpeakerOpenAI: orchestrates per-segment calls and stitches
- *   the resulting audio into one Blob using AudioContext decode + re-encode.
+ *   the resulting audio into one WAV using AudioContext decode + re-encode;
+ *   returns `{ blob: Blob, mimeType: 'audio/wav', segmentCount: number }`.
  *
  * OpenAI TTS has no native multi-speaker endpoint; client-side stitching is
  * the only way to keep UX parity with Gemini's multiSpeakerVoiceConfig.

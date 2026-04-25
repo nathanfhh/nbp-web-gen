@@ -5,7 +5,10 @@
  * Providers:    gemini | openai | local
  *
  * Entry shape:
- * - id:                 exact model ID used in API calls (unique across catalog)
+ * - id:                 exact model ID used in API calls; unique *within each
+ *                       capability* (findModel / getProviderForModel scope to
+ *                       a single capability, so cross-capability collisions
+ *                       are technically allowed but discouraged for clarity)
  * - provider:           'gemini' | 'openai' | 'local'
  * - group:              display group name (used by grouped UI)
  * - label:              display name in dropdown

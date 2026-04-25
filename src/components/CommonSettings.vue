@@ -26,7 +26,10 @@ const imageModelGroups = computed(() => {
       options: items.map((m) => ({
         value: m.id,
         label: m.label,
+        // Keep the hint visible even when disabled so users still see what's
+        // gated and why; SearchableSelect blocks selection on disabled.
         description: hasKey ? undefined : t('settings.imageModel.missingKey', { provider: group }),
+        disabled: !hasKey,
       })),
     }
   })

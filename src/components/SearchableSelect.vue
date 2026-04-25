@@ -134,6 +134,11 @@ const toggle = () => {
 }
 
 const selectOption = (value) => {
+  // Per-option disabled gating: ignore selection of options flagged
+  // disabled by the caller (e.g., model entries whose provider key is
+  // unset). The dropdown stays open so the user can pick another item.
+  const target = flatOptions.value.find((o) => o.value === value)
+  if (target?.disabled) return
   emit('update:modelValue', value)
   close()
 }
@@ -154,7 +159,10 @@ const onKeydown = (e) => {
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (highlightIndex.value >= 0 && highlightIndex.value < len) {
-      selectOption(filteredFlat.value[highlightIndex.value].value)
+      const target = filteredFlat.value[highlightIndex.value]
+      if (target && !target.disabled) {
+        selectOption(target.value)
+      }
     }
   } else if (e.key === 'Escape') {
     e.preventDefault()
@@ -268,7 +276,10 @@ onBeforeUnmount(() => {
                 :class="{
                   'searchable-select__option--selected': opt.value === modelValue,
                   'searchable-select__option--highlighted': idx === highlightIndex,
+                  'searchable-select__option--disabled': opt.disabled,
                 }"
+                :disabled="opt.disabled"
+                :aria-disabled="opt.disabled || undefined"
                 :data-highlighted="idx === highlightIndex"
                 :data-selected="opt.value === modelValue"
                 @click="selectOption(opt.value)"
@@ -311,7 +322,10 @@ onBeforeUnmount(() => {
                     'searchable-select__option--selected': opt.value === modelValue,
                     'searchable-select__option--highlighted':
                       filteredFlat.indexOf(opt) === highlightIndex,
+                    'searchable-select__option--disabled': opt.disabled,
                   }"
+                  :disabled="opt.disabled"
+                  :aria-disabled="opt.disabled || undefined"
                   :data-highlighted="filteredFlat.indexOf(opt) === highlightIndex"
                   :data-selected="opt.value === modelValue"
                   @click="selectOption(opt.value)"
@@ -512,6 +526,14 @@ onBeforeUnmount(() => {
 
 .searchable-select__option--selected {
   color: var(--color-mode-generate);
+}
+
+.searchable-select__option--disabled,
+.searchable-select__option--disabled:hover {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .searchable-select__option-text {
