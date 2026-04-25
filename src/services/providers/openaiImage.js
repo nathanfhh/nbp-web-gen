@@ -40,13 +40,24 @@ export function mapAspectToSize(aspectRatio = '1:1', resolution = '1k') {
 }
 
 const QUALITY_MAP = {
-  '1k': 'medium',
-  '2k': 'high',
+  '1k': 'low',
+  '2k': 'medium',
   '4k': 'high',
 }
 
 export function mapResolutionToQuality(resolution) {
   return QUALITY_MAP[resolution] || 'auto'
+}
+
+/**
+ * Human label for each resolution bucket under OpenAI semantics.
+ * We keep the internal value ('1k'/'2k'/'4k') stable across providers so
+ * user preferences round-trip; only the label changes.
+ */
+export const OPENAI_RESOLUTION_LABELS = {
+  '1k': 'Low',
+  '2k': 'Medium',
+  '4k': 'High',
 }
 
 /**

@@ -58,12 +58,9 @@ describe('openaiImage', () => {
   })
 
   describe('mapResolutionToQuality', () => {
-    it('maps 1k to medium', () => {
-      expect(mapResolutionToQuality('1k')).toBe('medium')
-    })
-
-    it('maps 2k and 4k to high', () => {
-      expect(mapResolutionToQuality('2k')).toBe('high')
+    it('maps 1k/2k/4k to OpenAI low/medium/high', () => {
+      expect(mapResolutionToQuality('1k')).toBe('low')
+      expect(mapResolutionToQuality('2k')).toBe('medium')
       expect(mapResolutionToQuality('4k')).toBe('high')
     })
 
@@ -84,7 +81,7 @@ describe('openaiImage', () => {
         model: 'gpt-image-2',
         prompt: 'a cat',
         size: '2048x1152',
-        quality: 'high',
+        quality: 'medium',
         output_format: 'png',
         moderation: 'auto',
         n: 1,
