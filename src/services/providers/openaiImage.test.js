@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   mapAspectToSize,
   mapResolutionToQuality,
   buildGenerationBody,
+  generateImageOpenAI,
 } from './openaiImage'
 
 describe('openaiImage', () => {
@@ -115,6 +116,73 @@ describe('openaiImage', () => {
       expect(body.moderation).toBe('low')
       expect(body.output_format).toBe('jpeg')
       expect(body.n).toBe(3)
+    })
+  })
+
+  describe('SSE event prefix handling', () => {
+    function makeStreamingResponse(text) {
+      const encoder = new TextEncoder()
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(text))
+          controller.close()
+        },
+      })
+      return {
+        ok: true,
+        status: 200,
+        body: stream,
+        headers: { get: () => 'text/event-stream' },
+        clone() {
+          return this
+        },
+        async json() {
+          return {}
+        },
+      }
+    }
+
+    let originalFetch
+    beforeEach(() => {
+      originalFetch = globalThis.fetch
+    })
+    afterEach(() => {
+      globalThis.fetch = originalFetch
+    })
+
+    it('parses image_generation.completed events from /images/generations', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        makeStreamingResponse(
+          'data: {"type":"image_generation.completed","b64_json":"AAAA","output_format":"png"}\n\n'
+            + 'data: [DONE]\n\n',
+        ),
+      )
+      const out = await generateImageOpenAI({
+        apiKey: 'sk-test',
+        model: 'gpt-image-2',
+        prompt: 'cat',
+      })
+      expect(out.images).toEqual([{ data: 'AAAA', mimeType: 'image/png' }])
+    })
+
+    it('parses image_edit.completed events from /images/edits (regression: prev. dropped)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        makeStreamingResponse(
+          'data: {"type":"image_edit.partial_image","b64_json":"AAAA","output_format":"png"}\n\n'
+            + 'data: {"type":"image_edit.completed","b64_json":"BBBB","output_format":"png"}\n\n'
+            + 'data: [DONE]\n\n',
+        ),
+      )
+      const partials = []
+      const out = await generateImageOpenAI({
+        apiKey: 'sk-test',
+        model: 'gpt-image-2',
+        prompt: 'add hat',
+        referenceImages: [{ data: 'CCCC', mimeType: 'image/png' }],
+        onPartialImage: (chunk) => partials.push(chunk),
+      })
+      expect(out.images).toEqual([{ data: 'BBBB', mimeType: 'image/png' }])
+      expect(partials).toEqual([{ type: 'image', data: 'AAAA', mimeType: 'image/png' }])
     })
   })
 })

@@ -136,10 +136,17 @@ export function classifyOpenAIError(error) {
   if (error.name === 'AbortError') return 'PERMANENT' // intentional cancellation
 
   const status = error.status ?? error?.response?.status
+  // OpenAI error envelopes use { error: { type, code } } where `type` is the
+  // high-level category (invalid_request_error, authentication_error) and
+  // `code` is the specific reason (invalid_api_key, content_policy_violation).
+  // The previous implementation only inspected `code`, so the
+  // `invalid_request_error` branch was dead — it lives on `type`.
   const code = error.code ?? error?.error?.code
+  const type = error.type ?? error?.error?.type
 
   if (status === 400 || status === 401 || status === 403 || status === 404) return 'PERMANENT'
-  if (code === 'invalid_api_key' || code === 'invalid_request_error') return 'PERMANENT'
+  if (type === 'invalid_request_error' || type === 'authentication_error') return 'PERMANENT'
+  if (code === 'invalid_api_key') return 'PERMANENT'
   if (code === 'content_policy_violation' || code === 'moderation_blocked') return 'PERMANENT'
 
   if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) return 'RETRIABLE'

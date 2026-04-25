@@ -38,6 +38,21 @@ describe('openaiClient', () => {
       expect(classifyOpenAIError({ code: 'moderation_blocked' })).toBe('PERMANENT')
     })
 
+    it('reads invalid_request_error / authentication_error from the type field', () => {
+      // OpenAI puts these on { error: { type } }, not { error: { code } }.
+      expect(classifyOpenAIError({ type: 'invalid_request_error' })).toBe('PERMANENT')
+      expect(classifyOpenAIError({ type: 'authentication_error' })).toBe('PERMANENT')
+      expect(classifyOpenAIError({ error: { type: 'invalid_request_error' } })).toBe('PERMANENT')
+    })
+
+    it('still recognises envelopes that carry both type and code', () => {
+      expect(
+        classifyOpenAIError({
+          error: { type: 'invalid_request_error', code: 'invalid_api_key' },
+        }),
+      ).toBe('PERMANENT')
+    })
+
     it('classifies 429/5xx as RETRIABLE', () => {
       expect(classifyOpenAIError({ status: 429 })).toBe('RETRIABLE')
       expect(classifyOpenAIError({ status: 500 })).toBe('RETRIABLE')

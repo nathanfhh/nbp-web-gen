@@ -116,14 +116,17 @@ function buildEditFormData({ model, prompt, referenceImages, options }) {
 
 /**
  * Extract a finished image payload from an SSE event.
- * Shape:
- *   { type: 'image_generation.partial_image', b64_json, ... }
- *   { type: 'image_generation.completed',     b64_json, ... }
+ *
+ * /images/generations emits `image_generation.partial_image` /
+ * `image_generation.completed`; /images/edits emits the parallel
+ * `image_edit.partial_image` / `image_edit.completed` family. Without
+ * accepting both prefixes, every edit-stream event is dropped and
+ * `generateImageOpenAI` throws "no image data" once the stream ends.
  */
 function extractImagePayload(event) {
   if (!event) return null
   const kind = event.type || ''
-  if (!kind.startsWith('image_generation.')) return null
+  if (!kind.startsWith('image_generation.') && !kind.startsWith('image_edit.')) return null
   const b64 = event.b64_json || event.image || event.data
   if (!b64) return null
   return {
