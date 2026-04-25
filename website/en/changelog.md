@@ -2,6 +2,39 @@
 
 This page documents version updates for Mediator.
 
+## v0.33.0
+
+_2026-04-24_
+
+### New Features
+- **Provider switching**: All core AI capabilities (image gen, text LLM, embedding, TTS) now offer OpenAI alongside Gemini in the same flat dropdown
+- **Image (OpenAI)**: `gpt-image-2` and `gpt-image-1-mini`. Aspect ratios map to sizes that satisfy gpt-image-2 constraints (multiples of 16, max edge 3840px, total pixels between 655,360 and 8,294,400). Partial-image SSE streaming surfaces progressive previews
+- **Text LLM (OpenAI)**: `gpt-5.4` and `gpt-5.4-mini` with Structured Outputs (strict json_schema) and `reasoning_effort: high`. Character extraction, slide style analysis, content splitting, and narration script generation all route based on the selected model
+- **Embedding (OpenAI)**: `text-embedding-3-small` and `text-embedding-3-large` with Matryoshka-truncated variants (768d / 1536d). Switching providers prompts for confirmation, then rebuilds the vector index
+- **TTS (OpenAI)**: `gpt-4o-mini-tts-2025-12-15`, `tts-1`, `tts-1-hd`. Dual-speaker mode stitches client-side via AudioContext to match Gemini's multi-speaker UX
+- **API Key management**: Settings gains an OpenAI API Key field (single key, no free-tier concept), independent from the Gemini paid+free dual-key setup
+- **Image model picker**: `CommonSettings` now uses a grouped SearchableSelect; options without their provider key show a "requires key" hint
+
+### Improvements
+- **Model labels**: Gemini image models rebranded to `Nano Banana Pro` / `Nano Banana 2`
+- **Thinking panel**: Models that don't stream reasoning (OpenAI, Gemini 3.1 Flash Image) now show a "no thinking process" marker so the panel stays populated
+
+### Refactor
+- New `src/constants/modelCatalog.js` as the single source of truth for models across all capabilities; `IMAGE_MODELS` / `TEXT_MODELS` / `TTS_MODELS` derive from it
+- New `src/services/providers/` directory: `openaiClient`, `openaiImage`, `openaiText`, `openaiTts` adapters — worker-safe so main thread and workers share them
+- `useApiKeyManager.getApiKey` accepts the new `{ provider, usage }` object form while keeping the legacy string form for backward compatibility
+- `useApi.generateImageStream` resolves the provider from the model id via catalog and dispatches accordingly; existing retry / abort / timeout / rate-limit logic is preserved as-is
+
+### Compatibility
+- JSON backups and WebRTC transfers: no schema change. `options.model` remains the only source of provider, with a new `getRecordProvider()` helper unifying the lookup
+- Index: switching embedding providers prompts for confirmation and rebuilds via selfHeal (vector spaces differ across models, so no cross-provider reuse)
+
+### Known Limitations
+- OpenAI has no free-tier fallback (no equivalent concept; a single key covers every OpenAI capability)
+- Video mode (Veo 3.1) and Agent mode (Gemini 3 + codeExecution) remain Gemini-only
+- OpenAI TTS has no native multi-speaker; dual-speaker narration is assembled client-side and emitted as WAV
+- OpenAI text embeddings are text-only; multimodal image embeddings still require the Gemini path
+
 ## v0.32.2
 
 _2026-03-18_

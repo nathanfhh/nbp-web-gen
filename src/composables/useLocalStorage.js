@@ -1,10 +1,22 @@
+import { ref } from 'vue'
+
 const API_KEY_STORAGE_KEY = 'nanobanana-api-key'
 const FREE_TIER_API_KEY_STORAGE_KEY = 'nanobanana-free-tier-api-key'
+const OPENAI_API_KEY_STORAGE_KEY = 'nanobanana-openai-api-key'
 const SETTINGS_STORAGE_KEY = 'nanobanana-settings'
+
+// Module-level reactive bump so consumers wrapping localStorage reads in
+// `computed` re-run whenever any setter writes. Reading `apiKeyVersion.value`
+// inside a getter establishes the dependency without exposing the raw value.
+const apiKeyVersion = ref(0)
+const bumpApiKeyVersion = () => {
+  apiKeyVersion.value++
+}
 
 export function useLocalStorage() {
   // API Key management (stored in localStorage for quick access)
   const getApiKey = () => {
+    apiKeyVersion.value // establish reactive dependency
     try {
       return localStorage.getItem(API_KEY_STORAGE_KEY) || ''
     } catch {
@@ -19,6 +31,7 @@ export function useLocalStorage() {
       } else {
         localStorage.removeItem(API_KEY_STORAGE_KEY)
       }
+      bumpApiKeyVersion()
       return true
     } catch {
       return false
@@ -31,6 +44,7 @@ export function useLocalStorage() {
 
   // Free Tier API Key management
   const getFreeTierApiKey = () => {
+    apiKeyVersion.value
     try {
       return localStorage.getItem(FREE_TIER_API_KEY_STORAGE_KEY) || ''
     } catch {
@@ -45,6 +59,7 @@ export function useLocalStorage() {
       } else {
         localStorage.removeItem(FREE_TIER_API_KEY_STORAGE_KEY)
       }
+      bumpApiKeyVersion()
       return true
     } catch {
       return false
@@ -53,6 +68,34 @@ export function useLocalStorage() {
 
   const hasFreeTierApiKey = () => {
     return !!getFreeTierApiKey()
+  }
+
+  // OpenAI API Key management (single key — no free tier concept)
+  const getOpenAIApiKey = () => {
+    apiKeyVersion.value
+    try {
+      return localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY) || ''
+    } catch {
+      return ''
+    }
+  }
+
+  const setOpenAIApiKey = (key) => {
+    try {
+      if (key) {
+        localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, key)
+      } else {
+        localStorage.removeItem(OPENAI_API_KEY_STORAGE_KEY)
+      }
+      bumpApiKeyVersion()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const hasOpenAIApiKey = () => {
+    return !!getOpenAIApiKey()
   }
 
   // Quick settings (for UI state that doesn't need IndexedDB)
@@ -94,6 +137,10 @@ export function useLocalStorage() {
     getFreeTierApiKey,
     setFreeTierApiKey,
     hasFreeTierApiKey,
+    // OpenAI API Key
+    getOpenAIApiKey,
+    setOpenAIApiKey,
+    hasOpenAIApiKey,
     // Quick settings
     getQuickSettings,
     setQuickSettings,

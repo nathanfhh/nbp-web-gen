@@ -1,7 +1,14 @@
 <script setup>
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useApiKeyManager } from '@/composables/useApiKeyManager'
 
 const { t } = useI18n()
+const { hasApiKeyFor } = useApiKeyManager()
+// Reactive flag — re-evaluated whenever the OpenAI key changes (the underlying
+// getter taps apiKeyVersion in useLocalStorage), so providerOptions stays in
+// sync without remounting the modal.
+const openaiKeyAvailable = computed(() => hasApiKeyFor({ provider: 'openai' }))
 
 const props = defineProps({
   modelValue: {
@@ -20,9 +27,106 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'select'])
 
+// Catalog of selectable embedding providers. Each entry maps to a key in
+// PROVIDER_CONFIG inside search.worker.js.
+const providerOptions = computed(() => [
+  {
+    id: 'local',
+    group: 'local',
+    icon: '📱',
+    title: t('search.providerModal.local.title'),
+    badge: t('search.providerModal.local.badge'),
+    dims: 384,
+    description: t('search.providerModal.local.description'),
+    pros: t('search.providerModal.local.pros'),
+    cons: t('search.providerModal.local.cons'),
+    requiresKey: false,
+    available: true,
+  },
+  {
+    id: 'gemini',
+    group: 'gemini',
+    icon: '☁️',
+    title: t('search.providerModal.gemini.title'),
+    badge: t('search.providerModal.gemini.badge'),
+    dims: 768,
+    description: t('search.providerModal.gemini.description'),
+    pros: t('search.providerModal.gemini.pros'),
+    cons: t('search.providerModal.gemini.cons'),
+    requiresKey: true,
+    available: props.hasApiKey,
+  },
+  {
+    id: 'openai-small',
+    group: 'openai',
+    icon: '🧭',
+    title: t('search.providerModal.openai.titleSmall'),
+    badge: '1536d',
+    dims: 1536,
+    description: t('search.providerModal.openai.descriptionSmall'),
+    requiresKey: true,
+    available: openaiKeyAvailable.value,
+  },
+  {
+    id: 'openai-small-768',
+    group: 'openai',
+    icon: '🧭',
+    title: t('search.providerModal.openai.titleSmall'),
+    badge: '768d',
+    dims: 768,
+    description: t('search.providerModal.openai.descriptionTruncated', { dims: 768 }),
+    requiresKey: true,
+    available: openaiKeyAvailable.value,
+  },
+  {
+    id: 'openai-large',
+    group: 'openai',
+    icon: '🧭',
+    title: t('search.providerModal.openai.titleLarge'),
+    badge: '3072d',
+    dims: 3072,
+    description: t('search.providerModal.openai.descriptionLarge'),
+    requiresKey: true,
+    available: openaiKeyAvailable.value,
+  },
+  {
+    id: 'openai-large-1536',
+    group: 'openai',
+    icon: '🧭',
+    title: t('search.providerModal.openai.titleLarge'),
+    badge: '1536d',
+    dims: 1536,
+    description: t('search.providerModal.openai.descriptionTruncated', { dims: 1536 }),
+    requiresKey: true,
+    available: openaiKeyAvailable.value,
+  },
+  {
+    id: 'openai-large-768',
+    group: 'openai',
+    icon: '🧭',
+    title: t('search.providerModal.openai.titleLarge'),
+    badge: '768d',
+    dims: 768,
+    description: t('search.providerModal.openai.descriptionTruncated', { dims: 768 }),
+    requiresKey: true,
+    available: openaiKeyAvailable.value,
+  },
+])
+
 function selectProvider(provider) {
+  if (provider === props.currentProvider) return
+  if (!confirmIfNeeded()) return
   emit('select', provider)
   emit('update:modelValue', false)
+}
+
+function confirmIfNeeded() {
+  // First-time setup: no existing index to rebuild, skip the confirm.
+  if (!props.currentProvider) return true
+  // Switching provider always invalidates the vector index, so confirm.
+  const message = t('search.providerModal.rebuildConfirm')
+  // Using window.confirm for simplicity; Phase 6 UI polish can replace with inline modal.
+  return typeof window === 'undefined' || window.confirm(message)
 }
 
 function dismiss() {
@@ -69,85 +173,50 @@ function dismiss() {
             </p>
           </div>
 
-          <!-- Provider Cards -->
-          <div class="px-5 py-4 grid grid-cols-2 gap-3">
-            <!-- Local Model Card -->
+          <!-- Provider List (scrollable for many variants) -->
+          <div class="px-4 py-3 max-h-[60vh] overflow-y-auto space-y-2">
             <button
-              @click="selectProvider('local')"
-              class="group flex flex-col items-center text-center p-4 rounded-xl border-2 transition-all cursor-pointer"
-              :class="
-                currentProvider === 'local'
-                  ? 'border-brand-primary bg-bg-interactive ring-1 ring-brand-primary/30'
-                  : 'border-border-muted hover:border-brand-primary bg-bg-muted/50 hover:bg-bg-interactive'
-              "
-            >
-              <span class="text-2xl mb-2">📱</span>
-              <span class="font-medium text-sm text-text-primary mb-1">
-                {{ t('search.providerModal.local.title') }}
-              </span>
-              <span class="text-xs px-1.5 py-0.5 rounded bg-status-success-muted text-status-success font-medium mb-2">
-                {{ t('search.providerModal.local.badge') }}
-              </span>
-              <p class="text-xs text-text-muted mb-2">
-                {{ t('search.providerModal.local.description') }}
-              </p>
-              <div class="text-xs text-text-muted space-y-0.5 w-full text-left">
-                <p class="text-status-success">✓ {{ t('search.providerModal.local.pros') }}</p>
-                <p class="text-text-muted">✗ {{ t('search.providerModal.local.cons') }}</p>
-              </div>
-              <span
-                class="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
-                :class="
-                  currentProvider === 'local'
-                    ? 'bg-brand-primary text-text-on-brand'
-                    : 'bg-bg-muted text-text-secondary group-hover:bg-brand-primary group-hover:text-text-on-brand'
-                "
-              >
-                {{ currentProvider === 'local' ? t('search.providerModal.current') : t('search.providerModal.select') }}
-              </span>
-            </button>
-
-            <!-- Gemini API Card -->
-            <button
-              @click="props.hasApiKey ? selectProvider('gemini') : undefined"
-              :disabled="!props.hasApiKey && currentProvider !== 'gemini'"
-              class="group flex flex-col items-center text-center p-4 rounded-xl border-2 transition-all"
+              v-for="opt in providerOptions"
+              :key="opt.id"
+              @click="opt.available ? selectProvider(opt.id) : undefined"
+              :disabled="!opt.available && currentProvider !== opt.id"
+              class="w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left"
               :class="[
-                currentProvider === 'gemini'
+                currentProvider === opt.id
                   ? 'border-brand-primary bg-bg-interactive ring-1 ring-brand-primary/30 cursor-pointer'
-                  : props.hasApiKey
+                  : opt.available
                     ? 'border-border-muted hover:border-brand-primary bg-bg-muted/50 hover:bg-bg-interactive cursor-pointer'
                     : 'border-border-muted bg-bg-muted/30 opacity-60 cursor-not-allowed',
               ]"
             >
-              <span class="text-2xl mb-2">☁️</span>
-              <span class="font-medium text-sm text-text-primary mb-1">
-                {{ t('search.providerModal.gemini.title') }}
-              </span>
-              <span class="text-xs px-1.5 py-0.5 rounded bg-brand-primary/15 text-brand-primary font-medium mb-2">
-                {{ t('search.providerModal.gemini.badge') }}
-              </span>
-              <p class="text-xs text-text-muted mb-2">
-                {{ t('search.providerModal.gemini.description') }}
-              </p>
-              <div class="text-xs text-text-muted space-y-0.5 w-full text-left">
-                <p class="text-status-success">✓ {{ t('search.providerModal.gemini.pros') }}</p>
-                <p class="text-text-muted">✗ {{ t('search.providerModal.gemini.cons') }}</p>
+              <span class="text-2xl shrink-0">{{ opt.icon }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-sm text-text-primary">{{ opt.title }}</span>
+                  <span
+                    class="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    :class="
+                      opt.group === 'local'
+                        ? 'bg-status-success-muted text-status-success'
+                        : 'bg-brand-primary/15 text-brand-primary'
+                    "
+                  >
+                    {{ opt.badge }}
+                  </span>
+                </div>
+                <p class="text-xs text-text-muted mt-0.5 line-clamp-2">
+                  {{ opt.description }}
+                </p>
               </div>
               <span
-                v-if="props.hasApiKey || currentProvider === 'gemini'"
-                class="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
-                :class="
-                  currentProvider === 'gemini'
-                    ? 'bg-brand-primary text-text-on-brand'
-                    : 'bg-bg-muted text-text-secondary group-hover:bg-brand-primary group-hover:text-text-on-brand'
-                "
+                v-if="currentProvider === opt.id"
+                class="text-xs px-2 py-1 rounded-lg font-medium bg-brand-primary text-text-on-brand shrink-0"
               >
-                {{ currentProvider === 'gemini' ? t('search.providerModal.current') : t('search.providerModal.select') }}
+                {{ t('search.providerModal.current') }}
               </span>
               <span
-                v-else
-                class="mt-3 text-xs px-3 py-1.5 rounded-lg font-medium bg-bg-muted text-text-muted"
+                v-else-if="!opt.available"
+                class="text-xs px-2 py-1 rounded-lg font-medium bg-bg-muted text-text-muted shrink-0"
               >
                 {{ t('search.providerModal.noApiKey') }}
               </span>
@@ -155,7 +224,10 @@ function dismiss() {
           </div>
 
           <!-- Footer hint -->
-          <div class="px-5 pb-4 text-center">
+          <div class="px-5 pb-4 text-center space-y-1">
+            <p v-if="currentProvider" class="text-xs text-status-warning">
+              ⚠️ {{ t('search.providerModal.rebuildHint') }}
+            </p>
             <p class="text-xs text-text-muted">
               💡 {{ t('search.providerModal.switchHint') }}
             </p>

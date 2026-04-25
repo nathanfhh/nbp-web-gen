@@ -3,10 +3,12 @@ import { ref } from 'vue'
 import { useGeneratorStore } from '@/stores/generator'
 import { useStyleOptions } from '@/composables/useStyleOptions'
 import { useArrayToggle } from '@/composables/useArrayToggle'
-import { RESOLUTION_OPTIONS, RATIO_OPTIONS_FULL } from '@/constants'
+import { useImageOptionLabels } from '@/composables/useImageOptionLabels'
+import { RATIO_OPTIONS_FULL } from '@/constants'
 
 const store = useGeneratorStore()
 const { PREDEFINED_STYLES, PREDEFINED_VARIATIONS } = useStyleOptions()
+const { resolutionOptions, sizeHint } = useImageOptionLabels()
 
 const customStyleInput = ref('')
 const customVariationInput = ref('')
@@ -51,7 +53,7 @@ const addCustomVariation = () => {
       <label class="block text-sm font-medium text-text-secondary">{{ $t('options.resolution') }}</label>
       <div class="grid grid-cols-3 gap-3">
         <button
-          v-for="res in RESOLUTION_OPTIONS"
+          v-for="res in resolutionOptions"
           :key="res.value"
           @click="options.resolution = res.value"
           class="py-3 px-4 rounded-xl text-sm font-medium transition-all"
@@ -62,6 +64,9 @@ const addCustomVariation = () => {
           {{ res.label }}
         </button>
       </div>
+      <p v-if="sizeHint(options.ratio, options.resolution)" class="text-xs text-text-muted">
+        {{ $t('options.openaiSizeHint', { size: sizeHint(options.ratio, options.resolution) }) }}
+      </p>
     </div>
 
     <!-- Ratio -->

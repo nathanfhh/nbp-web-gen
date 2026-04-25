@@ -4,11 +4,18 @@
  */
 
 // Model Configuration
-export const IMAGE_MODELS = [
-  { value: 'gemini-3-pro-image-preview', label: 'Gemini 3 Pro Image' },
-  { value: 'gemini-3.1-flash-image-preview', label: 'Gemini 3.1 Flash Image' },
-]
-export const DEFAULT_MODEL = IMAGE_MODELS[0].value
+// Derived from IMAGE_MODEL_CATALOG in modelCatalog.js (single source of truth).
+import { IMAGE_MODEL_CATALOG } from './modelCatalog'
+
+export const IMAGE_MODELS = IMAGE_MODEL_CATALOG.map((m) => ({
+  value: m.id,
+  label: m.label,
+  provider: m.provider,
+  group: m.group,
+}))
+
+export const DEFAULT_MODEL = IMAGE_MODEL_CATALOG.find((m) => m.isDefault)?.id
+  || IMAGE_MODEL_CATALOG[0].id
 
 // Resolution options for UI display
 export const RESOLUTION_OPTIONS = [

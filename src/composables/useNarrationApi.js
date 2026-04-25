@@ -7,6 +7,12 @@ import { getLanguageDirectives } from '@/constants/voiceOptions'
 import { t } from '@/i18n'
 import { createMinIntervalLimiter } from './requestScheduler'
 import { TTS_MIN_START_INTERVAL_MS } from '@/constants'
+import { resolveProvider } from '@/services/providers'
+import { generateTextOpenAI } from '@/services/providers/openaiText'
+import {
+  generateSpeechOpenAI,
+  generateMultiSpeakerOpenAI,
+} from '@/services/providers/openaiTts'
 
 // Module-level singleton for TTS rate limiting
 // TTS API limit is 10 RPM, so minimum 6 seconds between request starts
@@ -68,7 +74,7 @@ const STYLE_DESCRIPTIONS = {
  * Composable for narration script generation and TTS audio
  */
 export function useNarrationApi() {
-  const { callWithFallback } = useApiKeyManager()
+  const { callWithFallback, getOpenAIApiKey } = useApiKeyManager()
   const store = useGeneratorStore()
 
   /**
@@ -160,9 +166,37 @@ ${
    * @returns {Promise<Object>} Parsed JSON response
    */
   const callScriptGeneration = async (pages, settings, model, temperature, onThinkingChunk) => {
+    const prompt = buildNarrationPrompt(pages, settings)
+    const provider = resolveProvider('text', model) || 'gemini'
+
+    if (provider === 'openai') {
+      const apiKey = getOpenAIApiKey()
+      if (!apiKey) {
+        throw new Error(t('errors.apiKeyNotSet'))
+      }
+      const textResponse = await generateTextOpenAI({
+        apiKey,
+        model,
+        prompt,
+        responseSchema: NARRATION_SCRIPT_SCHEMA,
+        temperature,
+        reasoningEffort: 'high',
+        stream: true,
+        onThinkingChunk,
+        noThinkingMessage: `[${t('generation.noThinkingProcess')}]\n`,
+      })
+      // gpt-5.4 strict json_schema should never produce malformed JSON, but a
+      // partial stream cutoff or future API change could; surface a clean
+      // localized error instead of a raw SyntaxError.
+      try {
+        return JSON.parse(textResponse.trim())
+      } catch {
+        throw new Error(t('errors.invalidNarrationScriptResponse'))
+      }
+    }
+
     return callWithFallback(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey })
-      const prompt = buildNarrationPrompt(pages, settings)
 
       const response = await ai.models.generateContentStream({
         model,
@@ -216,7 +250,7 @@ ${
     const result = await callScriptGeneration(pages, settings, model, temperature, onThinkingChunk)
 
     if (!result.globalStyleDirective || !Array.isArray(result.pageScripts)) {
-      throw new Error('Invalid narration script response structure')
+      throw new Error(t('errors.invalidNarrationScriptResponse'))
     }
 
     // Retry for missing pages
@@ -276,8 +310,6 @@ ${
     // Build TTS prompt with style directives and language-specific accent
     const langDirectives = getLanguageDirectives(settings.language, settings.customLanguages)
 
-    const ttsPrompt = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective, script].filter(Boolean).join('\n\n')
-
     // Determine voice config based on speaker mode
     const speechConfig =
       settings.speakerMode === 'dual'
@@ -304,6 +336,46 @@ ${
               prebuiltVoiceConfig: { voiceName: settings.speakers[0].voiceName },
             },
           }
+
+    const provider = resolveProvider('tts', ttsModel) || 'gemini'
+
+    if (provider === 'openai') {
+      const apiKey = getOpenAIApiKey()
+      if (!apiKey) {
+        throw new Error(t('errors.apiKeyNotSet'))
+      }
+      // OpenAI has no native multi-speaker endpoint; stitch client-side when needed.
+      const instructions = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective]
+        .filter(Boolean)
+        .join('\n\n')
+
+      if (settings.speakerMode === 'dual') {
+        return await generateMultiSpeakerOpenAI({
+          apiKey,
+          model: ttsModel,
+          script,
+          speakers: settings.speakers.map((s) => ({ name: s.name, voice: s.voiceName })),
+          instructions,
+        })
+      }
+
+      return await generateSpeechOpenAI({
+        apiKey,
+        model: ttsModel,
+        input: script,
+        voice: settings.speakers[0].voiceName,
+        instructions,
+        format: 'mp3',
+      })
+    }
+
+    // Gemini path — combine directives + script into the prompt that
+    // Gemini TTS interprets as voice direction. Only built here since the
+    // OpenAI branch above passes directives as the separate `instructions`
+    // field and would otherwise discard this string.
+    const ttsPrompt = [globalStyleDirective, pageStyleDirective, langDirectives.accentDirective, script]
+      .filter(Boolean)
+      .join('\n\n')
 
     const result = await callWithFallback(async (apiKey) => {
       const ai = new GoogleGenAI({ apiKey })

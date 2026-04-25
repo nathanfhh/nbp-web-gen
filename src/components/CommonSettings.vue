@@ -2,10 +2,38 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import { IMAGE_MODELS } from '@/constants/imageOptions'
+import { groupByProvider, getProviderForModel } from '@/constants/modelCatalog'
+import { useApiKeyManager } from '@/composables/useApiKeyManager'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 
 const { t } = useI18n()
 const store = useGeneratorStore()
+const { hasApiKeyFor } = useApiKeyManager()
+
+// Temperature is currently ignored by OpenAI image endpoints, and rejected
+// outright by gpt-5.4 reasoning models on the text side. Surface this near
+// the slider so users know their choice isn't taking effect.
+const temperatureIgnored = computed(() => {
+  return getProviderForModel('image', store.imageModel) === 'openai'
+})
+
+const imageModelGroups = computed(() => {
+  return groupByProvider('image').map(({ group, items }) => {
+    const providerKey = items[0]?.provider
+    const hasKey = hasApiKeyFor({ provider: providerKey, usage: 'image' })
+    return {
+      label: group,
+      options: items.map((m) => ({
+        value: m.id,
+        label: m.label,
+        // Keep the hint visible even when disabled so users still see what's
+        // gated and why; SearchableSelect blocks selection on disabled.
+        description: hasKey ? undefined : t('settings.imageModel.missingKey', { provider: group }),
+        disabled: !hasKey,
+      })),
+    }
+  })
+})
 
 const temperatureLabel = computed(() => {
   const temperatureValue = store.temperature
@@ -50,6 +78,9 @@ const temperatureLabel = computed(() => {
         <span>1.0 {{ $t('settings.temperature.balanced') }}</span>
         <span>2.0 {{ $t('settings.temperature.wild') }}</span>
       </div>
+      <p v-if="temperatureIgnored" class="text-xs text-status-warning">
+        {{ $t('settings.temperature.openaiIgnored') }}
+      </p>
     </div>
 
     <!-- Seed -->
@@ -99,19 +130,11 @@ const temperatureLabel = computed(() => {
         </p>
       </template>
       <template v-else>
-        <div class="flex gap-2">
-          <button
-            v-for="model in IMAGE_MODELS"
-            :key="model.value"
-            @click="store.imageModel = model.value"
-            class="flex-1 py-2 px-3 text-sm rounded-lg border transition-colors"
-            :class="store.imageModel === model.value
-              ? 'border-mode-generate bg-mode-generate-muted/30 text-text-primary'
-              : 'border-border-muted text-text-muted hover:border-mode-generate'"
-          >
-            {{ model.label }}
-          </button>
-        </div>
+        <SearchableSelect
+          :model-value="store.imageModel"
+          @update:model-value="store.imageModel = $event"
+          :groups="imageModelGroups"
+        />
         <p class="text-xs text-text-muted">
           {{ $t('settings.imageModel.hint') }}
         </p>

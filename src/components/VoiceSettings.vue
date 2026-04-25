@@ -1,8 +1,16 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGeneratorStore } from '@/stores/generator'
-import { VOICES, DEFAULT_LANGUAGES, NARRATION_STYLES, SCRIPT_MODELS, TTS_MODELS } from '@/constants/voiceOptions'
+import {
+  VOICES,
+  getOpenAIVoicesForModel,
+  DEFAULT_LANGUAGES,
+  NARRATION_STYLES,
+  SCRIPT_MODELS,
+  TTS_MODELS,
+} from '@/constants/voiceOptions'
+import { getProviderForModel } from '@/constants/modelCatalog'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import VoicePreviewButton from '@/components/VoicePreviewButton.vue'
 
@@ -58,31 +66,74 @@ const addCustomLanguage = () => {
   showAddLanguage.value = false
 }
 
-// Voice helpers
+// TTS provider — determines which voice list applies. OpenAI and Gemini use
+// disjoint voice sets; sending a Gemini voice to OpenAI (or vice-versa) gets
+// the request rejected with an unknown-voice 400.
+const ttsProvider = computed(() => getProviderForModel('tts', props.modelValue.ttsModel) || 'gemini')
+
 const voicesByGender = computed(() => {
   const female = VOICES.filter((v) => v.gender === 'female')
   const male = VOICES.filter((v) => v.gender === 'male')
   return { female, male }
 })
 
-const voiceGroups = computed(() => [
-  {
-    label: 'Female',
-    options: voicesByGender.value.female.map((v) => ({
-      value: v.name,
-      label: v.name,
-      description: v.characteristic,
-    })),
+const voiceGroups = computed(() => {
+  if (ttsProvider.value === 'openai') {
+    // OpenAI voice support varies by model (tts-1/-hd accept 9 voices,
+    // gpt-4o-mini-tts accepts 13). Filter so users cannot pick a voice the
+    // selected ttsModel will reject at runtime.
+    const filtered = getOpenAIVoicesForModel(props.modelValue.ttsModel)
+    return [
+      {
+        label: 'OpenAI',
+        options: filtered.map((v) => ({
+          value: v.name,
+          label: v.name,
+          description: v.characteristic,
+        })),
+      },
+    ]
+  }
+  return [
+    {
+      label: 'Female',
+      options: voicesByGender.value.female.map((v) => ({
+        value: v.name,
+        label: v.name,
+        description: v.characteristic,
+      })),
+    },
+    {
+      label: 'Male',
+      options: voicesByGender.value.male.map((v) => ({
+        value: v.name,
+        label: v.name,
+        description: v.characteristic,
+      })),
+    },
+  ]
+})
+
+// Normalize speaker voices whenever the allowed set changes — including the
+// initial render. Without `immediate: true`, persisted bad state (e.g. saved
+// `voiceName: 'Zephyr'` paired with `ttsModel: 'tts-1'`) would survive the
+// first mount because the watcher only fired on transitions; the request
+// would then be rejected by /audio/speech with an unknown-voice 400.
+watch(
+  voiceGroups,
+  () => {
+    const allowed = new Set(voiceGroups.value.flatMap((g) => g.options.map((o) => o.value)))
+    const fallback = ttsProvider.value === 'openai' ? 'alloy' : 'Zephyr'
+    const next = props.modelValue.speakers.map((s) =>
+      allowed.has(s.voiceName) ? s : { ...s, voiceName: fallback },
+    )
+    const changed = next.some((s, i) => s.voiceName !== props.modelValue.speakers[i].voiceName)
+    if (changed) {
+      emit('update:modelValue', { ...props.modelValue, speakers: next })
+    }
   },
-  {
-    label: 'Male',
-    options: voicesByGender.value.male.map((v) => ({
-      value: v.name,
-      label: v.name,
-      description: v.characteristic,
-    })),
-  },
-])
+  { immediate: true },
+)
 
 const isDuplicateVoice = computed(() => {
   if (props.modelValue.speakerMode !== 'dual') return false

@@ -43,6 +43,7 @@ import { GoogleGenAI } from '@google/genai'
 
 import { extractText, chunkText, extractAgentMessages, SEARCH_DEFAULTS } from '../utils/search-core.js'
 import { prepareEmbeddingMaterial } from '../utils/embedding-material.js'
+import { openaiFetch, OpenAIAPIError } from '../services/providers/openaiClient.js'
 
 // ============================================================================
 // Constants
@@ -55,9 +56,64 @@ const EMBEDDING_BATCH_API_LIMIT = 100 // Max texts per batchEmbedContents reques
 const MAX_CACHE_ENTRIES = 5000 // In-memory document embedding cache cap (not persisted)
 const MAX_CONCURRENCY = 10 // Max concurrent embedding API requests during indexing
 
+// providerKind groups entries that share an API path.
+// - dimensions (optional) is the matryoshka truncation passed to the API.
+// - dims is the actual vector length Orama indexes; matches the API output.
+const OPENAI_TEXT_CHUNK = { chunkSize: 800, chunkOverlap: 200, contextWindow: 1200 }
 const PROVIDER_CONFIG = {
-  gemini: { dims: 768, model: 'gemini-embedding-2-preview', chunkSize: 800, chunkOverlap: 200, contextWindow: 1200 },
-  local: { dims: 384, model: 'intfloat/multilingual-e5-small', chunkSize: 200, chunkOverlap: 50, contextWindow: 400 },
+  gemini: {
+    providerKind: 'gemini',
+    dims: 768,
+    model: 'gemini-embedding-2-preview',
+    chunkSize: 800,
+    chunkOverlap: 200,
+    contextWindow: 1200,
+  },
+  local: {
+    providerKind: 'local',
+    dims: 384,
+    model: 'intfloat/multilingual-e5-small',
+    chunkSize: 200,
+    chunkOverlap: 50,
+    contextWindow: 400,
+  },
+  'openai-small': {
+    providerKind: 'openai',
+    dims: 1536,
+    model: 'text-embedding-3-small',
+    ...OPENAI_TEXT_CHUNK,
+  },
+  'openai-small-768': {
+    providerKind: 'openai',
+    dims: 768,
+    model: 'text-embedding-3-small',
+    dimensions: 768,
+    ...OPENAI_TEXT_CHUNK,
+  },
+  'openai-large': {
+    providerKind: 'openai',
+    dims: 3072,
+    model: 'text-embedding-3-large',
+    ...OPENAI_TEXT_CHUNK,
+  },
+  'openai-large-1536': {
+    providerKind: 'openai',
+    dims: 1536,
+    model: 'text-embedding-3-large',
+    dimensions: 1536,
+    ...OPENAI_TEXT_CHUNK,
+  },
+  'openai-large-768': {
+    providerKind: 'openai',
+    dims: 768,
+    model: 'text-embedding-3-large',
+    dimensions: 768,
+    ...OPENAI_TEXT_CHUNK,
+  },
+}
+
+function getProviderKind(provider) {
+  return PROVIDER_CONFIG[provider]?.providerKind || null
 }
 
 // Bump when extractText/indexRecord logic changes to force snapshot rebuild.
@@ -168,6 +224,7 @@ let isInitialized = false
 // API keys for Gemini Embedding (passed from main thread)
 let apiKeyPrimary = null // Paid key
 let apiKeyFree = null // Free tier key (preferred for text usage)
+let apiKeyOpenAI = null // OpenAI key (single key, no free tier concept)
 
 // Free tier backoff: skip free key for 1 hour after 429
 let freeKeyExhausted = false
@@ -682,6 +739,66 @@ async function callGeminiSingleEmbed(text, taskType) {
 }
 
 // ============================================================================
+// OpenAI Embedding API
+// ============================================================================
+
+function getOpenAIEmbeddingConfig(provider = activeProvider) {
+  const cfg = PROVIDER_CONFIG[provider]
+  if (!cfg || cfg.providerKind !== 'openai') return null
+  const body = { model: cfg.model, encoding_format: 'float' }
+  if (cfg.dimensions) body.dimensions = cfg.dimensions
+  return { cfg, body }
+}
+
+function isOpenAIRateLimit(err) {
+  return err instanceof OpenAIAPIError && err.status === 429
+}
+
+/**
+ * Call OpenAI /embeddings for a batch of texts.
+ * Returns an array of embeddings aligned with input order.
+ */
+async function callOpenAIBatchEmbed(texts) {
+  if (!apiKeyOpenAI || texts.length === 0) return []
+  const ctx = getOpenAIEmbeddingConfig()
+  if (!ctx) return []
+
+  try {
+    const response = await openaiFetch('/embeddings', {
+      apiKey: apiKeyOpenAI,
+      method: 'POST',
+      body: { ...ctx.body, input: texts },
+    })
+    const json = await response.json()
+    const data = Array.isArray(json?.data) ? json.data : []
+    // OpenAI returns entries tagged with `index`; sort defensively.
+    const byIndex = new Array(texts.length).fill(null)
+    for (const entry of data) {
+      if (typeof entry.index === 'number' && Array.isArray(entry.embedding)) {
+        byIndex[entry.index] = entry.embedding
+      }
+    }
+    return byIndex
+  } catch (err) {
+    if (isOpenAIRateLimit(err)) {
+      console.warn('[search.worker] OpenAI embedding rate-limited')
+    } else {
+      console.warn('[search.worker] OpenAI batch embed failed:', err.message)
+    }
+    return []
+  }
+}
+
+/**
+ * Call OpenAI /embeddings for a single text. Returns the vector or null.
+ */
+async function callOpenAISingleEmbed(text) {
+  if (!apiKeyOpenAI) return null
+  const [vector] = await callOpenAIBatchEmbed([text])
+  return vector || null
+}
+
+// ============================================================================
 // OPFS Image Access (for multimodal embedding)
 // ============================================================================
 
@@ -931,11 +1048,12 @@ function prepareRecord(record, conversation = null) {
     }
   }
 
-  // Prepare image material and check cache (Gemini only)
+  // Prepare image material and check cache (Gemini only — OpenAI embeddings are text-only).
   let imageMaterial = []
   const cachedImageEmbeddings = new Map() // imgIdx → embedding
   const uncachedImageIndices = []
-  if (provider === 'gemini') {
+  const providerKind = getProviderKind(provider)
+  if (providerKind === 'gemini') {
     imageMaterial = prepareEmbeddingMaterial(record)
     for (let imgIdx = 0; imgIdx < imageMaterial.length; imgIdx++) {
       const { imagePath } = imageMaterial[imgIdx]
@@ -949,9 +1067,11 @@ function prepareRecord(record, conversation = null) {
     }
   }
 
-  // Count API calls needed (for progress reporting)
+  // Count API calls needed (for progress reporting).
+  // Gemini + OpenAI both issue ceil(n / BATCH_LIMIT) text calls; local is a single pipeline call.
   const textApiCalls = !provider ? 0
-    : provider === 'gemini' ? Math.ceil(uncachedIndices.length / EMBEDDING_BATCH_API_LIMIT)
+    : providerKind === 'gemini' || providerKind === 'openai'
+      ? Math.ceil(uncachedIndices.length / EMBEDDING_BATCH_API_LIMIT)
       : uncachedIndices.length > 0 ? 1 : 0
   const apiCallCount = textApiCalls + uncachedImageIndices.length
 
@@ -984,9 +1104,10 @@ async function executeRecord(prepared, pool, onProgress) {
   if (uncachedIndices.length > 0 && provider) {
     const uncachedTexts = uncachedIndices.map((i) => chunks[i].text)
     const embStart = performance.now()
+    const providerKind = getProviderKind(provider)
 
-    if (provider === 'gemini') {
-      // Split into batches and submit each to the pool
+    if (providerKind === 'gemini' || providerKind === 'openai') {
+      // Both use batched remote APIs; the only difference is the HTTP client.
       const batches = []
       for (let i = 0; i < uncachedTexts.length; i += EMBEDDING_BATCH_API_LIMIT) {
         batches.push({ startIdx: i, texts: uncachedTexts.slice(i, i + EMBEDDING_BATCH_API_LIMIT) })
@@ -995,7 +1116,13 @@ async function executeRecord(prepared, pool, onProgress) {
       const batchPromises = batches.map((batch) =>
         pool.run(async () => {
           try {
-            const result = await callGeminiBatchEmbed(batch.texts, 'RETRIEVAL_DOCUMENT')
+            const result = providerKind === 'gemini'
+              ? await callGeminiBatchEmbed(batch.texts, 'RETRIEVAL_DOCUMENT')
+              : await callOpenAIBatchEmbed(batch.texts)
+            // Pass null/undefined entries through unchanged. Downstream relies
+            // on `allNewEmbeddings[j] || new Array(dims).fill(0)` for missing
+            // slots; replacing them with [] would defeat that fallback and
+            // insert zero-length vectors into Orama (dim mismatch).
             return { startIdx: batch.startIdx, result }
           } catch (err) {
             console.warn('[search.worker] Batch embed failed:', err.message)
@@ -1196,7 +1323,9 @@ async function executeRecord(prepared, pool, onProgress) {
  */
 async function safeEmbed(query) {
   if (!activeProvider) return null
-  if (activeProvider === 'gemini' && !getApiKey()) return null
+  const providerKind = getProviderKind(activeProvider)
+  if (providerKind === 'gemini' && !getApiKey()) return null
+  if (providerKind === 'openai' && !apiKeyOpenAI) return null
 
   const cacheKey = `${activeProvider}:${query}`
   const cached = queryEmbeddingCache.get(cacheKey)
@@ -1217,8 +1346,10 @@ async function safeEmbed(query) {
       const embStart = performance.now()
       let queryVec
 
-      if (activeProvider === 'gemini') {
+      if (providerKind === 'gemini') {
         queryVec = await callGeminiSingleEmbed(query, 'RETRIEVAL_QUERY')
+      } else if (providerKind === 'openai') {
+        queryVec = await callOpenAISingleEmbed(query)
       } else {
         const [result] = await embedLocal([query], 'RETRIEVAL_QUERY')
         queryVec = result
@@ -1585,6 +1716,7 @@ async function initialize(keys = {}) {
   // Store API keys (can be updated later via 'updateApiKeys')
   if (keys.apiKey) apiKeyPrimary = keys.apiKey
   if (keys.freeApiKey) apiKeyFree = keys.freeApiKey
+  if (keys.openaiApiKey) apiKeyOpenAI = keys.openaiApiKey
   if (keys.provider !== undefined) activeProvider = keys.provider
 
   if (isInitialized) {
@@ -1700,7 +1832,12 @@ self.addEventListener('message', async (event) => {
   try {
     switch (type) {
       case 'init': {
-        await initialize({ apiKey: event.data.apiKey, freeApiKey: event.data.freeApiKey, provider: event.data.provider })
+        await initialize({
+          apiKey: event.data.apiKey,
+          freeApiKey: event.data.freeApiKey,
+          openaiApiKey: event.data.openaiApiKey,
+          provider: event.data.provider,
+        })
         break
       }
 
@@ -1715,10 +1852,15 @@ self.addEventListener('message', async (event) => {
             if (freeKeyResetTimer) { clearTimeout(freeKeyResetTimer); freeKeyResetTimer = null }
           }
         }
+        if (event.data.openaiApiKey !== undefined) {
+          apiKeyOpenAI = event.data.openaiApiKey
+        }
         // Invalidate SDK instance so it's recreated with the new key
         aiInstance = null
         aiInstanceKey = null
-        console.log(`[search.worker] API keys updated (primary=${!!apiKeyPrimary}, free=${!!apiKeyFree}, freeBackedOff=${freeKeyExhausted})`)
+        console.log(
+          `[search.worker] API keys updated (primary=${!!apiKeyPrimary}, free=${!!apiKeyFree}, openai=${!!apiKeyOpenAI}, freeBackedOff=${freeKeyExhausted})`,
+        )
         break
       }
 

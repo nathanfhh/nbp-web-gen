@@ -77,6 +77,12 @@
     "addFreeTier": "Add Free Tier Key",
     "freeTierHint": "Free Tier key can be used for character extraction, slide style analysis, and other text processing. When quota is exhausted, it automatically falls back to the main key.",
     "freeTierPrivacyWarning": "Google may use Free Tier inputs and outputs to improve its products and models. If you have privacy concerns, use only the paid API Key above.",
+    "openaiTitle": "OpenAI API Key",
+    "openaiSubtitle": "Used when you pick an OpenAI model (GPT Image, GPT-5.4, Embedding 3, OpenAI TTS)",
+    "openaiPlaceholder": "sk-... (from the OpenAI platform)",
+    "openaiHint": "Automatically used whenever you switch a selector to an OpenAI model.",
+    "getOpenAIKey": "Get a key →",
+    "addOpenAI": "Add OpenAI API Key (optional)",
     "showKey": "Show API Key",
     "hideKey": "Hide API Key"
   },
@@ -181,7 +187,8 @@
       "conservative": "Conservative",
       "balanced": "Balanced",
       "creative": "Creative",
-      "wild": "Wild"
+      "wild": "Wild",
+      "openaiIgnored": "⚠️ OpenAI image models ignore temperature (auto-omitted)"
     },
     "seed": {
       "label": "Seed (Random Seed)",
@@ -192,11 +199,13 @@
     "imageModel": {
       "label": "Image Model",
       "hint": "Pro for higher quality, Flash for faster speed",
-      "agentFixed": "Agent mode uses this model exclusively and cannot be changed"
+      "agentFixed": "Agent mode uses this model exclusively and cannot be changed",
+      "missingKey": "Requires {provider} API key"
     }
   },
   "options": {
     "resolution": "Resolution",
+    "openaiSizeHint": "OpenAI output size: {size}",
     "outputResolution": "Output Resolution",
     "quality": "Quality",
     "aspectRatio": "Aspect Ratio",
@@ -850,10 +859,19 @@
         "pros": "Better quality, strong cross-language capability",
         "cons": "Uses API key billing (~$0.15 / 1M tokens)"
       },
+      "openai": {
+        "titleSmall": "OpenAI Embedding 3 small",
+        "titleLarge": "OpenAI Embedding 3 large",
+        "descriptionSmall": "text-embedding-3-small (1536d) — fast and cheap",
+        "descriptionLarge": "text-embedding-3-large (3072d) — best quality, higher cost",
+        "descriptionTruncated": "Matryoshka-truncated to {dims} dims for smaller storage and faster search"
+      },
       "select": "Select",
       "current": "Current",
       "switchHint": "You can switch anytime from the search interface",
-      "noApiKey": "API Key required"
+      "noApiKey": "API Key required",
+      "rebuildHint": "Switching providers will re-embed every indexed record",
+      "rebuildConfirm": "Switching the embedding provider will re-embed every indexed history record. Continue?"
     },
     "providerLabel": "Engine:",
     "backfilling": "Backfilling semantic index {current}/{total}...",
@@ -971,7 +989,8 @@
     "noImageInResponse": "No image in API response",
     "invalidResponseFormat": "Invalid API response format",
     "noImageData": "No image data in API response",
-    "noImagesLoaded": "Failed to load image data"
+    "noImagesLoaded": "Failed to load image data",
+    "invalidNarrationScriptResponse": "Invalid narration script response structure"
   },
   "footer": {
     "title": "Mediator - AI Image & Video Generator"
@@ -1142,7 +1161,8 @@
     "generating": "Generating image {current}/{total}"
   },
   "generation": {
-    "noThinkingProcess": "This model does not provide thinking process"
+    "noThinkingProcess": "This model does not provide thinking process",
+    "retrying": "Retry {attempt}/{max} (reason: {reason}, waiting {seconds}s)"
   },
   "styles": {
     "photorealistic": "Photorealistic",

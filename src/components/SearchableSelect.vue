@@ -134,27 +134,55 @@ const toggle = () => {
 }
 
 const selectOption = (value) => {
+  // Per-option disabled gating: ignore selection of options flagged
+  // disabled by the caller (e.g., model entries whose provider key is
+  // unset). The dropdown stays open so the user can pick another item.
+  const target = flatOptions.value.find((o) => o.value === value)
+  if (target?.disabled) return
   emit('update:modelValue', value)
   close()
 }
 
-// Keyboard navigation
+// Step the highlight by `delta` positions, skipping disabled entries while
+// preserving wrap-around. Returns the original index if every option is
+// disabled, avoiding an infinite loop in degenerate states.
+const advanceHighlight = (delta) => {
+  const len = filteredFlat.value.length
+  if (!len) return
+  const start = highlightIndex.value
+  let next = ((start + delta) % len + len) % len
+  for (let steps = 0; steps < len; steps++) {
+    if (!filteredFlat.value[next]?.disabled) {
+      highlightIndex.value = next
+      return
+    }
+    next = ((next + delta) % len + len) % len
+  }
+  // Every option is disabled — leave the highlight where it was.
+  highlightIndex.value = start
+}
+
+// Keyboard navigation. Arrow keys skip disabled entries so users don't get
+// stuck on a dead option (matches native <select> + ARIA listbox behaviour).
 const onKeydown = (e) => {
   const len = filteredFlat.value.length
   if (!len) return
 
   if (e.key === 'ArrowDown') {
     e.preventDefault()
-    highlightIndex.value = (highlightIndex.value + 1) % len
+    advanceHighlight(1)
     scrollToHighlighted()
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
-    highlightIndex.value = (highlightIndex.value - 1 + len) % len
+    advanceHighlight(-1)
     scrollToHighlighted()
   } else if (e.key === 'Enter') {
     e.preventDefault()
     if (highlightIndex.value >= 0 && highlightIndex.value < len) {
-      selectOption(filteredFlat.value[highlightIndex.value].value)
+      const target = filteredFlat.value[highlightIndex.value]
+      if (target && !target.disabled) {
+        selectOption(target.value)
+      }
     }
   } else if (e.key === 'Escape') {
     e.preventDefault()
@@ -268,11 +296,14 @@ onBeforeUnmount(() => {
                 :class="{
                   'searchable-select__option--selected': opt.value === modelValue,
                   'searchable-select__option--highlighted': idx === highlightIndex,
+                  'searchable-select__option--disabled': opt.disabled,
                 }"
+                :disabled="opt.disabled"
+                :aria-disabled="opt.disabled || undefined"
                 :data-highlighted="idx === highlightIndex"
                 :data-selected="opt.value === modelValue"
                 @click="selectOption(opt.value)"
-                @mouseenter="highlightIndex = idx"
+                @mouseenter="opt.disabled ? null : (highlightIndex = idx)"
               >
                 <span class="searchable-select__option-text">
                   <span>{{ opt.label }}</span>
@@ -311,11 +342,14 @@ onBeforeUnmount(() => {
                     'searchable-select__option--selected': opt.value === modelValue,
                     'searchable-select__option--highlighted':
                       filteredFlat.indexOf(opt) === highlightIndex,
+                    'searchable-select__option--disabled': opt.disabled,
                   }"
+                  :disabled="opt.disabled"
+                  :aria-disabled="opt.disabled || undefined"
                   :data-highlighted="filteredFlat.indexOf(opt) === highlightIndex"
                   :data-selected="opt.value === modelValue"
                   @click="selectOption(opt.value)"
-                  @mouseenter="highlightIndex = filteredFlat.indexOf(opt)"
+                  @mouseenter="opt.disabled ? null : (highlightIndex = filteredFlat.indexOf(opt))"
                 >
                   <span class="searchable-select__option-text">
                     <span>{{ opt.label }}</span>
@@ -424,7 +458,12 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   z-index: 50;
-  background: var(--input-bg);
+  /* Opaque base + translucent overlay so the panel stays legible even when it
+     floats over the main page (backdrop-filter alone is not enough there).
+     --color-bg-base is the canonical opaque background token; --bg-card is
+     intentionally kept as the translucent legacy alias for the glass overlay. */
+  background-color: var(--color-bg-base);
+  background-image: linear-gradient(var(--bg-card), var(--bg-card));
   backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
@@ -507,6 +546,14 @@ onBeforeUnmount(() => {
 
 .searchable-select__option--selected {
   color: var(--color-mode-generate);
+}
+
+.searchable-select__option--disabled,
+.searchable-select__option--disabled:hover {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .searchable-select__option-text {

@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock useLocalStorage before importing useApi
-vi.mock('./useLocalStorage', () => ({
-  useLocalStorage: () => ({
-    getApiKey: vi.fn(() => 'test-api-key'),
-  }),
-}))
+// Stub the useApiKeyManager() factory so useApi()'s setup() doesn't reach
+// useI18n() (which requires a Vue app context unavailable in this unit test).
+// `importActual` is intentional: classifyError still calls the real
+// `isQuotaError` exported from the same module to detect quota messages, so
+// we keep every other export untouched and only override the composable
+// factory itself.
+vi.mock('./useApiKeyManager', async () => {
+  const actual = await vi.importActual('./useApiKeyManager')
+  return {
+    ...actual,
+    useApiKeyManager: () => ({
+      getApiKey: vi.fn(() => 'test-api-key'),
+    }),
+  }
+})
 
 import { useApi } from './useApi'
 import {

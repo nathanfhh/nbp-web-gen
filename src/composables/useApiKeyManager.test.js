@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isQuotaError } from './useApiKeyManager'
+import { isQuotaError, normalizeKeyArg } from './useApiKeyManager'
 
 describe('isQuotaError', () => {
   it('detects HTTP 429 via status property', () => {
@@ -49,5 +49,36 @@ describe('isQuotaError', () => {
 
   it('returns false for empty error object', () => {
     expect(isQuotaError({})).toBe(false)
+  })
+})
+
+describe('normalizeKeyArg', () => {
+  it('string "image" maps to Gemini image usage', () => {
+    expect(normalizeKeyArg('image')).toEqual({ provider: 'gemini', usage: 'image' })
+  })
+
+  it('string "text" maps to Gemini text usage', () => {
+    expect(normalizeKeyArg('text')).toEqual({ provider: 'gemini', usage: 'text' })
+  })
+
+  it('object with provider defaults usage to image', () => {
+    expect(normalizeKeyArg({ provider: 'openai' })).toEqual({ provider: 'openai', usage: 'image' })
+  })
+
+  it('object preserves provider + usage', () => {
+    expect(normalizeKeyArg({ provider: 'openai', usage: 'text' })).toEqual({
+      provider: 'openai',
+      usage: 'text',
+    })
+  })
+
+  it('object without provider defaults to gemini', () => {
+    expect(normalizeKeyArg({ usage: 'text' })).toEqual({ provider: 'gemini', usage: 'text' })
+  })
+
+  it('undefined / missing arg defaults to Gemini image', () => {
+    expect(normalizeKeyArg()).toEqual({ provider: 'gemini', usage: 'image' })
+    expect(normalizeKeyArg(undefined)).toEqual({ provider: 'gemini', usage: 'image' })
+    expect(normalizeKeyArg(null)).toEqual({ provider: 'gemini', usage: 'image' })
   })
 })
