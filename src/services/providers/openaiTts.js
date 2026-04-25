@@ -11,8 +11,20 @@
  */
 
 import { openaiFetch } from './openaiClient'
+import { findModel } from '@/constants/modelCatalog'
 
 const DEFAULT_FORMAT = 'mp3'
+
+/**
+ * Per OpenAI's /audio/speech docs, the `instructions` parameter only applies
+ * to the gpt-4o-mini-tts family. tts-1 and tts-1-hd reject it. The catalog
+ * already carries `supportsInstructions`, so honour that flag here.
+ */
+export function modelSupportsTtsInstructions(modelId) {
+  const entry = findModel('tts', modelId)
+  if (!entry) return false
+  return entry.supportsInstructions === true
+}
 
 export async function generateSpeechOpenAI({
   apiKey,
@@ -24,7 +36,9 @@ export async function generateSpeechOpenAI({
   signal,
 }) {
   const body = { model, input, voice, response_format: format }
-  if (instructions) body.instructions = instructions
+  if (instructions && modelSupportsTtsInstructions(model)) {
+    body.instructions = instructions
+  }
 
   const response = await openaiFetch('/audio/speech', {
     apiKey,

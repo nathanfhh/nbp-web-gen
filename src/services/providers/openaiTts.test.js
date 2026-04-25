@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseSpeakerSegments } from './openaiTts'
+import { parseSpeakerSegments, modelSupportsTtsInstructions } from './openaiTts'
 
 describe('openaiTts / parseSpeakerSegments', () => {
   it('returns a single anonymous segment when no speakers are given', () => {
@@ -65,5 +65,22 @@ Bob: `
       { speaker: 'Alice', text: 'one' },
       { speaker: 'Bob', text: 'two' },
     ])
+  })
+})
+
+describe('modelSupportsTtsInstructions', () => {
+  it('allows instructions for gpt-4o-mini-tts family', () => {
+    expect(modelSupportsTtsInstructions('gpt-4o-mini-tts-2025-12-15')).toBe(true)
+  })
+
+  it('rejects instructions for tts-1 / tts-1-hd', () => {
+    expect(modelSupportsTtsInstructions('tts-1')).toBe(false)
+    expect(modelSupportsTtsInstructions('tts-1-hd')).toBe(false)
+  })
+
+  it('returns false for unknown or empty model ids', () => {
+    expect(modelSupportsTtsInstructions('')).toBe(false)
+    expect(modelSupportsTtsInstructions(undefined)).toBe(false)
+    expect(modelSupportsTtsInstructions('bogus')).toBe(false)
   })
 })
