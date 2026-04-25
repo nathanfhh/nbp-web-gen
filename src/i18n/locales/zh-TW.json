@@ -989,7 +989,8 @@
     "noImageInResponse": "API 回應中沒有圖片",
     "invalidResponseFormat": "無效的 API 回應格式",
     "noImageData": "API 回應中沒有圖片數據",
-    "noImagesLoaded": "無法載入圖片資料"
+    "noImagesLoaded": "無法載入圖片資料",
+    "invalidNarrationScriptResponse": "旁白腳本回應格式無效"
   },
   "footer": {
     "title": "Mediator - AI 圖像與影片生成工具"

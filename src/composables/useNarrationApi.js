@@ -191,7 +191,7 @@ ${
       try {
         return JSON.parse(textResponse.trim())
       } catch {
-        throw new Error('Invalid narration script response structure')
+        throw new Error(t('errors.invalidNarrationScriptResponse'))
       }
     }
 
@@ -250,7 +250,7 @@ ${
     const result = await callScriptGeneration(pages, settings, model, temperature, onThinkingChunk)
 
     if (!result.globalStyleDirective || !Array.isArray(result.pageScripts)) {
-      throw new Error('Invalid narration script response structure')
+      throw new Error(t('errors.invalidNarrationScriptResponse'))
     }
 
     // Retry for missing pages

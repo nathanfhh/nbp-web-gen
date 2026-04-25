@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock useApiKeyManager to avoid pulling in vue-i18n at test time.
-// classifyError is a pure function that doesn't touch the key manager,
-// but useApi() instantiates it during setup.
+// Stub the useApiKeyManager() factory so useApi()'s setup() doesn't reach
+// useI18n() (which requires a Vue app context unavailable in this unit test).
+// `importActual` is intentional: classifyError still calls the real
+// `isQuotaError` exported from the same module to detect quota messages, so
+// we keep every other export untouched and only override the composable
+// factory itself.
 vi.mock('./useApiKeyManager', async () => {
   const actual = await vi.importActual('./useApiKeyManager')
   return {

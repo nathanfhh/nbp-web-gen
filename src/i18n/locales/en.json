@@ -989,7 +989,8 @@
     "noImageInResponse": "No image in API response",
     "invalidResponseFormat": "Invalid API response format",
     "noImageData": "No image data in API response",
-    "noImagesLoaded": "Failed to load image data"
+    "noImagesLoaded": "Failed to load image data",
+    "invalidNarrationScriptResponse": "Invalid narration script response structure"
   },
   "footer": {
     "title": "Mediator - AI Image & Video Generator"
