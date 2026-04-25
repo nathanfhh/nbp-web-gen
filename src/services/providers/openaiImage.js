@@ -17,13 +17,17 @@ import { openaiFetch, parseOpenAISSE, OpenAIAPIError } from './openaiClient'
 /**
  * Map our UI aspect ratio + resolution bucket into an OpenAI-compliant `size`.
  *
- * OpenAI constraints (gpt-image-2):
- * - both edges multiples of 16
- * - max edge 3840
- * - aspect ratio max 3:1
- * - total pixels in [655_360, 8_294_400]
+ * gpt-image-2 (per https://developers.openai.com/api/docs/guides/image-generation)
+ * accepts any size that satisfies:
+ *   - both edges multiples of 16
+ *   - max edge 3840
+ *   - aspect ratio max 3:1
+ *   - total pixels in [655_360, 8_294_400]
  *
- * The table uses popular sizes that stay inside those constraints.
+ * Note: the older /api/reference page for /images/generations still lists a
+ * strict enum (1024x1024 / 1536x1024 / 1024x1536 / auto) because it predates
+ * the gpt-image-2 launch on 2026-04-21; that enum only applies to gpt-image-1
+ * and dall-e models. The table below targets gpt-image-2's flexible surface.
  */
 const ASPECT_SIZE_TABLE = {
   '1:1': { '1k': '1024x1024', '2k': '2048x2048', '4k': '2880x2880' },
@@ -52,7 +56,7 @@ export function mapResolutionToQuality(resolution) {
 /**
  * Human label for each resolution bucket under OpenAI semantics.
  * We keep the internal value ('1k'/'2k'/'4k') stable across providers so
- * user preferences round-trip; only the label changes.
+ * user preferences round-trip; only the label (and API meaning) changes.
  */
 export const OPENAI_RESOLUTION_LABELS = {
   '1k': 'Low',

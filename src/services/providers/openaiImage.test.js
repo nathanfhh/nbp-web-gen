@@ -24,7 +24,6 @@ describe('openaiImage', () => {
     })
 
     it('maps 21:9 respecting 3:1 cap', () => {
-      // 21:9 ≈ 2.333, must stay ≤ 3:1
       const sizes = ['1k', '2k', '4k'].map((r) => mapAspectToSize('21:9', r))
       for (const size of sizes) {
         const [w, h] = size.split('x').map(Number)
@@ -40,7 +39,7 @@ describe('openaiImage', () => {
       expect(mapAspectToSize('1:1', 'bogus')).toBe('1024x1024')
     })
 
-    it('produces sizes that satisfy OpenAI gpt-image-2 constraints', () => {
+    it('produces sizes that satisfy gpt-image-2 constraints', () => {
       const aspects = ['1:1', '3:4', '4:3', '9:16', '16:9', '21:9']
       const resolutions = ['1k', '2k', '4k']
       for (const aspect of aspects) {
