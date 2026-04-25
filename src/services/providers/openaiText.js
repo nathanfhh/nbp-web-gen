@@ -83,8 +83,17 @@ export function buildOpenAIMessages({ prompt, systemPrompt, images = [] }) {
   return messages
 }
 
-function isGpt5Family(model) {
+export function isGpt5Family(model) {
   return typeof model === 'string' && model.startsWith('gpt-5.4')
+}
+
+/**
+ * gpt-5.4 reasoning models reject any temperature other than the implicit
+ * default (1). We omit the parameter entirely for this family so the caller's
+ * global temperature setting is ignored without erroring out.
+ */
+export function modelSupportsTemperature(model) {
+  return !isGpt5Family(model)
 }
 
 /**
@@ -100,7 +109,11 @@ export function buildChatCompletionBody({
 }) {
   const body = { model, messages }
 
-  if (temperature !== undefined && temperature !== null) {
+  if (
+    temperature !== undefined
+    && temperature !== null
+    && modelSupportsTemperature(model)
+  ) {
     body.temperature = temperature
   }
 

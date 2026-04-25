@@ -3,6 +3,8 @@ import {
   normalizeSchemaForOpenAI,
   buildOpenAIMessages,
   buildChatCompletionBody,
+  modelSupportsTemperature,
+  isGpt5Family,
 } from './openaiText'
 
 describe('openaiText', () => {
@@ -117,6 +119,24 @@ describe('openaiText', () => {
     })
   })
 
+  describe('isGpt5Family / modelSupportsTemperature', () => {
+    it('isGpt5Family detects gpt-5.4 prefix', () => {
+      expect(isGpt5Family('gpt-5.4')).toBe(true)
+      expect(isGpt5Family('gpt-5.4-mini')).toBe(true)
+      expect(isGpt5Family('gpt-5.4-nano')).toBe(true)
+      expect(isGpt5Family('gpt-4o')).toBe(false)
+      expect(isGpt5Family('')).toBe(false)
+      expect(isGpt5Family(null)).toBe(false)
+    })
+
+    it('modelSupportsTemperature excludes the gpt-5.4 family', () => {
+      expect(modelSupportsTemperature('gpt-5.4')).toBe(false)
+      expect(modelSupportsTemperature('gpt-5.4-mini')).toBe(false)
+      expect(modelSupportsTemperature('gpt-4o')).toBe(true)
+      expect(modelSupportsTemperature('gemini-3-flash-preview')).toBe(true)
+    })
+  })
+
   describe('buildChatCompletionBody', () => {
     it('assembles a minimal body', () => {
       const body = buildChatCompletionBody({
@@ -163,8 +183,15 @@ describe('openaiText', () => {
       ).toBeUndefined()
     })
 
-    it('passes through temperature', () => {
+    it('omits temperature for gpt-5.4 reasoning family (rejected by API)', () => {
       const body = buildChatCompletionBody({ model: 'gpt-5.4', messages: [], temperature: 0.2 })
+      expect(body.temperature).toBeUndefined()
+      const miniBody = buildChatCompletionBody({ model: 'gpt-5.4-mini', messages: [], temperature: 0.7 })
+      expect(miniBody.temperature).toBeUndefined()
+    })
+
+    it('passes through temperature for non-reasoning OpenAI models', () => {
+      const body = buildChatCompletionBody({ model: 'gpt-4o', messages: [], temperature: 0.2 })
       expect(body.temperature).toBe(0.2)
     })
 
