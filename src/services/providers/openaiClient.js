@@ -96,13 +96,15 @@ export async function* parseOpenAISSE(response, { signal } = {}) {
       if (done) break
       buffer += decoder.decode(value, { stream: true })
 
-      // Split on SSE event boundary (double newline). Keep last partial event in buffer.
-      const parts = buffer.split('\n\n')
+      // Split on SSE event boundary. The spec allows both LF and CRLF line
+      // endings, so accept "\n\n" or "\r\n\r\n". Keep the last partial event
+      // in the buffer for the next chunk.
+      const parts = buffer.split(/\r?\n\r?\n/)
       buffer = parts.pop() || ''
 
       for (const part of parts) {
         const dataLines = part
-          .split('\n')
+          .split(/\r?\n/)
           .map((l) => l.trim())
           .filter((l) => l.startsWith('data:'))
           .map((l) => l.slice(5).trim())

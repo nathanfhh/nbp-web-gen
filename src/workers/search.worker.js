@@ -1119,7 +1119,11 @@ async function executeRecord(prepared, pool, onProgress) {
             const result = providerKind === 'gemini'
               ? await callGeminiBatchEmbed(batch.texts, 'RETRIEVAL_DOCUMENT')
               : await callOpenAIBatchEmbed(batch.texts)
-            return { startIdx: batch.startIdx, result: result.map((v) => v || []) }
+            // Pass null/undefined entries through unchanged. Downstream relies
+            // on `allNewEmbeddings[j] || new Array(dims).fill(0)` for missing
+            // slots; replacing them with [] would defeat that fallback and
+            // insert zero-length vectors into Orama (dim mismatch).
+            return { startIdx: batch.startIdx, result }
           } catch (err) {
             console.warn('[search.worker] Batch embed failed:', err.message)
             return { startIdx: batch.startIdx, result: [] }

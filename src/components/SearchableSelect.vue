@@ -425,8 +425,10 @@ onBeforeUnmount(() => {
   right: 0;
   z-index: 50;
   /* Opaque base + translucent overlay so the panel stays legible even when it
-     floats over the main page (backdrop-filter alone is not enough there). */
-  background-color: var(--bg-base);
+     floats over the main page (backdrop-filter alone is not enough there).
+     --color-bg-base is the canonical opaque background token; --bg-card is
+     intentionally kept as the translucent legacy alias for the glass overlay. */
+  background-color: var(--color-bg-base);
   background-image: linear-gradient(var(--bg-card), var(--bg-card));
   backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);

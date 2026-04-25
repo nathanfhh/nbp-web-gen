@@ -104,6 +104,15 @@ describe('openaiClient', () => {
       expect(events).toEqual([{ ok: 1 }, { ok: 2 }])
     })
 
+    it('parses CRLF event boundaries (SSE spec allows both LF and CRLF)', async () => {
+      const sse = 'data: {"i":1}\r\n\r\ndata: {"i":2}\r\n\r\ndata: [DONE]\r\n\r\n'
+      const events = []
+      for await (const e of parseOpenAISSE(mockSSEResponse(sse))) {
+        events.push(e)
+      }
+      expect(events).toEqual([{ i: 1 }, { i: 2 }])
+    })
+
     it('terminates on [DONE] without yielding later events', async () => {
       const sse =
         'data: {"i":1}\n\n' +
